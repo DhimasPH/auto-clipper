@@ -177,13 +177,17 @@ def srt_to_ass(srt_text: str, width: int, height: int) -> str:
     """
     width = int(width) or 1080
     height = int(height) or 1920
-    font_size = max(12, round(height * 0.045))
-    outline = max(1, round(height * 0.0028))
-    margin_v = max(20, round(height * 0.06))
+    # Task 2.1: Proportional font sizing relative to width (better for vertical 9:16)
+    font_size = max(12, round(width * 0.075))
+    outline = max(1, round(width * 0.005))
+    shadow = max(1, round(width * 0.005))
+    margin_h = max(20, round(width * 0.08))
+    margin_v = max(20, round(height * 0.12)) # Lift higher from the bottom
+
     header = (
         "[Script Info]\n"
         "ScriptType: v4.00+\n"
-        "WrapStyle: 2\n"
+        "WrapStyle: 1\n"  # 1 = Smart word wrapping if line is too long
         f"PlayResX: {width}\n"
         f"PlayResY: {height}\n\n"
         "[V4+ Styles]\n"
@@ -191,7 +195,7 @@ def srt_to_ass(srt_text: str, width: int, height: int) -> str:
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
         "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
         f"Style: Default,Arial,{font_size},&H00FFFFFF,&H00000000,&H80000000,"
-        f"-1,0,0,0,100,100,0,0,1,{outline},0,2,60,60,{margin_v},1\n\n"
+        f"-1,0,0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n\n"
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )

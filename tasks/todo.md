@@ -14,9 +14,9 @@ Status:
 - [x] **Task 1.2:** Notifikasi OS-Level (B)
   - [x] Implementasi Web Notification API / IPC Notification saat selesai atau gagal.
   - [x] Pastikan tidak muncul jika app sedang di-focus.
-- [ ] **Task 1.3:** Halaman FAQ / Tutorial (F)
-  - [ ] Buat tombol "?" di header.
-  - [ ] Buat modal komponen `FAQModal.tsx`.
+- [x] **Task 1.3:** Halaman FAQ / Tutorial (F)
+  - [x] Buat tombol "?" di header.
+  - [x] Buat modal komponen `FAQModal.tsx`.
 - [x] **Task 1.4:** Simpan Default Settings (D)
   - [x] Persist provider & API key ke `localStorage`.
   - [x] Obfuscasi API key (misal dengan `btoa()`).
@@ -32,11 +32,11 @@ Status:
 ---
 
 ## Fase 2: Polish Caption (A)
-- [ ] **Task 2.1:** Audit & Fix Subtitle Sizing
-  - [ ] Sesuaikan resolusi ASS dan `font_size` ratio di `crop_utils.py`.
-- [ ] **Task 2.2:** Perbaiki Timing & Kalimat Subtitle
-  - [ ] Validasi edge case padding SRT/ASS.
-  - [ ] (Opsional) uji coba kualitas prompt transkrip.
+- [x] **Task 2.1:** Audit & Fix Subtitle Sizing
+  - [x] Sesuaikan resolusi ASS dan `font_size` ratio di `crop_utils.py`.
+- [x] **Task 2.2:** Perbaiki Timing & Kalimat Subtitle
+  - [x] Validasi edge case padding SRT/ASS.
+  - [x] (Opsional) uji coba kualitas prompt transkrip.
 
 ### Checkpoint Fase 2
 - [ ] Subtitle terbaca dan tidak overlap bounds.

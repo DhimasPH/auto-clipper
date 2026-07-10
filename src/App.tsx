@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import FAQModal from "./components/FAQModal";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -55,6 +56,9 @@ export default function App() {
   const [subtitlePath, setSubtitlePath] = useState<string | null>(null);
   const [sourcePath, setSourcePath] = useState("");
   const [reRendering, setReRendering] = useState<number | null>(null);
+  
+  // Task 1.3: FAQ Modal state
+  const [isFAQOpen, setIsFAQOpen] = useState(false);
 
   type Toast = { id: number; text: string; kind: "info" | "success" | "error" };
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -341,27 +345,51 @@ export default function App() {
             Turn long videos into viral shorts instantly.
           </p>
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            fontSize: "0.875rem",
-            background: "rgba(255,255,255,0.05)",
-            padding: "0.5rem 1rem",
-            borderRadius: "99px",
-          }}
-        >
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+          <button
+            onClick={() => setIsFAQOpen(true)}
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "white",
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%",
+              cursor: "pointer",
+              fontWeight: "bold",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "background 0.2s"
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+            title="Cara Penggunaan (FAQ)"
+          >
+            ?
+          </button>
           <div
             style={{
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              backgroundColor:
-                backendStatus === "Connected" ? "#10b981" : "#ef4444",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              fontSize: "0.875rem",
+              background: "rgba(255,255,255,0.05)",
+              padding: "0.5rem 1rem",
+              borderRadius: "99px",
             }}
-          />
-          Backend: {backendStatus}
+          >
+            <div
+              style={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                backgroundColor:
+                  backendStatus === "Connected" ? "#10b981" : "#ef4444",
+              }}
+            />
+            Backend: {backendStatus}
+          </div>
         </div>
       </header>
 
@@ -841,6 +869,9 @@ export default function App() {
           </div>
         </section>
       )}
+
+      {/* Task 1.3: Render FAQ Modal */}
+      <FAQModal isOpen={isFAQOpen} onClose={() => setIsFAQOpen(false)} />
     </div>
   );
 }
