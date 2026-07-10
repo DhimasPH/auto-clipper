@@ -6,6 +6,26 @@
   --text-primary: #f3f4f6;
   --text-secondary: #9ca3af;
   --border: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(26, 29, 36, 0.6);
+  --input-bg: rgba(0, 0, 0, 0.2);
+  --button-hover: rgba(255, 255, 255, 0.1);
+  --error-bg: rgba(239, 68, 68, 0.1);
+  --error-text: #f87171;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --border: rgba(0, 0, 0, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --input-bg: rgba(255, 255, 255, 1);
+  --button-hover: rgba(0, 0, 0, 0.05);
+  --error-bg: rgba(254, 226, 226, 1);
+  --error-text: #dc2626;
 }
 
 body {
@@ -22,7 +42,7 @@ body {
 
 /* Glassmorphism utilities */
 .glass-panel {
-  background: rgba(26, 29, 36, 0.6);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
@@ -54,9 +74,9 @@ body {
 .spinner {
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(255,255,255,0.3);
+  border: 3px solid var(--border);
   border-radius: 50%;
-  border-top-color: #fff;
+  border-top-color: var(--accent);
   animation: spin 1s ease-in-out infinite;
   display: inline-block;
 }

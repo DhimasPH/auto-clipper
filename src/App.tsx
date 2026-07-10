@@ -60,6 +60,22 @@ export default function App() {
   // Task 1.3: FAQ Modal state
   const [isFAQOpen, setIsFAQOpen] = useState(false);
 
+  // Task 3.2: Theme state
+  const [theme, setTheme] = useState<"dark" | "light" | "system">(() => {
+    return (localStorage.getItem("ac_theme") as any) || "system";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("ac_theme", theme);
+    const root = document.documentElement;
+    if (theme === "system") {
+      const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+      root.setAttribute("data-theme", prefersLight ? "light" : "dark");
+    } else {
+      root.setAttribute("data-theme", theme);
+    }
+  }, [theme]);
+
   type Toast = { id: number; text: string; kind: "info" | "success" | "error" };
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -346,12 +362,37 @@ export default function App() {
           </p>
         </div>
         <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+          {/* Task 3.2: Theme Toggle */}
+          <button
+            onClick={() => {
+              if (theme === "dark") setTheme("light");
+              else if (theme === "light") setTheme("system");
+              else setTheme("dark");
+            }}
+            style={{
+              background: "var(--button-hover)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)",
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "1rem"
+            }}
+            title={`Tema saat ini: ${theme}`}
+          >
+            {theme === "dark" ? "🌙" : theme === "light" ? "☀️" : "💻"}
+          </button>
+          
           <button
             onClick={() => setIsFAQOpen(true)}
             style={{
-              background: "rgba(255,255,255,0.1)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              color: "white",
+              background: "var(--button-hover)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)",
               width: "32px",
               height: "32px",
               borderRadius: "50%",
@@ -408,7 +449,7 @@ export default function App() {
           style={{
             display: "flex",
             gap: "1rem",
-            background: "rgba(0,0,0,0.2)",
+            background: "var(--input-bg)",
             padding: "0.5rem",
             borderRadius: "12px",
           }}
@@ -421,7 +462,7 @@ export default function App() {
               borderRadius: "8px",
               border: "none",
               background: mode === "ai" ? "var(--accent)" : "transparent",
-              color: mode === "ai" ? "white" : "var(--text-secondary)",
+              color: mode === "ai" ? "#fff" : "var(--text-secondary)",
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.2s",
@@ -437,7 +478,7 @@ export default function App() {
               borderRadius: "8px",
               border: "none",
               background: mode === "manual" ? "var(--accent)" : "transparent",
-              color: mode === "manual" ? "white" : "var(--text-secondary)",
+              color: mode === "manual" ? "#fff" : "var(--text-secondary)",
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.2s",
@@ -469,8 +510,8 @@ export default function App() {
               padding: "0.875rem 1rem",
               borderRadius: "12px",
               border: "1px solid var(--border)",
-              background: "rgba(0,0,0,0.2)",
-              color: "white",
+              background: "var(--input-bg)",
+              color: "var(--text-primary)",
               fontSize: "1rem",
               outline: "none",
               transition: "border-color 0.2s",
@@ -511,16 +552,16 @@ export default function App() {
                   padding: "0.875rem 1rem",
                   borderRadius: "12px",
                   border: "1px solid var(--border)",
-                  background: "rgba(0,0,0,0.2)",
-                  color: "white",
+                  background: "var(--input-bg)",
+                  color: "var(--text-primary)",
                   fontSize: "1rem",
                   outline: "none",
                 }}
               >
-                <option value="openai" style={{ background: "#1e1e2e" }}>
+                <option value="openai" style={{ background: "var(--bg-secondary)" }}>
                   OpenAI (GPT-4o + Whisper)
                 </option>
-                <option value="gemini" style={{ background: "#1e1e2e" }}>
+                <option value="gemini" style={{ background: "var(--bg-secondary)" }}>
                   Google Gemini (2.5 Flash)
                 </option>
               </select>
@@ -650,8 +691,8 @@ export default function App() {
                   padding: "0.875rem 1rem",
                   borderRadius: "12px",
                   border: "1px solid var(--border)",
-                  background: "rgba(0,0,0,0.2)",
-                  color: "white",
+                  background: "var(--input-bg)",
+                  color: "var(--text-primary)",
                   fontSize: "1rem",
                   outline: "none",
                   transition: "border-color 0.2s",
@@ -668,9 +709,9 @@ export default function App() {
             style={{
               padding: "1rem",
               borderRadius: "12px",
-              background: "rgba(239, 68, 68, 0.1)",
-              border: "1px solid rgba(239, 68, 68, 0.2)",
-              color: "#f87171",
+              background: "var(--error-bg)",
+              border: "1px solid var(--error-bg)",
+              color: "var(--error-text)",
             }}
           >
             ⚠️ {errorMsg}
@@ -835,8 +876,8 @@ export default function App() {
                         border: "1px solid var(--border)",
                         background: clip.subs
                           ? "var(--accent)"
-                          : "rgba(255,255,255,0.06)",
-                        color: clip.subs ? "white" : "var(--text-secondary)",
+                          : "var(--button-hover)",
+                        color: clip.subs ? "#fff" : "var(--text-secondary)",
                         fontSize: "0.8rem",
                         cursor:
                           reRendering !== null ? "not-allowed" : "pointer",

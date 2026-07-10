@@ -45,11 +45,11 @@ Status:
 ---
 
 ## Fase 3: Fondasi UI (Theme + i18n + Polish)
-- [ ] **Task 3.1:** Refactor CSS ke Design Tokens
-  - [ ] Buat custom variables di `index.css`.
-  - [ ] Hapus inline colors di JSX.
-- [ ] **Task 3.2:** Dark / Light / System Theme Toggle
-  - [ ] Buat UI toggle dan persist state.
+- [x] **Task 3.1:** Refactor CSS ke Design Tokens
+  - [x] Buat custom variables di `index.css`.
+  - [x] Hapus inline colors di JSX.
+- [x] **Task 3.2:** Dark / Light / System Theme Toggle
+  - [x] Buat UI toggle dan persist state.
 - [ ] **Task 3.3:** Setup i18n (ID + EN)
   - [ ] Install `react-i18next`.
   - [ ] Ekstrak strings ke file `locales/id.json` dan `en.json`.
