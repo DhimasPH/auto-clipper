@@ -3,6 +3,8 @@ name: Build and Release
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*'
   pull_request:
     branches: [main]
 
@@ -79,3 +81,14 @@ jobs:
             release/*.exe
             release/*.dmg
             release/*.AppImage
+
+      - name: Release to GitHub
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
