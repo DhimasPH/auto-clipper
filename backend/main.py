@@ -34,9 +34,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from backend.db import init_db, get_all_history, delete_history, get_app_data_dir
+
 @app.post("/upload")
 def api_upload_video(file: UploadFile = File(...)):
-    temp_dir = os.path.abspath(os.path.join(os.getcwd(), "temp_downloads"))
+    temp_dir = os.path.abspath(os.path.join(get_app_data_dir(), "temp_downloads"))
     os.makedirs(temp_dir, exist_ok=True)
     file_path = os.path.join(temp_dir, f"upload_{file.filename}")
     with open(file_path, "wb") as buffer:
@@ -145,7 +147,7 @@ def get_video(path: str):
     FileResponse handles HTTP Range requests, so seeking works in the player.
     """
     abs_path = os.path.abspath(path)
-    temp_dir = os.path.abspath(os.path.join(os.getcwd(), "temp_downloads"))
+    temp_dir = os.path.abspath(os.path.join(get_app_data_dir(), "temp_downloads"))
     if not abs_path.startswith(temp_dir) or not os.path.exists(abs_path):
         return JSONResponse(status_code=404, content={"status": "error", "message": "File not found"})
     return FileResponse(abs_path, media_type="video/mp4", filename=os.path.basename(abs_path))

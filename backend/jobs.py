@@ -6,16 +6,16 @@ import os
 from backend.video_utils import download_youtube_video
 from backend.ai_utils import process_with_openai, process_with_gemini
 from backend.crop_utils import crop_to_vertical
-from backend.db import save_history
+from backend.db import save_history, get_app_data_dir
 
 active_jobs = {}
 MAX_CLIPS = 3
 
 def get_temp_dir():
-    return os.path.join(os.getcwd(), "temp_downloads")
+    return os.path.join(get_app_data_dir(), "temp_downloads")
 
 def get_error_log_path():
-    return os.path.join(os.getcwd(), "backend_error.log")
+    return os.path.join(get_app_data_dir(), "backend_error.log")
 
 def log_error(context: str) -> None:
     try:

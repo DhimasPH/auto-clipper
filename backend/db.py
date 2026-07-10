@@ -3,8 +3,23 @@ import os
 import json
 from datetime import datetime
 
+import sys
+
+def get_app_data_dir():
+    home = os.path.expanduser("~")
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA", os.path.join(home, "AppData", "Roaming"))
+    elif sys.platform == "darwin":
+        base = os.path.join(home, "Library", "Application Support")
+    else:
+        base = os.environ.get("XDG_DATA_HOME", os.path.join(home, ".local", "share"))
+    
+    app_dir = os.path.join(base, "AutoClipper")
+    os.makedirs(app_dir, exist_ok=True)
+    return app_dir
+
 def get_db_path():
-    return os.path.join(os.getcwd(), "history.db")
+    return os.path.join(get_app_data_dir(), "history.db")
 
 def init_db():
     conn = sqlite3.connect(get_db_path())
