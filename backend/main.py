@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from backend.video_utils import download_youtube_video
-from backend.ai_utils import transcribe_audio, get_highlights
+from backend.ai_utils import process_with_openai, process_with_gemini
 from backend.crop_utils import crop_to_vertical
 import os
 
@@ -38,6 +38,7 @@ def download_video(req: DownloadRequest):
 class ProcessAIRequest(BaseModel):
     file_path: str
     api_key: str
+    provider: str = "openai"
 
 @app.post("/process-ai")
 def process_ai(req: ProcessAIRequest):
@@ -45,16 +46,15 @@ def process_ai(req: ProcessAIRequest):
         return {"status": "error", "message": "File not found"}
         
     try:
-        # 1. Transcribe
-        transcript = transcribe_audio(req.file_path, req.api_key)
-        
-        # 2. Get Highlights
-        highlights = get_highlights(transcript, req.api_key)
-        
+        if req.provider == "gemini":
+            result = process_with_gemini(req.file_path, req.api_key)
+        else:
+            result = process_with_openai(req.file_path, req.api_key)
+            
         return {
             "status": "success",
-            "transcript": transcript,
-            "highlights": highlights
+            "transcript": result["transcript"],
+            "highlights": result["highlights"]
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}

@@ -5,3 +5,4 @@ httpx
 yt-dlp
 openai
 opencv-python-headless<5.0.0
+google-genai

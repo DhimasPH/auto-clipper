@@ -7,6 +7,7 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState('Checking...');
   const [url, setUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
+  const [provider, setProvider] = useState<'openai' | 'gemini'>('openai');
   
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   const [manualStart, setManualStart] = useState('00:00:00');
@@ -46,7 +47,8 @@ export default function App() {
         setStatus('TRANSCRIBING');
         const aiRes = await axios.post(`${API_URL}/process-ai`, { 
           file_path: videoPath, 
-          api_key: apiKey 
+          api_key: apiKey,
+          provider
         });
         if (aiRes.data.status === 'error') throw new Error(aiRes.data.message);
         
@@ -135,17 +137,32 @@ export default function App() {
         </div>
 
         {mode === 'ai' ? (
-          <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>OpenAI API Key (For Transcription & Highlights)</label>
-            <input 
-              type="password" 
-              placeholder="sk-..." 
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              style={{ width: '100%', padding: '0.875rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s' }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
-            />
+          <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>AI Provider</label>
+              <select 
+                value={provider} 
+                onChange={(e) => setProvider(e.target.value as 'openai' | 'gemini')}
+                style={{ width: '100%', padding: '0.875rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '1rem', outline: 'none' }}
+              >
+                <option value="openai" style={{ background: '#1e1e2e' }}>OpenAI (GPT-4o + Whisper)</option>
+                <option value="gemini" style={{ background: '#1e1e2e' }}>Google Gemini (2.5 Flash)</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                {provider === 'openai' ? 'OpenAI API Key (For Transcription & Highlights)' : 'Gemini API Key'}
+              </label>
+              <input 
+                type="password" 
+                placeholder={provider === 'openai' ? 'sk-...' : 'AIza...'}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                style={{ width: '100%', padding: '0.875rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s' }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+              />
+            </div>
           </div>
         ) : (
           <div className="animate-slide-up" style={{ display: 'flex', gap: '1rem' }}>
