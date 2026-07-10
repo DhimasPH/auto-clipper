@@ -3,3 +3,4 @@ uvicorn
 pytest
 httpx
 yt-dlp
+openai
