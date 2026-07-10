@@ -8,6 +8,10 @@ export default function App() {
   const [url, setUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   
+  const [mode, setMode] = useState<'ai' | 'manual'>('ai');
+  const [manualStart, setManualStart] = useState('00:00:00');
+  const [manualEnd, setManualEnd] = useState('00:00:15');
+  
   const [status, setStatus] = useState<'IDLE' | 'DOWNLOADING' | 'TRANSCRIBING' | 'CROPPING' | 'DONE' | 'ERROR'>('IDLE');
   const [errorMsg, setErrorMsg] = useState('');
   const [clips, setClips] = useState<string[]>([]);
@@ -21,7 +25,7 @@ export default function App() {
 
   const handleGenerate = async () => {
     if (!url) return setErrorMsg("Please enter a YouTube URL.");
-    if (!apiKey) return setErrorMsg("Please enter an OpenAI API Key.");
+    if (mode === 'ai' && !apiKey) return setErrorMsg("Please enter an OpenAI API Key for AI mode.");
     
     setErrorMsg('');
     setClips([]);
@@ -34,28 +38,38 @@ export default function App() {
       if (dlRes.data.status === 'error') throw new Error(dlRes.data.message);
       const videoPath = dlRes.data.file_path;
 
-      // 2. Transcribe & Highlight
-      setStatus('TRANSCRIBING');
-      const aiRes = await axios.post(`${API_URL}/process-ai`, { 
-        file_path: videoPath, 
-        api_key: apiKey 
-      });
-      if (aiRes.data.status === 'error') throw new Error(aiRes.data.message);
-      
-      const highlights = aiRes.data.highlights;
-      setHighlightsList(highlights);
-      
-      if (!highlights || highlights.length === 0) {
-        throw new Error("No highlights could be detected.");
+      let targetStartTime = manualStart;
+      let targetEndTime = manualEnd;
+
+      // 2. Transcribe & Highlight (Only if AI Mode)
+      if (mode === 'ai') {
+        setStatus('TRANSCRIBING');
+        const aiRes = await axios.post(`${API_URL}/process-ai`, { 
+          file_path: videoPath, 
+          api_key: apiKey 
+        });
+        if (aiRes.data.status === 'error') throw new Error(aiRes.data.message);
+        
+        const highlights = aiRes.data.highlights;
+        setHighlightsList(highlights);
+        
+        if (!highlights || highlights.length === 0) {
+          throw new Error("No highlights could be detected.");
+        }
+        
+        targetStartTime = highlights[0].start_time;
+        targetEndTime = highlights[0].end_time;
+      } else {
+        // Manual mode mock highlight info
+        setHighlightsList([{ description: "Manual Custom Clip" }]);
       }
 
-      // 3. Crop the best highlight (just the first one for MVP)
+      // 3. Crop
       setStatus('CROPPING');
-      const bestHighlight = highlights[0];
       const cropRes = await axios.post(`${API_URL}/crop`, {
         file_path: videoPath,
-        start_time: bestHighlight.start_time,
-        end_time: bestHighlight.end_time
+        start_time: targetStartTime,
+        end_time: targetEndTime
       });
       
       if (cropRes.data.status === 'error') throw new Error(cropRes.data.message);
@@ -91,6 +105,22 @@ export default function App() {
       {/* Main Panel */}
       <main className="glass-panel animate-slide-up" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         
+        {/* Mode Selector */}
+        <div style={{ display: 'flex', gap: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.5rem', borderRadius: '12px' }}>
+          <button 
+            onClick={() => setMode('ai')}
+            style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: 'none', background: mode === 'ai' ? 'var(--accent)' : 'transparent', color: mode === 'ai' ? 'white' : 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            ✨ AI Auto Clip
+          </button>
+          <button 
+            onClick={() => setMode('manual')}
+            style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: 'none', background: mode === 'manual' ? 'var(--accent)' : 'transparent', color: mode === 'manual' ? 'white' : 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            ✂️ Manual Clip
+          </button>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>YouTube Video URL</label>
           <input 
@@ -104,18 +134,47 @@ export default function App() {
           />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>OpenAI API Key (For Transcription & Highlights)</label>
-          <input 
-            type="password" 
-            placeholder="sk-..." 
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            style={{ width: '100%', padding: '0.875rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s' }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
-            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
-          />
-        </div>
+        {mode === 'ai' ? (
+          <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>OpenAI API Key (For Transcription & Highlights)</label>
+            <input 
+              type="password" 
+              placeholder="sk-..." 
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              style={{ width: '100%', padding: '0.875rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s' }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+            />
+          </div>
+        ) : (
+          <div className="animate-slide-up" style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Start Time</label>
+              <input 
+                type="text" 
+                placeholder="00:00:00" 
+                value={manualStart}
+                onChange={(e) => setManualStart(e.target.value)}
+                style={{ width: '100%', padding: '0.875rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s' }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+              />
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>End Time</label>
+              <input 
+                type="text" 
+                placeholder="00:00:15" 
+                value={manualEnd}
+                onChange={(e) => setManualEnd(e.target.value)}
+                style={{ width: '100%', padding: '0.875rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s' }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+              />
+            </div>
+          </div>
+        )}
 
         {errorMsg && (
           <div style={{ padding: '1rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#f87171' }}>
@@ -147,7 +206,7 @@ export default function App() {
         >
           {(status !== 'IDLE' && status !== 'DONE' && status !== 'ERROR') ? (
             <><div className="spinner" /> {status === 'DOWNLOADING' ? 'Downloading Video...' : status === 'TRANSCRIBING' ? 'AI is Analyzing...' : 'Cropping Video...'}</>
-          ) : '✨ Generate Viral Clips'}
+          ) : mode === 'ai' ? '✨ Generate Viral Clips' : '✂️ Crop Manual Clip'}
         </button>
       </main>
 
@@ -161,9 +220,9 @@ export default function App() {
                 <p style={{ color: 'var(--text-secondary)' }}>Clip Ready</p>
               </div>
               <div>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>Clip 1</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>{mode === 'ai' ? 'Clip 1' : 'Manual Clip'}</h3>
                 <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  {highlightsList[0]?.description || "AI Highlight"}
+                  {highlightsList[0]?.description || "Video berhasil dicrop ke format vertikal."}
                 </p>
                 <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: '#9ca3af', fontFamily: 'monospace' }}>
                   Saved to: {clips[0]}
