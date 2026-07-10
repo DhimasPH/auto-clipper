@@ -6,8 +6,27 @@ const API_URL = "http://127.0.0.1:8000";
 export default function App() {
   const [backendStatus, setBackendStatus] = useState("Checking...");
   const [url, setUrl] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [provider, setProvider] = useState<"openai" | "gemini">("openai");
+  // Task 1.4: Load from localStorage
+  const [apiKey, setApiKey] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ac_api_key");
+      return saved ? atob(saved) : "";
+    } catch {
+      return "";
+    }
+  });
+  const [provider, setProvider] = useState<"openai" | "gemini">(() => {
+    return (localStorage.getItem("ac_provider") as any) || "openai";
+  });
+
+  // Task 1.4: Save to localStorage on change
+  useEffect(() => {
+    if (apiKey) localStorage.setItem("ac_api_key", btoa(apiKey));
+    else localStorage.removeItem("ac_api_key");
+  }, [apiKey]);
+  useEffect(() => {
+    localStorage.setItem("ac_provider", provider);
+  }, [provider]);
 
   const [mode, setMode] = useState<"ai" | "manual">("ai");
   const [manualStart, setManualStart] = useState("00:00:00");
@@ -54,6 +73,11 @@ export default function App() {
   // Poll health so the indicator self-heals once the backend finishes booting
   // (it starts as an Electron child process and isn't ready immediately).
   useEffect(() => {
+    // Task 1.2: Request Notification Permission
+    if (window.Notification && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
     let active = true;
     const check = () => {
       axios
@@ -143,28 +167,41 @@ export default function App() {
         setProgress(`Rendering clip ${i + 1} of ${segments.length}`);
         notify(`✂️ Merender clip ${i + 1} dari ${segments.length}...`);
         const seg = segments[i];
-        const cropRes = await axios.post(`${API_URL}/crop`, {
-          file_path: videoPath,
-          start_time: seg.start_time,
-          end_time: seg.end_time,
-          subtitle_path: useSubs ? srtPath : null,
-        });
-        if (cropRes.data.status === "error")
-          throw new Error(cropRes.data.message);
-        generated.push({
-          path: cropRes.data.file_path,
-          description: seg.description,
-          start: seg.start_time,
-          end: seg.end_time,
-          subs: useSubs,
-          v: 0,
-        });
-        setClips([...generated]);
+        
+        try {
+          const cropRes = await axios.post(`${API_URL}/crop`, {
+            file_path: videoPath,
+            start_time: seg.start_time,
+            end_time: seg.end_time,
+            subtitle_path: useSubs ? srtPath : null,
+          });
+          if (cropRes.data.status === "error")
+            throw new Error(cropRes.data.message);
+          generated.push({
+            path: cropRes.data.file_path,
+            description: seg.description,
+            start: seg.start_time,
+            end: seg.end_time,
+            subs: useSubs,
+            v: 0,
+          });
+          setClips([...generated]);
+        } catch (cropErr: any) {
+          console.error(`Clip ${i+1} failed:`, cropErr);
+          notify(`⚠️ Clip ${i+1} gagal: ${cropErr.response?.data?.message || cropErr.message}`, "error");
+        }
       }
 
       setProgress("");
       setStatus("DONE");
-      notify(`🎉 Selesai! ${generated.length} clip berhasil dibuat`, "success");
+      if (generated.length > 0) {
+        notify(`🎉 Selesai! ${generated.length} clip berhasil dibuat`, "success");
+        if (window.Notification && Notification.permission === "granted") {
+          new Notification("Auto Clipper Selesai", { body: `${generated.length} clip berhasil dibuat!` });
+        }
+      } else {
+        throw new Error("Semua clip gagal dirender.");
+      }
     } catch (err: any) {
       console.error(err);
       setStatus("ERROR");

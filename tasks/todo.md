@@ -8,22 +8,22 @@ Status:
 ---
 
 ## Fase 1: Quick Wins (Effort S, Dampak Tinggi)
-- [ ] **Task 1.1:** Support Format URL YouTube Lain (E)
-  - [ ] Hapus validasi regex ketat URL di frontend.
-  - [ ] Test dengan URL `youtu.be/...` dan Shorts.
-- [ ] **Task 1.2:** Notifikasi OS-Level (B)
-  - [ ] Implementasi Web Notification API / IPC Notification saat selesai atau gagal.
-  - [ ] Pastikan tidak muncul jika app sedang di-focus.
+- [x] **Task 1.1:** Support Format URL YouTube Lain (E)
+  - [x] Hapus validasi regex ketat URL di frontend.
+  - [x] Test dengan URL `youtu.be/...` dan Shorts.
+- [x] **Task 1.2:** Notifikasi OS-Level (B)
+  - [x] Implementasi Web Notification API / IPC Notification saat selesai atau gagal.
+  - [x] Pastikan tidak muncul jika app sedang di-focus.
 - [ ] **Task 1.3:** Halaman FAQ / Tutorial (F)
   - [ ] Buat tombol "?" di header.
   - [ ] Buat modal komponen `FAQModal.tsx`.
-- [ ] **Task 1.4:** Simpan Default Settings (D)
-  - [ ] Persist provider & API key ke `localStorage`.
-  - [ ] Obfuscasi API key (misal dengan `btoa()`).
-  - [ ] Auto-load settings saat app dibuka.
-- [ ] **Task 1.5:** Kalau 1 Clip Gagal, Lanjut Clip Lain (G)
-  - [ ] Ubah loop crop di `App.tsx` agar menggunakan block try-catch mandiri.
-  - [ ] Tampilkan notifikasi jumlah success/failed.
+- [x] **Task 1.4:** Simpan Default Settings (D)
+  - [x] Persist provider & API key ke `localStorage`.
+  - [x] Obfuscasi API key (misal dengan `btoa()`).
+  - [x] Auto-load settings saat app dibuka.
+- [x] **Task 1.5:** Kalau 1 Clip Gagal, Lanjut Clip Lain (G)
+  - [x] Ubah loop crop di `App.tsx` agar menggunakan block try-catch mandiri.
+  - [x] Tampilkan notifikasi jumlah success/failed.
 
 ### Checkpoint Fase 1
 - [ ] Build clean tanpa error.
