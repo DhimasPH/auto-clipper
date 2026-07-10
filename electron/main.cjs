@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, safeStorage, shell, Menu } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
@@ -81,6 +81,8 @@ function killBackend() {
 }
 
 function createWindow() {
+  Menu.setApplicationMenu(null);
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -89,6 +91,17 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, "preload.cjs"),
     },
+  });
+
+  // Mencegah hotkey reload (Ctrl+R, Cmd+R, F5)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (
+      input.key === 'F5' ||
+      (input.control && input.key.toLowerCase() === 'r') ||
+      (input.meta && input.key.toLowerCase() === 'r')
+    ) {
+      event.preventDefault();
+    }
   });
 
   // Start Python Backend
