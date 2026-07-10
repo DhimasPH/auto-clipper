@@ -9,6 +9,7 @@ def download_youtube_video(url: str, output_path: str) -> Path:
         'merge_output_format': 'mp4',
         'quiet': True,
         'noprogress': True,
+        'updatetime': False,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])

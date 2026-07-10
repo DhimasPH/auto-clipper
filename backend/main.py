@@ -5,6 +5,7 @@ from backend.video_utils import download_youtube_video
 from backend.ai_utils import process_with_openai, process_with_gemini
 from backend.crop_utils import crop_to_vertical
 import os
+import traceback
 
 app = FastAPI(title="Auto Clipper API")
 
@@ -23,9 +24,12 @@ def health_check():
 class DownloadRequest(BaseModel):
     url: str
 
+def get_error_log_path():
+    return os.path.join(os.getcwd(), "backend_error.log")
+
 @app.post("/download")
 def download_video(req: DownloadRequest):
-    # Save to a temp dir in project root for MVP
+    req.url = req.url.strip()
     output_path = os.path.join(os.getcwd(), "temp_downloads", "source.mp4")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
@@ -33,8 +37,12 @@ def download_video(req: DownloadRequest):
         download_youtube_video(req.url, output_path)
         return {"status": "success", "file_path": output_path}
     except Exception as e:
-        import traceback
-        return {"status": "error", "message": traceback.format_exc()}
+        err_msg = traceback.format_exc()
+        try:
+            with open(get_error_log_path(), "a") as f:
+                f.write("DOWNLOAD ERROR:\n" + err_msg + "\n")
+        except: pass
+        return {"status": "error", "message": f"{str(e)} | Trace: {err_msg}"}
 
 class ProcessAIRequest(BaseModel):
     file_path: str
@@ -43,6 +51,7 @@ class ProcessAIRequest(BaseModel):
 
 @app.post("/process-ai")
 def process_ai(req: ProcessAIRequest):
+    req.api_key = req.api_key.strip()
     if not os.path.exists(req.file_path):
         return {"status": "error", "message": "File not found"}
         
@@ -58,8 +67,12 @@ def process_ai(req: ProcessAIRequest):
             "highlights": result["highlights"]
         }
     except Exception as e:
-        import traceback
-        return {"status": "error", "message": traceback.format_exc()}
+        err_msg = traceback.format_exc()
+        try:
+            with open(get_error_log_path(), "a") as f:
+                f.write("PROCESS-AI ERROR:\n" + err_msg + "\n")
+        except: pass
+        return {"status": "error", "message": f"{str(e)} | Trace: {err_msg}"}
 
 class CropRequest(BaseModel):
     file_path: str
@@ -71,15 +84,20 @@ def crop_video(req: CropRequest):
     if not os.path.exists(req.file_path):
         return {"status": "error", "message": "File not found"}
         
-    output_path = req.file_path.replace(".mp4", f"_crop_{req.start_time.replace(':', '')}.mp4")
+    import re
+    safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', req.start_time)
+    output_path = req.file_path.replace(".mp4", f"_crop_{safe_start_time}.mp4")
     
     try:
-        # Note: requires ffmpeg on system PATH
         result_path = crop_to_vertical(req.file_path, output_path, req.start_time, req.end_time)
         return {"status": "success", "file_path": result_path}
     except Exception as e:
-        import traceback
-        return {"status": "error", "message": traceback.format_exc()}
+        err_msg = traceback.format_exc()
+        try:
+            with open(get_error_log_path(), "a") as f:
+                f.write("CROP ERROR:\n" + err_msg + "\n")
+        except: pass
+        return {"status": "error", "message": f"{str(e)} | Trace: {err_msg}"}
 
 if __name__ == "__main__":
     import uvicorn
