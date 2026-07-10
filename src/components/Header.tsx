@@ -4,13 +4,12 @@ import { useTranslation } from "react-i18next";
 type Theme = "dark" | "light" | "system";
 
 interface HeaderProps {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-  backendStatus: string;
+  onOpenSettings: () => void;
   onOpenFAQ: () => void;
+  backendStatus: string;
 }
 
-export default function Header({ theme, setTheme, backendStatus, onOpenFAQ }: HeaderProps) {
+export default function Header({ onOpenSettings, backendStatus, onOpenFAQ }: HeaderProps) {
   const { t, i18n } = useTranslation();
 
   const toggleLanguage = () => {
@@ -49,9 +48,9 @@ export default function Header({ theme, setTheme, backendStatus, onOpenFAQ }: He
         </p>
       </div>
       <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-        {/* Language Toggle */}
+        {/* Settings Toggle */}
         <button
-          onClick={toggleLanguage}
+          onClick={onOpenSettings}
           style={{
             background: "var(--button-hover)",
             border: "1px solid var(--border)",
@@ -66,33 +65,9 @@ export default function Header({ theme, setTheme, backendStatus, onOpenFAQ }: He
             justifyContent: "center",
             fontSize: "0.85rem",
           }}
-          title="Toggle Language"
+          title="Open Settings"
         >
-          {t('header.lang_toggle')}
-        </button>
-        {/* Theme Toggle */}
-        <button
-          onClick={() => {
-            if (theme === "dark") setTheme("light");
-            else if (theme === "light") setTheme("system");
-            else setTheme("dark");
-          }}
-          style={{
-            background: "var(--button-hover)",
-            border: "1px solid var(--border)",
-            color: "var(--text-primary)",
-            width: "32px",
-            height: "32px",
-            borderRadius: "50%",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "1rem",
-          }}
-          title={`Tema saat ini: ${theme}`}
-        >
-          {theme === "dark" ? "🌙" : theme === "light" ? "☀️" : "💻"}
+          ⚙️
         </button>
 
         {/* FAQ Toggle */}

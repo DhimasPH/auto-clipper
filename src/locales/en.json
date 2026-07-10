@@ -10,13 +10,51 @@
     "manual_mode": "✂️ Manual Clip",
     "url_label": "YouTube Video URL",
     "url_placeholder": "https://www.youtube.com/watch?v=...",
-    "provider_label": "AI Provider",
-    "api_key_openai": "OpenAI API Key (For Transcription & Highlights)",
-    "api_key_gemini": "Gemini API Key",
+    "manual_start": "Start Time",
+    "manual_end": "End Time",
     "manual_range_label": "Time Range (HH:MM:SS - HH:MM:SS)",
-    "subtitle_label": "Burn Subtitles (Hardcode to Video)",
+    "subtitle_label": "Burn Subtitles to video (can toggle later)",
     "btn_generating": "Processing...",
     "btn_generate": "✨ Generate Viral Clips",
     "btn_manual_clip": "✂️ Crop Video"
+  },
+  "clip": {
+    "title_ai": "Clip {{num}}",
+    "title_manual": "Manual Clip",
+    "btn_rerender": "⏳ Re-rendering...",
+    "btn_sub_on": "💬 Subtitle: ON (click to disable)",
+    "btn_sub_off": "💬 Subtitle: OFF (click to enable)",
+    "btn_download": "⬇ Download MP4"
+  },
+  "settings": {
+    "title": "Settings",
+    "theme": "Theme",
+    "theme_dark": "Dark",
+    "theme_light": "Light",
+    "theme_system": "System",
+    "language": "Language",
+    "provider_label": "AI Provider",
+    "api_key_openai": "OpenAI API Key",
+    "api_key_gemini": "Gemini API Key",
+    "api_key_note": "Stored locally on your device",
+    "close": "Close",
+    "save": "Save"
+  },
+  "faq": {
+    "title": "How to Use",
+    "desc": "Easily turn long videos into vertical viral clips:",
+    "step1_title": "Enter YouTube URL:",
+    "step1_desc": "Supports standard links, youtu.be, and Shorts.",
+    "step2_title": "Setup Provider:",
+    "step2_desc": "Open Settings (⚙️) and enter your AI API Key.",
+    "step3_title": "Generate:",
+    "step3_desc": "Click generate and let AI find the best highlights automatically!",
+    "step4_title": "Download:",
+    "step4_desc": "Click Download MP4 to save the final video.",
+    "note_title": "Important Note",
+    "note_desc": "Ensure your API key has active quota/credits."
+  },
+  "toast": {
+    "clip_failed": "⚠️ Clip {{num}} failed: {{msg}}"
   }
 }

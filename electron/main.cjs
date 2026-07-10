@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -42,6 +42,18 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  // Intercept downloads and force a Save As dialog
+  mainWindow.webContents.session.on('will-download', (event, item, webContents) => {
+    item.setSaveDialogOptions({
+      title: 'Save Clip As',
+      defaultPath: item.getFilename(),
+      filters: [
+        { name: 'Video', extensions: ['mp4'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+  });
 }
 
 app.whenReady().then(createWindow);

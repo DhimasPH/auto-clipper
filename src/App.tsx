@@ -3,6 +3,8 @@ import axios from "axios";
 import { useTranslation } from "react-i18next";
 import FAQModal from "./components/FAQModal";
 import Header from "./components/Header";
+import ClipCard, { Clip } from "./components/ClipCard";
+import SettingsModal from "./components/SettingsModal";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -42,14 +44,6 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState("");
   const [progress, setProgress] = useState("");
 
-  type Clip = {
-    path: string;
-    description: string;
-    start: string;
-    end: string;
-    subs: boolean; // whether this clip currently has burned-in captions
-    v: number; // cache-buster so the <video> reloads after a re-render
-  };
   const [clips, setClips] = useState<Clip[]>([]);
   const [totalClips, setTotalClips] = useState(0);
 
@@ -62,6 +56,7 @@ export default function App() {
   
   // Task 1.3: FAQ Modal state
   const [isFAQOpen, setIsFAQOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Task 3.2: Theme state
   const [theme, setTheme] = useState<"dark" | "light" | "system">(() => {
@@ -117,9 +112,15 @@ export default function App() {
   }, []);
 
   const handleGenerate = async () => {
-    if (!url) return setErrorMsg("Please enter a YouTube URL.");
-    if (mode === "ai" && !apiKey)
-      return setErrorMsg("Please enter an OpenAI API Key for AI mode.");
+    if (!url) {
+      notify(t('toast.clip_failed', { num: '', msg: 'URL kosong!' }), "error");
+      return;
+    }
+    
+    if (mode === "ai" && !apiKey) {
+      notify(t('toast.clip_failed', { num: '', msg: 'API Key belum diisi! Silakan isi di Settings.' }), "error");
+      return;
+    }
 
     setErrorMsg("");
     setProgress("");
@@ -337,13 +338,13 @@ export default function App() {
             {t.text}
           </div>
         ))}
-         <Header 
-        theme={theme} 
-        setTheme={setTheme} 
+      </div>
+
+      <Header 
+        onOpenSettings={() => setIsSettingsOpen(true)} 
         backendStatus={backendStatus} 
         onOpenFAQ={() => setIsFAQOpen(true)} 
       />
-      </div>
 
       {/* Main Panel */}
       <main
@@ -437,82 +438,6 @@ export default function App() {
             className="animate-slide-up"
             style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
           >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-              }}
-            >
-              <label
-                style={{
-                  fontSize: "0.875rem",
-                  fontWeight: 500,
-                  color: "var(--text-secondary)",
-                }}
-              >
-                {t('main.provider_label')}
-              </label>
-              <select
-                value={provider}
-                onChange={(e) =>
-                  setProvider(e.target.value as "openai" | "gemini")
-                }
-                style={{
-                  width: "100%",
-                  padding: "0.875rem 1rem",
-                  borderRadius: "12px",
-                  border: "1px solid var(--border)",
-                  background: "var(--input-bg)",
-                  color: "var(--text-primary)",
-                  fontSize: "1rem",
-                  outline: "none",
-                }}
-              >
-                <option value="openai" style={{ background: "var(--bg-secondary)" }}>
-                  OpenAI (GPT-4o + Whisper)
-                </option>
-                <option value="gemini" style={{ background: "var(--bg-secondary)" }}>
-                  Google Gemini (2.5 Flash)
-                </option>
-              </select>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-              }}
-            >
-              <label
-                style={{
-                  fontSize: "0.875rem",
-                  fontWeight: 500,
-                  color: "var(--text-secondary)",
-                }}
-              >
-                {provider === "openai" ? t('main.api_key_openai') : t('main.api_key_gemini')}
-              </label>
-              <input
-                type="password"
-                placeholder={provider === "openai" ? "..." : "..."}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "0.875rem 1rem",
-                  borderRadius: "12px",
-                  border: "1px solid var(--border)",
-                  background: "rgba(0,0,0,0.2)",
-                  color: "white",
-                  fontSize: "1rem",
-                  outline: "none",
-                  transition: "border-color 0.2s",
-                }}
-                onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-              />
-            </div>
             <label
               style={{
                 display: "flex",
@@ -528,7 +453,7 @@ export default function App() {
                 checked={burnSubtitles}
                 onChange={(e) => setBurnSubtitles(e.target.checked)}
               />
-              Pasang subtitle ke video (bisa diubah per-clip setelah generate)
+              {t('main.subtitle_label')}
             </label>
           </div>
         ) : (
@@ -588,7 +513,7 @@ export default function App() {
                   color: "var(--text-secondary)",
                 }}
               >
-                End Time
+                {t('main.manual_end')}
               </label>
               <input
                 type="text"
@@ -727,94 +652,16 @@ export default function App() {
           </h2>
           <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
             {clips.map((clip, i) => (
-              <div
-                key={clip.path}
-                className="glass-panel"
-                style={{
-                  padding: "1rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "1rem",
-                  width: "280px",
-                }}
-              >
-                <div
-                  style={{
-                    aspectRatio: "9/16",
-                    background: "rgba(0,0,0,0.5)",
-                    borderRadius: "8px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <video
-                    key={clip.v}
-                    src={videoSrc(clip.path, clip.v)}
-                    controls
-                    playsInline
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "contain",
-                      background: "#000",
-                    }}
-                  />
-                </div>
-                <div>
-                  <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.1rem" }}>
-                    {mode === "ai" ? `Clip ${i + 1}` : "Manual clip"}
-                  </h3>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: "0.875rem",
-                      color: "var(--text-secondary)",
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {clip.description}
-                  </p>
-                  {subtitlePath && (
-                    <button
-                      onClick={() => toggleClipSubs(i)}
-                      disabled={reRendering !== null}
-                      style={{
-                        display: "block",
-                        marginTop: "0.75rem",
-                        padding: "0.4rem 0.75rem",
-                        borderRadius: "8px",
-                        border: "1px solid var(--border)",
-                        background: clip.subs
-                          ? "var(--accent)"
-                          : "var(--button-hover)",
-                        color: clip.subs ? "#fff" : "var(--text-secondary)",
-                        fontSize: "0.8rem",
-                        cursor:
-                          reRendering !== null ? "not-allowed" : "pointer",
-                        opacity: reRendering !== null ? 0.6 : 1,
-                      }}
-                    >
-                      {reRendering === i
-                        ? "⏳ Merender ulang..."
-                        : clip.subs
-                          ? "💬 Subtitle: ON (klik untuk matikan)"
-                          : "💬 Subtitle: OFF (klik untuk nyalakan)"}
-                    </button>
-                  )}
-                  <a
-                    href={videoSrc(clip.path, clip.v)}
-                    download
-                    style={{
-                      display: "inline-block",
-                      marginTop: "0.75rem",
-                      fontSize: "0.8rem",
-                      color: "var(--accent)",
-                      textDecoration: "none",
-                    }}
-                  >
-                    ⬇ Download MP4
-                  </a>
-                </div>
-              </div>
+              <ClipCard
+                key={clip.v}
+                clip={clip}
+                index={i}
+                mode={mode}
+                subtitlePath={subtitlePath}
+                reRendering={reRendering === i}
+                onToggleSubs={() => toggleClipSubs(i)}
+                videoSrc={videoSrc}
+              />
             ))}
           </div>
         </section>
@@ -822,6 +669,18 @@ export default function App() {
 
       {/* Task 1.3: Render FAQ Modal */}
       <FAQModal isOpen={isFAQOpen} onClose={() => setIsFAQOpen(false)} />
+      
+      {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        theme={theme}
+        setTheme={setTheme}
+        provider={provider}
+        setProvider={setProvider}
+        apiKey={apiKey}
+        setApiKey={setApiKey}
+      />
     </div>
   );
 }

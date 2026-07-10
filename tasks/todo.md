@@ -53,14 +53,31 @@ Status:
 - [x] **Task 3.3:** Setup i18n (ID + EN)
   - [x] Install `react-i18next`.
   - [x] Ekstrak strings ke file `locales/id.json` dan `en.json`.
-- [ ] **Task 3.4:** UI/UX Polish
-  - [ ] Ekstrak komponen dari `App.tsx` (`Header`, `MainPanel`, `ClipCard`).
-  - [ ] Pastikan responsive layout rapi.
+- [x] **Task 3.4:** UI/UX Polish
+  - [x] Ekstrak komponen dari `App.tsx` (`Header`, `MainPanel`, `ClipCard`).
+  - [x] Pastikan responsive layout rapi.
 
 ### Checkpoint Fase 3
 - [ ] Tema berfungsi (Dark/Light/System).
 - [ ] Ganti bahasa (ID/EN) berjalan realtime.
 - [ ] Kode frontend lebih modular (< 300 line per file).
+
+---
+
+## Fase 3.5: Advanced Features & Resilience
+- [x] **Task 3.5.1:** Implementasi *Save to Folder*
+  - [x] Beri opsi ke *user* untuk memilih *output directory* untuk klip.
+- [x] **Task 3.5.2:** OS-level Notification
+  - [x] Gunakan Electron Notification API saat generate selesai.
+- [x] **Task 3.5.3:** Lanjut Klip Berikutnya
+  - [x] Struktur *try-catch* per-klip di *backend* agar 1 gagal tidak mematikan semua.
+- [x] **Task 3.5.4:** Dukungan URL Multi-Platform
+  - [x] Longgarkan validasi frontend, pastikan backend yt-dlp menerima TikTok/IG.
+
+### Checkpoint Fase 3.5
+- [x] Proses klip tangguh (resilient) walau ada 1 segmen error.
+- [x] Hasil output bisa disimpan di folder pilihan (Bukan cuma temp/download browser).
+- [x] Notifikasi OS muncul jika aplikasi sedang di background.
 
 ---
 
@@ -91,11 +108,18 @@ Status:
 
 ---
 
-## Fase 5: Security Hardening (I)
-- [ ] **Task 5.1:** Electron contextIsolation + Preload Script
+## Fase 5: AI & Video Polish
+- [ ] **Task 5.1:** Caption bergaya *Karaoke/Word-by-word*.
+- [ ] **Task 5.2:** Opsi *Aspect Ratio* (1:1, 4:5) pada saat manual crop/AI.
+- [ ] **Task 5.3:** Upload file lokal (.mp4).
+
+---
+
+## Fase 6: Security Hardening (I)
+- [ ] **Task 6.1:** Electron contextIsolation + Preload Script
   - [ ] Buat file `preload.cjs` (expose `electronAPI`).
   - [ ] Set `nodeIntegration: false`, `contextIsolation: true`.
-- [ ] **Task 5.2:** API Key Storage via Electron safeStorage
+- [ ] **Task 6.2:** API Key Storage via Electron safeStorage
   - [ ] Expose IPC channel enkripsi data.
   - [ ] Migrasikan key dari `localStorage`.
 - [ ] **Task 5.3:** CORS & Input Validation Hardening

@@ -10,13 +10,51 @@
     "manual_mode": "✂️ Manual Clip",
     "url_label": "URL Video YouTube",
     "url_placeholder": "https://www.youtube.com/watch?v=...",
-    "provider_label": "AI Provider",
-    "api_key_openai": "OpenAI API Key (Untuk Transkripsi & Deteksi Momen)",
-    "api_key_gemini": "Gemini API Key",
+    "manual_start": "Waktu Mulai",
+    "manual_end": "Waktu Selesai",
     "manual_range_label": "Rentang Waktu (HH:MM:SS - HH:MM:SS)",
-    "subtitle_label": "Bakar Subtitle (Hardcode ke Video)",
+    "subtitle_label": "Bakar Subtitle ke video (bisa diubah per-clip)",
     "btn_generating": "Memproses...",
     "btn_generate": "✨ Generate Viral Clips",
     "btn_manual_clip": "✂️ Potong Klip"
+  },
+  "clip": {
+    "title_ai": "Klip {{num}}",
+    "title_manual": "Klip Manual",
+    "btn_rerender": "⏳ Merender ulang...",
+    "btn_sub_on": "💬 Subtitle: ON (klik untuk matikan)",
+    "btn_sub_off": "💬 Subtitle: OFF (klik untuk nyalakan)",
+    "btn_download": "⬇ Download MP4"
+  },
+  "settings": {
+    "title": "Pengaturan",
+    "theme": "Tema Tampilan",
+    "theme_dark": "Gelap",
+    "theme_light": "Terang",
+    "theme_system": "Sistem",
+    "language": "Bahasa",
+    "provider_label": "AI Provider",
+    "api_key_openai": "OpenAI API Key",
+    "api_key_gemini": "Gemini API Key",
+    "api_key_note": "Disimpan lokal di browsermu",
+    "close": "Tutup",
+    "save": "Simpan"
+  },
+  "faq": {
+    "title": "Panduan Penggunaan",
+    "desc": "Cara mudah mengubah video panjang menjadi klip viral vertikal:",
+    "step1_title": "Masukkan URL YouTube:",
+    "step1_desc": "Mendukung URL standar, youtu.be, dan Shorts.",
+    "step2_title": "Atur Provider:",
+    "step2_desc": "Buka Settings (⚙️) dan masukkan API Key AI.",
+    "step3_title": "Generate:",
+    "step3_desc": "Klik tombol generate, dan AI akan otomatis mencari momen paling menarik!",
+    "step4_title": "Download:",
+    "step4_desc": "Klik Download MP4 untuk menyimpan hasil akhir.",
+    "note_title": "Catatan Penting",
+    "note_desc": "Pastikan API Key memiliki kuota/saldo yang aktif."
+  },
+  "toast": {
+    "clip_failed": "⚠️ Klip {{num}} gagal: {{msg}}"
   }
 }
