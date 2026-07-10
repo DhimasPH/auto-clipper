@@ -50,9 +50,9 @@ Status:
   - [x] Hapus inline colors di JSX.
 - [x] **Task 3.2:** Dark / Light / System Theme Toggle
   - [x] Buat UI toggle dan persist state.
-- [ ] **Task 3.3:** Setup i18n (ID + EN)
-  - [ ] Install `react-i18next`.
-  - [ ] Ekstrak strings ke file `locales/id.json` dan `en.json`.
+- [x] **Task 3.3:** Setup i18n (ID + EN)
+  - [x] Install `react-i18next`.
+  - [x] Ekstrak strings ke file `locales/id.json` dan `en.json`.
 - [ ] **Task 3.4:** UI/UX Polish
   - [ ] Ekstrak komponen dari `App.tsx` (`Header`, `MainPanel`, `ClipCard`).
   - [ ] Pastikan responsive layout rapi.

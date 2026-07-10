@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { useTranslation } from "react-i18next";
 import FAQModal from "./components/FAQModal";
+import Header from "./components/Header";
 
 const API_URL = "http://127.0.0.1:8000";
 
 export default function App() {
+  const { t } = useTranslation();
   const [backendStatus, setBackendStatus] = useState("Checking...");
   const [url, setUrl] = useState("");
   // Task 1.4: Load from localStorage
@@ -334,105 +337,13 @@ export default function App() {
             {t.text}
           </div>
         ))}
+         <Header 
+        theme={theme} 
+        setTheme={setTheme} 
+        backendStatus={backendStatus} 
+        onOpenFAQ={() => setIsFAQOpen(true)} 
+      />
       </div>
-
-      {/* Header */}
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: "2.5rem",
-              fontWeight: 700,
-              background: "linear-gradient(90deg, #818cf8, #c084fc)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Auto Clipper ⚡️
-          </h1>
-          <p style={{ margin: "0.5rem 0 0 0", color: "var(--text-secondary)" }}>
-            Turn long videos into viral shorts instantly.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-          {/* Task 3.2: Theme Toggle */}
-          <button
-            onClick={() => {
-              if (theme === "dark") setTheme("light");
-              else if (theme === "light") setTheme("system");
-              else setTheme("dark");
-            }}
-            style={{
-              background: "var(--button-hover)",
-              border: "1px solid var(--border)",
-              color: "var(--text-primary)",
-              width: "32px",
-              height: "32px",
-              borderRadius: "50%",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "1rem"
-            }}
-            title={`Tema saat ini: ${theme}`}
-          >
-            {theme === "dark" ? "🌙" : theme === "light" ? "☀️" : "💻"}
-          </button>
-          
-          <button
-            onClick={() => setIsFAQOpen(true)}
-            style={{
-              background: "var(--button-hover)",
-              border: "1px solid var(--border)",
-              color: "var(--text-primary)",
-              width: "32px",
-              height: "32px",
-              borderRadius: "50%",
-              cursor: "pointer",
-              fontWeight: "bold",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.2s"
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
-            title="Cara Penggunaan (FAQ)"
-          >
-            ?
-          </button>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              fontSize: "0.875rem",
-              background: "rgba(255,255,255,0.05)",
-              padding: "0.5rem 1rem",
-              borderRadius: "99px",
-            }}
-          >
-            <div
-              style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                backgroundColor:
-                  backendStatus === "Connected" ? "#10b981" : "#ef4444",
-              }}
-            />
-            Backend: {backendStatus}
-          </div>
-        </div>
-      </header>
 
       {/* Main Panel */}
       <main
@@ -468,7 +379,7 @@ export default function App() {
               transition: "all 0.2s",
             }}
           >
-            ✨ AI Auto Clip
+            {t('main.ai_mode')}
           </button>
           <button
             onClick={() => setMode("manual")}
@@ -484,7 +395,7 @@ export default function App() {
               transition: "all 0.2s",
             }}
           >
-            ✂️ Manual Clip
+            {t('main.manual_mode')}
           </button>
         </div>
 
@@ -498,11 +409,11 @@ export default function App() {
               color: "var(--text-secondary)",
             }}
           >
-            YouTube Video URL
+            {t('main.url_label')}
           </label>
           <input
             type="text"
-            placeholder="https://www.youtube.com/watch?v=..."
+            placeholder={t('main.url_placeholder')}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             style={{
@@ -540,7 +451,7 @@ export default function App() {
                   color: "var(--text-secondary)",
                 }}
               >
-                AI Provider
+                {t('main.provider_label')}
               </label>
               <select
                 value={provider}
@@ -580,9 +491,7 @@ export default function App() {
                   color: "var(--text-secondary)",
                 }}
               >
-                {provider === "openai"
-                  ? "OpenAI API Key (For Transcription & Highlights)"
-                  : "Gemini API Key"}
+                {provider === "openai" ? t('main.api_key_openai') : t('main.api_key_gemini')}
               </label>
               <input
                 type="password"
@@ -642,7 +551,7 @@ export default function App() {
                   color: "var(--text-secondary)",
                 }}
               >
-                Start Time
+                {t('main.manual_range_label')}
               </label>
               <input
                 type="text"
@@ -720,47 +629,38 @@ export default function App() {
 
         <button
           onClick={handleGenerate}
-          disabled={
-            status !== "IDLE" && status !== "DONE" && status !== "ERROR"
-          }
+          disabled={status === "GENERATING"}
           style={{
-            marginTop: "1rem",
             padding: "1rem",
             borderRadius: "12px",
             border: "none",
             background: "var(--accent)",
-            color: "white",
+            color: "#fff",
             fontSize: "1rem",
             fontWeight: 600,
-            cursor:
-              status !== "IDLE" && status !== "DONE" && status !== "ERROR"
-                ? "not-allowed"
-                : "pointer",
+            cursor: status === "GENERATING" ? "not-allowed" : "pointer",
+            opacity: status === "GENERATING" ? 0.7 : 1,
             transition: "all 0.2s",
-            opacity:
-              status !== "IDLE" && status !== "DONE" && status !== "ERROR"
-                ? 0.7
-                : 1,
+            boxShadow:
+              status === "GENERATING"
+                ? "none"
+                : "0 4px 14px 0 rgba(99, 102, 241, 0.39)",
             display: "flex",
-            justifyContent: "center",
             alignItems: "center",
+            justifyContent: "center",
             gap: "0.75rem",
             animation: status === "IDLE" ? "pulse-glow 2s infinite" : "none",
           }}
         >
-          {status !== "IDLE" && status !== "DONE" && status !== "ERROR" ? (
+          {status === "GENERATING" ? (
             <>
-              <div className="spinner" />{" "}
-              {status === "DOWNLOADING"
-                ? "Downloading video..."
-                : status === "TRANSCRIBING"
-                  ? "AI is analyzing the audio..."
-                  : progress || "Rendering clips..."}
+              <div className="spinner" />
+              {t('main.btn_generating')}
             </>
           ) : mode === "ai" ? (
-            "✨ Generate Viral Clips"
+            t('main.btn_generate')
           ) : (
-            "✂️ Crop Manual Clip"
+            t('main.btn_manual_clip')
           )}
         </button>
 
@@ -794,6 +694,15 @@ export default function App() {
                 textAlign: "right",
               }}
             >
+              <span
+                style={{
+                  fontSize: "0.875rem",
+                  color: "var(--text-primary)",
+                  fontWeight: 500,
+                }}
+              >
+                {t('main.subtitle_label')}
+              </span>
               {progressPct}%{progress ? ` · ${progress}` : ""}
             </div>
           </div>

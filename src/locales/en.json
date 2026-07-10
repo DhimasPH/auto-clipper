@@ -1,0 +1,22 @@
+{
+  "header": {
+    "title": "Auto Clipper",
+    "subtitle": "Turn long videos into viral shorts instantly.",
+    "backend_status": "Backend",
+    "lang_toggle": "ID"
+  },
+  "main": {
+    "ai_mode": "✨ AI Auto Clip",
+    "manual_mode": "✂️ Manual Clip",
+    "url_label": "YouTube Video URL",
+    "url_placeholder": "https://www.youtube.com/watch?v=...",
+    "provider_label": "AI Provider",
+    "api_key_openai": "OpenAI API Key (For Transcription & Highlights)",
+    "api_key_gemini": "Gemini API Key",
+    "manual_range_label": "Time Range (HH:MM:SS - HH:MM:SS)",
+    "subtitle_label": "Burn Subtitles (Hardcode to Video)",
+    "btn_generating": "Processing...",
+    "btn_generate": "✨ Generate Viral Clips",
+    "btn_manual_clip": "✂️ Crop Video"
+  }
+}

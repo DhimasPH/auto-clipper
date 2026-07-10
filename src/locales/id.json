@@ -1,0 +1,22 @@
+{
+  "header": {
+    "title": "Auto Clipper",
+    "subtitle": "Ubah video panjang menjadi klip viral instan.",
+    "backend_status": "Backend",
+    "lang_toggle": "EN"
+  },
+  "main": {
+    "ai_mode": "✨ AI Auto Clip",
+    "manual_mode": "✂️ Manual Clip",
+    "url_label": "URL Video YouTube",
+    "url_placeholder": "https://www.youtube.com/watch?v=...",
+    "provider_label": "AI Provider",
+    "api_key_openai": "OpenAI API Key (Untuk Transkripsi & Deteksi Momen)",
+    "api_key_gemini": "Gemini API Key",
+    "manual_range_label": "Rentang Waktu (HH:MM:SS - HH:MM:SS)",
+    "subtitle_label": "Bakar Subtitle (Hardcode ke Video)",
+    "btn_generating": "Memproses...",
+    "btn_generate": "✨ Generate Viral Clips",
+    "btn_manual_clip": "✂️ Potong Klip"
+  }
+}
