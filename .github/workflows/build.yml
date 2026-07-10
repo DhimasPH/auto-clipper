@@ -1,0 +1,79 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v3
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+
+      - name: Build Python Backend
+        run: |
+          pyinstaller --onefile backend/main.py --name backend
+
+      - name: Prepare bin directory with Backend and FFmpeg
+        run: |
+          python -c "
+          import os, sys, shutil
+          os.makedirs('bin', exist_ok=True)
+          exe_ext = '.exe' if sys.platform == 'win32' else ''
+          # Copy backend executable
+          shutil.copy(os.path.join('dist', f'backend{exe_ext}'), os.path.join('bin', f'backend{exe_ext}'))
+          # Copy ffmpeg executable
+          ffmpeg_path = shutil.which('ffmpeg')
+          if ffmpeg_path:
+              shutil.copy(ffmpeg_path, os.path.join('bin', f'ffmpeg{exe_ext}'))
+          else:
+              print('Error: ffmpeg not found!')
+              sys.exit(1)
+          "
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Build Frontend
+        run: npm run build
+
+      - name: Package Electron App
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-clipper-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage

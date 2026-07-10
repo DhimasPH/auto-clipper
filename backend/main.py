@@ -5,8 +5,15 @@ from pydantic import BaseModel
 from backend.db import init_db, get_all_history, delete_history
 from backend.jobs import create_job, get_job, cancel_job
 import os
+import sys
 import shutil
 import re
+
+# Jika dijalankan sebagai PyInstaller bundle, tambahkan folder executable ke PATH
+# agar FFmpeg dan dependensi lain yang dibundel bisa ditemukan.
+if getattr(sys, 'frozen', False):
+    bin_dir = os.path.dirname(sys.executable)
+    os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
 
 # Initialize DB on startup
 init_db()

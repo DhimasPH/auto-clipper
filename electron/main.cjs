@@ -105,7 +105,13 @@ function createWindow() {
   });
 
   // Start Python Backend
-  pythonProcess = spawn("python", ["-m", "backend.main"]);
+  if (app.isPackaged) {
+    const backendExecutable = process.platform === "win32" ? "backend.exe" : "backend";
+    const backendPath = path.join(process.resourcesPath, "bin", backendExecutable);
+    pythonProcess = spawn(backendPath, []);
+  } else {
+    pythonProcess = spawn("python", ["-m", "backend.main"]);
+  }
   
   // Tangkap stdout untuk port
   pythonProcess.stdout.on("data", (data) => {
