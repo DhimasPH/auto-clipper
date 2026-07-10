@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Setup Python
@@ -29,7 +29,7 @@ jobs:
           python-version: '3.11'
 
       - name: Setup FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v3
+        run: npm install @ffmpeg-installer/ffmpeg
 
       - name: Install Python dependencies
         run: |
@@ -44,17 +44,18 @@ jobs:
       - name: Prepare bin directory with Backend and FFmpeg
         run: |
           python -c "
-          import os, sys, shutil
+          import os, sys, shutil, subprocess
           os.makedirs('bin', exist_ok=True)
           exe_ext = '.exe' if sys.platform == 'win32' else ''
           # Copy backend executable
           shutil.copy(os.path.join('dist', f'backend{exe_ext}'), os.path.join('bin', f'backend{exe_ext}'))
           # Copy ffmpeg executable
-          ffmpeg_path = shutil.which('ffmpeg')
-          if ffmpeg_path:
+          try:
+              node_script = \"console.log(require('@ffmpeg-installer/ffmpeg').path)\"
+              ffmpeg_path = subprocess.check_output(['node', '-e', node_script]).decode('utf-8').strip()
               shutil.copy(ffmpeg_path, os.path.join('bin', f'ffmpeg{exe_ext}'))
-          else:
-              print('Error: ffmpeg not found!')
+          except Exception as e:
+              print('Error: ffmpeg not found!', e)
               sys.exit(1)
           "
 
