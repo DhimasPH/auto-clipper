@@ -156,17 +156,88 @@ def shift_srt_for_clip(srt_text: str, start_time, end_time) -> str:
     return '\n\n'.join(out) + ('\n' if out else '')
 
 
+def _fmt_ass_ts(sec: float) -> str:
+    if sec < 0:
+        sec = 0
+    h = int(sec // 3600); sec -= h * 3600
+    m = int(sec // 60); sec -= m * 60
+    s = int(sec); cs = int(round((sec - s) * 100))
+    if cs == 100:
+        s += 1; cs = 0
+    return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+
+def srt_to_ass(srt_text: str, width: int, height: int) -> str:
+    """Convert SRT text to an ASS subtitle with an explicit script resolution.
+
+    Burning an SRT directly makes libass assume a default script size, so the
+    same FontSize renders wildly different (often huge) depending on the build.
+    Pinning PlayResX/Y to the actual clip and sizing the font as a fraction of
+    clip height keeps captions a sensible, consistent size.
+    """
+    width = int(width) or 1080
+    height = int(height) or 1920
+    font_size = max(12, round(height * 0.045))
+    outline = max(1, round(height * 0.0028))
+    margin_v = max(20, round(height * 0.06))
+    header = (
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        "WrapStyle: 2\n"
+        f"PlayResX: {width}\n"
+        f"PlayResY: {height}\n\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, "
+        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
+        "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        f"Style: Default,Arial,{font_size},&H00FFFFFF,&H00000000,&H80000000,"
+        f"-1,0,0,0,100,100,0,0,1,{outline},0,2,60,60,{margin_v},1\n\n"
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+    events = []
+    for block in re.split(r'\n\s*\n', srt_text.strip()):
+        lines = block.strip().split('\n')
+        if len(lines) < 2:
+            continue
+        tline = ti = None
+        for i, ln in enumerate(lines):
+            if '-->' in ln:
+                tline, ti = ln, i
+                break
+        if tline is None:
+            continue
+        a, _, z = tline.partition('-->')
+        try:
+            st = _parse_srt_ts(a)
+            et = _parse_srt_ts(z)
+        except Exception:
+            continue
+        text = '\\N'.join(ln.strip() for ln in lines[ti + 1:] if ln.strip())
+        if not text:
+            continue
+        events.append(
+            f"Dialogue: 0,{_fmt_ass_ts(st)},{_fmt_ass_ts(et)},Default,,0,0,0,,{text}"
+        )
+    return header + "\n".join(events) + ("\n" if events else "")
+
+
+def _video_dims(path: str):
+    """Return (width, height) of the video, or (0, 0) if unreadable."""
+    cap = cv2.VideoCapture(path)
+    if not cap.isOpened():
+        cap.release()
+        return (0, 0)
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+    cap.release()
+    return (w, h)
+
+
 def _run_ffmpeg(cmd, cwd=None):
     """Run ffmpeg, returning (ok, stderr_text)."""
     proc = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return proc.returncode == 0, proc.stderr.decode("utf-8", "ignore")
-
-
-_SUBTITLE_STYLE = (
-    "FontName=Arial,FontSize=16,PrimaryColour=&H00FFFFFF,"
-    "OutlineColour=&H80000000,BorderStyle=1,Outline=2,Shadow=0,"
-    "Alignment=2,MarginV=40"
-)
 
 
 def _video_duration(path: str):
@@ -219,9 +290,10 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     # trunc(.../2)*2 keeps the crop width even, which H.264 requires.
     crop_filter = f"crop=trunc(ih*9/16/2)*2:ih:iw*{center_pct}-ih*9/32:0"
 
-    # Build an optional subtitle-burning variant. We reference the .srt by its
-    # basename and run ffmpeg from that folder, which sidesteps the fragile
-    # Windows drive-letter escaping (C:\ -> C\:) inside the subtitles filter.
+    # Build an optional subtitle-burning variant. We generate an .ass sized to
+    # the clip and reference it by basename while running ffmpeg from that
+    # folder, which sidesteps the fragile Windows drive-letter escaping
+    # (C:\ -> C\:) inside the subtitle filter.
     subtitle_vf = None
     subtitle_cwd = None
     if subtitle_path:
@@ -231,12 +303,15 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
         except Exception:
             clip_srt = ""
         if clip_srt.strip():
-            clip_srt_path = output_path.rsplit('.', 1)[0] + ".srt"
-            with open(clip_srt_path, "w", encoding="utf-8") as f:
-                f.write(clip_srt)
-            subtitle_cwd = os.path.dirname(clip_srt_path) or None
-            srt_name = os.path.basename(clip_srt_path)
-            subtitle_vf = f"{crop_filter},subtitles={srt_name}:force_style='{_SUBTITLE_STYLE}'"
+            src_w, src_h = _video_dims(input_path)
+            out_w = (int(src_h * 9 / 16) // 2) * 2 if src_h else 0
+            ass_text = srt_to_ass(clip_srt, out_w, src_h)
+            clip_ass_path = output_path.rsplit('.', 1)[0] + ".ass"
+            with open(clip_ass_path, "w", encoding="utf-8") as f:
+                f.write(ass_text)
+            subtitle_cwd = os.path.dirname(clip_ass_path) or None
+            ass_name = os.path.basename(clip_ass_path)
+            subtitle_vf = f"{crop_filter},ass={ass_name}"
 
     def build_cmd(vf):
         return [
