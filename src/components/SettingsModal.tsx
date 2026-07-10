@@ -10,6 +10,8 @@ interface SettingsModalProps {
   setProvider: (p: "openai" | "gemini") => void;
   apiKey: string;
   setApiKey: (key: string) => void;
+  openaiKey: string;
+  setOpenaiKey: (key: string) => void;
 }
 
 export default function SettingsModal({
@@ -21,9 +23,12 @@ export default function SettingsModal({
   setProvider,
   apiKey,
   setApiKey,
+  openaiKey,
+  setOpenaiKey,
 }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
 
   if (!isOpen) return null;
 
@@ -211,6 +216,52 @@ export default function SettingsModal({
             🔒 {t('settings.api_key_note')}
           </span>
         </div>
+
+        {/* Fallback OpenAI Key (Only if Gemini) */}
+        {provider === "gemini" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
+              {t('settings.api_key_openai')} (Khusus Mode Karaoke)
+            </label>
+            <div style={{ position: "relative" }}>
+              <input
+                type={showOpenaiKey ? "text" : "password"}
+                placeholder="..."
+                value={openaiKey}
+                onChange={(e) => setOpenaiKey(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem",
+                  paddingRight: "2.5rem",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border)",
+                  background: "var(--input-bg)",
+                  color: "var(--text-primary)",
+                  outline: "none",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+              />
+              <button
+                onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                style={{
+                  position: "absolute",
+                  right: "0.5rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--text-secondary)",
+                  fontSize: "1rem",
+                }}
+                title={showOpenaiKey ? "Hide API Key" : "Show API Key"}
+              >
+                {showOpenaiKey ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
+          </div>
+        )}
 
         <button
           onClick={onClose}

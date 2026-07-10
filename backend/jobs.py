@@ -24,7 +24,7 @@ def log_error(context: str) -> None:
     except Exception:
         pass
 
-def create_job(url: str, provider: str, api_key: str, mode: str, manual_start: str, manual_end: str) -> str:
+def create_job(url: str, provider: str, api_key: str, mode: str, manual_start: str, manual_end: str, aspect_ratio: str = "9:16", caption_style: str = "standard", openai_key: str = "") -> str:
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -34,6 +34,9 @@ def create_job(url: str, provider: str, api_key: str, mode: str, manual_start: s
         "mode": mode,
         "manual_start": manual_start,
         "manual_end": manual_end,
+        "aspect_ratio": aspect_ratio,
+        "caption_style": caption_style,
+        "openai_key": openai_key,
         "status": "PENDING",
         "progress": "",
         "cancelled": False,
@@ -58,14 +61,18 @@ def _run_job(job_id: str):
             _finalize_job(job_id, "CANCELLED")
             return
             
-        # 1. DOWNLOAD
+        # 1. DOWNLOAD OR LOCAL FILE
         job["status"] = "DOWNLOADING"
-        job["progress"] = "Mengunduh video..."
         
-        output_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        
-        download_youtube_video(job["url"], output_path)
+        if job["url"].startswith("local:"):
+            job["progress"] = "Mempersiapkan video lokal..."
+            # output_path is exactly the local file we saved in /upload
+            output_path = job["url"].split("local:")[1]
+        else:
+            job["progress"] = "Mengunduh video..."
+            output_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            download_youtube_video(job["url"], output_path)
         
         if job["cancelled"]:
             _finalize_job(job_id, "CANCELLED")
@@ -76,10 +83,12 @@ def _run_job(job_id: str):
             job["status"] = "TRANSCRIBING"
             job["progress"] = f"Menganalisis video dengan {job['provider']}..."
             
+            is_karaoke = (job["caption_style"] == "karaoke")
+            
             if job["provider"] == "gemini":
-                ai_result = process_with_gemini(output_path, job["api_key"])
+                ai_result = process_with_gemini(output_path, job["api_key"], openai_api_key=job["openai_key"], karaoke=is_karaoke)
             else:
-                ai_result = process_with_openai(output_path, job["api_key"])
+                ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke)
                 
             highlights = ai_result.get("highlights", [])
             subtitle_path = ai_result.get("subtitle_path")
@@ -115,7 +124,7 @@ def _run_job(job_id: str):
             try:
                 result_path = crop_to_vertical(
                     output_path, clip_output, seg["start_time"], seg["end_time"],
-                    subtitle_path=subtitle_path
+                    subtitle_path=subtitle_path, aspect_ratio=job["aspect_ratio"]
                 )
                 
                 # Append to clips

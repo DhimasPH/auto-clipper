@@ -7,30 +7,77 @@ import ClipCard, { Clip } from "./components/ClipCard";
 import SettingsModal from "./components/SettingsModal";
 import HistoryModal from "./components/HistoryModal";
 
-export const API_URL = "http://127.0.0.1:8000";
+export let API_URL = "http://127.0.0.1:8000";
 
 export default function App() {
   const { t } = useTranslation();
+  const [isInitializing, setIsInitializing] = useState(true);
   const [backendStatus, setBackendStatus] = useState("Checking...");
   const [url, setUrl] = useState("");
-  // Task 1.4: Load from localStorage
-  const [apiKey, setApiKey] = useState(() => {
-    try {
-      const saved = localStorage.getItem("ac_api_key");
-      return saved ? atob(saved) : "";
-    } catch {
-      return "";
-    }
-  });
+  const [apiKey, setApiKey] = useState("");
+  const [openaiKey, setOpenaiKey] = useState("");
   const [provider, setProvider] = useState<"openai" | "gemini">(() => {
     return (localStorage.getItem("ac_provider") as any) || "openai";
   });
 
-  // Task 1.4: Save to localStorage on change
+  const [inputType, setInputType] = useState<"url" | "local">("url");
+  const [localFile, setLocalFile] = useState<File | null>(null);
+  const [aspectRatio, setAspectRatio] = useState<"1:1" | "4:5" | "9:16">("9:16");
+  const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke">("standard");
+
   useEffect(() => {
-    if (apiKey) localStorage.setItem("ac_api_key", btoa(apiKey));
-    else localStorage.removeItem("ac_api_key");
-  }, [apiKey]);
+    async function init() {
+      if (window.electronAPI) {
+        const port = await window.electronAPI.getBackendPort();
+        if (port) {
+          API_URL = `http://127.0.0.1:${port}`;
+        }
+        
+        const keys = await window.electronAPI.getApiKeys();
+        if (keys && (keys.apiKey || keys.openaiKey)) {
+          setApiKey(keys.apiKey || "");
+          setOpenaiKey(keys.openaiKey || "");
+        } else {
+          // Migration from localStorage
+          const lsApi = localStorage.getItem("ac_api_key");
+          const lsOpenai = localStorage.getItem("ac_openai_key");
+          if (lsApi || lsOpenai) {
+             const keyA = lsApi ? atob(lsApi) : "";
+             const keyB = lsOpenai ? atob(lsOpenai) : "";
+             await window.electronAPI.saveApiKeys({ apiKey: keyA, openaiKey: keyB });
+             setApiKey(keyA);
+             setOpenaiKey(keyB);
+             localStorage.removeItem("ac_api_key");
+             localStorage.removeItem("ac_openai_key");
+          }
+        }
+      } else {
+        // Fallback for browser (development)
+        try {
+          const lsApi = localStorage.getItem("ac_api_key");
+          const lsOpenai = localStorage.getItem("ac_openai_key");
+          if (lsApi) setApiKey(atob(lsApi));
+          if (lsOpenai) setOpenaiKey(atob(lsOpenai));
+        } catch (e) {}
+      }
+      setIsInitializing(false);
+    }
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (!isInitializing) {
+      if (window.electronAPI) {
+        window.electronAPI.saveApiKeys({ apiKey, openaiKey });
+      } else {
+        if (apiKey) localStorage.setItem("ac_api_key", btoa(apiKey));
+        else localStorage.removeItem("ac_api_key");
+        if (openaiKey) localStorage.setItem("ac_openai_key", btoa(openaiKey));
+        else localStorage.removeItem("ac_openai_key");
+      }
+    }
+  }, [apiKey, openaiKey, isInitializing]);
+
   useEffect(() => {
     localStorage.setItem("ac_provider", provider);
   }, [provider]);
@@ -59,6 +106,9 @@ export default function App() {
   const [isFAQOpen, setIsFAQOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // SettingsModal open wrapper to avoid lint errors with unread variables
+  const openSettings = () => setIsSettingsOpen(true);
 
   // Task 3.2: Theme state
   const [theme, setTheme] = useState<"dark" | "light" | "system">(() => {
@@ -120,14 +170,12 @@ export default function App() {
 
   // Polling effect for Async Job
   useEffect(() => {
-    // Notify electron main process
-    try {
-      const { ipcRenderer } = window.require('electron');
-      ipcRenderer.send('set-job-active', !!activeJobId);
-    } catch(e) {
-      // Not in electron
+    // Task 4.2: Block exit if job is running
+    if (window.electronAPI) {
+      window.electronAPI.setJobActive(!!activeJobId);
     }
-
+    
+    if (status === "IDLE" || status === "DONE" || status === "ERROR") return;
     let interval: any;
     if (activeJobId) {
       interval = setInterval(async () => {
@@ -179,13 +227,22 @@ export default function App() {
   };
 
   const handleGenerate = async () => {
-    if (!url) {
+    if (inputType === "url" && !url) {
       notify(t('toast.clip_failed', { num: '', msg: 'URL kosong!' }), "error");
       return;
     }
+    if (inputType === "local" && !localFile) {
+      notify(t('toast.clip_failed', { num: '', msg: 'Video lokal belum dipilih!' }), "error");
+      return;
+    }
     
-    if (mode === "ai" && !apiKey) {
+    if (mode === "ai" && !apiKey && provider === "openai") {
       notify(t('toast.clip_failed', { num: '', msg: 'API Key belum diisi! Silakan isi di Settings.' }), "error");
+      return;
+    }
+    
+    if (mode === "ai" && captionStyle === "karaoke" && !openaiKey && provider === "gemini") {
+      notify(t('toast.clip_failed', { num: '', msg: 'OpenAI API Key dibutuhkan untuk mode Karaoke dengan Gemini! Silakan isi di Settings.' }), "error");
       return;
     }
 
@@ -197,15 +254,31 @@ export default function App() {
 
     try {
       setStatus("GENERATING");
+      
+      let finalUrl = url;
+      if (inputType === "local" && localFile) {
+         notify("🚀 Mengunggah video lokal...");
+         const formData = new FormData();
+         formData.append("file", localFile);
+         const uploadRes = await axios.post(`${API_URL}/upload`, formData, {
+            headers: { "Content-Type": "multipart/form-data" }
+         });
+         if (uploadRes.data.status !== "success") throw new Error("Upload failed");
+         finalUrl = uploadRes.data.url;
+      }
+      
       notify("🚀 Memulai proses di latar belakang...");
       
       const res = await axios.post(`${API_URL}/jobs`, {
-        url,
+        url: finalUrl,
         provider,
         api_key: apiKey,
         mode,
         manual_start: manualStart,
-        manual_end: manualEnd
+        manual_end: manualEnd,
+        aspect_ratio: aspectRatio,
+        caption_style: captionStyle,
+        openai_key: openaiKey
       });
       
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -272,6 +345,15 @@ export default function App() {
             ? 100
             : 0;
 
+  if (isInitializing) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="spinner" />
+        <span style={{ marginLeft: '1rem', color: 'var(--text-secondary)' }}>Memuat pengaturan...</span>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -281,6 +363,7 @@ export default function App() {
         display: "flex",
         flexDirection: "column",
         gap: "2rem",
+        minHeight: "100vh"
       }}
     >
       {/* Toast notifications */}
@@ -381,37 +464,87 @@ export default function App() {
           </button>
         </div>
 
-        <div
-          style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
-        >
-          <label
+        {/* Input Type Selector */}
+        <div style={{ display: "flex", gap: "1rem", background: "var(--input-bg)", padding: "0.5rem", borderRadius: "12px" }}>
+          <button
+            onClick={() => setInputType("url")}
             style={{
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              color: "var(--text-secondary)",
+              flex: 1, padding: "0.75rem", borderRadius: "8px", border: "none",
+              background: inputType === "url" ? "var(--accent)" : "transparent",
+              color: inputType === "url" ? "#fff" : "var(--text-secondary)",
+              fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
             }}
           >
-            {t('main.url_label')}
-          </label>
-          <input
-            type="text"
-            placeholder={t('main.url_placeholder')}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            URL Video (YouTube)
+          </button>
+          <button
+            onClick={() => setInputType("local")}
             style={{
-              width: "100%",
-              padding: "0.875rem 1rem",
-              borderRadius: "12px",
-              border: "1px solid var(--border)",
-              background: "var(--input-bg)",
-              color: "var(--text-primary)",
-              fontSize: "1rem",
-              outline: "none",
-              transition: "border-color 0.2s",
+              flex: 1, padding: "0.75rem", borderRadius: "8px", border: "none",
+              background: inputType === "local" ? "var(--accent)" : "transparent",
+              color: inputType === "local" ? "#fff" : "var(--text-secondary)",
+              fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
             }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-          />
+          >
+            Video Lokal (.mp4)
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
+            {inputType === "url" ? t('main.url_label') : "Pilih File Video Lokal"}
+          </label>
+          
+          {inputType === "url" ? (
+            <input
+              type="text"
+              placeholder={t('main.url_placeholder')}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              style={{
+                width: "100%", padding: "0.875rem 1rem", borderRadius: "12px",
+                border: "1px solid var(--border)", background: "var(--input-bg)",
+                color: "var(--text-primary)", fontSize: "1rem", outline: "none",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+            />
+          ) : (
+            <input
+              type="file"
+              accept="video/mp4,video/x-m4v,video/*"
+              onChange={(e) => setLocalFile(e.target.files?.[0] || null)}
+              style={{
+                width: "100%", padding: "0.875rem 1rem", borderRadius: "12px",
+                border: "1px solid var(--border)", background: "var(--input-bg)",
+                color: "var(--text-primary)", fontSize: "1rem", outline: "none",
+              }}
+            />
+          )}
+        </div>
+
+        {/* Aspect Ratio Selector */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
+            Rasio Video (Aspect Ratio)
+          </label>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            {(["1:1", "4:5", "9:16"] as const).map((ratio) => (
+              <button
+                key={ratio}
+                onClick={() => setAspectRatio(ratio)}
+                style={{
+                  flex: 1, padding: "0.5rem", borderRadius: "8px", border: "1px solid",
+                  borderColor: aspectRatio === ratio ? "var(--accent)" : "var(--border)",
+                  background: aspectRatio === ratio ? "rgba(99, 102, 241, 0.1)" : "var(--input-bg)",
+                  color: aspectRatio === ratio ? "var(--accent)" : "var(--text-primary)",
+                  cursor: "pointer", fontWeight: 600
+                }}
+              >
+                {ratio === "9:16" ? "9:16 (Vertical)" : ratio === "4:5" ? "4:5 (Portrait)" : "1:1 (Square)"}
+              </button>
+            ))}
+          </div>
         </div>
 
         {mode === "ai" ? (
@@ -419,6 +552,30 @@ export default function App() {
             className="animate-slide-up"
             style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
           >
+            {/* Caption Style Selector */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
+                Gaya Subtitle
+              </label>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                {(["standard", "karaoke"] as const).map((style) => (
+                  <button
+                    key={style}
+                    onClick={() => setCaptionStyle(style)}
+                    style={{
+                      flex: 1, padding: "0.5rem", borderRadius: "8px", border: "1px solid",
+                      borderColor: captionStyle === style ? "var(--accent)" : "var(--border)",
+                      background: captionStyle === style ? "rgba(99, 102, 241, 0.1)" : "var(--input-bg)",
+                      color: captionStyle === style ? "var(--accent)" : "var(--text-primary)",
+                      cursor: "pointer", fontWeight: 600
+                    }}
+                  >
+                    {style === "standard" ? "Standard (Baris)" : "Karaoke (Word-by-word)"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <label
               style={{
                 display: "flex",
@@ -675,6 +832,8 @@ export default function App() {
         setProvider={setProvider}
         apiKey={apiKey}
         setApiKey={setApiKey}
+        openaiKey={openaiKey}
+        setOpenaiKey={setOpenaiKey}
       />
     </div>
   );

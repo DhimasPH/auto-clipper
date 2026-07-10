@@ -1,14 +1,51 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, safeStorage } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const { spawn } = require("child_process");
 
 let mainWindow;
 let pythonProcess;
 let backendKilled = false;
 let isJobActive = false;
+let backendPort = null;
+
+// Safe Storage Helper
+function getSecretsPath() {
+  return path.join(app.getPath("userData"), "secrets.enc");
+}
 
 ipcMain.on("set-job-active", (event, active) => {
   isJobActive = active;
+});
+
+ipcMain.handle("get-backend-port", () => {
+  return backendPort;
+});
+
+ipcMain.handle("get-api-keys", () => {
+  try {
+    const p = getSecretsPath();
+    if (fs.existsSync(p)) {
+      const encrypted = fs.readFileSync(p);
+      const decrypted = safeStorage.decryptString(encrypted);
+      return JSON.parse(decrypted);
+    }
+  } catch (e) {
+    console.error("Failed to read secrets", e);
+  }
+  return { apiKey: "", openaiKey: "" };
+});
+
+ipcMain.handle("save-api-keys", (event, keys) => {
+  try {
+    const data = JSON.stringify(keys);
+    const encrypted = safeStorage.encryptString(data);
+    fs.writeFileSync(getSecretsPath(), encrypted);
+    return true;
+  } catch (e) {
+    console.error("Failed to save secrets", e);
+    return false;
+  }
 });
 
 function killBackend() {
@@ -34,19 +71,38 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, "preload.cjs"),
     },
   });
 
   // Start Python Backend
   pythonProcess = spawn("python", ["-m", "backend.main"]);
+  
+  // Tangkap stdout untuk port
+  pythonProcess.stdout.on("data", (data) => {
+    const text = data.toString();
+    console.log("[FastAPI]", text.trim());
+    const match = text.match(/AUTO_CLIPPER_BACKEND_PORT=(\d+)/);
+    if (match && !backendPort) {
+      backendPort = parseInt(match[1], 10);
+      console.log(`Backend is running on dynamic port ${backendPort}`);
+      
+      // Load URL ONLY after port is discovered
+      if (process.env.NODE_ENV === "development") {
+        mainWindow.loadURL("http://localhost:5173");
+      } else {
+        mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+      }
+    }
+  });
 
-  if (process.env.NODE_ENV === "development") {
-    mainWindow.loadURL("http://localhost:5173");
-  } else {
-    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
-  }
+  pythonProcess.stderr.on("data", (data) => {
+    console.error("[FastAPI ERROR]", data.toString().trim());
+  });
+
+  // Navigation is handled inside the stdout listener after port is found.
 
   mainWindow.on("close", (e) => {
     if (isJobActive) {

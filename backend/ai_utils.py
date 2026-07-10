@@ -64,16 +64,26 @@ def build_srt_from_segments(segments) -> str:
     return "\n\n".join(lines) + ("\n" if lines else "")
 
 
-def transcribe_audio(audio_path: str, api_key: str) -> str:
-    """Transcribe an audio file to SRT text using OpenAI Whisper."""
+def transcribe_audio(audio_path: str, api_key: str, karaoke: bool = False):
+    """Transcribe an audio file using OpenAI Whisper."""
     client = OpenAI(api_key=api_key)
     with open(audio_path, "rb") as audio_file:
-        transcript = _with_retry(lambda: client.audio.transcriptions.create(
-            model="whisper-1",
-            file=audio_file,
-            response_format="srt",
-        ))
-    return transcript
+        if karaoke:
+            transcript = _with_retry(lambda: client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                response_format="verbose_json",
+                timestamp_granularities=["word"]
+            ))
+            # Return dict for verbose_json
+            return transcript.model_dump()
+        else:
+            transcript = _with_retry(lambda: client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                response_format="srt",
+            ))
+            return transcript
 
 
 def _parse_highlights(content: str) -> list:
@@ -116,32 +126,36 @@ def get_highlights(transcript_srt: str, api_key: str) -> list:
     return _parse_highlights(response.choices[0].message.content)
 
 
-def process_with_openai(file_path: str, api_key: str) -> dict:
-    """Full OpenAI pipeline: extract audio -> transcribe -> find highlights.
-
-    Also writes the transcript to an .srt file next to the source video so the
-    cropping step can burn subtitles into each clip.
-    """
+def process_with_openai(file_path: str, api_key: str, karaoke: bool = False) -> dict:
+    """Full OpenAI pipeline: extract audio -> transcribe -> find highlights."""
     base, _ = os.path.splitext(file_path)
     audio_path = base + "_audio.mp3"
-    subtitle_path = base + ".srt"
 
     extract_audio(file_path, audio_path)
-    transcript = transcribe_audio(audio_path, api_key)
+    transcript = transcribe_audio(audio_path, api_key, karaoke=karaoke)
 
-    with open(subtitle_path, "w", encoding="utf-8") as f:
-        f.write(str(transcript))
+    if karaoke:
+        subtitle_path = base + ".words.json"
+        with open(subtitle_path, "w", encoding="utf-8") as f:
+            json.dump(transcript, f)
+        # Convert to SRT for Gemini prompt if needed
+        transcript_text = transcript.get("text", "")
+    else:
+        subtitle_path = base + ".srt"
+        with open(subtitle_path, "w", encoding="utf-8") as f:
+            f.write(str(transcript))
+        transcript_text = str(transcript)
 
-    highlights = get_highlights(transcript, api_key)
+    highlights = get_highlights(transcript_text, api_key)
 
     return {
-        "transcript": transcript,
+        "transcript": transcript_text,
         "highlights": highlights,
         "subtitle_path": subtitle_path,
     }
 
 
-def process_with_gemini(file_path: str, api_key: str) -> dict:
+def process_with_gemini(file_path: str, api_key: str, openai_api_key: str = "", karaoke: bool = False) -> dict:
     client = genai.Client(api_key=api_key)
 
     video_file = client.files.upload(file=file_path)
@@ -175,21 +189,35 @@ def process_with_gemini(file_path: str, api_key: str) -> dict:
 
     highlights = _parse_highlights(response.text)
 
-    # Build subtitles from Gemini's transcript when it provides one.
+    # Handle subtitles
     transcript_text = "Transcription skipped for Gemini (Multimodal)"
     subtitle_path = None
-    try:
-        parsed = json.loads(response.text)
-        segments = parsed.get("transcript") if isinstance(parsed, dict) else None
-        srt = build_srt_from_segments(segments)
-        if srt.strip():
-            base, _ = os.path.splitext(file_path)
-            subtitle_path = base + ".srt"
-            with open(subtitle_path, "w", encoding="utf-8") as f:
-                f.write(srt)
-            transcript_text = srt
-    except Exception as e:
-        print(f"Gemini transcript unavailable: {e}")
+    
+    if karaoke and openai_api_key:
+        print("Karaoke enabled. Falling back to OpenAI Whisper for word-level timestamps...")
+        base, _ = os.path.splitext(file_path)
+        audio_path = base + "_audio.mp3"
+        if not os.path.exists(audio_path):
+            extract_audio(file_path, audio_path)
+        
+        transcript_data = transcribe_audio(audio_path, openai_api_key, karaoke=True)
+        subtitle_path = base + ".words.json"
+        with open(subtitle_path, "w", encoding="utf-8") as f:
+            json.dump(transcript_data, f)
+        transcript_text = transcript_data.get("text", "")
+    else:
+        try:
+            parsed = json.loads(response.text)
+            segments = parsed.get("transcript") if isinstance(parsed, dict) else None
+            srt = build_srt_from_segments(segments)
+            if srt.strip():
+                base, _ = os.path.splitext(file_path)
+                subtitle_path = base + ".srt"
+                with open(subtitle_path, "w", encoding="utf-8") as f:
+                    f.write(srt)
+                transcript_text = srt
+        except Exception as e:
+            print(f"Gemini transcript unavailable: {e}")
 
     return {
         "transcript": transcript_text,

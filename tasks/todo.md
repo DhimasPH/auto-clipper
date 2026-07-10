@@ -82,50 +82,50 @@ Status:
 ---
 
 ## Fase 4: Fitur Besar — Async Job + History
-- [ ] **Task 4.1:** Async Job System di Backend
-  - [ ] Setup in-memory job dictionary.
-  - [ ] Buat endpoint `POST /jobs` dan `GET /jobs/{id}`.
-  - [ ] Eksekusi task di thread terpisah.
-- [ ] **Task 4.2:** Frontend Integrasi Async Job
-  - [ ] Implementasi loop polling status.
-  - [ ] Mapping UI bar progress mengikuti state server asli.
-- [ ] **Task 4.3:** Cancel/Stop Proses
-  - [ ] Buat endpoint batal job dan kill worker.
-  - [ ] Tambahkan tombol "Cancel" di UI.
-- [ ] **Task 4.4:** Handle App Di-close Mendadak
-  - [ ] Bind event window close.
-  - [ ] Tambahkan konfirmasi dialog.
-  - [ ] Jalankan hook cleanup temp files.
-- [ ] **Task 4.5:** History (SQLite)
-  - [ ] Setup SQLite tabel history di python.
-  - [ ] Endpoint `GET /history` dan `DELETE /history`.
-  - [ ] Buat Tab "History" di UI frontend.
+- [x] **Task 4.1:** Async Job System di Backend
+  - [x] Setup in-memory job dictionary.
+  - [x] Buat endpoint `POST /jobs` dan `GET /jobs/{id}`.
+  - [x] Eksekusi task di thread terpisah.
+- [x] **Task 4.2:** Frontend Integrasi Async Job
+  - [x] Implementasi loop polling status.
+  - [x] Mapping UI bar progress mengikuti state server asli.
+- [x] **Task 4.3:** Cancel/Stop Proses
+  - [x] Buat endpoint batal job dan kill worker.
+  - [x] Tambahkan tombol "Cancel" di UI.
+- [x] **Task 4.4:** Handle App Di-close Mendadak
+  - [x] Bind event window close.
+  - [x] Tambahkan konfirmasi dialog.
+  - [x] Jalankan hook cleanup temp files.
+- [x] **Task 4.5:** History (SQLite)
+  - [x] Setup SQLite tabel history di python.
+  - [x] Endpoint `GET /history` dan `DELETE /history`.
+  - [x] Buat Tab "History" di UI frontend.
 
 ### Checkpoint Fase 4
-- [ ] Progress berjalan mulus tanpa hang.
-- [ ] Batal render bisa menghentikan ffmpeg.
-- [ ] History clips tersimpan dan bisa dilihat lagi.
+- [x] Progress berjalan mulus tanpa hang.
+- [x] Batal render bisa menghentikan ffmpeg.
+- [x] History clips tersimpan dan bisa dilihat lagi.
 
 ---
 
 ## Fase 5: AI & Video Polish
-- [ ] **Task 5.1:** Caption bergaya *Karaoke/Word-by-word*.
-- [ ] **Task 5.2:** Opsi *Aspect Ratio* (1:1, 4:5) pada saat manual crop/AI.
-- [ ] **Task 5.3:** Upload file lokal (.mp4).
+- [x] **Task 5.1:** Caption bergaya *Karaoke/Word-by-word*.
+- [x] **Task 5.2:** Opsi *Aspect Ratio* (1:1, 4:5) pada saat manual crop/AI.
+- [x] **Task 5.3:** Upload file lokal (.mp4).
 
 ---
 
 ## Fase 6: Security Hardening (I)
-- [ ] **Task 6.1:** Electron contextIsolation + Preload Script
-  - [ ] Buat file `preload.cjs` (expose `electronAPI`).
-  - [ ] Set `nodeIntegration: false`, `contextIsolation: true`.
-- [ ] **Task 6.2:** API Key Storage via Electron safeStorage
-  - [ ] Expose IPC channel enkripsi data.
-  - [ ] Migrasikan key dari `localStorage`.
-- [ ] **Task 5.3:** CORS & Input Validation Hardening
-  - [ ] Setup regex whitelist domains YouTube.
-  - [ ] Batasi origin FastAPI.
+- [x] **Task 6.1:** Electron contextIsolation + Preload Script
+  - [x] Buat file `preload.cjs` (expose `electronAPI`).
+  - [x] Set `nodeIntegration: false`, `contextIsolation: true`.
+- [x] **Task 6.2:** API Key Storage via Electron safeStorage
+  - [x] Expose IPC channel enkripsi data.
+  - [x] Migrasikan key dari `localStorage`.
+- [x] **Task 6.3:** CORS & Input Validation Hardening
+  - [x] Setup regex whitelist domains YouTube.
+  - [x] Batasi origin FastAPI.
 
-### Checkpoint Fase 5
-- [ ] Aplikasi berjalan tanpa akses node secara direct di renderer.
-- [ ] Siap release.
+### Checkpoint Fase 6
+- [x] Aplikasi berjalan tanpa akses node secara direct di renderer.
+- [x] Siap release.

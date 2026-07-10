@@ -226,6 +226,80 @@ def srt_to_ass(srt_text: str, width: int, height: int) -> str:
     return header + "\n".join(events) + ("\n" if events else "")
 
 
+def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float, clip_end: float) -> str:
+    """Convert word-level timestamps to Karaoke ASS format for a specific clip."""
+    width = int(width) or 1080
+    height = int(height) or 1920
+    font_size = max(12, round(width * 0.075))
+    outline = max(1, round(width * 0.005))
+    shadow = max(1, round(width * 0.005))
+    margin_h = max(20, round(width * 0.08))
+    margin_v = max(20, round(height * 0.12))
+
+    header = (
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        "WrapStyle: 1\n"
+        f"PlayResX: {width}\n"
+        f"PlayResY: {height}\n\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, "
+        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
+        "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        f"Style: Default,Arial,{font_size},&H00FFFFFF,&H00000000,&H80000000,"
+        f"-1,0,0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n\n"
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+
+    events = []
+    
+    # Filter words to only those within the clip window
+    clip_words = []
+    for w in words:
+        w_start = w.get("start", 0)
+        w_end = w.get("end", 0)
+        # Shift to clip timeline
+        s = max(0, w_start - clip_start)
+        e = min(clip_end - clip_start, w_end - clip_start)
+        if e > 0 and w_start < clip_end and w_end > clip_start:
+            clip_words.append({"word": w.get("word", "").strip(), "start": s, "end": e})
+
+    if not clip_words:
+        return header
+
+    # Chunk words into lines (max 4 words per line)
+    CHUNK_SIZE = 4
+    chunks = [clip_words[i:i+CHUNK_SIZE] for i in range(0, len(clip_words), CHUNK_SIZE)]
+
+    for chunk in chunks:
+        if not chunk: continue
+        line_start = chunk[0]["start"]
+        line_end = chunk[-1]["end"]
+        
+        # Create an event for each word being highlighted
+        for i, highlight_word in enumerate(chunk):
+            w_start = highlight_word["start"]
+            w_end = highlight_word["end"]
+            
+            # If it's the last word in the chunk, extend its display until the line ends
+            # actually, each event spans the duration of that word
+            
+            parts = []
+            for j, w in enumerate(chunk):
+                if j == i:
+                    parts.append(f"{{\\c&H00FFFF&}}{w['word']}{{\\c}}") # Yellow highlight
+                else:
+                    parts.append(w["word"])
+                    
+            text = " ".join(parts)
+            events.append(
+                f"Dialogue: 0,{_fmt_ass_ts(w_start)},{_fmt_ass_ts(w_end)},Default,,0,0,0,,{text}"
+            )
+            
+    return header + "\n".join(events) + ("\n" if events else "")
+
+
 def _video_dims(path: str):
     """Return (width, height) of the video, or (0, 0) if unreadable."""
     cap = cv2.VideoCapture(path)
@@ -259,7 +333,7 @@ def _video_duration(path: str):
 
 
 def crop_to_vertical(input_path: str, output_path: str, start_time: str,
-                     end_time: str, subtitle_path: str = None) -> str:
+                     end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16") -> str:
     """Crop to 9:16, trim to [start, end], and optionally burn subtitles.
 
     ``subtitle_path`` should point at a full-video .srt; a per-clip subtitle is
@@ -291,8 +365,14 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
         )
 
     center_pct = detect_primary_face_center(input_path, start_time=start_s, end_time=end_s)
-    # trunc(.../2)*2 keeps the crop width even, which H.264 requires.
-    crop_filter = f"crop=trunc(ih*9/16/2)*2:ih:iw*{center_pct}-ih*9/32:0"
+    
+    # Calculate crop dimensions based on aspect ratio
+    if aspect_ratio == "1:1":
+        crop_filter = f"crop=trunc(ih/2)*2:ih:iw*{center_pct}-ih/2:0"
+    elif aspect_ratio == "4:5":
+        crop_filter = f"crop=trunc(ih*4/5/2)*2:ih:iw*{center_pct}-ih*4/10:0"
+    else: # 9:16 default
+        crop_filter = f"crop=trunc(ih*9/16/2)*2:ih:iw*{center_pct}-ih*9/32:0"
 
     # Build an optional subtitle-burning variant. We generate an .ass sized to
     # the clip and reference it by basename while running ffmpeg from that
@@ -300,16 +380,36 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     # (C:\ -> C\:) inside the subtitle filter.
     subtitle_vf = None
     subtitle_cwd = None
-    if subtitle_path:
+    if subtitle_path and os.path.exists(subtitle_path):
+        import json
+        is_json = subtitle_path.endswith(".json")
+        src_w, src_h = _video_dims(input_path)
+        if aspect_ratio == "1:1":
+            out_w = (int(src_h) // 2) * 2
+        elif aspect_ratio == "4:5":
+            out_w = (int(src_h * 4 / 5) // 2) * 2
+        else:
+            out_w = (int(src_h * 9 / 16) // 2) * 2 if src_h else 0
+            
+        ass_text = ""
+        
         try:
             with open(subtitle_path, "r", encoding="utf-8") as f:
-                clip_srt = shift_srt_for_clip(f.read(), start_s, end_s)
-        except Exception:
-            clip_srt = ""
-        if clip_srt.strip():
-            src_w, src_h = _video_dims(input_path)
-            out_w = (int(src_h * 9 / 16) // 2) * 2 if src_h else 0
-            ass_text = srt_to_ass(clip_srt, out_w, src_h)
+                content = f.read()
+                
+            if is_json:
+                data = json.loads(content)
+                words = data.get("words", [])
+                ass_text = words_to_karaoke_ass(words, out_w, src_h, start_s, end_s)
+            else:
+                clip_srt = shift_srt_for_clip(content, start_s, end_s)
+                if clip_srt.strip():
+                    ass_text = srt_to_ass(clip_srt, out_w, src_h)
+        except Exception as e:
+            print(f"Failed to generate ASS: {e}")
+            ass_text = ""
+            
+        if ass_text:
             clip_ass_path = output_path.rsplit('.', 1)[0] + ".ass"
             with open(clip_ass_path, "w", encoding="utf-8") as f:
                 f.write(ass_text)
