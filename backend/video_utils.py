@@ -27,9 +27,15 @@ class _SilentLogger:
         pass
 
 
-def download_youtube_video(url: str, output_path: str) -> Path:
+def download_youtube_video(url: str, output_path: str, quality: str = "best") -> Path:
+    format_str = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+    if quality == "1080p":
+        format_str = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+    elif quality == "720p":
+        format_str = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+
     ydl_opts = {
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        'format': format_str,
         'outtmpl': output_path,
         'merge_output_format': 'mp4',
         'quiet': True,

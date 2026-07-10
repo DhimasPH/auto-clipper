@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface SettingsModalProps {
@@ -8,10 +8,12 @@ interface SettingsModalProps {
   setTheme: (t: "dark" | "light" | "system") => void;
   provider: "openai" | "gemini";
   setProvider: (p: "openai" | "gemini") => void;
-  apiKey: string;
-  setApiKey: (key: string) => void;
   openaiKey: string;
   setOpenaiKey: (key: string) => void;
+  geminiKey: string;
+  setGeminiKey: (key: string) => void;
+  outputFolder: string;
+  setOutputFolder: (folder: string) => void;
 }
 
 export default function SettingsModal({
@@ -21,14 +23,15 @@ export default function SettingsModal({
   setTheme,
   provider,
   setProvider,
-  apiKey,
-  setApiKey,
   openaiKey,
   setOpenaiKey,
+  geminiKey,
+  setGeminiKey,
+  outputFolder,
+  setOutputFolder,
 }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   if (!isOpen) return null;
 
@@ -177,10 +180,10 @@ export default function SettingsModal({
           </label>
           <div style={{ position: "relative" }}>
             <input
-              type={showApiKey ? "text" : "password"}
+              type={showKey ? "text" : "password"}
               placeholder="..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              value={provider === "openai" ? openaiKey : geminiKey}
+              onChange={(e) => provider === "openai" ? setOpenaiKey(e.target.value) : setGeminiKey(e.target.value)}
               style={{
                 width: "100%",
                 padding: "0.75rem",
@@ -195,7 +198,7 @@ export default function SettingsModal({
               onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
             />
             <button
-              onClick={() => setShowApiKey(!showApiKey)}
+              onClick={() => setShowKey(!showKey)}
               style={{
                 position: "absolute",
                 right: "0.5rem",
@@ -207,9 +210,9 @@ export default function SettingsModal({
                 color: "var(--text-secondary)",
                 fontSize: "1rem",
               }}
-              title={showApiKey ? "Hide API Key" : "Show API Key"}
+              title={showKey ? "Hide API Key" : "Show API Key"}
             >
-              {showApiKey ? "👁️" : "👁️‍🗨️"}
+              {showKey ? "👁️" : "👁️‍🗨️"}
             </button>
           </div>
           <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
@@ -217,51 +220,65 @@ export default function SettingsModal({
           </span>
         </div>
 
-        {/* Fallback OpenAI Key (Only if Gemini) */}
-        {provider === "gemini" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
-              {t('settings.api_key_openai')} (Khusus Mode Karaoke)
-            </label>
-            <div style={{ position: "relative" }}>
-              <input
-                type={showOpenaiKey ? "text" : "password"}
-                placeholder="..."
-                value={openaiKey}
-                onChange={(e) => setOpenaiKey(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "0.75rem",
-                  paddingRight: "2.5rem",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border)",
-                  background: "var(--input-bg)",
-                  color: "var(--text-primary)",
-                  outline: "none",
-                }}
-                onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-              />
+        {/* Output Folder Settings */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
+            Folder Penyimpanan
+          </label>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <input
+              type="text"
+              readOnly
+              value={outputFolder || "Default (temp_downloads)"}
+              style={{
+                flex: 1,
+                padding: "0.75rem",
+                borderRadius: "8px",
+                border: "1px solid var(--border)",
+                background: "var(--input-bg)",
+                color: "var(--text-primary)",
+                outline: "none",
+                cursor: "default"
+              }}
+            />
+            <button
+              onClick={async () => {
+                if (window.electronAPI) {
+                  const folder = await window.electronAPI.selectFolder();
+                  if (folder) setOutputFolder(folder);
+                } else {
+                  alert("Fitur pilih folder hanya tersedia di aplikasi Desktop.");
+                }
+              }}
+              style={{
+                background: "var(--button-hover)",
+                border: "1px solid var(--border)",
+                color: "var(--text-primary)",
+                padding: "0 1rem",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Pilih Folder
+            </button>
+            {outputFolder && (
               <button
-                onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                onClick={() => setOutputFolder("")}
                 style={{
-                  position: "absolute",
-                  right: "0.5rem",
-                  top: "50%",
-                  transform: "translateY(-50%)",
                   background: "transparent",
                   border: "none",
+                  color: "#ef4444",
                   cursor: "pointer",
-                  color: "var(--text-secondary)",
-                  fontSize: "1rem",
+                  fontSize: "1.2rem",
                 }}
-                title={showOpenaiKey ? "Hide API Key" : "Show API Key"}
+                title="Reset ke Default"
               >
-                {showOpenaiKey ? "👁️" : "👁️‍🗨️"}
+                ×
               </button>
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
         <button
           onClick={onClose}

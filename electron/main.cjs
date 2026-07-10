@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, safeStorage } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
@@ -33,7 +33,7 @@ ipcMain.handle("get-api-keys", () => {
   } catch (e) {
     console.error("Failed to read secrets", e);
   }
-  return { apiKey: "", openaiKey: "" };
+  return { geminiKey: "", openaiKey: "" };
 });
 
 ipcMain.handle("save-api-keys", (event, keys) => {
@@ -46,6 +46,20 @@ ipcMain.handle("save-api-keys", (event, keys) => {
     console.error("Failed to save secrets", e);
     return false;
   }
+});
+
+ipcMain.handle("select-folder", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openDirectory"]
+  });
+  if (!result.canceled) {
+    return result.filePaths[0];
+  }
+  return null;
+});
+
+ipcMain.on("open-folder", (event, folderPath) => {
+  shell.showItemInFolder(folderPath);
 });
 
 function killBackend() {

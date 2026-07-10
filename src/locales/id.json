@@ -13,7 +13,7 @@
     "manual_start": "Waktu Mulai",
     "manual_end": "Waktu Selesai",
     "manual_range_label": "Rentang Waktu (HH:MM:SS - HH:MM:SS)",
-    "subtitle_label": "Bakar Subtitle ke video (bisa diubah per-clip)",
+    "subtitle_label": "Masukan Subtitle ke video (bisa diubah per-clip)",
     "btn_generating": "Memproses...",
     "btn_generate": "✨ Generate Viral Clips",
     "btn_manual_clip": "✂️ Potong Klip"

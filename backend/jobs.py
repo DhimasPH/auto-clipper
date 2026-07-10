@@ -24,7 +24,7 @@ def log_error(context: str) -> None:
     except Exception:
         pass
 
-def create_job(url: str, provider: str, api_key: str, mode: str, manual_start: str, manual_end: str, aspect_ratio: str = "9:16", caption_style: str = "standard", openai_key: str = "") -> str:
+def create_job(url: str, provider: str, api_key: str, mode: str, manual_start: str, manual_end: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best") -> str:
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -36,7 +36,9 @@ def create_job(url: str, provider: str, api_key: str, mode: str, manual_start: s
         "manual_end": manual_end,
         "aspect_ratio": aspect_ratio,
         "caption_style": caption_style,
-        "openai_key": openai_key,
+        "burn_subs": burn_subs,
+        "output_dir": output_dir,
+        "quality": quality,
         "status": "PENDING",
         "progress": "",
         "cancelled": False,
@@ -45,6 +47,34 @@ def create_job(url: str, provider: str, api_key: str, mode: str, manual_start: s
     }
     threading.Thread(target=_run_job, args=(job_id,), daemon=True).start()
     return job_id
+
+def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str) -> str:
+    from backend.db import get_history
+    hist = get_history(history_id)
+    if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
+        raise ValueError("History tidak valid atau metadata tidak lengkap.")
+        
+    job_id = str(uuid.uuid4())
+    active_jobs[job_id] = {
+        "id": job_id,
+        "url": hist["url"],
+        "mode": "rerender",
+        "aspect_ratio": aspect_ratio,
+        "burn_subs": burn_subs,
+        "output_dir": output_dir,
+        "status": "PENDING",
+        "progress": "",
+        "cancelled": False,
+        "clips": [],
+        "error": None,
+        "metadata": hist["metadata"]
+    }
+    threading.Thread(target=_run_rerender_job, args=(job_id,), daemon=True).start()
+    return job_id
+
+def create_rerun_ai_job(history_id: str, prompt: str, aspect_ratio: str, burn_subs: bool, output_dir: str, api_key: str, provider: str) -> str:
+    # Future implementation for rerun AI
+    pass
 
 def get_job(job_id: str) -> dict:
     return active_jobs.get(job_id)
@@ -61,6 +91,7 @@ def _run_job(job_id: str):
             _finalize_job(job_id, "CANCELLED")
             return
             
+        metadata = {}
         # 1. DOWNLOAD OR LOCAL FILE
         job["status"] = "DOWNLOADING"
         
@@ -72,7 +103,7 @@ def _run_job(job_id: str):
             job["progress"] = "Mengunduh video..."
             output_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            download_youtube_video(job["url"], output_path)
+            download_youtube_video(job["url"], output_path, job.get("quality", "best"))
         
         if job["cancelled"]:
             _finalize_job(job_id, "CANCELLED")
@@ -86,12 +117,14 @@ def _run_job(job_id: str):
             is_karaoke = (job["caption_style"] == "karaoke")
             
             if job["provider"] == "gemini":
-                ai_result = process_with_gemini(output_path, job["api_key"], openai_api_key=job["openai_key"], karaoke=is_karaoke)
+                ai_result = process_with_gemini(output_path, job["api_key"])
             else:
                 ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke)
                 
             highlights = ai_result.get("highlights", [])
             subtitle_path = ai_result.get("subtitle_path")
+            
+            metadata["subtitle_path"] = subtitle_path
             
             if not highlights:
                 raise ValueError("Tidak ada highlight yang ditemukan oleh AI.")
@@ -110,6 +143,7 @@ def _run_job(job_id: str):
         # 3. CROPPING
         job["status"] = "CROPPING"
         segments = highlights[:MAX_CLIPS]
+        metadata["highlights"] = segments
         
         for i, seg in enumerate(segments):
             if job["cancelled"]:
@@ -119,12 +153,19 @@ def _run_job(job_id: str):
             job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
             
             safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
+            import shutil
+            
             clip_output = output_path.replace(".mp4", f"_crop_{safe_start_time}.mp4")
+            
+            if job.get("output_dir"):
+                out_dir = job["output_dir"]
+                os.makedirs(out_dir, exist_ok=True)
+                clip_output = os.path.join(out_dir, f"AutoClipper_{job_id}_clip_{i+1}.mp4")
             
             try:
                 result_path = crop_to_vertical(
                     output_path, clip_output, seg["start_time"], seg["end_time"],
-                    subtitle_path=subtitle_path, aspect_ratio=job["aspect_ratio"]
+                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None, aspect_ratio=job["aspect_ratio"]
                 )
                 
                 # Append to clips
@@ -144,14 +185,87 @@ def _run_job(job_id: str):
         if not job["clips"]:
              raise ValueError("Semua klip gagal dirender.")
              
-        _finalize_job(job_id, "DONE")
+        _finalize_job(job_id, "DONE", metadata)
         
     except Exception as e:
         log_error(f"JOB {job_id}")
         job["error"] = str(e)
-        _finalize_job(job_id, "ERROR")
+        _finalize_job(job_id, "ERROR", locals().get('metadata', {}))
 
-def _finalize_job(job_id: str, status: str):
+def _run_rerender_job(job_id: str):
+    job = active_jobs[job_id]
+    metadata = job["metadata"]
+    try:
+        if job["cancelled"]:
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
+            
+        output_path = metadata["source_video"]
+        if not os.path.exists(output_path):
+            raise ValueError("Video sumber tidak ditemukan di memori lokal. Silakan proses dari awal.")
+            
+        subtitle_path = metadata.get("subtitle_path")
+        highlights = metadata.get("highlights", [])
+        
+        job["status"] = "CROPPING"
+        segments = highlights[:MAX_CLIPS]
+        
+        for i, seg in enumerate(segments):
+            if job["cancelled"]:
+                _finalize_job(job_id, "CANCELLED", metadata)
+                return
+                
+            job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
+            
+            safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
+            import shutil
+            
+            clip_output = output_path.replace(".mp4", f"_crop_{job_id}_{safe_start_time}.mp4")
+            
+            if job.get("output_dir"):
+                out_dir = job["output_dir"]
+                os.makedirs(out_dir, exist_ok=True)
+                clip_output = os.path.join(out_dir, f"AutoClipper_{job_id}_clip_{i+1}.mp4")
+            
+            try:
+                result_path = crop_to_vertical(
+                    output_path, clip_output, seg["start_time"], seg["end_time"],
+                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None, aspect_ratio=job["aspect_ratio"]
+                )
+                
+                job["clips"].append({
+                    "path": result_path,
+                    "description": seg.get("description", f"Highlight {i+1}"),
+                    "start": seg["start_time"],
+                    "end": seg["end_time"],
+                    "subs": bool(subtitle_path),
+                    "v": 0
+                })
+            except Exception as e:
+                log_error(f"JOB RERENDER CROP {job_id}")
+                print(f"Clip {i+1} failed: {e}")
+                
+        if not job["clips"]:
+             raise ValueError("Semua klip gagal dirender.")
+             
+        _finalize_job(job_id, "DONE", metadata)
+        
+    except Exception as e:
+        log_error(f"JOB RERENDER {job_id}")
+        job["error"] = str(e)
+        _finalize_job(job_id, "ERROR", metadata)
+
+def _finalize_job(job_id: str, status: str, metadata: dict = None):
     job = active_jobs[job_id]
     job["status"] = status
-    save_history(job_id, job["url"], status, job["clips"])
+    
+    if metadata is None:
+        metadata = {}
+    metadata["source_video"] = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
+    
+    if status == "DONE" or status == "ERROR" or status == "CANCELLED":
+        try:
+            from backend.db import save_history
+            save_history(job_id, job["url"], status, job["clips"], metadata)
+        except Exception:
+            pass

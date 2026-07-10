@@ -40,10 +40,11 @@ def _with_retry(fn, attempts: int = 4, base_delay: float = 2.0):
 HIGHLIGHT_GUIDANCE = (
     "Pick the most engaging, self-contained moments for vertical short-form "
     "video (TikTok/Reels/Shorts). Each highlight must: start on a strong hook, "
-    "contain a complete thought (never cut off mid-sentence), be genuinely "
+    "contain a complete thought AND a complete sentence (NEVER cut off mid-sentence or mid-word), be genuinely "
     "interesting/funny/surprising on its own without context, and run about "
-    "20-45 seconds. Set start/end on natural speech pauses. Return them in "
-    "chronological order and avoid intros, filler, and dead air."
+    "15-45 seconds. Set start/end precisely on natural speech pauses (silence). "
+    "Ensure that the first word is clearly spoken from the beginning and the last word finishes completely. "
+    "Return them in chronological order and avoid intros, filler, and dead air."
 )
 
 
@@ -155,7 +156,7 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False) -> 
     }
 
 
-def process_with_gemini(file_path: str, api_key: str, openai_api_key: str = "", karaoke: bool = False) -> dict:
+def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False) -> dict:
     client = genai.Client(api_key=api_key)
 
     video_file = client.files.upload(file=file_path)
@@ -193,31 +194,18 @@ def process_with_gemini(file_path: str, api_key: str, openai_api_key: str = "", 
     transcript_text = "Transcription skipped for Gemini (Multimodal)"
     subtitle_path = None
     
-    if karaoke and openai_api_key:
-        print("Karaoke enabled. Falling back to OpenAI Whisper for word-level timestamps...")
-        base, _ = os.path.splitext(file_path)
-        audio_path = base + "_audio.mp3"
-        if not os.path.exists(audio_path):
-            extract_audio(file_path, audio_path)
-        
-        transcript_data = transcribe_audio(audio_path, openai_api_key, karaoke=True)
-        subtitle_path = base + ".words.json"
-        with open(subtitle_path, "w", encoding="utf-8") as f:
-            json.dump(transcript_data, f)
-        transcript_text = transcript_data.get("text", "")
-    else:
-        try:
-            parsed = json.loads(response.text)
-            segments = parsed.get("transcript") if isinstance(parsed, dict) else None
-            srt = build_srt_from_segments(segments)
-            if srt.strip():
-                base, _ = os.path.splitext(file_path)
-                subtitle_path = base + ".srt"
-                with open(subtitle_path, "w", encoding="utf-8") as f:
-                    f.write(srt)
-                transcript_text = srt
-        except Exception as e:
-            print(f"Gemini transcript unavailable: {e}")
+    try:
+        parsed = json.loads(response.text)
+        segments = parsed.get("transcript") if isinstance(parsed, dict) else None
+        srt = build_srt_from_segments(segments)
+        if srt.strip():
+            base, _ = os.path.splitext(file_path)
+            subtitle_path = base + ".srt"
+            with open(subtitle_path, "w", encoding="utf-8") as f:
+                f.write(srt)
+            transcript_text = srt
+    except Exception as e:
+        print(f"Gemini transcript unavailable: {e}")
 
     return {
         "transcript": transcript_text,

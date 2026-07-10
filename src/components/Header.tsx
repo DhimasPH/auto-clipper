@@ -1,7 +1,5 @@
-import React from "react";
-import { useTranslation } from "react-i18next";
 
-type Theme = "dark" | "light" | "system";
+import { useTranslation } from "react-i18next";
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -11,12 +9,7 @@ interface HeaderProps {
 }
 
 export default function Header({ onOpenSettings, backendStatus, onOpenFAQ, onOpenHistory }: HeaderProps) {
-  const { t, i18n } = useTranslation();
-
-  const toggleLanguage = () => {
-    const nextLang = i18n.language === 'id' ? 'en' : 'id';
-    i18n.changeLanguage(nextLang);
-  };
+  const { t } = useTranslation();
 
   return (
     <header

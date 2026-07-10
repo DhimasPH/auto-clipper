@@ -13,7 +13,7 @@
     "manual_start": "Start Time",
     "manual_end": "End Time",
     "manual_range_label": "Time Range (HH:MM:SS - HH:MM:SS)",
-    "subtitle_label": "Burn Subtitles to video (can toggle later)",
+    "subtitle_label": "Embed Subtitles into video (can be changed per-clip)",
     "btn_generating": "Processing...",
     "btn_generate": "✨ Generate Viral Clips",
     "btn_manual_clip": "✂️ Crop Video"

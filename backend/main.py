@@ -51,7 +51,18 @@ class CreateJobRequest(BaseModel):
     manual_end: str = ""
     aspect_ratio: str = "9:16"
     caption_style: str = "standard"
-    openai_key: str = ""
+    burn_subs: bool = True
+    output_dir: str = ""
+    quality: str = "best"
+
+@app.post("/jobs/{job_id}/rerender")
+def api_rerender_job(job_id: str, req: CreateJobRequest):
+    try:
+        from backend.jobs import create_rerender_job
+        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir)
+        return {"status": "success", "job_id": new_job_id}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 @app.post("/jobs")
 def api_create_job(req: CreateJobRequest):
@@ -70,7 +81,7 @@ def api_create_job(req: CreateJobRequest):
 
     job_id = create_job(
         req.url.strip(), req.provider, req.api_key.strip(), req.mode, 
-        req.manual_start, req.manual_end, req.aspect_ratio, req.caption_style, req.openai_key.strip()
+        req.manual_start, req.manual_end, req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality
     )
     return {"status": "success", "job_id": job_id}
 
@@ -117,7 +128,7 @@ def get_video(path: str):
     temp_dir = os.path.abspath(os.path.join(os.getcwd(), "temp_downloads"))
     if not abs_path.startswith(temp_dir) or not os.path.exists(abs_path):
         return JSONResponse(status_code=404, content={"status": "error", "message": "File not found"})
-    return FileResponse(abs_path, media_type="video/mp4")
+    return FileResponse(abs_path, media_type="video/mp4", filename=os.path.basename(abs_path))
 
 
 if __name__ == "__main__":

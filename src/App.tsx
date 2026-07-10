@@ -14,8 +14,14 @@ export default function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [backendStatus, setBackendStatus] = useState("Checking...");
   const [url, setUrl] = useState("");
-  const [apiKey, setApiKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [outputFolder, setOutputFolder] = useState(() => {
+    return localStorage.getItem("ac_output_folder") || "";
+  });
+  const [quality, setQuality] = useState<"best" | "1080p" | "720p">(() => {
+    return (localStorage.getItem("ac_quality") as any) || "best";
+  });
   const [provider, setProvider] = useState<"openai" | "gemini">(() => {
     return (localStorage.getItem("ac_provider") as any) || "openai";
   });
@@ -34,9 +40,9 @@ export default function App() {
         }
         
         const keys = await window.electronAPI.getApiKeys();
-        if (keys && (keys.apiKey || keys.openaiKey)) {
-          setApiKey(keys.apiKey || "");
+        if (keys && (keys.openaiKey || keys.geminiKey)) {
           setOpenaiKey(keys.openaiKey || "");
+          setGeminiKey(keys.geminiKey || "");
         } else {
           // Migration from localStorage
           const lsApi = localStorage.getItem("ac_api_key");
@@ -44,9 +50,10 @@ export default function App() {
           if (lsApi || lsOpenai) {
              const keyA = lsApi ? atob(lsApi) : "";
              const keyB = lsOpenai ? atob(lsOpenai) : "";
-             await window.electronAPI.saveApiKeys({ apiKey: keyA, openaiKey: keyB });
-             setApiKey(keyA);
+             // During migration, we assume ac_api_key was used for whichever provider was selected, but to be safe we can just put it in both or one.
+             await window.electronAPI.saveApiKeys({ openaiKey: keyB, geminiKey: keyA });
              setOpenaiKey(keyB);
+             setGeminiKey(keyA);
              localStorage.removeItem("ac_api_key");
              localStorage.removeItem("ac_openai_key");
           }
@@ -56,7 +63,7 @@ export default function App() {
         try {
           const lsApi = localStorage.getItem("ac_api_key");
           const lsOpenai = localStorage.getItem("ac_openai_key");
-          if (lsApi) setApiKey(atob(lsApi));
+          if (lsApi) setGeminiKey(atob(lsApi));
           if (lsOpenai) setOpenaiKey(atob(lsOpenai));
         } catch (e) {}
       }
@@ -68,19 +75,30 @@ export default function App() {
   useEffect(() => {
     if (!isInitializing) {
       if (window.electronAPI) {
-        window.electronAPI.saveApiKeys({ apiKey, openaiKey });
+        window.electronAPI.saveApiKeys({ openaiKey, geminiKey });
       } else {
-        if (apiKey) localStorage.setItem("ac_api_key", btoa(apiKey));
+        if (geminiKey) localStorage.setItem("ac_api_key", btoa(geminiKey));
         else localStorage.removeItem("ac_api_key");
         if (openaiKey) localStorage.setItem("ac_openai_key", btoa(openaiKey));
         else localStorage.removeItem("ac_openai_key");
       }
     }
-  }, [apiKey, openaiKey, isInitializing]);
+  }, [openaiKey, geminiKey, isInitializing]);
 
   useEffect(() => {
     localStorage.setItem("ac_provider", provider);
+    if (provider === "gemini" && captionStyle === "karaoke") {
+      setCaptionStyle("standard");
+    }
   }, [provider]);
+
+  useEffect(() => {
+    localStorage.setItem("ac_output_folder", outputFolder);
+  }, [outputFolder]);
+
+  useEffect(() => {
+    localStorage.setItem("ac_quality", quality);
+  }, [quality]);
 
   const [mode, setMode] = useState<"ai" | "manual">("ai");
   const [manualStart, setManualStart] = useState("00:00:00");
@@ -99,7 +117,7 @@ export default function App() {
   // so a clip can be re-rendered with captions toggled after generation.
   const [burnSubtitles, setBurnSubtitles] = useState(true);
   const [subtitlePath, setSubtitlePath] = useState<string | null>(null);
-  const [sourcePath, setSourcePath] = useState("");
+  const [sourcePath] = useState("");
   const [reRendering, setReRendering] = useState<number | null>(null);
   
   // Task 1.3: FAQ Modal state
@@ -107,8 +125,6 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  // SettingsModal open wrapper to avoid lint errors with unread variables
-  const openSettings = () => setIsSettingsOpen(true);
 
   // Task 3.2: Theme state
   const [theme, setTheme] = useState<"dark" | "light" | "system">(() => {
@@ -136,7 +152,6 @@ export default function App() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), ttl);
   };
 
-  const MAX_CLIPS = 3; // Demo: generate up to 3 shorts per video.
   const videoSrc = (p: string, v = 0) =>
     `${API_URL}/video?path=${encodeURIComponent(p)}&v=${v}`;
 
@@ -236,13 +251,13 @@ export default function App() {
       return;
     }
     
-    if (mode === "ai" && !apiKey && provider === "openai") {
-      notify(t('toast.clip_failed', { num: '', msg: 'API Key belum diisi! Silakan isi di Settings.' }), "error");
+    if (mode === "ai" && provider === "openai" && !openaiKey) {
+      notify(t('toast.clip_failed', { num: '', msg: 'API Key OpenAI belum diisi! Silakan isi di Settings.' }), "error");
       return;
     }
     
-    if (mode === "ai" && captionStyle === "karaoke" && !openaiKey && provider === "gemini") {
-      notify(t('toast.clip_failed', { num: '', msg: 'OpenAI API Key dibutuhkan untuk mode Karaoke dengan Gemini! Silakan isi di Settings.' }), "error");
+    if (mode === "ai" && provider === "gemini" && !geminiKey) {
+      notify(t('toast.clip_failed', { num: '', msg: 'API Key Gemini belum diisi! Silakan isi di Settings.' }), "error");
       return;
     }
 
@@ -272,13 +287,15 @@ export default function App() {
       const res = await axios.post(`${API_URL}/jobs`, {
         url: finalUrl,
         provider,
-        api_key: apiKey,
+        api_key: provider === "openai" ? openaiKey : geminiKey,
         mode,
         manual_start: manualStart,
         manual_end: manualEnd,
         aspect_ratio: aspectRatio,
         caption_style: captionStyle,
-        openai_key: openaiKey
+        burn_subs: burnSubtitles,
+        output_dir: outputFolder,
+        quality: quality
       });
       
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -288,6 +305,41 @@ export default function App() {
       setStatus("ERROR");
       setProgress("");
       const msg = err.response?.data?.message || err.message || "An unknown error occurred.";
+      setErrorMsg(msg);
+      notify(`⚠️ ${msg}`, "error");
+    }
+  };
+
+  const handleRerender = async (historyJobId: string) => {
+    setStatus("TRANSCRIBING");
+    setProgress("");
+    setErrorMsg("");
+    
+    try {
+      const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerender`, {
+        url: "dummy",
+        provider: "openai",
+        api_key: "dummy",
+        mode: "rerender",
+        manual_start: "00:00:00",
+        manual_end: "00:00:00",
+        aspect_ratio: aspectRatio,
+        caption_style: captionStyle,
+        burn_subs: burnSubtitles,
+        output_dir: outputFolder,
+        quality: quality
+      });
+      
+      if (res.data.status === "error") throw new Error(res.data.message);
+      
+      setActiveJobId(res.data.job_id);
+      setIsHistoryOpen(false);
+      notify("🚀 Memulai re-render dari history...");
+    } catch (err: any) {
+      console.error(err);
+      setStatus("ERROR");
+      setProgress("");
+      const msg = err.response?.data?.message || err.message || "Gagal memulai re-render.";
       setErrorMsg(msg);
       notify(`⚠️ ${msg}`, "error");
     }
@@ -558,21 +610,26 @@ export default function App() {
                 Gaya Subtitle
               </label>
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                {(["standard", "karaoke"] as const).map((style) => (
-                  <button
-                    key={style}
-                    onClick={() => setCaptionStyle(style)}
-                    style={{
-                      flex: 1, padding: "0.5rem", borderRadius: "8px", border: "1px solid",
-                      borderColor: captionStyle === style ? "var(--accent)" : "var(--border)",
-                      background: captionStyle === style ? "rgba(99, 102, 241, 0.1)" : "var(--input-bg)",
-                      color: captionStyle === style ? "var(--accent)" : "var(--text-primary)",
-                      cursor: "pointer", fontWeight: 600
-                    }}
-                  >
-                    {style === "standard" ? "Standard (Baris)" : "Karaoke (Word-by-word)"}
-                  </button>
-                ))}
+                {(["standard", "karaoke"] as const).map((style) => {
+                  const disabled = provider === "gemini" && style === "karaoke";
+                  return (
+                    <button
+                      key={style}
+                      disabled={disabled}
+                      onClick={() => setCaptionStyle(style)}
+                      style={{
+                        flex: 1, padding: "0.5rem", borderRadius: "8px", border: "1px solid",
+                        borderColor: captionStyle === style ? "var(--accent)" : "var(--border)",
+                        background: captionStyle === style ? "rgba(99, 102, 241, 0.1)" : "var(--input-bg)",
+                        color: captionStyle === style ? "var(--accent)" : "var(--text-primary)",
+                        cursor: disabled ? "not-allowed" : "pointer", fontWeight: 600,
+                        opacity: disabled ? 0.5 : 1
+                      }}
+                    >
+                      {style === "standard" ? "Standard (Baris)" : "Karaoke (Word-by-word)"}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -673,6 +730,30 @@ export default function App() {
                 onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
               />
             </div>
+            
+            {/* Kualitas Download */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" }}>
+              <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
+                Kualitas Video (Download)
+              </label>
+              <select
+                value={quality}
+                onChange={(e) => setQuality(e.target.value as any)}
+                style={{
+                  padding: "0.75rem",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border)",
+                  background: "var(--input-bg)",
+                  color: "var(--text-primary)",
+                  outline: "none",
+                  fontWeight: 500
+                }}
+              >
+                <option value="best">Best (Otomatis)</option>
+                <option value="1080p">1080p (Maksimal)</option>
+                <option value="720p">720p (Lebih cepat)</option>
+              </select>
+            </div>
           </div>
         )}
 
@@ -770,15 +851,6 @@ export default function App() {
                 textAlign: "right",
               }}
             >
-              <span
-                style={{
-                  fontSize: "0.875rem",
-                  color: "var(--text-primary)",
-                  fontWeight: 500,
-                }}
-              >
-                {t('main.subtitle_label')}
-              </span>
               {progressPct}%{progress ? ` · ${progress}` : ""}
             </div>
           </div>
@@ -820,7 +892,11 @@ export default function App() {
 
       {/* Task 1.3: Render FAQ Modal */}
       <FAQModal isOpen={isFAQOpen} onClose={() => setIsFAQOpen(false)} />
-      <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        onRerender={handleRerender}
+      />
       
       {/* Settings Modal */}
       <SettingsModal 
@@ -830,10 +906,12 @@ export default function App() {
         setTheme={setTheme}
         provider={provider}
         setProvider={setProvider}
-        apiKey={apiKey}
-        setApiKey={setApiKey}
         openaiKey={openaiKey}
         setOpenaiKey={setOpenaiKey}
+        geminiKey={geminiKey}
+        setGeminiKey={setGeminiKey}
+        outputFolder={outputFolder}
+        setOutputFolder={setOutputFolder}
       />
     </div>
   );

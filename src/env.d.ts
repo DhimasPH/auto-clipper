@@ -4,7 +4,9 @@ interface Window {
   electronAPI: {
     setJobActive: (active: boolean) => void;
     getBackendPort: () => Promise<number | null>;
-    getApiKeys: () => Promise<{ apiKey: string; openaiKey: string }>;
-    saveApiKeys: (keys: { apiKey: string; openaiKey: string }) => Promise<boolean>;
+    getApiKeys: () => Promise<{ geminiKey: string; openaiKey: string }>;
+    saveApiKeys: (keys: { geminiKey: string; openaiKey: string }) => Promise<boolean>;
+    selectFolder: () => Promise<string | null>;
+    openFolder: (path: string) => void;
   };
 }

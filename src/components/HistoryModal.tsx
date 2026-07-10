@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import { useTranslation } from "react-i18next";
 import { API_URL } from "../App";
 
 interface HistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onRerender: (jobId: string) => void;
 }
 
-export default function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
-  const { t } = useTranslation();
+export default function HistoryModal({ isOpen, onClose, onRerender }: HistoryModalProps) {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -32,11 +31,13 @@ export default function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
   };
 
   const deleteHistory = async (jobId: string) => {
-    try {
-      await axios.delete(`${API_URL}/history/${jobId}`);
-      fetchHistory();
-    } catch (e) {
-      console.error(e);
+    if (window.confirm("Apakah Anda yakin ingin menghapus history ini? Semua file klip dan metadata terkait akan ikut terhapus permanen dari memori lokal.")) {
+      try {
+        await axios.delete(`${API_URL}/history/${jobId}`);
+        fetchHistory();
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
@@ -116,18 +117,54 @@ export default function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
                 {job.result_clips && job.result_clips.length > 0 && (
                   <div style={{ display: "flex", gap: "0.5rem", overflowX: "auto", padding: "0.5rem 0" }}>
                     {job.result_clips.map((clip: any, idx: number) => (
-                      <a key={idx} href={`${API_URL}/video?path=${encodeURIComponent(clip.path)}`} download style={{
-                        padding: "0.25rem 0.5rem",
+                      <div key={idx} style={{ display: "flex", gap: "0.25rem" }}>
+                        <a href={`${API_URL}/video?path=${encodeURIComponent(clip.path)}`} download style={{
+                          padding: "0.25rem 0.5rem",
+                          background: "var(--accent)",
+                          color: "#fff",
+                          textDecoration: "none",
+                          borderRadius: "4px",
+                          fontSize: "0.8rem",
+                          whiteSpace: "nowrap"
+                        }}>
+                          Download
+                        </a>
+                        <button
+                          onClick={() => {
+                            if (window.electronAPI) {
+                              window.electronAPI.openFolder(clip.path);
+                            }
+                          }}
+                          title="Buka Folder"
+                          style={{
+                            padding: "0.25rem 0.5rem",
+                            background: "var(--button-hover)",
+                            color: "var(--text-primary)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "4px",
+                            fontSize: "0.8rem",
+                            cursor: "pointer"
+                          }}
+                        >
+                          📁
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => onRerender(job.id)}
+                      style={{
+                        padding: "0.4rem 0.75rem",
                         background: "var(--accent)",
                         color: "#fff",
-                        textDecoration: "none",
+                        border: "none",
                         borderRadius: "4px",
                         fontSize: "0.8rem",
-                        whiteSpace: "nowrap"
-                      }}>
-                        ⬇️ {clip.description.substring(0, 15)}...
-                      </a>
-                    ))}
+                        cursor: "pointer",
+                        fontWeight: 600
+                      }}
+                    >
+                      🔄 Re-render
+                    </button>
                   </div>
                 )}
               </div>

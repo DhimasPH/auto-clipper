@@ -5,4 +5,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getBackendPort: () => ipcRenderer.invoke("get-backend-port"),
   getApiKeys: () => ipcRenderer.invoke("get-api-keys"),
   saveApiKeys: (keys) => ipcRenderer.invoke("save-api-keys", keys),
+  selectFolder: () => ipcRenderer.invoke('select-folder'),
+  openFolder: (path) => ipcRenderer.send('open-folder', path),
 });

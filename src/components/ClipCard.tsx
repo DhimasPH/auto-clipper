@@ -1,4 +1,3 @@
-import React from "react";
 import { useTranslation } from "react-i18next";
 
 export interface Clip {
@@ -103,20 +102,40 @@ export default function ClipCard({
           </button>
         )}
         
-        <a
-          href={videoSrc(clip.path, clip.v)}
-          download
-          style={{
-            display: "inline-block",
-            marginTop: "0.75rem",
-            fontSize: "0.8rem",
-            color: "var(--accent)",
-            textDecoration: "none",
-          }}
-        >
-          {t('clip.btn_download')}
-        </a>
-      </div>
+          <a
+            href={videoSrc(clip.path, clip.v)}
+            download
+            style={{
+              display: "inline-block",
+              marginTop: "0.75rem",
+              fontSize: "0.8rem",
+              color: "var(--accent)",
+              textDecoration: "none",
+            }}
+          >
+            {t('clip.btn_download')}
+          </a>
+          <button
+            onClick={() => {
+              if (window.electronAPI) {
+                window.electronAPI.openFolder(clip.path);
+              }
+            }}
+            style={{
+              display: "inline-block",
+              marginTop: "0.75rem",
+              marginLeft: "1rem",
+              fontSize: "0.8rem",
+              color: "var(--text-secondary)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              textDecoration: "underline"
+            }}
+          >
+            Buka Folder
+          </button>
+        </div>
     </div>
   );
 }
