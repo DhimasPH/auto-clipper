@@ -310,7 +310,7 @@ export default function App() {
     }
   };
 
-  const handleRerender = async (historyJobId: string) => {
+  const handleRerender = async (historyJobId: string, customAspectRatio: string, customCaptionStyle: string, customBurnSubs: boolean) => {
     setStatus("TRANSCRIBING");
     setProgress("");
     setErrorMsg("");
@@ -323,9 +323,9 @@ export default function App() {
         mode: "rerender",
         manual_start: "00:00:00",
         manual_end: "00:00:00",
-        aspect_ratio: aspectRatio,
-        caption_style: captionStyle,
-        burn_subs: burnSubtitles,
+        aspect_ratio: customAspectRatio,
+        caption_style: customCaptionStyle,
+        burn_subs: customBurnSubs,
         output_dir: outputFolder,
         quality: quality
       });
@@ -340,6 +340,42 @@ export default function App() {
       setStatus("ERROR");
       setProgress("");
       const msg = err.response?.data?.message || err.message || "Gagal memulai re-render.";
+      setErrorMsg(msg);
+      notify(`⚠️ ${msg}`, "error");
+    }
+  };
+
+  const handleRerunAI = async (historyJobId: string, extraPrompt: string) => {
+    setStatus("TRANSCRIBING");
+    setProgress("");
+    setErrorMsg("");
+    
+    try {
+      const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerun_ai`, {
+        url: "dummy",
+        provider: provider,
+        api_key: provider === "openai" ? openaiKey : geminiKey,
+        mode: "rerun_ai",
+        manual_start: "00:00:00",
+        manual_end: "00:00:00",
+        aspect_ratio: aspectRatio,
+        caption_style: captionStyle,
+        burn_subs: burnSubtitles,
+        output_dir: outputFolder,
+        quality: quality,
+        extra_prompt: extraPrompt
+      });
+      
+      if (res.data.status === "error") throw new Error(res.data.message);
+      
+      setActiveJobId(res.data.job_id);
+      setIsHistoryOpen(false);
+      notify("✨ Memulai proses AI Koreksi dari history...");
+    } catch (err: any) {
+      console.error(err);
+      setStatus("ERROR");
+      setProgress("");
+      const msg = err.response?.data?.message || err.message || "Gagal memulai AI Koreksi.";
       setErrorMsg(msg);
       notify(`⚠️ ${msg}`, "error");
     }
@@ -896,6 +932,7 @@ export default function App() {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         onRerender={handleRerender}
+        onRerunAI={handleRerunAI}
       />
       
       {/* Settings Modal */}
@@ -912,6 +949,8 @@ export default function App() {
         setGeminiKey={setGeminiKey}
         outputFolder={outputFolder}
         setOutputFolder={setOutputFolder}
+        quality={quality}
+        setQuality={setQuality}
       />
     </div>
   );

@@ -255,6 +255,106 @@ def _run_rerender_job(job_id: str):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str):
+    from backend.db import get_history
+    hist = get_history()
+    job_record = next((j for j in hist if j["id"] == history_job_id), None)
+    if not job_record:
+        raise ValueError("History job not found")
+        
+    metadata = job_record.get("metadata", {})
+    source_video = metadata.get("source_video")
+    if not source_video or not os.path.exists(source_video):
+        raise ValueError("Source video tidak ditemukan lagi di memori lokal.")
+        
+    new_job_id = str(uuid.uuid4())
+    active_jobs[new_job_id] = {
+        "id": new_job_id,
+        "url": job_record.get("url", "local:"),
+        "provider": provider,
+        "api_key": api_key,
+        "mode": "ai",
+        "aspect_ratio": aspect_ratio,
+        "caption_style": job_record.get("caption_style", "standard"),
+        "burn_subs": burn_subs,
+        "output_dir": output_dir,
+        "quality": "best",
+        "status": "QUEUED",
+        "progress": "Menyiapkan AI Koreksi...",
+        "clips": [],
+        "error": None,
+        "cancelled": False,
+        "history_ref": history_job_id,
+        "extra_prompt": extra_prompt,
+        "metadata_ref": metadata
+    }
+    
+    t = threading.Thread(target=_run_rerun_ai_job, args=(new_job_id, source_video, metadata))
+    t.start()
+    return new_job_id
+
+def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
+    job = active_jobs[job_id]
+    metadata = dict(old_metadata) # clone
+    try:
+        if job["cancelled"]: return
+
+        job["status"] = "TRANSCRIBING"
+        job["progress"] = f"Menganalisis ulang dengan {job['provider']}..."
+        
+        is_karaoke = (job["caption_style"] == "karaoke")
+        extra_prompt = job.get("extra_prompt", "")
+        
+        from backend.ai_utils import process_with_gemini, process_with_openai
+        if job["provider"] == "gemini":
+            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt)
+        else:
+            ai_result = process_with_openai(source_video, job["api_key"], karaoke=is_karaoke, extra_prompt=extra_prompt)
+            
+        highlights = ai_result.get("highlights", [])
+        subtitle_path = ai_result.get("subtitle_path")
+        metadata["subtitle_path"] = subtitle_path
+        
+        if not highlights:
+            raise ValueError("Tidak ada klip baru yang ditemukan AI dengan instruksi tersebut.")
+            
+        job["status"] = "CROPPING"
+        for i, seg in enumerate(highlights):
+            if job["cancelled"]: break
+            job["progress"] = f"Memotong klip {i+1} dari {len(highlights)} (AI Koreksi)..."
+            try:
+                from backend.video_utils import crop_to_vertical
+                clip_output = os.path.join(get_temp_dir(), f"{job_id}_clip_{i+1}.mp4")
+                if job.get("output_dir"):
+                    clip_output = os.path.join(job["output_dir"], f"{job_id}_clip_{i+1}.mp4")
+                    
+                result_path = crop_to_vertical(
+                    source_video, clip_output, seg["start_time"], seg["end_time"],
+                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None, aspect_ratio=job["aspect_ratio"]
+                )
+                
+                job["clips"].append({
+                    "path": result_path,
+                    "description": seg.get("description", f"AI Corrected Highlight {i+1}"),
+                    "start": seg["start_time"],
+                    "end": seg["end_time"],
+                    "subs": bool(subtitle_path),
+                    "v": 0
+                })
+            except Exception as e:
+                log_error(f"JOB RERUN AI CROP {job_id}")
+                print(f"Clip {i+1} failed: {e}")
+                
+        if not job["clips"]:
+             raise ValueError("Semua klip gagal dirender pada AI Koreksi.")
+             
+        _finalize_job(job_id, "DONE", metadata)
+        
+    except Exception as e:
+        log_error(f"JOB RERUN AI {job_id}")
+        job["error"] = str(e)
+        _finalize_job(job_id, "ERROR", metadata)
+
 def _finalize_job(job_id: str, status: str, metadata: dict = None):
     job = active_jobs[job_id]
     job["status"] = status

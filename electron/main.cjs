@@ -150,7 +150,10 @@ function createWindow() {
   );
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  app.setAppUserModelId("com.autoclipper.app");
+  createWindow();
+});
 
 // Kill the backend before the app actually exits, on every shutdown path.
 app.on("before-quit", killBackend);

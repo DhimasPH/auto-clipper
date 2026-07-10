@@ -54,12 +54,25 @@ class CreateJobRequest(BaseModel):
     burn_subs: bool = True
     output_dir: str = ""
     quality: str = "best"
+    extra_prompt: str = ""
 
 @app.post("/jobs/{job_id}/rerender")
 def api_rerender_job(job_id: str, req: CreateJobRequest):
     try:
         from backend.jobs import create_rerender_job
         new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir)
+        return {"status": "success", "job_id": new_job_id}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+@app.post("/jobs/{job_id}/rerun_ai")
+def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
+    try:
+        from backend.jobs import create_rerun_ai_job
+        new_job_id = create_rerun_ai_job(
+            job_id, req.provider, req.api_key.strip(),
+            req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt
+        )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})

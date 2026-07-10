@@ -14,6 +14,8 @@ interface SettingsModalProps {
   setGeminiKey: (key: string) => void;
   outputFolder: string;
   setOutputFolder: (folder: string) => void;
+  quality: "best" | "1080p" | "720p";
+  setQuality: (q: "best" | "1080p" | "720p") => void;
 }
 
 export default function SettingsModal({
@@ -29,6 +31,8 @@ export default function SettingsModal({
   setGeminiKey,
   outputFolder,
   setOutputFolder,
+  quality,
+  setQuality,
 }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
   const [showKey, setShowKey] = useState(false);
@@ -278,6 +282,32 @@ export default function SettingsModal({
               </button>
             )}
           </div>
+        </div>
+
+
+
+        {/* Kualitas Video Settings */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
+            Kualitas Video (Download)
+          </label>
+          <select
+            value={quality}
+            onChange={(e) => setQuality(e.target.value as "best" | "1080p" | "720p")}
+            style={{
+              width: "100%",
+              padding: "0.75rem",
+              borderRadius: "8px",
+              border: "1px solid var(--border)",
+              background: "var(--input-bg)",
+              color: "var(--text-primary)",
+              outline: "none",
+            }}
+          >
+            <option value="best">Best (Otomatis) (Bawaan)</option>
+            <option value="1080p">1080p (Maksimal)</option>
+            <option value="720p">720p (Lebih Cepat)</option>
+          </select>
         </div>
 
         <button

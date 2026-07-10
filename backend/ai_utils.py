@@ -105,12 +105,15 @@ def _parse_highlights(content: str) -> list:
     return []
 
 
-def get_highlights(transcript_srt: str, api_key: str) -> list:
+def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "") -> list:
     """Ask the LLM to pick the most engaging short-form highlights."""
     client = OpenAI(api_key=api_key)
+    
+    additional_instructions = f"\n\nUSER'S EXTRA INSTRUCTIONS:\n{extra_prompt}" if extra_prompt else ""
+    
     prompt = (
         "Analyze the following video transcript (SRT format). "
-        f"{HIGHLIGHT_GUIDANCE}\n\n"
+        f"{HIGHLIGHT_GUIDANCE}{additional_instructions}\n\n"
         "Return a JSON object with a 'highlights' key holding an array of "
         "objects with 'start_time', 'end_time' (in HH:MM:SS.mmm format) and "
         "'description'.\n\n"
@@ -127,7 +130,7 @@ def get_highlights(transcript_srt: str, api_key: str) -> list:
     return _parse_highlights(response.choices[0].message.content)
 
 
-def process_with_openai(file_path: str, api_key: str, karaoke: bool = False) -> dict:
+def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "") -> dict:
     """Full OpenAI pipeline: extract audio -> transcribe -> find highlights."""
     base, _ = os.path.splitext(file_path)
     audio_path = base + "_audio.mp3"
@@ -147,7 +150,7 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False) -> 
             f.write(str(transcript))
         transcript_text = str(transcript)
 
-    highlights = get_highlights(transcript_text, api_key)
+    highlights = get_highlights(transcript_text, api_key, extra_prompt)
 
     return {
         "transcript": transcript_text,
@@ -156,7 +159,7 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False) -> 
     }
 
 
-def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False) -> dict:
+def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "") -> dict:
     client = genai.Client(api_key=api_key)
 
     video_file = client.files.upload(file=file_path)
@@ -168,9 +171,11 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False) -> 
     if video_file.state.name == "FAILED":
         raise Exception("Gemini failed to process the video.")
 
+    additional_instructions = f"\n\nUSER'S EXTRA INSTRUCTIONS:\n{extra_prompt}" if extra_prompt else ""
+
     prompt = (
         "Watch this video. "
-        f"{HIGHLIGHT_GUIDANCE}\n\n"
+        f"{HIGHLIGHT_GUIDANCE}{additional_instructions}\n\n"
         "Return a JSON object with two keys:\n"
         "1. 'highlights': an array of objects with 'start_time', 'end_time' "
         "(HH:MM:SS.mmm) and 'description'.\n"
