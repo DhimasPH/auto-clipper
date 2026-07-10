@@ -18,10 +18,24 @@ export default function App() {
   >("IDLE");
   const [errorMsg, setErrorMsg] = useState("");
   const [progress, setProgress] = useState("");
-  const [clips, setClips] = useState<{ path: string; description: string }[]>(
-    [],
-  );
+
+  type Clip = {
+    path: string;
+    description: string;
+    start: string;
+    end: string;
+    subs: boolean; // whether this clip currently has burned-in captions
+    v: number; // cache-buster so the <video> reloads after a re-render
+  };
+  const [clips, setClips] = useState<Clip[]>([]);
   const [totalClips, setTotalClips] = useState(0);
+
+  // Subtitle controls: default on before generate; the source .srt path is kept
+  // so a clip can be re-rendered with captions toggled after generation.
+  const [burnSubtitles, setBurnSubtitles] = useState(true);
+  const [subtitlePath, setSubtitlePath] = useState<string | null>(null);
+  const [sourcePath, setSourcePath] = useState("");
+  const [reRendering, setReRendering] = useState<number | null>(null);
 
   type Toast = { id: number; text: string; kind: "info" | "success" | "error" };
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -30,15 +44,12 @@ export default function App() {
     const id = Date.now() + Math.random();
     setToasts((prev) => [...prev, { id, text, kind }]);
     const ttl = kind === "error" ? 8000 : 4000;
-    setTimeout(
-      () => setToasts((prev) => prev.filter((t) => t.id !== id)),
-      ttl,
-    );
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), ttl);
   };
 
   const MAX_CLIPS = 3; // Demo: generate up to 3 shorts per video.
-  const videoSrc = (p: string) =>
-    `${API_URL}/video?path=${encodeURIComponent(p)}`;
+  const videoSrc = (p: string, v = 0) =>
+    `${API_URL}/video?path=${encodeURIComponent(p)}&v=${v}`;
 
   // Poll health so the indicator self-heals once the backend finishes booting
   // (it starts as an Electron child process and isn't ready immediately).
@@ -67,6 +78,7 @@ export default function App() {
     setProgress("");
     setClips([]);
     setTotalClips(0);
+    setSubtitlePath(null);
 
     try {
       // 1. Download
@@ -75,6 +87,7 @@ export default function App() {
       const dlRes = await axios.post(`${API_URL}/download`, { url });
       if (dlRes.data.status === "error") throw new Error(dlRes.data.message);
       const videoPath = dlRes.data.file_path;
+      setSourcePath(videoPath);
       notify("✅ Video berhasil didownload", "success");
 
       // 2. Build the list of segments to crop.
@@ -83,7 +96,7 @@ export default function App() {
         end_time: string;
         description: string;
       }[] = [];
-      let subtitlePath: string | null = null;
+      let srtPath: string | null = null;
 
       if (mode === "ai") {
         setStatus("TRANSCRIBING");
@@ -98,7 +111,8 @@ export default function App() {
         if (aiRes.data.status === "error") throw new Error(aiRes.data.message);
 
         const highlights = aiRes.data.highlights;
-        subtitlePath = aiRes.data.subtitle_path || null;
+        srtPath = aiRes.data.subtitle_path || null;
+        setSubtitlePath(srtPath);
 
         if (!highlights || highlights.length === 0) {
           throw new Error("No highlights could be detected.");
@@ -121,9 +135,10 @@ export default function App() {
       }
 
       // 3. Crop every segment into its own vertical clip.
+      const useSubs = burnSubtitles && !!srtPath;
       setStatus("CROPPING");
       setTotalClips(segments.length);
-      const generated: { path: string; description: string }[] = [];
+      const generated: Clip[] = [];
       for (let i = 0; i < segments.length; i++) {
         setProgress(`Rendering clip ${i + 1} of ${segments.length}`);
         notify(`✂️ Merender clip ${i + 1} dari ${segments.length}...`);
@@ -132,23 +147,24 @@ export default function App() {
           file_path: videoPath,
           start_time: seg.start_time,
           end_time: seg.end_time,
-          subtitle_path: subtitlePath,
+          subtitle_path: useSubs ? srtPath : null,
         });
         if (cropRes.data.status === "error")
           throw new Error(cropRes.data.message);
         generated.push({
           path: cropRes.data.file_path,
           description: seg.description,
+          start: seg.start_time,
+          end: seg.end_time,
+          subs: useSubs,
+          v: 0,
         });
         setClips([...generated]);
       }
 
       setProgress("");
       setStatus("DONE");
-      notify(
-        `🎉 Selesai! ${generated.length} clip berhasil dibuat`,
-        "success",
-      );
+      notify(`🎉 Selesai! ${generated.length} clip berhasil dibuat`, "success");
     } catch (err: any) {
       console.error(err);
       setStatus("ERROR");
@@ -159,6 +175,44 @@ export default function App() {
         "An unknown error occurred.";
       setErrorMsg(msg);
       notify(`⚠️ ${msg}`, "error");
+    }
+  };
+
+  // Re-render one already-generated clip with captions turned on/off.
+  const toggleClipSubs = async (index: number) => {
+    const clip = clips[index];
+    if (!clip || !sourcePath) return;
+    const wantSubs = !clip.subs;
+    setReRendering(index);
+    notify(
+      `✂️ ${wantSubs ? "Menambahkan" : "Menghapus"} subtitle di clip ${index + 1}...`,
+    );
+    try {
+      const res = await axios.post(`${API_URL}/crop`, {
+        file_path: sourcePath,
+        start_time: clip.start,
+        end_time: clip.end,
+        subtitle_path: wantSubs ? subtitlePath : null,
+      });
+      if (res.data.status === "error") throw new Error(res.data.message);
+      setClips((prev) =>
+        prev.map((c, i) =>
+          i === index
+            ? { ...c, path: res.data.file_path, subs: wantSubs, v: c.v + 1 }
+            : c,
+        ),
+      );
+      notify(
+        `✅ Clip ${index + 1}: subtitle ${wantSubs ? "aktif" : "nonaktif"}`,
+        "success",
+      );
+    } catch (err: any) {
+      notify(
+        `⚠️ ${err.response?.data?.message || err.message || "Gagal render ulang"}`,
+        "error",
+      );
+    } finally {
+      setReRendering(null);
     }
   };
 
@@ -444,6 +498,23 @@ export default function App() {
                 onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
               />
             </div>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.6rem",
+                fontSize: "0.875rem",
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={burnSubtitles}
+                onChange={(e) => setBurnSubtitles(e.target.checked)}
+              />
+              Pasang subtitle ke video (bisa diubah per-clip setelah generate)
+            </label>
           </div>
         ) : (
           <div
@@ -588,7 +659,9 @@ export default function App() {
         </button>
 
         {(isRunning || status === "DONE") && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}
+          >
             <div
               style={{
                 width: "100%",
@@ -615,8 +688,7 @@ export default function App() {
                 textAlign: "right",
               }}
             >
-              {progressPct}%
-              {progress ? ` · ${progress}` : ""}
+              {progressPct}%{progress ? ` · ${progress}` : ""}
             </div>
           </div>
         )}
@@ -660,7 +732,8 @@ export default function App() {
                   }}
                 >
                   <video
-                    src={videoSrc(clip.path)}
+                    key={clip.v}
+                    src={videoSrc(clip.path, clip.v)}
                     controls
                     playsInline
                     style={{
@@ -685,8 +758,35 @@ export default function App() {
                   >
                     {clip.description}
                   </p>
+                  {subtitlePath && (
+                    <button
+                      onClick={() => toggleClipSubs(i)}
+                      disabled={reRendering !== null}
+                      style={{
+                        display: "block",
+                        marginTop: "0.75rem",
+                        padding: "0.4rem 0.75rem",
+                        borderRadius: "8px",
+                        border: "1px solid var(--border)",
+                        background: clip.subs
+                          ? "var(--accent)"
+                          : "rgba(255,255,255,0.06)",
+                        color: clip.subs ? "white" : "var(--text-secondary)",
+                        fontSize: "0.8rem",
+                        cursor:
+                          reRendering !== null ? "not-allowed" : "pointer",
+                        opacity: reRendering !== null ? 0.6 : 1,
+                      }}
+                    >
+                      {reRendering === i
+                        ? "⏳ Merender ulang..."
+                        : clip.subs
+                          ? "💬 Subtitle: ON (klik untuk matikan)"
+                          : "💬 Subtitle: OFF (klik untuk nyalakan)"}
+                    </button>
+                  )}
                   <a
-                    href={videoSrc(clip.path)}
+                    href={videoSrc(clip.path, clip.v)}
                     download
                     style={{
                       display: "inline-block",
