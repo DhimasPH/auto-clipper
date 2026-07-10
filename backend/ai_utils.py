@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import time
 from openai import OpenAI
 from google import genai
@@ -7,6 +8,33 @@ from google.genai import types
 
 from backend.video_utils import extract_audio
 from backend.crop_utils import to_seconds, _fmt_srt_ts
+
+
+_TRANSIENT_MARKERS = (
+    "unavailable", "overloaded", "high demand", "temporarily",
+    "resource_exhausted", "rate limit", "timeout", "try again",
+    "500", "502", "503", "504",
+)
+
+
+def _is_transient(err) -> bool:
+    """True for errors worth retrying (server overload, rate spikes, timeouts)."""
+    code = getattr(err, "code", None) or getattr(err, "status_code", None)
+    if code in (429, 500, 502, 503, 504):
+        return True
+    msg = str(err).lower()
+    return any(marker in msg for marker in _TRANSIENT_MARKERS)
+
+
+def _with_retry(fn, attempts: int = 4, base_delay: float = 2.0):
+    """Call ``fn`` with exponential backoff on transient API errors."""
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception as e:
+            if not _is_transient(e) or i == attempts - 1:
+                raise
+            time.sleep(base_delay * (2 ** i) + random.uniform(0, 0.5))
 
 
 HIGHLIGHT_GUIDANCE = (
@@ -40,11 +68,11 @@ def transcribe_audio(audio_path: str, api_key: str) -> str:
     """Transcribe an audio file to SRT text using OpenAI Whisper."""
     client = OpenAI(api_key=api_key)
     with open(audio_path, "rb") as audio_file:
-        transcript = client.audio.transcriptions.create(
+        transcript = _with_retry(lambda: client.audio.transcriptions.create(
             model="whisper-1",
             file=audio_file,
             response_format="srt",
-        )
+        ))
     return transcript
 
 
@@ -77,14 +105,14 @@ def get_highlights(transcript_srt: str, api_key: str) -> list:
         "'description'.\n\n"
         f"Transcript:\n{transcript_srt}"
     )
-    response = client.chat.completions.create(
+    response = _with_retry(lambda: client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are a professional short-form video editor who finds viral moments. Always return strictly valid JSON."},
             {"role": "user", "content": prompt},
         ],
         response_format={"type": "json_object"},
-    )
+    ))
     return _parse_highlights(response.choices[0].message.content)
 
 
@@ -137,13 +165,13 @@ def process_with_gemini(file_path: str, api_key: str) -> dict:
         "works as an on-screen subtitle."
     )
 
-    response = client.models.generate_content(
+    response = _with_retry(lambda: client.models.generate_content(
         model='gemini-2.5-flash',
         contents=[video_file, prompt],
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
         ),
-    )
+    ))
 
     highlights = _parse_highlights(response.text)
 
