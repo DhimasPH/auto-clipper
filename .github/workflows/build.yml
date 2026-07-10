@@ -42,8 +42,9 @@ jobs:
           pyinstaller --onefile backend/main.py --name backend
 
       - name: Prepare bin directory with Backend and FFmpeg
+        shell: bash
         run: |
-          python -c "
+          cat << 'EOF' > copy_bin.py
           import os, sys, shutil, subprocess
           os.makedirs('bin', exist_ok=True)
           exe_ext = '.exe' if sys.platform == 'win32' else ''
@@ -51,13 +52,13 @@ jobs:
           shutil.copy(os.path.join('dist', f'backend{exe_ext}'), os.path.join('bin', f'backend{exe_ext}'))
           # Copy ffmpeg executable
           try:
-              node_script = \"console.log(require('@ffmpeg-installer/ffmpeg').path)\"
-              ffmpeg_path = subprocess.check_output(['node', '-e', node_script]).decode('utf-8').strip()
+              ffmpeg_path = subprocess.check_output(['node', '-e', "console.log(require('@ffmpeg-installer/ffmpeg').path)"]).decode('utf-8').strip()
               shutil.copy(ffmpeg_path, os.path.join('bin', f'ffmpeg{exe_ext}'))
           except Exception as e:
               print('Error: ffmpeg not found!', e)
               sys.exit(1)
-          "
+          EOF
+          python copy_bin.py
 
       - name: Install Node.js dependencies
         run: npm install
