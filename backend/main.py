@@ -33,7 +33,8 @@ def download_video(req: DownloadRequest):
         download_youtube_video(req.url, output_path)
         return {"status": "success", "file_path": output_path}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        import traceback
+        return {"status": "error", "message": traceback.format_exc()}
 
 class ProcessAIRequest(BaseModel):
     file_path: str
@@ -57,7 +58,8 @@ def process_ai(req: ProcessAIRequest):
             "highlights": result["highlights"]
         }
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        import traceback
+        return {"status": "error", "message": traceback.format_exc()}
 
 class CropRequest(BaseModel):
     file_path: str
@@ -76,7 +78,8 @@ def crop_video(req: CropRequest):
         result_path = crop_to_vertical(req.file_path, output_path, req.start_time, req.end_time)
         return {"status": "success", "file_path": result_path}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        import traceback
+        return {"status": "error", "message": traceback.format_exc()}
 
 if __name__ == "__main__":
     import uvicorn
