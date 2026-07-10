@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from backend.video_utils import download_youtube_video
+import os
 
 app = FastAPI(title="Auto Clipper API")
 
@@ -14,6 +17,21 @@ app.add_middleware(
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+class DownloadRequest(BaseModel):
+    url: str
+
+@app.post("/download")
+def download_video(req: DownloadRequest):
+    # Save to a temp dir in project root for MVP
+    output_path = os.path.join(os.getcwd(), "temp_downloads", "source.mp4")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
+    try:
+        download_youtube_video(req.url, output_path)
+        return {"status": "success", "file_path": output_path}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
