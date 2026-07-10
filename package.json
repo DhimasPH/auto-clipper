@@ -1,0 +1,29 @@
+{
+  "name": "auto-clipper",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "electron:dev": "cross-env NODE_ENV=development concurrently \"npm run dev\" \"wait-on tcp:5173 && electron .\""
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "concurrently": "^8.2.1",
+    "cross-env": "^7.0.3",
+    "electron": "^26.0.0",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.5",
+    "wait-on": "^7.0.1"
+  }
+}
