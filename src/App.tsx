@@ -21,6 +21,7 @@ export default function App() {
   const [clips, setClips] = useState<{ path: string; description: string }[]>(
     [],
   );
+  const [totalClips, setTotalClips] = useState(0);
 
   type Toast = { id: number; text: string; kind: "info" | "success" | "error" };
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -65,6 +66,7 @@ export default function App() {
     setErrorMsg("");
     setProgress("");
     setClips([]);
+    setTotalClips(0);
 
     try {
       // 1. Download
@@ -120,6 +122,7 @@ export default function App() {
 
       // 3. Crop every segment into its own vertical clip.
       setStatus("CROPPING");
+      setTotalClips(segments.length);
       const generated: { path: string; description: string }[] = [];
       for (let i = 0; i < segments.length; i++) {
         setProgress(`Rendering clip ${i + 1} of ${segments.length}`);
@@ -158,6 +161,21 @@ export default function App() {
       notify(`⚠️ ${msg}`, "error");
     }
   };
+
+  const isRunning =
+    status !== "IDLE" && status !== "DONE" && status !== "ERROR";
+  const progressPct =
+    status === "DOWNLOADING"
+      ? 15
+      : status === "TRANSCRIBING"
+        ? 45
+        : status === "CROPPING"
+          ? totalClips
+            ? 60 + Math.round((clips.length / totalClips) * 35)
+            : 60
+          : status === "DONE"
+            ? 100
+            : 0;
 
   return (
     <div
@@ -568,6 +586,40 @@ export default function App() {
             "✂️ Crop Manual Clip"
           )}
         </button>
+
+        {(isRunning || status === "DONE") && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+            <div
+              style={{
+                width: "100%",
+                height: "8px",
+                borderRadius: "99px",
+                background: "rgba(255,255,255,0.1)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${progressPct}%`,
+                  height: "100%",
+                  borderRadius: "99px",
+                  background: "var(--accent)",
+                  transition: "width 0.4s ease",
+                }}
+              />
+            </div>
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-secondary)",
+                textAlign: "right",
+              }}
+            >
+              {progressPct}%
+              {progress ? ` · ${progress}` : ""}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Results Section */}

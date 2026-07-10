@@ -57,7 +57,10 @@ def download_video(req: DownloadRequest):
         return {"status": "success", "file_path": output_path}
     except Exception as e:
         log_error("DOWNLOAD")
-        return {"status": "error", "message": f"Failed to download the video: {e}"}
+        return JSONResponse(
+            status_code=502,
+            content={"status": "error", "message": f"Failed to download the video: {e}"},
+        )
 
 
 class ProcessAIRequest(BaseModel):
@@ -70,7 +73,10 @@ class ProcessAIRequest(BaseModel):
 def process_ai(req: ProcessAIRequest):
     api_key = req.api_key.strip()
     if not os.path.exists(req.file_path):
-        return {"status": "error", "message": "Source video not found. Please download it first."}
+        return JSONResponse(
+            status_code=404,
+            content={"status": "error", "message": "Source video not found. Please download it first."},
+        )
 
     try:
         if req.provider == "gemini":
@@ -86,7 +92,10 @@ def process_ai(req: ProcessAIRequest):
         }
     except Exception as e:
         log_error("PROCESS-AI")
-        return {"status": "error", "message": f"AI analysis failed: {e}"}
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": f"AI analysis failed: {e}"},
+        )
 
 
 class CropRequest(BaseModel):
@@ -99,7 +108,10 @@ class CropRequest(BaseModel):
 @app.post("/crop")
 def crop_video(req: CropRequest):
     if not os.path.exists(req.file_path):
-        return {"status": "error", "message": "Source video not found."}
+        return JSONResponse(
+            status_code=404,
+            content={"status": "error", "message": "Source video not found."},
+        )
 
     safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', req.start_time)
     output_path = req.file_path.replace(".mp4", f"_crop_{safe_start_time}.mp4")
@@ -110,9 +122,19 @@ def crop_video(req: CropRequest):
             subtitle_path=req.subtitle_path,
         )
         return {"status": "success", "file_path": result_path}
+    except ValueError as e:
+        # Bad/out-of-range timestamps from the AI are a client-side data issue.
+        log_error("CROP")
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": f"Cropping failed: {e}"},
+        )
     except Exception as e:
         log_error("CROP")
-        return {"status": "error", "message": f"Cropping failed: {e}"}
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": f"Cropping failed: {e}"},
+        )
 
 
 @app.get("/video")
@@ -131,4 +153,6 @@ def get_video(path: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)
+    # reload=False: the reloader spawns an extra child process that Electron
+    # can't reliably kill on Windows, leaving a zombie backend on port 8000.
+    uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=False)

@@ -4,6 +4,25 @@ const { spawn } = require('child_process');
 
 let mainWindow;
 let pythonProcess;
+let backendKilled = false;
+
+function killBackend() {
+  if (backendKilled || !pythonProcess) return;
+  backendKilled = true;
+  const pid = pythonProcess.pid;
+  try {
+    if (process.platform === 'win32') {
+      // pythonProcess.kill() does NOT kill grandchildren on Windows, which
+      // leaves a zombie backend holding port 8000. taskkill /T kills the tree.
+      spawn('taskkill', ['/pid', String(pid), '/T', '/F']);
+    } else {
+      pythonProcess.kill('SIGTERM');
+    }
+  } catch (e) {
+    // Best effort — nothing more we can do on shutdown.
+  }
+  pythonProcess = null;
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -17,7 +36,7 @@ function createWindow() {
 
   // Start Python Backend
   pythonProcess = spawn('python', ['-m', 'backend.main']);
-  
+
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5173');
   } else {
@@ -27,11 +46,14 @@ function createWindow() {
 
 app.whenReady().then(createWindow);
 
+// Kill the backend before the app actually exits, on every shutdown path.
+app.on('before-quit', killBackend);
+app.on('will-quit', killBackend);
+process.on('exit', killBackend);
+
 app.on('window-all-closed', () => {
+  killBackend();
   if (process.platform !== 'darwin') {
     app.quit();
-  }
-  if (pythonProcess) {
-    pythonProcess.kill();
   }
 });
