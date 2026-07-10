@@ -6,10 +6,11 @@ type Theme = "dark" | "light" | "system";
 interface HeaderProps {
   onOpenSettings: () => void;
   onOpenFAQ: () => void;
+  onOpenHistory: () => void;
   backendStatus: string;
 }
 
-export default function Header({ onOpenSettings, backendStatus, onOpenFAQ }: HeaderProps) {
+export default function Header({ onOpenSettings, backendStatus, onOpenFAQ, onOpenHistory }: HeaderProps) {
   const { t, i18n } = useTranslation();
 
   const toggleLanguage = () => {
@@ -90,6 +91,28 @@ export default function Header({ onOpenSettings, backendStatus, onOpenFAQ }: Hea
           title="Cara Penggunaan (FAQ)"
         >
           ?
+        </button>
+
+        {/* History Toggle */}
+        <button
+          onClick={onOpenHistory}
+          style={{
+            background: "var(--button-hover)",
+            border: "1px solid var(--border)",
+            color: "var(--text-primary)",
+            width: "32px",
+            height: "32px",
+            borderRadius: "50%",
+            cursor: "pointer",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "background 0.2s",
+          }}
+          title="History"
+        >
+          🕒
         </button>
         <div
           style={{

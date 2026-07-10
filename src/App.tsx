@@ -5,8 +5,9 @@ import FAQModal from "./components/FAQModal";
 import Header from "./components/Header";
 import ClipCard, { Clip } from "./components/ClipCard";
 import SettingsModal from "./components/SettingsModal";
+import HistoryModal from "./components/HistoryModal";
 
-const API_URL = "http://127.0.0.1:8000";
+export const API_URL = "http://127.0.0.1:8000";
 
 export default function App() {
   const { t } = useTranslation();
@@ -39,7 +40,7 @@ export default function App() {
   const [manualEnd, setManualEnd] = useState("00:00:15");
 
   const [status, setStatus] = useState<
-    "IDLE" | "DOWNLOADING" | "TRANSCRIBING" | "CROPPING" | "DONE" | "ERROR"
+    "IDLE" | "GENERATING" | "DOWNLOADING" | "TRANSCRIBING" | "CROPPING" | "DONE" | "ERROR"
   >("IDLE");
   const [errorMsg, setErrorMsg] = useState("");
   const [progress, setProgress] = useState("");
@@ -57,6 +58,7 @@ export default function App() {
   // Task 1.3: FAQ Modal state
   const [isFAQOpen, setIsFAQOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Task 3.2: Theme state
   const [theme, setTheme] = useState<"dark" | "light" | "system">(() => {
@@ -95,7 +97,12 @@ export default function App() {
     if (window.Notification && Notification.permission === "default") {
       Notification.requestPermission();
     }
+  }, []);
 
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+
+  // Polling effect for backend status
+  useEffect(() => {
     let active = true;
     const check = () => {
       axios
@@ -110,6 +117,66 @@ export default function App() {
       clearInterval(id);
     };
   }, []);
+
+  // Polling effect for Async Job
+  useEffect(() => {
+    // Notify electron main process
+    try {
+      const { ipcRenderer } = window.require('electron');
+      ipcRenderer.send('set-job-active', !!activeJobId);
+    } catch(e) {
+      // Not in electron
+    }
+
+    let interval: any;
+    if (activeJobId) {
+      interval = setInterval(async () => {
+        try {
+          const res = await axios.get(`${API_URL}/jobs/${activeJobId}`);
+          const job = res.data;
+          
+          if (job.status === "DONE") {
+             setStatus("DONE");
+             setClips(job.clips);
+             setActiveJobId(null);
+             setProgress("");
+             notify(`🎉 Selesai! ${job.clips.length} clip berhasil dibuat`, "success");
+             if (window.Notification && Notification.permission === "granted") {
+               new Notification("Auto Clipper Selesai", { body: `${job.clips.length} clip berhasil dibuat!` });
+             }
+          } else if (job.status === "ERROR") {
+             setStatus("ERROR");
+             setErrorMsg(job.error || "Unknown error occurred.");
+             notify(`⚠️ ${job.error || "Unknown error"}`, "error");
+             setActiveJobId(null);
+             setProgress("");
+          } else if (job.status === "CANCELLED") {
+             setStatus("IDLE");
+             notify("⛔ Proses dibatalkan.", "error");
+             setActiveJobId(null);
+             setProgress("");
+          } else {
+             // In progress
+             setStatus(job.status as any);
+             setProgress(job.progress);
+             if (job.clips && job.clips.length > clips.length) {
+                setClips(job.clips);
+             }
+          }
+        } catch (e) {
+          console.error("Polling error", e);
+        }
+      }, 1500);
+    }
+    return () => clearInterval(interval);
+  }, [activeJobId, status, clips.length]);
+
+  const cancelJob = async () => {
+    if (activeJobId) {
+       await axios.post(`${API_URL}/jobs/${activeJobId}/cancel`);
+       // the polling will catch the CANCELLED status on the next tick
+    }
+  };
 
   const handleGenerate = async () => {
     if (!url) {
@@ -129,111 +196,25 @@ export default function App() {
     setSubtitlePath(null);
 
     try {
-      // 1. Download
-      setStatus("DOWNLOADING");
-      notify("⏬ Mendownload video dari YouTube...");
-      const dlRes = await axios.post(`${API_URL}/download`, { url });
-      if (dlRes.data.status === "error") throw new Error(dlRes.data.message);
-      const videoPath = dlRes.data.file_path;
-      setSourcePath(videoPath);
-      notify("✅ Video berhasil didownload", "success");
-
-      // 2. Build the list of segments to crop.
-      let segments: {
-        start_time: string;
-        end_time: string;
-        description: string;
-      }[] = [];
-      let srtPath: string | null = null;
-
-      if (mode === "ai") {
-        setStatus("TRANSCRIBING");
-        notify(
-          `🧠 AI (${provider === "gemini" ? "Gemini" : "OpenAI"}) menganalisis video...`,
-        );
-        const aiRes = await axios.post(`${API_URL}/process-ai`, {
-          file_path: videoPath,
-          api_key: apiKey,
-          provider,
-        });
-        if (aiRes.data.status === "error") throw new Error(aiRes.data.message);
-
-        const highlights = aiRes.data.highlights;
-        srtPath = aiRes.data.subtitle_path || null;
-        setSubtitlePath(srtPath);
-
-        if (!highlights || highlights.length === 0) {
-          throw new Error("No highlights could be detected.");
-        }
-        notify(`🎯 ${highlights.length} highlight ditemukan`, "success");
-
-        segments = highlights.slice(0, MAX_CLIPS).map((h: any, i: number) => ({
-          start_time: h.start_time,
-          end_time: h.end_time,
-          description: h.description || `Highlight ${i + 1}`,
-        }));
-      } else {
-        segments = [
-          {
-            start_time: manualStart,
-            end_time: manualEnd,
-            description: "Manual custom clip",
-          },
-        ];
-      }
-
-      // 3. Crop every segment into its own vertical clip.
-      const useSubs = burnSubtitles && !!srtPath;
-      setStatus("CROPPING");
-      setTotalClips(segments.length);
-      const generated: Clip[] = [];
-      for (let i = 0; i < segments.length; i++) {
-        setProgress(`Rendering clip ${i + 1} of ${segments.length}`);
-        notify(`✂️ Merender clip ${i + 1} dari ${segments.length}...`);
-        const seg = segments[i];
-        
-        try {
-          const cropRes = await axios.post(`${API_URL}/crop`, {
-            file_path: videoPath,
-            start_time: seg.start_time,
-            end_time: seg.end_time,
-            subtitle_path: useSubs ? srtPath : null,
-          });
-          if (cropRes.data.status === "error")
-            throw new Error(cropRes.data.message);
-          generated.push({
-            path: cropRes.data.file_path,
-            description: seg.description,
-            start: seg.start_time,
-            end: seg.end_time,
-            subs: useSubs,
-            v: 0,
-          });
-          setClips([...generated]);
-        } catch (cropErr: any) {
-          console.error(`Clip ${i+1} failed:`, cropErr);
-          notify(`⚠️ Clip ${i+1} gagal: ${cropErr.response?.data?.message || cropErr.message}`, "error");
-        }
-      }
-
-      setProgress("");
-      setStatus("DONE");
-      if (generated.length > 0) {
-        notify(`🎉 Selesai! ${generated.length} clip berhasil dibuat`, "success");
-        if (window.Notification && Notification.permission === "granted") {
-          new Notification("Auto Clipper Selesai", { body: `${generated.length} clip berhasil dibuat!` });
-        }
-      } else {
-        throw new Error("Semua clip gagal dirender.");
-      }
+      setStatus("GENERATING");
+      notify("🚀 Memulai proses di latar belakang...");
+      
+      const res = await axios.post(`${API_URL}/jobs`, {
+        url,
+        provider,
+        api_key: apiKey,
+        mode,
+        manual_start: manualStart,
+        manual_end: manualEnd
+      });
+      
+      if (res.data.status === "error") throw new Error(res.data.message);
+      setActiveJobId(res.data.job_id);
     } catch (err: any) {
       console.error(err);
       setStatus("ERROR");
       setProgress("");
-      const msg =
-        err.response?.data?.message ||
-        err.message ||
-        "An unknown error occurred.";
+      const msg = err.response?.data?.message || err.message || "An unknown error occurred.";
       setErrorMsg(msg);
       notify(`⚠️ ${msg}`, "error");
     }
@@ -277,8 +258,7 @@ export default function App() {
     }
   };
 
-  const isRunning =
-    status !== "IDLE" && status !== "DONE" && status !== "ERROR";
+  const isRunning = !!activeJobId || status === "GENERATING";
   const progressPct =
     status === "DOWNLOADING"
       ? 15
@@ -344,6 +324,7 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)} 
         backendStatus={backendStatus} 
         onOpenFAQ={() => setIsFAQOpen(true)} 
+        onOpenHistory={() => setIsHistoryOpen(true)}
       />
 
       {/* Main Panel */}
@@ -552,42 +533,55 @@ export default function App() {
           </div>
         )}
 
-        <button
-          onClick={handleGenerate}
-          disabled={status === "GENERATING"}
-          style={{
-            padding: "1rem",
-            borderRadius: "12px",
-            border: "none",
-            background: "var(--accent)",
-            color: "#fff",
-            fontSize: "1rem",
-            fontWeight: 600,
-            cursor: status === "GENERATING" ? "not-allowed" : "pointer",
-            opacity: status === "GENERATING" ? 0.7 : 1,
-            transition: "all 0.2s",
-            boxShadow:
-              status === "GENERATING"
-                ? "none"
-                : "0 4px 14px 0 rgba(99, 102, 241, 0.39)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.75rem",
-            animation: status === "IDLE" ? "pulse-glow 2s infinite" : "none",
-          }}
-        >
-          {status === "GENERATING" ? (
-            <>
-              <div className="spinner" />
-              {t('main.btn_generating')}
-            </>
-          ) : mode === "ai" ? (
-            t('main.btn_generate')
-          ) : (
-            t('main.btn_manual_clip')
-          )}
-        </button>
+        {isRunning ? (
+          <button
+            onClick={cancelJob}
+            style={{
+              padding: "1rem",
+              borderRadius: "12px",
+              border: "none",
+              background: "#ef4444",
+              color: "#fff",
+              fontSize: "1rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              boxShadow: "0 4px 14px 0 rgba(239, 68, 68, 0.39)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.75rem",
+              animation: "pulse-glow-red 2s infinite",
+            }}
+          >
+            <div className="spinner" />
+            Batal
+          </button>
+        ) : (
+          <button
+            onClick={handleGenerate}
+            disabled={false}
+            style={{
+              padding: "1rem",
+              borderRadius: "12px",
+              border: "none",
+              background: "var(--accent)",
+              color: "#fff",
+              fontSize: "1rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              boxShadow: "0 4px 14px 0 rgba(99, 102, 241, 0.39)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.75rem",
+              animation: "pulse-glow 2s infinite",
+            }}
+          >
+            {mode === "ai" ? t('main.btn_generate') : t('main.btn_manual_clip')}
+          </button>
+        )}
 
         {(isRunning || status === "DONE") && (
           <div
@@ -669,6 +663,7 @@ export default function App() {
 
       {/* Task 1.3: Render FAQ Modal */}
       <FAQModal isOpen={isFAQOpen} onClose={() => setIsFAQOpen(false)} />
+      <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
       
       {/* Settings Modal */}
       <SettingsModal 

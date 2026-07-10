@@ -2,12 +2,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
-from backend.video_utils import download_youtube_video
-from backend.ai_utils import process_with_openai, process_with_gemini
-from backend.crop_utils import crop_to_vertical
+from backend.db import init_db, get_all_history, delete_history
+from backend.jobs import create_job, get_job, cancel_job
 import os
 import re
-import traceback
+
+# Initialize DB on startup
+init_db()
 
 app = FastAPI(title="Auto Clipper API")
 
@@ -20,21 +21,6 @@ app.add_middleware(
 )
 
 
-def get_error_log_path():
-    return os.path.join(os.getcwd(), "backend_error.log")
-
-
-def get_temp_dir():
-    return os.path.join(os.getcwd(), "temp_downloads")
-
-
-def log_error(context: str) -> None:
-    """Write the full traceback to the log file. Never sent to the client."""
-    try:
-        with open(get_error_log_path(), "a") as f:
-            f.write(f"{context} ERROR:\n{traceback.format_exc()}\n")
-    except Exception:
-        pass
 
 
 @app.get("/health")
@@ -42,99 +28,51 @@ def health_check():
     return {"status": "ok"}
 
 
-class DownloadRequest(BaseModel):
+class CreateJobRequest(BaseModel):
     url: str
-
-
-@app.post("/download")
-def download_video(req: DownloadRequest):
-    url = req.url.strip()
-    output_path = os.path.join(get_temp_dir(), "source.mp4")
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    try:
-        download_youtube_video(url, output_path)
-        return {"status": "success", "file_path": output_path}
-    except Exception as e:
-        log_error("DOWNLOAD")
-        return JSONResponse(
-            status_code=502,
-            content={"status": "error", "message": f"Failed to download the video: {e}"},
-        )
-
-
-class ProcessAIRequest(BaseModel):
-    file_path: str
-    api_key: str
     provider: str = "openai"
+    api_key: str = ""
+    mode: str = "ai"
+    manual_start: str = ""
+    manual_end: str = ""
 
+@app.post("/jobs")
+def api_create_job(req: CreateJobRequest):
+    if not req.url:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "URL is required"})
+    job_id = create_job(req.url, req.provider, req.api_key, req.mode, req.manual_start, req.manual_end)
+    return {"status": "success", "job_id": job_id}
 
-@app.post("/process-ai")
-def process_ai(req: ProcessAIRequest):
-    api_key = req.api_key.strip()
-    if not os.path.exists(req.file_path):
-        return JSONResponse(
-            status_code=404,
-            content={"status": "error", "message": "Source video not found. Please download it first."},
-        )
+@app.get("/jobs/{job_id}")
+def api_get_job(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Job not found"})
+    # Only return safe fields to frontend
+    return {
+        "id": job["id"],
+        "status": job["status"],
+        "progress": job["progress"],
+        "clips": job["clips"],
+        "error": job["error"]
+    }
 
-    try:
-        if req.provider == "gemini":
-            result = process_with_gemini(req.file_path, api_key)
-        else:
-            result = process_with_openai(req.file_path, api_key)
+@app.post("/jobs/{job_id}/cancel")
+def api_cancel_job(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Job not found"})
+    cancel_job(job_id)
+    return {"status": "success"}
 
-        return {
-            "status": "success",
-            "transcript": result["transcript"],
-            "highlights": result["highlights"],
-            "subtitle_path": result.get("subtitle_path"),
-        }
-    except Exception as e:
-        log_error("PROCESS-AI")
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": f"AI analysis failed: {e}"},
-        )
+@app.get("/history")
+def api_get_history():
+    return {"status": "success", "history": get_all_history()}
 
-
-class CropRequest(BaseModel):
-    file_path: str
-    start_time: str
-    end_time: str
-    subtitle_path: str | None = None
-
-
-@app.post("/crop")
-def crop_video(req: CropRequest):
-    if not os.path.exists(req.file_path):
-        return JSONResponse(
-            status_code=404,
-            content={"status": "error", "message": "Source video not found."},
-        )
-
-    safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', req.start_time)
-    output_path = req.file_path.replace(".mp4", f"_crop_{safe_start_time}.mp4")
-
-    try:
-        result_path = crop_to_vertical(
-            req.file_path, output_path, req.start_time, req.end_time,
-            subtitle_path=req.subtitle_path,
-        )
-        return {"status": "success", "file_path": result_path}
-    except ValueError as e:
-        # Bad/out-of-range timestamps from the AI are a client-side data issue.
-        log_error("CROP")
-        return JSONResponse(
-            status_code=400,
-            content={"status": "error", "message": f"Cropping failed: {e}"},
-        )
-    except Exception as e:
-        log_error("CROP")
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": f"Cropping failed: {e}"},
-        )
+@app.delete("/history/{job_id}")
+def api_delete_history(job_id: str):
+    delete_history(job_id)
+    return {"status": "success"}
 
 
 @app.get("/video")
@@ -145,7 +83,7 @@ def get_video(path: str):
     FileResponse handles HTTP Range requests, so seeking works in the player.
     """
     abs_path = os.path.abspath(path)
-    temp_dir = os.path.abspath(get_temp_dir())
+    temp_dir = os.path.abspath(os.path.join(os.getcwd(), "temp_downloads"))
     if not abs_path.startswith(temp_dir) or not os.path.exists(abs_path):
         return JSONResponse(status_code=404, content={"status": "error", "message": "File not found"})
     return FileResponse(abs_path, media_type="video/mp4")
