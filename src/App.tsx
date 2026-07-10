@@ -15,8 +15,11 @@ export default function App() {
   
   const [status, setStatus] = useState<'IDLE' | 'DOWNLOADING' | 'TRANSCRIBING' | 'CROPPING' | 'DONE' | 'ERROR'>('IDLE');
   const [errorMsg, setErrorMsg] = useState('');
-  const [clips, setClips] = useState<string[]>([]);
-  const [highlightsList, setHighlightsList] = useState<any[]>([]);
+  const [progress, setProgress] = useState('');
+  const [clips, setClips] = useState<{ path: string; description: string }[]>([]);
+
+  const MAX_CLIPS = 3; // Demo: generate up to 3 shorts per video.
+  const videoSrc = (p: string) => `${API_URL}/video?path=${encodeURIComponent(p)}`;
 
   useEffect(() => {
     axios.get(`${API_URL}/health`)
@@ -29,9 +32,9 @@ export default function App() {
     if (mode === 'ai' && !apiKey) return setErrorMsg("Please enter an OpenAI API Key for AI mode.");
     
     setErrorMsg('');
+    setProgress('');
     setClips([]);
-    setHighlightsList([]);
-    
+
     try {
       // 1. Download
       setStatus('DOWNLOADING');
@@ -39,50 +42,59 @@ export default function App() {
       if (dlRes.data.status === 'error') throw new Error(dlRes.data.message);
       const videoPath = dlRes.data.file_path;
 
-      let targetStartTime = manualStart;
-      let targetEndTime = manualEnd;
+      // 2. Build the list of segments to crop.
+      let segments: { start_time: string; end_time: string; description: string }[] = [];
+      let subtitlePath: string | null = null;
 
-      // 2. Transcribe & Highlight (Only if AI Mode)
       if (mode === 'ai') {
         setStatus('TRANSCRIBING');
-        const aiRes = await axios.post(`${API_URL}/process-ai`, { 
-          file_path: videoPath, 
+        const aiRes = await axios.post(`${API_URL}/process-ai`, {
+          file_path: videoPath,
           api_key: apiKey,
-          provider
+          provider,
         });
         if (aiRes.data.status === 'error') throw new Error(aiRes.data.message);
-        
+
         const highlights = aiRes.data.highlights;
-        setHighlightsList(highlights);
-        
+        subtitlePath = aiRes.data.subtitle_path || null;
+
         if (!highlights || highlights.length === 0) {
           throw new Error("No highlights could be detected.");
         }
-        
-        targetStartTime = highlights[0].start_time;
-        targetEndTime = highlights[0].end_time;
+
+        segments = highlights.slice(0, MAX_CLIPS).map((h: any, i: number) => ({
+          start_time: h.start_time,
+          end_time: h.end_time,
+          description: h.description || `Highlight ${i + 1}`,
+        }));
       } else {
-        // Manual mode mock highlight info
-        setHighlightsList([{ description: "Manual Custom Clip" }]);
+        segments = [{ start_time: manualStart, end_time: manualEnd, description: "Manual custom clip" }];
       }
 
-      // 3. Crop
+      // 3. Crop every segment into its own vertical clip.
       setStatus('CROPPING');
-      const cropRes = await axios.post(`${API_URL}/crop`, {
-        file_path: videoPath,
-        start_time: targetStartTime,
-        end_time: targetEndTime
-      });
-      
-      if (cropRes.data.status === 'error') throw new Error(cropRes.data.message);
-      
-      // Store the cropped video path
-      setClips([cropRes.data.file_path]);
+      const generated: { path: string; description: string }[] = [];
+      for (let i = 0; i < segments.length; i++) {
+        setProgress(`Rendering clip ${i + 1} of ${segments.length}`);
+        const seg = segments[i];
+        const cropRes = await axios.post(`${API_URL}/crop`, {
+          file_path: videoPath,
+          start_time: seg.start_time,
+          end_time: seg.end_time,
+          subtitle_path: subtitlePath,
+        });
+        if (cropRes.data.status === 'error') throw new Error(cropRes.data.message);
+        generated.push({ path: cropRes.data.file_path, description: seg.description });
+        setClips([...generated]);
+      }
+
+      setProgress('');
       setStatus('DONE');
 
     } catch (err: any) {
       console.error(err);
       setStatus('ERROR');
+      setProgress('');
       setErrorMsg(err.response?.data?.message || err.message || "An unknown error occurred.");
     }
   };
@@ -222,30 +234,43 @@ export default function App() {
           }}
         >
           {(status !== 'IDLE' && status !== 'DONE' && status !== 'ERROR') ? (
-            <><div className="spinner" /> {status === 'DOWNLOADING' ? 'Downloading Video...' : status === 'TRANSCRIBING' ? 'AI is Analyzing...' : 'Cropping Video...'}</>
+            <><div className="spinner" /> {status === 'DOWNLOADING' ? 'Downloading video...' : status === 'TRANSCRIBING' ? 'AI is analyzing the audio...' : (progress || 'Rendering clips...')}</>
           ) : mode === 'ai' ? '✨ Generate Viral Clips' : '✂️ Crop Manual Clip'}
         </button>
       </main>
 
       {/* Results Section */}
-      {status === 'DONE' && clips.length > 0 && (
+      {clips.length > 0 && (
         <section className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-          <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Generated Clip</h2>
-          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-            <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', width: '300px' }}>
-              <div style={{ aspectRatio: '9/16', background: 'rgba(0,0,0,0.5)', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <p style={{ color: 'var(--text-secondary)' }}>Clip Ready</p>
-              </div>
-              <div>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>{mode === 'ai' ? 'Clip 1' : 'Manual Clip'}</h3>
-                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  {highlightsList[0]?.description || "Video berhasil dicrop ke format vertikal."}
-                </p>
-                <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: '#9ca3af', fontFamily: 'monospace' }}>
-                  Saved to: {clips[0]}
+          <h2 style={{ fontSize: '1.5rem', margin: 0 }}>
+            {status === 'DONE' ? `Generated ${clips.length} clip${clips.length > 1 ? 's' : ''}` : 'Generating clips...'}
+          </h2>
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+            {clips.map((clip, i) => (
+              <div key={clip.path} className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', width: '280px' }}>
+                <div style={{ aspectRatio: '9/16', background: 'rgba(0,0,0,0.5)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <video
+                    src={videoSrc(clip.path)}
+                    controls
+                    playsInline
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }}
+                  />
+                </div>
+                <div>
+                  <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>{mode === 'ai' ? `Clip ${i + 1}` : 'Manual clip'}</h3>
+                  <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {clip.description}
+                  </p>
+                  <a
+                    href={videoSrc(clip.path)}
+                    download
+                    style={{ display: 'inline-block', marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--accent)', textDecoration: 'none' }}
+                  >
+                    ⬇ Download MP4
+                  </a>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
         </section>
       )}
