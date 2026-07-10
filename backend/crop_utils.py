@@ -1,4 +1,5 @@
 import cv2
+import os
 import re
 import subprocess
 
@@ -155,9 +156,10 @@ def shift_srt_for_clip(srt_text: str, start_time, end_time) -> str:
     return '\n\n'.join(out) + ('\n' if out else '')
 
 
-def _escape_subtitle_path(path: str) -> str:
-    # ffmpeg's subtitles filter needs backslashes and colons escaped on Windows.
-    return path.replace('\\', '/').replace(':', '\\:')
+def _run_ffmpeg(cmd, cwd=None):
+    """Run ffmpeg, returning (ok, stderr_text)."""
+    proc = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return proc.returncode == 0, proc.stderr.decode("utf-8", "ignore")
 
 
 _SUBTITLE_STYLE = (
@@ -217,7 +219,11 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     # trunc(.../2)*2 keeps the crop width even, which H.264 requires.
     crop_filter = f"crop=trunc(ih*9/16/2)*2:ih:iw*{center_pct}-ih*9/32:0"
 
-    vf = crop_filter
+    # Build an optional subtitle-burning variant. We reference the .srt by its
+    # basename and run ffmpeg from that folder, which sidesteps the fragile
+    # Windows drive-letter escaping (C:\ -> C\:) inside the subtitles filter.
+    subtitle_vf = None
+    subtitle_cwd = None
     if subtitle_path:
         try:
             with open(subtitle_path, "r", encoding="utf-8") as f:
@@ -228,22 +234,33 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             clip_srt_path = output_path.rsplit('.', 1)[0] + ".srt"
             with open(clip_srt_path, "w", encoding="utf-8") as f:
                 f.write(clip_srt)
-            escaped = _escape_subtitle_path(clip_srt_path)
-            vf = f"{crop_filter},subtitles={escaped}:force_style='{_SUBTITLE_STYLE}'"
+            subtitle_cwd = os.path.dirname(clip_srt_path) or None
+            srt_name = os.path.basename(clip_srt_path)
+            subtitle_vf = f"{crop_filter},subtitles={srt_name}:force_style='{_SUBTITLE_STYLE}'"
 
-    cmd = [
-        "ffmpeg", "-y",
-        "-ss", f"{start_s:.3f}",
-        "-i", input_path,
-        "-t", f"{duration:.3f}",
-        "-vf", vf,
-        "-c:v", "libx264",
-        "-pix_fmt", "yuv420p",
-        "-preset", "veryfast",
-        "-c:a", "aac",
-        "-movflags", "+faststart",
-        output_path,
-    ]
+    def build_cmd(vf):
+        return [
+            "ffmpeg", "-y",
+            "-ss", f"{start_s:.3f}",
+            "-i", input_path,
+            "-t", f"{duration:.3f}",
+            "-vf", vf,
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-preset", "veryfast",
+            "-c:a", "aac",
+            "-movflags", "+faststart",
+            output_path,
+        ]
 
-    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # Try with burned-in subtitles first; if that fails (e.g. ffmpeg built
+    # without libass), fall back to a plain crop so a clip is still produced.
+    if subtitle_vf is not None:
+        ok, _ = _run_ffmpeg(build_cmd(subtitle_vf), cwd=subtitle_cwd)
+        if ok:
+            return output_path
+
+    ok, err = _run_ffmpeg(build_cmd(crop_filter))
+    if not ok:
+        raise RuntimeError(f"ffmpeg failed: {err[-800:]}")
     return output_path
