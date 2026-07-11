@@ -131,7 +131,7 @@ Status:
 - [x] **7.6 Cleanup temp selektif saat app ditutup.** `cleanupTempIntermediates()` di `main.cjs` (dipanggil di `will-quit`) hanya menghapus intermediate transient (`.ass`, `.srt`, `_audio.mp3`), TIDAK menyentuh `source_*`/`upload_*`/clip mp4 yang dipakai History re-render. Render dihentikan oleh `killBackend` (taskkill /T).
 - [x] **7.7 Test suite di-refresh.** `test_main.py` ditulis ulang untuk endpoint async (/jobs, /history, /video, validasi URL). Tambah `test_db.py` (round-trip SQLite) & `test_jobs.py` (cancel kill proc + should_cancel). Tambah `python-multipart` ke requirements. **22 test lolos.**
 
-> Catatan FE untuk 7.2: backend `metadata.ai_job=True` sekarang tersedia. Tombol "AI Koreksi" di `HistoryModal` sebaiknya digate ke `metadata.ai_job` (atau adanya `highlights`), bukan `metadata.transcript` yang tidak pernah ditulis.
+> [SELESAI] Catatan FE 7.2: Tombol "AI Koreksi" kini digate via helper `canRerunAI()` (`src/lib/history.ts`) yang cek `metadata.ai_job`, bukan `metadata.transcript` yang tak pernah ditulis. Diuji di `scripts/check_history.mjs`.
 
 ---
 

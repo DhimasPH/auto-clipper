@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
 import { API_URL } from "../App";
+import { canRerunAI } from "../lib/history";
 
 interface HistoryModalProps {
   isOpen: boolean;
@@ -236,7 +237,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                       {t("history.rerender_btn")}
                     </button>
                   )}
-                  {job.metadata && job.metadata.transcript && (
+                  {canRerunAI(job) && (
                     <button
                       onClick={() => setActiveAiId(activeAiId === job.id ? null : job.id)}
                       style={{
