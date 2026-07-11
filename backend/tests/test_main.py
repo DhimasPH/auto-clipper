@@ -60,3 +60,20 @@ def test_history_list_ok():
 def test_video_missing_returns_404():
     r = client.get("/video", params={"path": "/nope.mp4"})
     assert r.status_code == 404
+
+
+def test_get_job_exposes_success_and_failed_counts():
+    from backend import jobs
+    job_id = "endpoint-breakdown"
+    jobs.active_jobs[job_id] = {
+        "id": job_id, "status": "DONE", "progress": "",
+        "clips": [{"path": "a.mp4"}, {"path": "b.mp4"}], "failed": 1, "error": None,
+    }
+    try:
+        r = client.get(f"/jobs/{job_id}")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["failed"] == 1
+        assert len(body["clips"]) == 2
+    finally:
+        jobs.active_jobs.pop(job_id, None)

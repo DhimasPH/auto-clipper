@@ -39,3 +39,35 @@ def test_crop_respects_should_cancel(tmp_path):
     except RuntimeError as e:
         assert "Dibatalkan" in str(e)
     assert not out.exists()
+
+
+def test_run_job_tracks_success_and_failed(tmp_path, monkeypatch):
+    """_run_job should count rendered clips as success and crop failures as failed."""
+    src = tmp_path / "source.mp4"
+    src.write_bytes(b"x")
+    job_id = "test-breakdown"
+    jobs.active_jobs[job_id] = {
+        "id": job_id, "url": f"local:{src}", "provider": "openai", "api_key": "k",
+        "mode": "ai", "manual_start": "", "manual_end": "", "aspect_ratio": "9:16",
+        "caption_style": "standard", "burn_subs": False, "output_dir": "", "quality": "best",
+        "status": "PENDING", "progress": "", "cancelled": False, "clips": [], "failed": 0,
+        "error": None,
+    }
+    seg = lambda s: {"start_time": f"00:00:0{s}", "end_time": f"00:00:1{s}", "description": f"seg{s}"}
+    monkeypatch.setattr(jobs, "process_with_openai", lambda *a, **k: {"highlights": [seg(0), seg(1), seg(2)], "subtitle_path": None})
+    calls = {"n": 0}
+    def fake_crop(*a, **k):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("boom")
+        return f"clip_{calls['n']}.mp4"
+    monkeypatch.setattr(jobs, "crop_to_vertical", fake_crop)
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: None)
+    try:
+        jobs._run_job(job_id)
+        job = jobs.active_jobs[job_id]
+        assert job["status"] == "DONE"
+        assert len(job["clips"]) == 2
+        assert job["failed"] == 1
+    finally:
+        jobs.active_jobs.pop(job_id, None)

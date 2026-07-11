@@ -127,6 +127,7 @@ def api_get_job(job_id: str):
         "status": job["status"],
         "progress": job["progress"],
         "clips": job["clips"],
+        "failed": job.get("failed", 0),
         "error": job["error"]
     }
 

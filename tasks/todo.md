@@ -25,7 +25,7 @@ Status:
   - [x] Catatan i18n `settings.api_key_note` diperbaiki → kini mencerminkan penyimpanan terenkripsi (safeStorage), bukan "browser".
 - [/] **Task 1.5:** Kalau 1 Clip Gagal, Lanjut Clip Lain (G)
   - [x] Loop crop per-klip pakai try/except mandiri (di backend `_run_job`).
-  - [ ] Tampilkan jumlah success/failed. → FE cuma tampilkan jumlah sukses, breakdown belum.
+  - [x] Tampilkan jumlah success/failed. → backend hitung `failed` per job & ekspos di `GET /jobs/{id}`; FE tampilkan "X berhasil, Y gagal" di toast, notifikasi OS, & header hasil.
 
 ### Checkpoint Fase 1
 - [ ] Build clean tanpa error. → belum diverifikasi (lihat utang test, Fase 7).

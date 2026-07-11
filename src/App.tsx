@@ -112,6 +112,7 @@ export default function App() {
 
   const [clips, setClips] = useState<Clip[]>([]);
   const [totalClips, setTotalClips] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
 
   // Global subtitle toggle applied before generating (per-clip live toggle was
   // removed — use this + History re-render to change captions).
@@ -196,13 +197,18 @@ export default function App() {
           const job = res.data;
           
           if (job.status === "DONE") {
+             const failedN = job.failed || 0;
              setStatus("DONE");
              setClips(job.clips);
+             setFailedCount(failedN);
              setActiveJobId(null);
              setProgress("");
-             notify(`🎉 Selesai! ${job.clips.length} clip berhasil dibuat`, "success");
+             const doneMsg = failedN > 0
+               ? `🎉 Selesai! ${job.clips.length} klip berhasil, ${failedN} gagal`
+               : `🎉 Selesai! ${job.clips.length} clip berhasil dibuat`;
+             notify(doneMsg, "success");
              if (window.Notification && Notification.permission === "granted") {
-               new Notification("Auto Clipper Selesai", { body: `${job.clips.length} clip berhasil dibuat!` });
+               new Notification("Auto Clipper Selesai", { body: failedN > 0 ? `${job.clips.length} berhasil, ${failedN} gagal` : `${job.clips.length} clip berhasil dibuat!` });
              }
           } else if (job.status === "ERROR") {
              setStatus("ERROR");
@@ -262,6 +268,7 @@ export default function App() {
     setProgress("");
     setClips([]);
     setTotalClips(0);
+    setFailedCount(0);
 
     try {
       setStatus("GENERATING");
@@ -864,7 +871,7 @@ export default function App() {
         >
           <h2 style={{ fontSize: "1.5rem", margin: 0 }}>
             {status === "DONE"
-              ? `Generated ${clips.length} clip${clips.length > 1 ? "s" : ""}`
+              ? `Generated ${clips.length} clip${clips.length > 1 ? "s" : ""}${failedCount > 0 ? ` (${failedCount} gagal)` : ""}`
               : "Generating clips..."}
           </h2>
           <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>

@@ -43,6 +43,7 @@ def create_job(url: str, provider: str, api_key: str, mode: str, manual_start: s
         "progress": "",
         "cancelled": False,
         "clips": [],
+        "failed": 0,
         "error": None
     }
     threading.Thread(target=_run_job, args=(job_id,), daemon=True).start()
@@ -66,6 +67,7 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "progress": "",
         "cancelled": False,
         "clips": [],
+        "failed": 0,
         "error": None,
         "metadata": hist["metadata"]
     }
@@ -196,6 +198,7 @@ def _run_job(job_id: str):
                 })
             except Exception as e:
                 log_error(f"JOB CROP {job_id}")
+                job["failed"] = job.get("failed", 0) + 1
                 print(f"Clip {i+1} failed: {e}")
                 
         # Done
@@ -263,6 +266,7 @@ def _run_rerender_job(job_id: str):
                 })
             except Exception as e:
                 log_error(f"JOB RERENDER CROP {job_id}")
+                job["failed"] = job.get("failed", 0) + 1
                 print(f"Clip {i+1} failed: {e}")
                 
         if not job["clips"]:
@@ -301,6 +305,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "status": "QUEUED",
         "progress": "Menyiapkan AI Koreksi...",
         "clips": [],
+        "failed": 0,
         "error": None,
         "cancelled": False,
         "history_ref": history_job_id,
@@ -364,6 +369,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                 })
             except Exception as e:
                 log_error(f"JOB RERUN AI CROP {job_id}")
+                job["failed"] = job.get("failed", 0) + 1
                 print(f"Clip {i+1} failed: {e}")
                 
         if not job["clips"]:
