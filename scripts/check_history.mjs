@@ -39,9 +39,9 @@ if (typeof canRerunAI === "function") {
 }
 
 // 2) Wiring guard: HistoryModal must gate via canRerunAI and not the dead transcript flag.
-const hm = readFileSync(join(root, "src/components/HistoryModal.tsx"), "utf8");
-if (!/canRerunAI\s*\(/.test(hm)) fail("HistoryModal.tsx must gate the AI button via canRerunAI(...)");
-if (/metadata\.transcript/.test(hm)) fail("HistoryModal.tsx must not gate on metadata.transcript (never written)");
+const hm = readFileSync(join(root, "src/pages/HistoryPage.tsx"), "utf8");
+if (!/canRerunAI\s*\(/.test(hm)) fail("HistoryPage.tsx must gate the AI button via canRerunAI(...)");
+if (/metadata\.transcript/.test(hm)) fail("HistoryPage.tsx must not gate on metadata.transcript (never written)");
 
 if (failures.length) {
   console.error("history checks FAILED:");

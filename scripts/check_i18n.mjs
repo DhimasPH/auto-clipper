@@ -67,17 +67,17 @@ for (const k of requiredHistoryKeys) {
   if (!(k in fi)) fail(`Missing i18n key in id.json: ${k}`);
 }
 
-const hm = loadText("src/components/HistoryModal.tsx");
+const hm = loadText("src/pages/HistoryPage.tsx");
 if (hm) {
-  if (!/useTranslation/.test(hm)) fail("HistoryModal.tsx must use useTranslation");
-  if (!/\bt\(["']history\./.test(hm)) fail("HistoryModal.tsx must reference history.* keys via t()");
+  if (!/useTranslation/.test(hm)) fail("HistoryPage.tsx must use useTranslation");
+  if (!/\bt\(["']history\./.test(hm)) fail("HistoryPage.tsx must reference history.* keys via t()");
   const forbidden = [
     "Belum ada riwayat klip", "Opsi Re-render", "Jalankan AI",
     "Masukkan instruksi khusus", "Apakah Anda yakin ingin menghapus",
     "Buka Folder", "Mulai Re-render", "Gaya Subtitle", "Masukan Subtitle",
   ];
   for (const phrase of forbidden) {
-    if (hm.includes(phrase)) fail(`HistoryModal.tsx still contains hardcoded string: "${phrase}"`);
+    if (hm.includes(phrase)) fail(`HistoryPage.tsx still contains hardcoded string: "${phrase}"`);
   }
 }
 
