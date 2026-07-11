@@ -38,6 +38,8 @@ export function useClipJobs(p: ClipJobParams) {
   const [totalClips, setTotalClips] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [jobOrigin, setJobOrigin] = useState<"workspace" | "history">("workspace");
+  const [historyVersion, setHistoryVersion] = useState(0);
 
   // Task 1.2: Request Notification permission once.
   useEffect(() => {
@@ -64,8 +66,13 @@ export function useClipJobs(p: ClipJobParams) {
           if (job.status === "DONE") {
             const failedN = job.failed || 0;
             setStatus("DONE");
-            setClips(job.clips);
-            setFailedCount(failedN);
+            if (jobOrigin === "workspace") {
+              setClips(job.clips);
+              setFailedCount(failedN);
+            } else {
+              // History-origin job (re-render / AI correction): refresh History, leave Workspace untouched.
+              setHistoryVersion((v) => v + 1);
+            }
             setActiveJobId(null);
             setProgress("");
             const doneMsg = failedN > 0
@@ -90,7 +97,7 @@ export function useClipJobs(p: ClipJobParams) {
             // In progress
             setStatus(job.status as any);
             setProgress(job.progress);
-            if (job.clips && job.clips.length > clips.length) {
+            if (jobOrigin === "workspace" && job.clips && job.clips.length > clips.length) {
               setClips(job.clips);
             }
           }
@@ -100,7 +107,7 @@ export function useClipJobs(p: ClipJobParams) {
       }, 1500);
     }
     return () => clearInterval(interval);
-  }, [activeJobId, status, clips.length]);
+  }, [activeJobId, status, clips.length, jobOrigin]);
 
   const cancelJob = async () => {
     if (activeJobId) {
@@ -128,6 +135,7 @@ export function useClipJobs(p: ClipJobParams) {
     setClips([]);
     setTotalClips(0);
     setFailedCount(0);
+    setJobOrigin("workspace");
 
     try {
       setStatus("GENERATING");
@@ -170,6 +178,7 @@ export function useClipJobs(p: ClipJobParams) {
   };
 
   const handleRerender = async (historyJobId: string, customAspectRatio: string, customCaptionStyle: string, customBurnSubs: boolean) => {
+    setJobOrigin("history");
     setStatus("TRANSCRIBING");
     setProgress("");
     setErrorMsg("");
@@ -202,6 +211,7 @@ export function useClipJobs(p: ClipJobParams) {
   };
 
   const handleRerunAI = async (historyJobId: string, extraPrompt: string) => {
+    setJobOrigin("history");
     setStatus("TRANSCRIBING");
     setProgress("");
     setErrorMsg("");
@@ -250,7 +260,7 @@ export function useClipJobs(p: ClipJobParams) {
 
   return {
     status, progress, errorMsg, clips, failedCount,
-    isRunning, progressPct,
+    isRunning, progressPct, historyVersion,
     handleGenerate, handleRerender, handleRerunAI, cancelJob,
   };
 }

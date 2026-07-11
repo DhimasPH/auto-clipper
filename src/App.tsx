@@ -67,6 +67,7 @@ export default function App() {
     failedCount,
     isRunning,
     progressPct,
+    historyVersion,
     handleGenerate,
     handleRerender,
     handleRerunAI,
@@ -130,6 +131,7 @@ export default function App() {
     clips,
     failedCount,
     videoSrc,
+    historyVersion,
     handleRerender,
     handleRerunAI,
   };

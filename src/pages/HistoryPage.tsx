@@ -25,7 +25,7 @@ export const HistoryPage: React.FC = () => {
 
   useEffect(() => {
     fetchHistory();
-  }, []);
+  }, [ctx.historyVersion]);
 
   const fetchHistory = async () => {
     setLoading(true);
