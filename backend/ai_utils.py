@@ -159,8 +159,56 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, ext
     }
 
 
+def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False):
+    from faster_whisper import WhisperModel
+    import os
+    
+    # Let faster-whisper automatically choose GPU if available, else fallback to CPU.
+    model = WhisperModel("small", device="auto", compute_type="default")
+    
+    segments, info = model.transcribe(audio_path, word_timestamps=karaoke)
+    
+    if karaoke:
+        words_data = []
+        for segment in segments:
+            for word in segment.words:
+                words_data.append({
+                    "word": word.word.strip(),
+                    "start": word.start,
+                    "end": word.end
+                })
+        return {"words": words_data}
+    else:
+        from backend.crop_utils import _fmt_srt_ts
+        srt_lines = []
+        for idx, segment in enumerate(segments, start=1):
+            srt_lines.append(f"{idx}\n{_fmt_srt_ts(segment.start)} --> {_fmt_srt_ts(segment.end)}\n{segment.text.strip()}")
+        return "\n\n".join(srt_lines) + "\n"
+
+
 def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "") -> dict:
+    import json
+    import os
+    from backend.video_utils import extract_audio
+    
     client = genai.Client(api_key=api_key)
+
+    base, _ = os.path.splitext(file_path)
+    audio_path = base + "_audio.mp3"
+    extract_audio(file_path, audio_path)
+    
+    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke)
+    
+    if karaoke:
+        subtitle_path = base + ".words.json"
+        with open(subtitle_path, "w", encoding="utf-8") as f:
+            json.dump(transcript_data, f)
+        transcript_text = " ".join([w["word"] for w in transcript_data.get("words", [])])
+    else:
+        subtitle_path = base + ".srt"
+        transcript_text = transcript_data
+        with open(subtitle_path, "w", encoding="utf-8") as f:
+            f.write(transcript_text)
 
     video_file = client.files.upload(file=file_path)
 
@@ -174,15 +222,11 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
     additional_instructions = f"\n\nUSER'S EXTRA INSTRUCTIONS:\n{extra_prompt}" if extra_prompt else ""
 
     prompt = (
-        "Watch this video. "
+        "Watch this video and read the following accurate transcript. "
         f"{HIGHLIGHT_GUIDANCE}{additional_instructions}\n\n"
-        "Return a JSON object with two keys:\n"
-        "1. 'highlights': an array of objects with 'start_time', 'end_time' "
-        "(HH:MM:SS.mmm) and 'description'.\n"
-        "2. 'transcript': an array of short caption segments covering the "
-        "spoken audio, each an object with 'start_time', 'end_time' "
-        "(HH:MM:SS.mmm) and 'text'. Keep each segment under ~8 words so it "
-        "works as an on-screen subtitle."
+        "Return a JSON object with a 'highlights' key holding an array of "
+        "objects with 'start_time', 'end_time' (HH:MM:SS.mmm) and 'description'.\n\n"
+        f"Transcript:\n{transcript_text[:30000]}"
     )
 
     response = _with_retry(lambda: client.models.generate_content(
@@ -194,23 +238,6 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
     ))
 
     highlights = _parse_highlights(response.text)
-
-    # Handle subtitles
-    transcript_text = "Transcription skipped for Gemini (Multimodal)"
-    subtitle_path = None
-    
-    try:
-        parsed = json.loads(response.text)
-        segments = parsed.get("transcript") if isinstance(parsed, dict) else None
-        srt = build_srt_from_segments(segments)
-        if srt.strip():
-            base, _ = os.path.splitext(file_path)
-            subtitle_path = base + ".srt"
-            with open(subtitle_path, "w", encoding="utf-8") as f:
-                f.write(srt)
-            transcript_text = srt
-    except Exception as e:
-        print(f"Gemini transcript unavailable: {e}")
 
     return {
         "transcript": transcript_text,

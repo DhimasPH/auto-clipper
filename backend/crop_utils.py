@@ -167,6 +167,24 @@ def _fmt_ass_ts(sec: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
+def calculate_ass_styles(width: int, height: int):
+    """Calculates proportional font sizes based on video dimensions."""
+    is_vertical = height > width
+    if is_vertical:
+        # For vertical videos (9:16), font size should relate to width, but bounded
+        font_size = max(14, round(width * 0.055))
+        margin_v = max(20, round(height * 0.15))
+    else:
+        # For landscape (16:9), width is huge, so font size should relate to height
+        font_size = max(14, round(height * 0.065))
+        margin_v = max(20, round(height * 0.08))
+        
+    outline = max(1, round(font_size * 0.08))
+    shadow = outline
+    margin_h = max(20, round(width * 0.05))
+    return font_size, outline, shadow, margin_h, margin_v
+
+
 def srt_to_ass(srt_text: str, width: int, height: int) -> str:
     """Convert SRT text to an ASS subtitle with an explicit script resolution.
 
@@ -177,12 +195,8 @@ def srt_to_ass(srt_text: str, width: int, height: int) -> str:
     """
     width = int(width) or 1080
     height = int(height) or 1920
-    # Task 2.1: Proportional font sizing relative to width (better for vertical 9:16)
-    font_size = max(12, round(width * 0.075))
-    outline = max(1, round(width * 0.005))
-    shadow = max(1, round(width * 0.005))
-    margin_h = max(20, round(width * 0.08))
-    margin_v = max(20, round(height * 0.12)) # Lift higher from the bottom
+    
+    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height)
 
     header = (
         "[Script Info]\n"
@@ -226,15 +240,32 @@ def srt_to_ass(srt_text: str, width: int, height: int) -> str:
     return header + "\n".join(events) + ("\n" if events else "")
 
 
+def chunk_words_smartly(clip_words, max_chars=25):
+    chunks = []
+    current_chunk = []
+    current_len = 0
+    
+    for w in clip_words:
+        word_len = len(w["word"])
+        if current_len + word_len > max_chars and current_chunk:
+            chunks.append(current_chunk)
+            current_chunk = [w]
+            current_len = word_len
+        else:
+            current_chunk.append(w)
+            current_len += word_len + 1 # +1 for space
+            
+    if current_chunk:
+        chunks.append(current_chunk)
+    return chunks
+
+
 def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float, clip_end: float) -> str:
     """Convert word-level timestamps to Karaoke ASS format for a specific clip."""
     width = int(width) or 1080
     height = int(height) or 1920
-    font_size = max(12, round(width * 0.075))
-    outline = max(1, round(width * 0.005))
-    shadow = max(1, round(width * 0.005))
-    margin_h = max(20, round(width * 0.08))
-    margin_v = max(20, round(height * 0.12))
+    
+    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height)
 
     header = (
         "[Script Info]\n"
@@ -268,9 +299,8 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
     if not clip_words:
         return header
 
-    # Chunk words into lines (max 4 words per line)
-    CHUNK_SIZE = 4
-    chunks = [clip_words[i:i+CHUNK_SIZE] for i in range(0, len(clip_words), CHUNK_SIZE)]
+    # Chunk words into lines logically based on character limits
+    chunks = chunk_words_smartly(clip_words, max_chars=25)
 
     for chunk in chunks:
         if not chunk: continue
