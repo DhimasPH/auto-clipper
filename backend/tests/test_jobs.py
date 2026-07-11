@@ -53,7 +53,7 @@ def test_run_job_tracks_success_and_failed(tmp_path, monkeypatch):
         "status": "PENDING", "progress": "", "cancelled": False, "clips": [], "failed": 0,
         "error": None,
     }
-    seg = lambda s: {"start_time": f"00:00:0{s}", "end_time": f"00:00:1{s}", "description": f"seg{s}"}
+    seg = lambda s: {"start_time": f"00:00:0{s}", "end_time": f"00:00:1{s}", "description": f"seg{s}", "description_en": f"seg_en{s}", "description_id": f"seg_id{s}"}
     monkeypatch.setattr(jobs, "process_with_openai", lambda *a, **k: {"highlights": [seg(0), seg(1), seg(2)], "subtitle_path": None})
     calls = {"n": 0}
     def fake_crop(*a, **k):

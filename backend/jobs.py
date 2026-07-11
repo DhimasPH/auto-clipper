@@ -158,7 +158,9 @@ def _run_job(job_id: str):
             highlights = [{
                 "start_time": job["manual_start"],
                 "end_time": job["manual_end"],
-                "description": "Manual custom clip"
+                "description": "Manual custom clip",
+                "description_en": "Manual custom clip",
+                "description_id": "Klip manual",
             }]
             subtitle_path = None
             
@@ -201,6 +203,8 @@ def _run_job(job_id: str):
                 job["clips"].append({
                     "path": result_path,
                     "description": seg.get("description", f"Highlight {i+1}"),
+                    "description_en": seg.get("description_en", seg.get("description", f"Highlight {i+1}")),
+                    "description_id": seg.get("description_id", seg.get("description", f"Sorotan {i+1}")),
                     "start": seg["start_time"],
                     "end": seg["end_time"],
                     "subs": bool(subtitle_path),
@@ -269,6 +273,8 @@ def _run_rerender_job(job_id: str):
                 job["clips"].append({
                     "path": result_path,
                     "description": seg.get("description", f"Highlight {i+1}"),
+                    "description_en": seg.get("description_en", seg.get("description", f"Highlight {i+1}")),
+                    "description_id": seg.get("description_id", seg.get("description", f"Sorotan {i+1}")),
                     "start": seg["start_time"],
                     "end": seg["end_time"],
                     "subs": bool(subtitle_path),
@@ -372,6 +378,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                 job["clips"].append({
                     "path": result_path,
                     "description": seg.get("description", f"AI Corrected Highlight {i+1}"),
+                    "description_en": seg.get("description_en", seg.get("description", f"AI Corrected Highlight {i+1}")),
+                    "description_id": seg.get("description_id", seg.get("description", f"Sorotan Koreksi AI {i+1}")),
                     "start": seg["start_time"],
                     "end": seg["end_time"],
                     "subs": bool(subtitle_path),

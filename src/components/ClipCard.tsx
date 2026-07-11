@@ -5,6 +5,8 @@ import { Button } from "./ui/Button";
 export interface Clip {
   path: string;
   description: string;
+  description_en?: string;
+  description_id?: string;
   start: string;
   end: string;
   subs: boolean;
@@ -24,7 +26,11 @@ export default function ClipCard({
   mode,
   videoSrc
 }: ClipCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  const currentDescription = i18n.language === 'id' 
+    ? (clip.description_id || clip.description)
+    : (clip.description_en || clip.description);
 
   return (
     <div className="bg-bg-secondary rounded-card border border-border p-4 flex flex-col gap-4 w-72 shadow-sm">
@@ -42,7 +48,7 @@ export default function ClipCard({
           {mode === "ai" ? t('clip.title_ai', { num: index + 1 }) : t('clip.title_manual', 'Manual Clip')}
         </h3>
         <p className="text-caption text-text-secondary leading-relaxed mb-4 flex-1">
-          {clip.description}
+          {currentDescription}
         </p>
 
         <div className="flex gap-2 mt-auto">
