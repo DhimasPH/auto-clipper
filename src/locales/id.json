@@ -13,10 +13,16 @@
     "manual_start": "Waktu Mulai",
     "manual_end": "Waktu Selesai",
     "manual_range_label": "Rentang Waktu (HH:MM:SS - HH:MM:SS)",
-    "subtitle_label": "Masukan Subtitle ke video (bisa diubah per-clip)",
+    "subtitle_label": "Pasang Subtitle ke video (bisa diubah per-clip)",
     "btn_generating": "Memproses...",
     "btn_generate": "✨ Generate Viral Clips",
-    "btn_manual_clip": "✂️ Potong Klip"
+    "btn_manual_clip": "✂️ Potong Klip",
+    "local_file_label": "Pilih File Video Lokal",
+    "aspect_ratio_label": "Rasio Video (Aspect Ratio)",
+    "burn_subtitles": "Pasang Subtitle",
+    "burn_subtitles_desc": "Masukkan subtitle langsung ke dalam video",
+    "subtitle_style_label": "Gaya Subtitle",
+    "loading_settings": "Memuat pengaturan..."
   },
   "clip": {
     "title_ai": "Klip {{num}}",
@@ -66,8 +72,8 @@
     "ar_4_5": "4:5 (IG Portrait)",
     "ar_1_1": "1:1 (Square)",
     "ar_16_9": "16:9 (Landscape)",
-    "embed_subtitle": "Masukan Subtitle",
-    "sub_yes": "Ya (Bakar)",
+    "embed_subtitle": "Pasang Subtitle",
+    "sub_yes": "Ya (Pasang)",
     "sub_no": "Tidak",
     "caption_style": "Gaya Subtitle",
     "style_standard": "Standard",
@@ -83,5 +89,41 @@
   },
   "toast": {
     "clip_failed": "⚠️ Klip {{num}} gagal: {{msg}}"
+  },
+  "sidebar": {
+    "menu": "Menu",
+    "workspace": "Ruang Kerja",
+    "history": "Riwayat",
+    "settings": "Pengaturan",
+    "help": "Bantuan / FAQ"
+  },
+  "help": {
+    "title": "Bantuan & Panduan",
+    "tab_guide": "Panduan Pengguna",
+    "tab_faq": "FAQ",
+    "guide_title": "Cara Penggunaan",
+    "faq_title": "Pertanyaan Umum (FAQ)",
+    "faqs": [
+      {
+        "q": "Apakah aplikasi ini gratis?",
+        "a": "Ya, aplikasi ini gratis dan open source, tetapi Anda memerlukan API Key dari OpenAI atau Gemini yang mungkin membebankan biaya sesuai penggunaan Anda pada layanan mereka."
+      },
+      {
+        "q": "Video apa saja yang didukung?",
+        "a": "Saat ini mendukung video YouTube publik (durasi berapapun) termasuk YouTube Shorts."
+      },
+      {
+        "q": "Kenapa gagal download video YouTube?",
+        "a": "Beberapa video YouTube dilindungi (DRM/Copyright) atau butuh login untuk diakses. Pastikan video bersifat publik."
+      },
+      {
+        "q": "Apakah bisa merubah font subtitle?",
+        "a": "Untuk saat ini font yang didukung masih terbatas, namun Anda bisa mengubah gaya subtitle (Standard / Karaoke) saat re-render."
+      },
+      {
+        "q": "Berapa lama proses pembuatan klip?",
+        "a": "Sangat tergantung pada durasi video asli dan performa PC Anda, karena proses rendering (ffmpeg) dilakukan sepenuhnya di komputer Anda (lokal)."
+      }
+    ]
   }
 }

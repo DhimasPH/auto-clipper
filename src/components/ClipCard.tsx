@@ -1,4 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { Download, Folder } from "lucide-react";
+import { Button } from "./ui/Button";
 
 export interface Clip {
   path: string;
@@ -25,86 +27,46 @@ export default function ClipCard({
   const { t } = useTranslation();
 
   return (
-    <div
-      className="glass-panel"
-      style={{
-        padding: "1rem",
-        display: "flex",
-        flexDirection: "column",
-        gap: "1rem",
-        width: "280px",
-      }}
-    >
-      <div
-        style={{
-          aspectRatio: "9/16",
-          background: "var(--scrim-strong)",
-          borderRadius: "8px",
-          overflow: "hidden",
-        }}
-      >
+    <div className="bg-bg-secondary rounded-card border border-border p-4 flex flex-col gap-4 w-72 shadow-sm">
+      <div className="aspect-[9/16] bg-scrim rounded-lg overflow-hidden border border-border/50">
         <video
           key={clip.v}
           src={videoSrc(clip.path, clip.v)}
           controls
           playsInline
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            background: "var(--video-bg)",
-          }}
+          className="w-full h-full object-contain bg-black"
         />
       </div>
-      <div>
-        <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.1rem" }}>
-          {mode === "ai" ? t('clip.title_ai', { num: index + 1 }) : t('clip.title_manual')}
+      <div className="flex flex-col flex-1">
+        <h3 className="text-body font-bold text-text-primary mb-2">
+          {mode === "ai" ? t('clip.title_ai', { num: index + 1 }) : t('clip.title_manual', 'Manual Clip')}
         </h3>
-        <p
-          style={{
-            margin: 0,
-            fontSize: "0.875rem",
-            color: "var(--text-secondary)",
-            lineHeight: 1.5,
-          }}
-        >
+        <p className="text-caption text-text-secondary leading-relaxed mb-4 flex-1">
           {clip.description}
         </p>
 
+        <div className="flex gap-2 mt-auto">
           <a
             href={videoSrc(clip.path, clip.v)}
             download
-            style={{
-              display: "inline-block",
-              marginTop: "0.75rem",
-              fontSize: "0.8rem",
-              color: "var(--accent)",
-              textDecoration: "none",
-            }}
+            className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-accent text-on-accent rounded-button text-caption font-medium hover:brightness-110 transition-all"
           >
-            {t('clip.btn_download')}
+            <Download className="w-4 h-4" />
+            {t('clip.btn_download', 'Download')}
           </a>
-          <button
+          <Button
+            variant="outline"
+            className="!px-3"
+            icon={Folder}
+            title="Buka Folder"
             onClick={() => {
               if (window.electronAPI) {
                 window.electronAPI.openFolder(clip.path);
               }
             }}
-            style={{
-              display: "inline-block",
-              marginTop: "0.75rem",
-              marginLeft: "1rem",
-              fontSize: "0.8rem",
-              color: "var(--text-secondary)",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              textDecoration: "underline"
-            }}
-          >
-            Buka Folder
-          </button>
+          />
         </div>
+      </div>
     </div>
   );
 }

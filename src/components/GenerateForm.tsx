@@ -1,5 +1,11 @@
 import { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
+import { Link2, FileVideo, Wand2, Scissors, StopCircle, Type } from "lucide-react";
+import { SegmentedControl } from "./ui/SegmentedControl";
+import { InputGroup } from "./ui/InputGroup";
+import { Select } from "./ui/Select";
+import { ToggleSwitch } from "./ui/ToggleSwitch";
+import { Button } from "./ui/Button";
 
 interface GenerateFormProps {
   mode: "ai" | "manual";
@@ -31,7 +37,6 @@ interface GenerateFormProps {
   cancelJob: () => void;
 }
 
-/** The main workspace panel: mode/input/ratio/caption controls + generate/cancel + progress. */
 export default function GenerateForm({
   mode, setMode,
   inputType, setInputType,
@@ -46,7 +51,6 @@ export default function GenerateForm({
   quality, setQuality,
   errorMsg,
   isRunning,
-  status,
   progressPct,
   progress,
   handleGenerate,
@@ -55,398 +59,207 @@ export default function GenerateForm({
   const { t } = useTranslation();
 
   return (
-      <main
-        className="glass-panel animate-slide-up"
-        style={{
-          padding: "2rem",
-          display: "flex",
-          flexDirection: "column",
-          gap: "1.5rem",
-        }}
-      >
-        {/* Mode Selector */}
-        <div
-          style={{
-            display: "flex",
-            gap: "1rem",
-            background: "var(--input-bg)",
-            padding: "0.5rem",
-            borderRadius: "12px",
-          }}
+    <main className="bg-bg-secondary rounded-card border border-border p-6 shadow-sm flex flex-col gap-6">
+      
+      {/* Mode Selector */}
+      <SegmentedControl
+        options={[
+          { label: t('main.ai_mode', 'AI Mode'), value: 'ai' },
+          { label: t('main.manual_mode', 'Manual Mode'), value: 'manual' }
+        ]}
+        value={mode}
+        onChange={(val) => setMode(val as any)}
+        className="w-full"
+      />
+
+      {/* Input Type */}
+      <div className="flex gap-4 p-1 bg-input-bg rounded-xl">
+        <button
+          onClick={() => setInputType("url")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors ${
+            inputType === "url" ? "bg-accent text-on-accent shadow-sm" : "text-text-secondary hover:text-text-primary hover:bg-bg-surface"
+          }`}
         >
-          <button
-            onClick={() => setMode("ai")}
-            style={{
-              flex: 1,
-              padding: "0.75rem",
-              borderRadius: "8px",
-              border: "none",
-              background: mode === "ai" ? "var(--accent)" : "transparent",
-              color: mode === "ai" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-          >
-            {t('main.ai_mode')}
-          </button>
-          <button
-            onClick={() => setMode("manual")}
-            style={{
-              flex: 1,
-              padding: "0.75rem",
-              borderRadius: "8px",
-              border: "none",
-              background: mode === "manual" ? "var(--accent)" : "transparent",
-              color: mode === "manual" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-          >
-            {t('main.manual_mode')}
-          </button>
-        </div>
+          <Link2 className="w-5 h-5" />
+          URL Video (YouTube)
+        </button>
+        <button
+          onClick={() => setInputType("local")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors ${
+            inputType === "local" ? "bg-accent text-on-accent shadow-sm" : "text-text-secondary hover:text-text-primary hover:bg-bg-surface"
+          }`}
+        >
+          <FileVideo className="w-5 h-5" />
+          Video Lokal (.mp4)
+        </button>
+      </div>
 
-        {/* Input Type Selector */}
-        <div style={{ display: "flex", gap: "1rem", background: "var(--input-bg)", padding: "0.5rem", borderRadius: "12px" }}>
-          <button
-            onClick={() => setInputType("url")}
-            style={{
-              flex: 1, padding: "0.75rem", borderRadius: "8px", border: "none",
-              background: inputType === "url" ? "var(--accent)" : "transparent",
-              color: inputType === "url" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
-            }}
-          >
-            URL Video (YouTube)
-          </button>
-          <button
-            onClick={() => setInputType("local")}
-            style={{
-              flex: 1, padding: "0.75rem", borderRadius: "8px", border: "none",
-              background: inputType === "local" ? "var(--accent)" : "transparent",
-              color: inputType === "local" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
-            }}
-          >
-            Video Lokal (.mp4)
-          </button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
-            {inputType === "url" ? t('main.url_label') : "Pilih File Video Lokal"}
-          </label>
-
-          {inputType === "url" ? (
-            <input
-              type="text"
-              placeholder={t('main.url_placeholder')}
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              style={{
-                width: "100%", padding: "0.875rem 1rem", borderRadius: "12px",
-                border: "1px solid var(--border)", background: "var(--input-bg)",
-                color: "var(--text-primary)", fontSize: "1rem", outline: "none",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-            />
-          ) : (
+      {/* Input Field */}
+      <div>
+        {inputType === "url" ? (
+          <InputGroup
+            label={t('main.url_label', 'Video URL')}
+            placeholder={t('main.url_placeholder', 'https://youtube.com/watch?...')}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            icon={Link2}
+          />
+        ) : (
+          <div className="space-y-2">
+            <label className="text-label text-text-secondary">{t('main.local_file_label', 'Select Local Video File')}</label>
             <input
               type="file"
               accept="video/mp4,video/x-m4v,video/*"
               onChange={(e) => setLocalFile(e.target.files?.[0] || null)}
-              style={{
-                width: "100%", padding: "0.875rem 1rem", borderRadius: "12px",
-                border: "1px solid var(--border)", background: "var(--input-bg)",
-                color: "var(--text-primary)", fontSize: "1rem", outline: "none",
-              }}
+              className="w-full p-3 rounded-xl border border-border bg-input-bg text-text-primary focus:outline-none focus:border-accent"
             />
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
-        {/* Aspect Ratio Selector */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
-            Rasio Video (Aspect Ratio)
-          </label>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            {(["1:1", "4:5", "9:16", "16:9"] as const).map((ratio) => (
-              <button
-                key={ratio}
-                onClick={() => setAspectRatio(ratio)}
+      {/* Aspect Ratio */}
+      <div className="space-y-2">
+        <label className="text-label text-text-secondary">{t('main.aspect_ratio_label', 'Video Aspect Ratio')}</label>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {(["9:16", "16:9", "4:5", "1:1"] as const).map((ratio) => (
+            <button
+              key={ratio}
+              onClick={() => setAspectRatio(ratio)}
+              className={`py-3 px-2 rounded-xl border transition-colors flex flex-col items-center gap-2 font-medium ${
+                aspectRatio === ratio
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border bg-bg-surface text-text-secondary hover:border-border-active hover:text-text-primary'
+              }`}
+            >
+              <div className={`border-2 rounded-sm ${aspectRatio === ratio ? 'border-accent' : 'border-text-secondary'}`}
                 style={{
-                  flex: 1, padding: "0.5rem", borderRadius: "8px", border: "1px solid",
-                  borderColor: aspectRatio === ratio ? "var(--accent)" : "var(--border)",
-                  background: aspectRatio === ratio ? "var(--accent-subtle)" : "var(--input-bg)",
-                  color: aspectRatio === ratio ? "var(--accent)" : "var(--text-primary)",
-                  cursor: "pointer", fontWeight: 600
+                  width: ratio === "16:9" ? "24px" : ratio === "9:16" ? "14px" : ratio === "4:5" ? "18px" : "20px",
+                  height: ratio === "16:9" ? "14px" : ratio === "9:16" ? "24px" : ratio === "4:5" ? "22px" : "20px"
                 }}
-              >
+              />
+              <span className="text-sm">
                 {ratio === "9:16" ? "9:16 (Vertical)" : ratio === "4:5" ? "4:5 (Portrait)" : ratio === "16:9" ? "16:9 (Landscape)" : "1:1 (Square)"}
-              </button>
-            ))}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {mode === "ai" ? (
+        <div className="space-y-6 animate-slide-up">
+          {/* Subtitle Settings */}
+          <div className="p-4 bg-bg-surface rounded-xl border border-border space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-accent/10 rounded-lg text-accent">
+                  <Type className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-body font-medium text-text-primary">{t('main.burn_subtitles', 'Burn Subtitles')}</h4>
+                  <p className="text-caption text-text-secondary">{t('main.burn_subtitles_desc', 'Embed captions directly into the video')}</p>
+                </div>
+              </div>
+              <ToggleSwitch checked={burnSubtitles} onChange={setBurnSubtitles} />
+            </div>
+
+            {burnSubtitles && (
+              <div className="pt-4 border-t border-border">
+                <label className="text-label text-text-secondary block mb-2">{t('main.subtitle_style_label', 'Subtitle Style')}</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {(["standard", "karaoke"] as const).map((style) => {
+                    const disabled = provider === "gemini" && style === "karaoke";
+                    return (
+                      <button
+                        key={style}
+                        disabled={disabled}
+                        onClick={() => setCaptionStyle(style)}
+                        className={`py-2 px-3 rounded-lg border font-medium transition-colors ${
+                          disabled ? 'opacity-50 cursor-not-allowed border-border bg-input-bg text-text-secondary' :
+                          captionStyle === style
+                            ? 'border-accent bg-accent/10 text-accent'
+                            : 'border-border bg-bg-surface text-text-secondary hover:border-border-active'
+                        }`}
+                      >
+                        {style === "standard" ? "Standard (Baris)" : "Karaoke (Word-by-word)"}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-slide-up bg-bg-surface p-4 rounded-xl border border-border">
+          <InputGroup
+            label={t('main.manual_range_label', 'Start Time')}
+            placeholder="00:00:00"
+            value={manualStart}
+            onChange={(e) => setManualStart(e.target.value)}
+          />
+          <InputGroup
+            label={t('main.manual_end', 'End Time')}
+            placeholder="00:00:15"
+            value={manualEnd}
+            onChange={(e) => setManualEnd(e.target.value)}
+          />
+          <Select
+            label="Kualitas Video"
+            value={quality}
+            onChange={(e) => setQuality(e.target.value as any)}
+            options={[
+              { label: 'Best (Otomatis)', value: 'best' },
+              { label: '1080p (Maksimal)', value: '1080p' },
+              { label: '720p (Lebih cepat)', value: '720p' }
+            ]}
+          />
+        </div>
+      )}
 
-        {mode === "ai" ? (
-          <div
-            className="animate-slide-up"
-            style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
-          >
-            {/* Caption Style Selector */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
-                Gaya Subtitle
-              </label>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                {(["standard", "karaoke"] as const).map((style) => {
-                  const disabled = provider === "gemini" && style === "karaoke";
-                  return (
-                    <button
-                      key={style}
-                      disabled={disabled}
-                      onClick={() => setCaptionStyle(style)}
-                      style={{
-                        flex: 1, padding: "0.5rem", borderRadius: "8px", border: "1px solid",
-                        borderColor: captionStyle === style ? "var(--accent)" : "var(--border)",
-                        background: captionStyle === style ? "var(--accent-subtle)" : "var(--input-bg)",
-                        color: captionStyle === style ? "var(--accent)" : "var(--text-primary)",
-                        cursor: disabled ? "not-allowed" : "pointer", fontWeight: 600,
-                        opacity: disabled ? 0.5 : 1
-                      }}
-                    >
-                      {style === "standard" ? "Standard (Baris)" : "Karaoke (Word-by-word)"}
-                    </button>
-                  );
-                })}
+      {errorMsg && (
+        <div className="p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-body">
+          ⚠️ {errorMsg}
+        </div>
+      )}
+
+      {/* Action Area */}
+      <div className="pt-2">
+        {isRunning ? (
+          <div className="space-y-4">
+            <Button 
+              variant="danger" 
+              className="w-full h-14 text-lg font-bold animate-pulse-glow-red"
+              icon={StopCircle}
+              onClick={cancelJob}
+            >
+              Batalkan Proses
+            </Button>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-caption text-text-secondary font-medium">
+                <span>{progress || 'Processing...'}</span>
+                <span>{progressPct}%</span>
+              </div>
+              <div className="w-full h-2 bg-surface-raised rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-accent transition-all duration-300 ease-out rounded-full"
+                  style={{ width: `${progressPct}%` }}
+                />
               </div>
             </div>
-
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.6rem",
-                fontSize: "0.875rem",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={burnSubtitles}
-                onChange={(e) => setBurnSubtitles(e.target.checked)}
-              />
-              {t('main.subtitle_label')}
-            </label>
           </div>
         ) : (
-          <div
-            className="animate-slide-up"
-            style={{ display: "flex", gap: "1rem" }}
-          >
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-              }}
-            >
-              <label
-                style={{
-                  fontSize: "0.875rem",
-                  fontWeight: 500,
-                  color: "var(--text-secondary)",
-                }}
-              >
-                {t('main.manual_range_label')}
-              </label>
-              <input
-                type="text"
-                placeholder="00:00:00"
-                value={manualStart}
-                onChange={(e) => setManualStart(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "0.875rem 1rem",
-                  borderRadius: "12px",
-                  border: "1px solid var(--border)",
-                  background: "var(--scrim)",
-                  color: "var(--on-accent)",
-                  fontSize: "1rem",
-                  outline: "none",
-                  transition: "border-color 0.2s",
-                }}
-                onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-              />
-            </div>
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-              }}
-            >
-              <label
-                style={{
-                  fontSize: "0.875rem",
-                  fontWeight: 500,
-                  color: "var(--text-secondary)",
-                }}
-              >
-                {t('main.manual_end')}
-              </label>
-              <input
-                type="text"
-                placeholder="00:00:15"
-                value={manualEnd}
-                onChange={(e) => setManualEnd(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "0.875rem 1rem",
-                  borderRadius: "12px",
-                  border: "1px solid var(--border)",
-                  background: "var(--input-bg)",
-                  color: "var(--text-primary)",
-                  fontSize: "1rem",
-                  outline: "none",
-                  transition: "border-color 0.2s",
-                }}
-                onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-              />
-            </div>
-
-            {/* Kualitas Download */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" }}>
-              <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
-                Kualitas Video (Download)
-              </label>
-              <select
-                value={quality}
-                onChange={(e) => setQuality(e.target.value as any)}
-                style={{
-                  padding: "0.75rem",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border)",
-                  background: "var(--input-bg)",
-                  color: "var(--text-primary)",
-                  outline: "none",
-                  fontWeight: 500
-                }}
-              >
-                <option value="best">Best (Otomatis)</option>
-                <option value="1080p">1080p (Maksimal)</option>
-                <option value="720p">720p (Lebih cepat)</option>
-              </select>
-            </div>
-          </div>
-        )}
-
-        {errorMsg && (
-          <div
-            style={{
-              padding: "1rem",
-              borderRadius: "12px",
-              background: "var(--error-bg)",
-              border: "1px solid var(--error-bg)",
-              color: "var(--error-text)",
-            }}
-          >
-            ⚠️ {errorMsg}
-          </div>
-        )}
-
-        {isRunning ? (
-          <button
-            onClick={cancelJob}
-            style={{
-              padding: "1rem",
-              borderRadius: "12px",
-              border: "none",
-              background: "var(--danger)",
-              color: "var(--on-accent)",
-              fontSize: "1rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s",
-              boxShadow: "0 4px 14px 0 var(--danger-shadow)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.75rem",
-              animation: "pulse-glow-red 2s infinite",
-            }}
-          >
-            <div className="spinner" />
-            Batal
-          </button>
-        ) : (
-          <button
+          <Button 
+            variant="primary" 
+            className="w-full h-14 text-lg font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-shadow"
+            icon={mode === "ai" ? Wand2 : Scissors}
             onClick={handleGenerate}
-            disabled={false}
-            style={{
-              padding: "1rem",
-              borderRadius: "12px",
-              border: "none",
-              background: "var(--accent)",
-              color: "var(--on-accent)",
-              fontSize: "1rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s",
-              boxShadow: "0 4px 14px 0 var(--accent-shadow)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.75rem",
-              animation: "pulse-glow 2s infinite",
-            }}
           >
-            {mode === "ai" ? t('main.btn_generate') : t('main.btn_manual_clip')}
-          </button>
+            {mode === "ai" ? t('main.btn_generate', 'Generate AI Clips') : t('main.btn_manual_clip', 'Create Manual Clip')}
+          </Button>
         )}
+      </div>
 
-        {(isRunning || status === "DONE") && (
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}
-          >
-            <div
-              style={{
-                width: "100%",
-                height: "8px",
-                borderRadius: "99px",
-                background: "var(--surface-raised)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${progressPct}%`,
-                  height: "100%",
-                  borderRadius: "99px",
-                  background: "var(--accent)",
-                  transition: "width 0.4s ease",
-                }}
-              />
-            </div>
-            <div
-              style={{
-                fontSize: "0.75rem",
-                color: "var(--text-secondary)",
-                textAlign: "right",
-              }}
-            >
-              {progressPct}%{progress ? ` · ${progress}` : ""}
-            </div>
-          </div>
-        )}
-      </main>
+    </main>
   );
 }

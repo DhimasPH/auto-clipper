@@ -1,4 +1,5 @@
 import ClipCard, { Clip } from "./ClipCard";
+import { Badge } from "./ui/Badge";
 
 interface ClipsResultProps {
   clips: Clip[];
@@ -8,25 +9,28 @@ interface ClipsResultProps {
   videoSrc: (p: string, v?: number) => string;
 }
 
-/** Results grid shown after (or during) a render. */
 export default function ClipsResult({ clips, status, failedCount, mode, videoSrc }: ClipsResultProps) {
   if (clips.length === 0) return null;
+  
   return (
-    <section
-      className="animate-slide-up"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "1rem",
-        marginTop: "1rem",
-      }}
-    >
-      <h2 style={{ fontSize: "1.5rem", margin: 0 }}>
-        {status === "DONE"
-          ? `Generated ${clips.length} clip${clips.length > 1 ? "s" : ""}${failedCount > 0 ? ` (${failedCount} gagal)` : ""}`
-          : "Generating clips..."}
-      </h2>
-      <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+    <section className="animate-slide-up flex flex-col gap-6 mt-4 pb-12">
+      <div className="flex items-center gap-3">
+        <h2 className="text-section-title text-text-primary m-0">
+          {status === "DONE" ? 'Generated Clips' : 'Generating Clips...'}
+        </h2>
+        {status === "DONE" && (
+          <Badge variant="success">
+            {clips.length} clip{clips.length > 1 ? "s" : ""}
+          </Badge>
+        )}
+        {failedCount > 0 && (
+          <Badge variant="error">
+            {failedCount} failed
+          </Badge>
+        )}
+      </div>
+      
+      <div className="flex gap-6 flex-wrap">
         {clips.map((clip, i) => (
           <ClipCard
             key={clip.path}

@@ -16,7 +16,13 @@
     "subtitle_label": "Embed Subtitles into video (can be changed per-clip)",
     "btn_generating": "Processing...",
     "btn_generate": "✨ Generate Viral Clips",
-    "btn_manual_clip": "✂️ Crop Video"
+    "btn_manual_clip": "✂️ Crop Video",
+    "local_file_label": "Select Local Video File",
+    "aspect_ratio_label": "Video Aspect Ratio",
+    "burn_subtitles": "Burn Subtitles",
+    "burn_subtitles_desc": "Embed captions directly into the video",
+    "subtitle_style_label": "Subtitle Style",
+    "loading_settings": "Loading settings..."
   },
   "clip": {
     "title_ai": "Clip {{num}}",
@@ -83,5 +89,41 @@
   },
   "toast": {
     "clip_failed": "⚠️ Clip {{num}} failed: {{msg}}"
+  },
+  "sidebar": {
+    "menu": "Menu",
+    "workspace": "Workspace",
+    "history": "History",
+    "settings": "Settings",
+    "help": "Help / FAQ"
+  },
+  "help": {
+    "title": "Help & Guide",
+    "tab_guide": "User Guide",
+    "tab_faq": "FAQ",
+    "guide_title": "How to Use",
+    "faq_title": "Frequently Asked Questions (FAQ)",
+    "faqs": [
+      {
+        "q": "Is this app free?",
+        "a": "Yes, the app itself is free and open-source. However, you will need an API Key from OpenAI or Gemini which may incur usage charges on their respective platforms."
+      },
+      {
+        "q": "What types of videos are supported?",
+        "a": "Currently, we support any public YouTube videos of any duration, including YouTube Shorts."
+      },
+      {
+        "q": "Why does downloading a YouTube video fail?",
+        "a": "Some YouTube videos are DRM-protected, copyrighted, or require a login. Please ensure the video is public."
+      },
+      {
+        "q": "Can I change the subtitle font?",
+        "a": "Currently, font options are limited, but you can change the subtitle style (Standard / Karaoke) during the re-render process."
+      },
+      {
+        "q": "How long does clipping take?",
+        "a": "It heavily depends on the original video's length and your PC's performance, as the actual video rendering (ffmpeg) runs locally on your machine."
+      }
+    ]
   }
 }
