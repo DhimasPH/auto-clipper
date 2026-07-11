@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { API_URL } from "../App";
 import { Clip } from "../components/ClipCard";
 import { ToastKind } from "./useToasts";
+import { shouldNotifyOS } from "../lib/notify";
 
 export interface ClipJobParams {
   inputType: "url" | "local";
@@ -74,7 +75,7 @@ export function useClipJobs(p: ClipJobParams) {
               ? `🎉 Selesai! ${job.clips.length} klip berhasil, ${failedN} gagal`
               : `🎉 Selesai! ${job.clips.length} clip berhasil dibuat`;
             notify(doneMsg, "success");
-            if (window.Notification && Notification.permission === "granted") {
+            if (shouldNotifyOS()) {
               new Notification("Auto Clipper Selesai", { body: failedN > 0 ? `${job.clips.length} berhasil, ${failedN} gagal` : `${job.clips.length} clip berhasil dibuat!` });
             }
           } else if (job.status === "ERROR") {

@@ -25,7 +25,7 @@ Empat task dikerjakan test-driven, tiap task punya commit sendiri:
 - [x] **T6 (todo 3.4):** Pecah `App.tsx` 919→162 baris (hooks + komponen). `6332f1e`
 - [x] **T7:** Opsi rasio **Landscape 16:9** (backend crop + FE selector + i18n).
 
-Ditunda: **Task 1.2** (notif tanpa cek focus) & Backlog. Task 2.2 di-QA user OK (output Gemini); peningkatan
+Ditunda: Backlog (auto-update; pindah notif ke main-process). Task 2.2 di-QA user OK (output Gemini); peningkatan
 presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesai (T5/T6).
 
 ---
@@ -37,7 +37,7 @@ presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesa
   - [x] Test dengan URL `youtu.be/...` dan Shorts. → jalan.
 - [/] **Task 1.2:** Notifikasi OS-Level (B)
   - [x] Implementasi notifikasi saat selesai/gagal. → pakai `Notification` renderer (bukan Electron main-process API).
-  - [ ] Pastikan tidak muncul jika app sedang di-focus. → **belum**, notif muncul walau app aktif.
+  - [x] Tidak muncul saat app fokus (T9): predikat `shouldNotifyOS()` (`src/lib/notify.ts`) cek `document.hasFocus()` + permission, di-gate di `useClipJobs`. Diuji `scripts/check_notify.mjs`.
 - [x] **Task 1.3:** Halaman FAQ / Tutorial (F) → `FAQModal.tsx` + tombol header, OK.
 - [x] **Task 1.4:** Simpan Default Settings (D)
   - [x] Persist provider & API key. → **disempurnakan oleh Task 6.2**: key kini via safeStorage terenkripsi, bukan `localStorage`+`btoa` (itu tinggal fallback dev).
@@ -93,7 +93,7 @@ presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesa
 ## Fase 3.5: Advanced Features & Resilience
 
 - [x] **Task 3.5.1:** Save to Folder → IPC `select-folder`/`open-folder`, OK.
-- [/] **Task 3.5.2:** OS-level Notification → sama dengan Task 1.2 (tanpa cek focus).
+- [x] **Task 3.5.2:** OS-level Notification → dengan cek focus (T9). Sisa opsional: pindah ke main-process `Notification` + IPC (backlog).
 - [x] **Task 3.5.3:** Lanjut Klip Berikutnya → try/except per-klip di backend, OK.
 - [x] **Task 3.5.4:** Dukungan URL Multi-Platform
   - [x] Longgarkan validasi frontend.
@@ -103,7 +103,7 @@ presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesa
 
 - [x] Proses klip resilient walau 1 segmen error.
 - [x] Output bisa disimpan di folder pilihan.
-- [/] Notifikasi OS muncul di background → muncul, tapi tanpa cek focus.
+- [x] Notifikasi OS muncul di background & tidak muncul saat app fokus (T9).
 
 ---
 
@@ -173,5 +173,5 @@ presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesa
 
 - [/] Kualitas download + **probing format** — **backend selesai** (T8, commit `5c367bd`): `quality_to_format` (best/2160/1440/1080/720/480, fallback `<=height`) + `probe_formats` + `GET /probe`, diuji pytest. FE (dropdown dinamis + tombol "Cek kualitas") **ditunda** nunggu refactor enterprise-UI settle.
 - [x] Perbanyak opsi AI provider — **selesai (7 provider)**: OpenAI, Gemini, DeepSeek, Groq, OpenRouter, xAI Grok, Mistral. Backend registry `OPENAI_COMPAT_PROVIDERS` + `process_with_openai_compatible` (T11, `6879488`). FE: registry `src/lib/providers.ts`, Settings dropdown + field key per-provider, key disimpan sebagai map di safeStorage dengan migrasi (T12, `7ab4b5a`). Diuji pytest + tsc/build.
-- [ ] Notif OS: cek focus + pindah ke Electron main-process `Notification` + IPC. (Ditunda — nyentuh FE/`useClipJobs`, tunggu refactor UI.)
+- [/] Notif OS: **cek focus selesai** (T9, renderer-side). Sisa opsional: pindah ke Electron main-process `Notification` + IPC (butuh QA Electron).
 - [ ] Auto-update (electron-updater) — disebut di roadmap, belum ada.
