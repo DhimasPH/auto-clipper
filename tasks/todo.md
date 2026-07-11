@@ -6,9 +6,22 @@ Status:
 `[x]` Selesai (terverifikasi di kode)
 `[!]` Diklaim selesai tapi BROKEN — perlu perbaikan (temuan audit)
 
-> Diperbarui 2026-07-11 berdasarkan audit kode langsung (bukan sekadar checkbox).
-> Ringkasan: fondasi besar sudah terbangun & solid, tapi beberapa fitur yang tadinya
-> ditandai selesai ternyata belum berfungsi. Lihat "Fase 7" untuk daftar perbaikan.
+> Diperbarui 2026-07-11 (sesi lanjutan) berdasarkan audit kode langsung + hasil `/build auto`.
+> Fondasi besar solid; temuan broken Fase 7 sudah beres. Sesi terakhir menuntaskan
+> T1–T4 (lihat "Log Sesi" di bawah). Verifikasi: **24 test pytest lolos**, `tsc` + `vite build` clean,
+> plus check harness `scripts/check_i18n.mjs` & `scripts/check_history.mjs`.
+
+---
+
+## Log Sesi 2026-07-11 (`/build auto`)
+Empat task dikerjakan test-driven, tiap task punya commit sendiri:
+- [x] **T1 (todo 1.4):** Catatan `api_key_note` diperbaiki (EN/ID) → cerminkan safeStorage terenkripsi. `36bfaa4`
+- [x] **T2 (todo 3.3):** `HistoryModal` full i18n (namespace `history.*`, key baru di en/id). `a46be8d`
+- [x] **T3 (todo 1.5):** Backend hitung `failed` per job + ekspos di `GET /jobs/{id}`; FE tampilkan "X berhasil, Y gagal". `0bb79fe`
+- [x] **T4 (Fase 7.2 FE):** Tombol "AI Koreksi" digate via `canRerunAI()` (`metadata.ai_job`). `0d6f198`
+
+Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 3.1** (inline color → token),
+**Task 3.4** (pecah `App.tsx`), dan Backlog. Refactor FE besar sebaiknya didahului setup Vitest.
 
 ---
 
@@ -23,12 +36,12 @@ Status:
 - [x] **Task 1.4:** Simpan Default Settings (D)
   - [x] Persist provider & API key. → **disempurnakan oleh Task 6.2**: key kini via safeStorage terenkripsi, bukan `localStorage`+`btoa` (itu tinggal fallback dev).
   - [x] Catatan i18n `settings.api_key_note` diperbaiki → kini mencerminkan penyimpanan terenkripsi (safeStorage), bukan "browser".
-- [/] **Task 1.5:** Kalau 1 Clip Gagal, Lanjut Clip Lain (G)
+- [x] **Task 1.5:** Kalau 1 Clip Gagal, Lanjut Clip Lain (G)
   - [x] Loop crop per-klip pakai try/except mandiri (di backend `_run_job`).
   - [x] Tampilkan jumlah success/failed. → backend hitung `failed` per job & ekspos di `GET /jobs/{id}`; FE tampilkan "X berhasil, Y gagal" di toast, notifikasi OS, & header hasil.
 
 ### Checkpoint Fase 1
-- [ ] Build clean tanpa error. → belum diverifikasi (lihat utang test, Fase 7).
+- [x] Build clean tanpa error. → diverifikasi sesi 2026-07-11: `tsc` + `vite build` lolos, 24 test pytest lolos.
 - [x] Flow utama tidak terganggu.
 
 ---
@@ -55,7 +68,7 @@ Status:
   - [/] **Banyak string masih hardcoded** — `HistoryModal.tsx` kini full i18n (semua string via `t('history.*')`, key baru di en/id). Sisa: sebagian App.tsx & SettingsModal masih hardcoded.
 - [/] **Task 3.4:** UI/UX Polish
   - [x] Ekstrak komponen (`Header`, `ClipCard`, `SettingsModal`, `HistoryModal`, `FAQModal`).
-  - [ ] App.tsx masih **957 baris** (target <300/file belum tercapai); responsive belum dicek menyeluruh.
+  - [ ] App.tsx masih **919 baris** (target <300/file belum tercapai); responsive belum dicek menyeluruh.
 
 ### Checkpoint Fase 3
 - [x] Tema berfungsi (Dark/Light/System).
@@ -104,7 +117,7 @@ Status:
 - [x] **Task 5.2:** Opsi Aspect Ratio (1:1, 4:5) → filter crop + subtitle width, OK.
 - [/] **Task 5.3:** Upload file lokal (.mp4)
   - [x] Endpoint `/upload` + toggle input + skip download untuk `local:`.
-  - [ ] Butuh dependency `python-multipart` (belum ada di env uji). Re-render/koreksi file upload rusak karena bug path `source_video`.
+  - [x] `python-multipart` sudah di `requirements.txt` (dipakai `/upload`); bug path `source_video` untuk upload lokal sudah diperbaiki di 7.4. Re-render/koreksi upload lokal jalan.
 
 ---
 
