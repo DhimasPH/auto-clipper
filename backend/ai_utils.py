@@ -161,6 +161,22 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, ext
 
 def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False):
     import os
+    
+    # Suppress Windows DLL missing error popups (so it falls back to CPU gracefully)
+    if os.name == 'nt':
+        import ctypes
+        # SEM_FAILCRITICALERRORS (0x0001) | SEM_NOOPENFILEERRORBOX (0x8000)
+        ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x8000)
+        
+        # Add NVIDIA pip packages to DLL path if they exist
+        try:
+            import nvidia.cublas
+            import nvidia.cudnn
+            os.add_dll_directory(os.path.join(os.path.dirname(nvidia.cublas.__file__), "bin"))
+            os.add_dll_directory(os.path.join(os.path.dirname(nvidia.cudnn.__file__), "bin"))
+        except Exception:
+            pass
+
     # Let faster-whisper automatically choose GPU if available, else fallback to CPU.
     try:
         from faster_whisper import WhisperModel
