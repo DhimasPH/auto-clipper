@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import axios from "axios";
 import { API_URL } from "../App";
 
@@ -10,6 +11,7 @@ interface HistoryModalProps {
 }
 
 export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }: HistoryModalProps) {
+  const { t } = useTranslation();
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeRerenderId, setActiveRerenderId] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
   };
 
   const deleteHistory = async (jobId: string) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus history ini? Semua file klip dan metadata terkait akan ikut terhapus permanen dari memori lokal.")) {
+    if (window.confirm(t("history.delete_confirm"))) {
       try {
         await axios.delete(`${API_URL}/history/${jobId}`);
         fetchHistory();
@@ -78,7 +80,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
           overflowY: "auto",
         }}
       >
-        <button 
+        <button
           onClick={onClose}
           style={{
             position: 'absolute',
@@ -94,12 +96,12 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
           ✕
         </button>
 
-        <h2 style={{ margin: 0, fontSize: "1.5rem" }}>🕒 History</h2>
+        <h2 style={{ margin: 0, fontSize: "1.5rem" }}>{t("history.title")}</h2>
 
         {loading ? (
           <div style={{ textAlign: "center", padding: "2rem" }}><div className="spinner" /></div>
         ) : history.length === 0 ? (
-          <p style={{ textAlign: "center", color: "var(--text-secondary)" }}>Belum ada riwayat klip.</p>
+          <p style={{ textAlign: "center", color: "var(--text-secondary)" }}>{t("history.empty")}</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {history.map((job) => (
@@ -135,7 +137,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                           fontSize: "0.8rem",
                           whiteSpace: "nowrap"
                         }}>
-                          Download
+                          {t("history.download")}
                         </a>
                         <button
                           onClick={() => {
@@ -143,7 +145,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                               window.electronAPI.openFolder(clip.path);
                             }
                           }}
-                          title="Buka Folder"
+                          title={t("history.open_folder")}
                           style={{
                             padding: "0.25rem 0.5rem",
                             background: "var(--button-hover)",
@@ -164,36 +166,36 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                 {/* Pop-up Mini Re-render */}
                 {activeRerenderId === job.id && (
                   <div style={{ marginTop: "1rem", padding: "1rem", background: "rgba(255,255,255,0.05)", borderRadius: "8px", border: "1px solid var(--border)" }}>
-                    <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem" }}>Opsi Re-render</h4>
+                    <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem" }}>{t("history.rerender_options")}</h4>
                     <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
                       <div>
-                        <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "0.25rem", color: "var(--text-secondary)" }}>Aspect Ratio</label>
+                        <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "0.25rem", color: "var(--text-secondary)" }}>{t("history.aspect_ratio")}</label>
                         <select value={localAspectRatio} onChange={(e) => setLocalAspectRatio(e.target.value)} style={{ padding: "0.4rem", borderRadius: "4px", background: "var(--input-bg)", color: "var(--text-primary)", border: "1px solid var(--border)" }}>
-                          <option value="9:16">9:16 (TikTok/Reels)</option>
-                          <option value="4:5">4:5 (IG Portrait)</option>
-                          <option value="1:1">1:1 (Square)</option>
+                          <option value="9:16">{t("history.ar_9_16")}</option>
+                          <option value="4:5">{t("history.ar_4_5")}</option>
+                          <option value="1:1">{t("history.ar_1_1")}</option>
                         </select>
                       </div>
                       <div>
-                        <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "0.25rem", color: "var(--text-secondary)" }}>Masukan Subtitle</label>
+                        <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "0.25rem", color: "var(--text-secondary)" }}>{t("history.embed_subtitle")}</label>
                         <select value={localBurnSubs ? "yes" : "no"} onChange={(e) => setLocalBurnSubs(e.target.value === "yes")} style={{ padding: "0.4rem", borderRadius: "4px", background: "var(--input-bg)", color: "var(--text-primary)", border: "1px solid var(--border)" }}>
-                          <option value="yes">Ya (Bakar)</option>
-                          <option value="no">Tidak</option>
+                          <option value="yes">{t("history.sub_yes")}</option>
+                          <option value="no">{t("history.sub_no")}</option>
                         </select>
                       </div>
                       {localBurnSubs && (
                         <div>
-                          <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "0.25rem", color: "var(--text-secondary)" }}>Gaya Subtitle</label>
+                          <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "0.25rem", color: "var(--text-secondary)" }}>{t("history.caption_style")}</label>
                           <select value={localCaptionStyle} onChange={(e) => setLocalCaptionStyle(e.target.value)} style={{ padding: "0.4rem", borderRadius: "4px", background: "var(--input-bg)", color: "var(--text-primary)", border: "1px solid var(--border)" }}>
-                            <option value="standard">Standard</option>
-                            <option value="karaoke">Karaoke (Word-by-word)</option>
+                            <option value="standard">{t("history.style_standard")}</option>
+                            <option value="karaoke">{t("history.style_karaoke")}</option>
                           </select>
                         </div>
                       )}
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button onClick={() => { onRerender(job.id, localAspectRatio, localCaptionStyle, localBurnSubs); setActiveRerenderId(null); }} style={{ padding: "0.4rem 0.75rem", background: "var(--accent)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>Mulai Re-render</button>
-                      <button onClick={() => setActiveRerenderId(null)} style={{ padding: "0.4rem 0.75rem", background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem" }}>Batal</button>
+                      <button onClick={() => { onRerender(job.id, localAspectRatio, localCaptionStyle, localBurnSubs); setActiveRerenderId(null); }} style={{ padding: "0.4rem 0.75rem", background: "var(--accent)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>{t("history.start_rerender")}</button>
+                      <button onClick={() => setActiveRerenderId(null)} style={{ padding: "0.4rem 0.75rem", background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem" }}>{t("history.cancel")}</button>
                     </div>
                   </div>
                 )}
@@ -201,17 +203,17 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                 {/* Pop-up Mini AI Koreksi */}
                 {activeAiId === job.id && (
                   <div style={{ marginTop: "1rem", padding: "1rem", background: "rgba(255,255,255,0.05)", borderRadius: "8px", border: "1px solid var(--border)" }}>
-                    <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem" }}>✨ AI Koreksi</h4>
-                    <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.8rem", color: "var(--text-secondary)" }}>Masukkan instruksi khusus untuk mengulang seleksi AI dari awal klip.</p>
-                    <textarea 
-                      value={extraPrompt} 
-                      onChange={(e) => setExtraPrompt(e.target.value)} 
-                      placeholder="Contoh: Fokus cari momen lucu soal coding saja"
+                    <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem" }}>{t("history.ai_correct")}</h4>
+                    <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.8rem", color: "var(--text-secondary)" }}>{t("history.ai_correct_desc")}</p>
+                    <textarea
+                      value={extraPrompt}
+                      onChange={(e) => setExtraPrompt(e.target.value)}
+                      placeholder={t("history.ai_prompt_placeholder")}
                       style={{ width: "100%", height: "60px", padding: "0.5rem", borderRadius: "4px", background: "var(--input-bg)", color: "var(--text-primary)", border: "1px solid var(--border)", marginBottom: "0.5rem", fontFamily: "inherit" }}
                     />
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button onClick={() => { onRerunAI(job.id, extraPrompt); setActiveAiId(null); setExtraPrompt(""); }} style={{ padding: "0.4rem 0.75rem", background: "var(--accent)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>Jalankan AI</button>
-                      <button onClick={() => setActiveAiId(null)} style={{ padding: "0.4rem 0.75rem", background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem" }}>Batal</button>
+                      <button onClick={() => { onRerunAI(job.id, extraPrompt); setActiveAiId(null); setExtraPrompt(""); }} style={{ padding: "0.4rem 0.75rem", background: "var(--accent)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>{t("history.run_ai")}</button>
+                      <button onClick={() => setActiveAiId(null)} style={{ padding: "0.4rem 0.75rem", background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem" }}>{t("history.cancel")}</button>
                     </div>
                   </div>
                 )}
@@ -231,7 +233,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                         fontWeight: 600
                       }}
                     >
-                      🔄 Re-render
+                      {t("history.rerender_btn")}
                     </button>
                   )}
                   {job.metadata && job.metadata.transcript && (
@@ -248,7 +250,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                         fontWeight: 600
                       }}
                     >
-                      ✨ AI Koreksi
+                      {t("history.ai_correct")}
                     </button>
                   )}
                   <button
@@ -264,7 +266,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                       fontWeight: 600
                     }}
                   >
-                    Hapus
+                    {t("history.delete")}
                   </button>
                 </div>
               </div>

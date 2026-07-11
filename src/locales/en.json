@@ -54,6 +54,32 @@
     "note_title": "Important Note",
     "note_desc": "Ensure your API key has active quota/credits."
   },
+  "history": {
+    "title": "🕒 History",
+    "empty": "No clip history yet.",
+    "delete_confirm": "Are you sure you want to delete this history? All related clip files and metadata will be permanently removed from local storage.",
+    "download": "Download",
+    "open_folder": "Open Folder",
+    "rerender_options": "Re-render Options",
+    "aspect_ratio": "Aspect Ratio",
+    "ar_9_16": "9:16 (TikTok/Reels)",
+    "ar_4_5": "4:5 (IG Portrait)",
+    "ar_1_1": "1:1 (Square)",
+    "embed_subtitle": "Embed Subtitle",
+    "sub_yes": "Yes (Burn)",
+    "sub_no": "No",
+    "caption_style": "Subtitle Style",
+    "style_standard": "Standard",
+    "style_karaoke": "Karaoke (Word-by-word)",
+    "start_rerender": "Start Re-render",
+    "cancel": "Cancel",
+    "ai_correct": "✨ AI Correction",
+    "ai_correct_desc": "Enter a custom instruction to re-run the AI clip selection from scratch.",
+    "ai_prompt_placeholder": "e.g. Focus only on funny coding moments",
+    "run_ai": "Run AI",
+    "rerender_btn": "🔄 Re-render",
+    "delete": "Delete"
+  },
   "toast": {
     "clip_failed": "⚠️ Clip {{num}} failed: {{msg}}"
   }

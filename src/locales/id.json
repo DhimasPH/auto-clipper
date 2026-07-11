@@ -54,6 +54,32 @@
     "note_title": "Catatan Penting",
     "note_desc": "Pastikan API Key memiliki kuota/saldo yang aktif."
   },
+  "history": {
+    "title": "🕒 Riwayat",
+    "empty": "Belum ada riwayat klip.",
+    "delete_confirm": "Apakah Anda yakin ingin menghapus history ini? Semua file klip dan metadata terkait akan ikut terhapus permanen dari memori lokal.",
+    "download": "Download",
+    "open_folder": "Buka Folder",
+    "rerender_options": "Opsi Re-render",
+    "aspect_ratio": "Rasio Aspek",
+    "ar_9_16": "9:16 (TikTok/Reels)",
+    "ar_4_5": "4:5 (IG Portrait)",
+    "ar_1_1": "1:1 (Square)",
+    "embed_subtitle": "Masukan Subtitle",
+    "sub_yes": "Ya (Bakar)",
+    "sub_no": "Tidak",
+    "caption_style": "Gaya Subtitle",
+    "style_standard": "Standard",
+    "style_karaoke": "Karaoke (Word-by-word)",
+    "start_rerender": "Mulai Re-render",
+    "cancel": "Batal",
+    "ai_correct": "✨ AI Koreksi",
+    "ai_correct_desc": "Masukkan instruksi khusus untuk mengulang seleksi AI dari awal klip.",
+    "ai_prompt_placeholder": "Contoh: Fokus cari momen lucu soal coding saja",
+    "run_ai": "Jalankan AI",
+    "rerender_btn": "🔄 Re-render",
+    "delete": "Hapus"
+  },
   "toast": {
     "clip_failed": "⚠️ Klip {{num}} gagal: {{msg}}"
   }

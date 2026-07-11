@@ -52,7 +52,7 @@ Status:
 - [x] **Task 3.2:** Dark / Light / System Theme Toggle → jalan, TAPI default `system` (roadmap minta `light`).
 - [/] **Task 3.3:** Setup i18n (ID + EN)
   - [x] `react-i18next` + `locales/id.json` & `en.json`, default ID.
-  - [ ] **Banyak string masih hardcoded** — `HistoryModal.tsx` nol `t()`; sebagian App.tsx & SettingsModal juga.
+  - [/] **Banyak string masih hardcoded** — `HistoryModal.tsx` kini full i18n (semua string via `t('history.*')`, key baru di en/id). Sisa: sebagian App.tsx & SettingsModal masih hardcoded.
 - [/] **Task 3.4:** UI/UX Polish
   - [x] Ekstrak komponen (`Header`, `ClipCard`, `SettingsModal`, `HistoryModal`, `FAQModal`).
   - [ ] App.tsx masih **957 baris** (target <300/file belum tercapai); responsive belum dicek menyeluruh.
