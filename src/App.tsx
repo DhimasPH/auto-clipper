@@ -7,6 +7,7 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { HelpPage } from "./pages/HelpPage";
 import Toasts from "./components/Toasts";
+import { SplashScreen } from "./components/SplashScreen";
 
 import { useTheme } from "./hooks/useTheme";
 import { useToasts } from "./hooks/useToasts";
@@ -33,6 +34,7 @@ export default function App() {
   const { toasts, notify } = useToasts();
 
   const [url, setUrl] = useState("");
+  const [splashComplete, setSplashComplete] = useState(false);
   const [provider, setProvider] = useState<ProviderId>(() => {
     return (localStorage.getItem("ac_provider") as ProviderId) || DEFAULT_PROVIDER;
   });
@@ -68,12 +70,12 @@ export default function App() {
   const videoSrc = (p: string, v = 0) =>
     `${API_URL}/video?path=${encodeURIComponent(p)}&v=${v}`;
 
-  if (isInitializing) {
+  if (!splashComplete) {
     return (
-      <div className="flex h-screen items-center justify-center bg-bg-primary text-text-secondary">
-        <div className="spinner mr-4" />
-        <span>{t('main.loading_settings', 'Loading settings...')}</span>
-      </div>
+      <SplashScreen 
+        isInitializing={isInitializing} 
+        onFinish={() => setSplashComplete(true)} 
+      />
     );
   }
 
