@@ -181,12 +181,14 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False):
     try:
         from faster_whisper import WhisperModel
         model = WhisperModel("small", device="auto", compute_type="default")
+        segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke)
+        segments = list(segments_gen)  # Force execution to catch lazy CUDA errors
     except Exception as e:
-        print(f"Warning: Failed to load WhisperModel with device='auto' ({e}). Falling back to CPU.")
+        print(f"Warning: GPU Transcription failed ({e}). Falling back to CPU.")
         from faster_whisper import WhisperModel
         model = WhisperModel("small", device="cpu", compute_type="default")
-    
-    segments, info = model.transcribe(audio_path, word_timestamps=karaoke)
+        segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke)
+        segments = list(segments_gen)
     
     if karaoke:
         words_data = []
