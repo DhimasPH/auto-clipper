@@ -8,6 +8,7 @@ import { canRerunAI } from '../lib/history';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Select } from '../components/ui/Select';
+import ClipCard from '../components/ClipCard';
 
 export const HistoryPage: React.FC = () => {
   const { t } = useTranslation();
@@ -95,29 +96,22 @@ export const HistoryPage: React.FC = () => {
               </div>
 
               {job.result_clips && job.result_clips.length > 0 && (
-                <div className="flex gap-3 overflow-x-auto py-2">
+                <div className="flex gap-6 overflow-x-auto py-4">
                   {job.result_clips.map((clip: any, idx: number) => (
-                    <div key={idx} className="flex gap-2">
-                      <a 
-                        href={`${API_URL}/video?path=${encodeURIComponent(clip.path)}`} 
-                        download 
-                        className="flex items-center gap-2 py-1.5 px-3 bg-accent text-on-accent rounded-button text-caption font-medium hover:brightness-110 transition-all whitespace-nowrap"
-                      >
-                        <Download className="w-4 h-4" />
-                        {t("history.download")}
-                      </a>
-                      <Button
-                        variant="outline"
-                        className="!p-1.5"
-                        icon={Folder}
-                        title={t("history.open_folder")}
-                        onClick={() => {
-                          if (window.electronAPI) {
-                            window.electronAPI.openFolder(clip.path);
-                          }
-                        }}
-                      />
-                    </div>
+                    <ClipCard
+                      key={clip.path || idx}
+                      clip={{
+                        path: clip.path,
+                        description: clip.description || '',
+                        start: clip.start || '',
+                        end: clip.end || '',
+                        subs: clip.subs || false,
+                        v: Date.now()
+                      }}
+                      index={idx}
+                      mode="ai"
+                      videoSrc={(path) => `${API_URL}/video?path=${encodeURIComponent(path)}`}
+                    />
                   ))}
                 </div>
               )}
