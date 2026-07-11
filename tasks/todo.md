@@ -172,6 +172,6 @@ presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesa
 ## Backlog belum tersentuh (dari ROADMAP)
 
 - [/] Kualitas download + **probing format** — **backend selesai** (T8, commit `5c367bd`): `quality_to_format` (best/2160/1440/1080/720/480, fallback `<=height`) + `probe_formats` + `GET /probe`, diuji pytest. FE (dropdown dinamis + tombol "Cek kualitas") **ditunda** nunggu refactor enterprise-UI settle.
-- [/] Perbanyak opsi AI provider — **DeepSeek ditambahkan (backend)** (T10, commit `782a759`): `process_with_deepseek` (transkrip Whisper lokal + DeepSeek pilih highlight via base_url OpenAI-compatible), routing di `jobs.py`, diuji pytest. FE (opsi provider + field API key di Settings + i18n) **ditunda** nunggu refactor UI.
+- [x] Perbanyak opsi AI provider — **selesai (7 provider)**: OpenAI, Gemini, DeepSeek, Groq, OpenRouter, xAI Grok, Mistral. Backend registry `OPENAI_COMPAT_PROVIDERS` + `process_with_openai_compatible` (T11, `6879488`). FE: registry `src/lib/providers.ts`, Settings dropdown + field key per-provider, key disimpan sebagai map di safeStorage dengan migrasi (T12, `7ab4b5a`). Diuji pytest + tsc/build.
 - [ ] Notif OS: cek focus + pindah ke Electron main-process `Notification` + IPC. (Ditunda — nyentuh FE/`useClipJobs`, tunggu refactor UI.)
 - [ ] Auto-update (electron-updater) — disebut di roadmap, belum ada.
