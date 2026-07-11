@@ -15,6 +15,7 @@
   "build": {
     "appId": "com.autoclipper.app",
     "productName": "Auto Clipper",
+    "artifactName": "Auto Clipper Setup ${version}.${ext}",
     "directories": {
       "output": "release"
     },

@@ -8,6 +8,10 @@ let pythonProcess;
 let backendKilled = false;
 let isJobActive = false;
 let backendPort = null;
+let backendPortResolver = null;
+const backendPortPromise = new Promise((resolve) => {
+  backendPortResolver = resolve;
+});
 
 // Safe Storage Helper
 function getSecretsPath() {
@@ -18,8 +22,8 @@ ipcMain.on("set-job-active", (event, active) => {
   isJobActive = active;
 });
 
-ipcMain.handle("get-backend-port", () => {
-  return backendPort;
+ipcMain.handle("get-backend-port", async () => {
+  return await backendPortPromise;
 });
 
 ipcMain.handle("get-api-keys", () => {
@@ -106,12 +110,21 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    backgroundColor: '#F9FAFB',
+    icon: path.join(__dirname, "../public/logo.svg"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, "preload.cjs"),
     },
   });
+
+  // Load URL immediately so React splash screen shows instantly
+  if (process.env.NODE_ENV === "development") {
+    mainWindow.loadURL("http://localhost:5173");
+  } else {
+    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+  }
 
   // Mencegah hotkey reload (Ctrl+R, Cmd+R, F5)
   mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -141,13 +154,7 @@ function createWindow() {
     if (match && !backendPort) {
       backendPort = parseInt(match[1], 10);
       console.log(`Backend is running on dynamic port ${backendPort}`);
-      
-      // Load URL ONLY after port is discovered
-      if (process.env.NODE_ENV === "development") {
-        mainWindow.loadURL("http://localhost:5173");
-      } else {
-        mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
-      }
+      if (backendPortResolver) backendPortResolver(backendPort);
     }
   });
 
