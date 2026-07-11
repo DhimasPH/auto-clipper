@@ -27,7 +27,10 @@ class _SilentLogger:
         pass
 
 
-def download_youtube_video(url: str, output_path: str, quality: str = "best") -> Path:
+class DownloadCancelledError(Exception):
+    pass
+
+def download_youtube_video(url: str, output_path: str, quality: str = "best", is_cancelled: callable = None) -> Path:
     format_str = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
     if quality == "1080p":
         format_str = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
@@ -44,6 +47,13 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best") ->
         'updatetime': False,
         'logger': _SilentLogger(),
     }
+    
+    if is_cancelled:
+        def hook(d):
+            if is_cancelled():
+                raise DownloadCancelledError("Download cancelled by user")
+        ydl_opts['progress_hooks'] = [hook]
+
     # yt-dlp snapshots sys.stdout/stderr at construction and writes to them
     # directly for some messages (e.g. deprecation notices), bypassing the
     # logger. On a broken Windows child-process stream that flush raises
@@ -55,6 +65,7 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best") ->
             ydl.download([url])
 
     return Path(output_path)
+
 
 
 def extract_audio(video_path: str, audio_path: str) -> str:

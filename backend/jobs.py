@@ -115,7 +115,17 @@ def _run_job(job_id: str):
             job["progress"] = "Mengunduh video..."
             output_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            download_youtube_video(job["url"], output_path, job.get("quality", "best"))
+            
+            def is_cancelled():
+                return job.get("cancelled", False)
+                
+            try:
+                download_youtube_video(job["url"], output_path, job.get("quality", "best"), is_cancelled=is_cancelled)
+            except Exception as e:
+                if job.get("cancelled"):
+                    _finalize_job(job_id, "CANCELLED")
+                    return
+                raise e
 
         # Remember the real source path so re-render/re-run works for BOTH
         # downloads and local uploads (was previously hardcoded in _finalize_job).
