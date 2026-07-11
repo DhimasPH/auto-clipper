@@ -171,7 +171,7 @@ presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesa
 
 ## Backlog belum tersentuh (dari ROADMAP)
 
-- [ ] Kualitas download 4K/2K/480p + **probing format** (sekarang cuma 3 opsi statis, tanpa cek format tersedia).
-- [ ] Perbanyak opsi AI provider (baru OpenAI & Gemini).
-- [ ] Notif OS: cek focus + pindah ke Electron main-process `Notification` + IPC.
+- [/] Kualitas download + **probing format** — **backend selesai** (T8, commit `5c367bd`): `quality_to_format` (best/2160/1440/1080/720/480, fallback `<=height`) + `probe_formats` + `GET /probe`, diuji pytest. FE (dropdown dinamis + tombol "Cek kualitas") **ditunda** nunggu refactor enterprise-UI settle.
+- [/] Perbanyak opsi AI provider — **DeepSeek ditambahkan (backend)** (T10, commit `782a759`): `process_with_deepseek` (transkrip Whisper lokal + DeepSeek pilih highlight via base_url OpenAI-compatible), routing di `jobs.py`, diuji pytest. FE (opsi provider + field API key di Settings + i18n) **ditunda** nunggu refactor UI.
+- [ ] Notif OS: cek focus + pindah ke Electron main-process `Notification` + IPC. (Ditunda — nyentuh FE/`useClipJobs`, tunggu refactor UI.)
 - [ ] Auto-update (electron-updater) — disebut di roadmap, belum ada.
