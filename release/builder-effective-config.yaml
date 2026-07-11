@@ -1,0 +1,26 @@
+directories:
+  output: release
+  buildResources: build
+appId: com.autoclipper.app
+productName: Auto Clipper
+compression: maximum
+files:
+  - filter:
+      - dist/**/*
+      - electron/**/*
+      - package.json
+extraResources:
+  - from: bin
+    to: bin
+    filter:
+      - '**/*'
+win:
+  target:
+    - nsis
+mac:
+  target:
+    - dmg
+linux:
+  target:
+    - AppImage
+electronVersion: 26.6.10
