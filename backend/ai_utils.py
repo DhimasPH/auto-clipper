@@ -105,9 +105,13 @@ def _parse_highlights(content: str) -> list:
     return []
 
 
-def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "") -> list:
-    """Ask the LLM to pick the most engaging short-form highlights."""
-    client = OpenAI(api_key=api_key)
+def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", base_url: str = None, model: str = "gpt-4o-mini") -> list:
+    """Ask the LLM to pick the most engaging short-form highlights.
+
+    ``base_url``/``model`` let OpenAI-compatible providers (e.g. DeepSeek)
+    reuse this same flow.
+    """
+    client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
     
     additional_instructions = f"\n\nUSER'S EXTRA INSTRUCTIONS:\n{extra_prompt}" if extra_prompt else ""
     
@@ -120,7 +124,7 @@ def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "") ->
         f"Transcript:\n{transcript_srt}"
     )
     response = _with_retry(lambda: client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model,
         messages=[
             {"role": "system", "content": "You are a professional short-form video editor who finds viral moments. Always return strictly valid JSON."},
             {"role": "user", "content": prompt},
@@ -260,6 +264,44 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
     ))
 
     highlights = _parse_highlights(response.text)
+
+    return {
+        "transcript": transcript_text,
+        "highlights": highlights,
+        "subtitle_path": subtitle_path,
+    }
+
+
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+
+
+def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "") -> dict:
+    """DeepSeek pipeline: local faster-whisper transcript -> DeepSeek picks highlights.
+
+    Transcription is local (no API key needed); DeepSeek's OpenAI-compatible
+    chat endpoint selects highlights from the accurate transcript text.
+    """
+    base, _ = os.path.splitext(file_path)
+    audio_path = base + "_audio.mp3"
+    extract_audio(file_path, audio_path)
+
+    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke)
+
+    if karaoke:
+        subtitle_path = base + ".words.json"
+        with open(subtitle_path, "w", encoding="utf-8") as f:
+            json.dump(transcript_data, f)
+        transcript_text = " ".join([w["word"] for w in transcript_data.get("words", [])])
+    else:
+        subtitle_path = base + ".srt"
+        transcript_text = transcript_data
+        with open(subtitle_path, "w", encoding="utf-8") as f:
+            f.write(transcript_text)
+
+    highlights = get_highlights(
+        transcript_text, api_key, extra_prompt,
+        base_url=DEEPSEEK_BASE_URL, model="deepseek-chat",
+    )
 
     return {
         "transcript": transcript_text,
