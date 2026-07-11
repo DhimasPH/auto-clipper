@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { WorkspacePage } from "./pages/WorkspacePage";
@@ -23,12 +22,14 @@ export function setApiUrl(url: string) {
 export const AppContext = React.createContext<any>(null);
 
 export default function App() {
-  const { t } = useTranslation();
   const {
     isInitializing,
-    apiKeys, setApiKey,
-    outputFolder, setOutputFolder,
-    quality, setQuality,
+    apiKeys,
+    setApiKey,
+    outputFolder,
+    setOutputFolder,
+    quality,
+    setQuality,
   } = useUserSettings();
   const { theme, setTheme } = useTheme();
   const { toasts, notify } = useToasts();
@@ -36,15 +37,21 @@ export default function App() {
   const [url, setUrl] = useState("");
   const [splashComplete, setSplashComplete] = useState(false);
   const [provider, setProvider] = useState<ProviderId>(() => {
-    return (localStorage.getItem("ac_provider") as ProviderId) || DEFAULT_PROVIDER;
+    return (
+      (localStorage.getItem("ac_provider") as ProviderId) || DEFAULT_PROVIDER
+    );
   });
 
   const apiKey = apiKeys[provider] || "";
 
   const [inputType, setInputType] = useState<"url" | "local">("url");
   const [localFile, setLocalFile] = useState<File | null>(null);
-  const [aspectRatio, setAspectRatio] = useState<"1:1" | "4:5" | "9:16" | "16:9">("9:16");
-  const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke">("standard");
+  const [aspectRatio, setAspectRatio] = useState<
+    "1:1" | "4:5" | "9:16" | "16:9"
+  >("9:16");
+  const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke">(
+    "standard",
+  );
 
   useEffect(() => {
     localStorage.setItem("ac_provider", provider);
@@ -56,13 +63,31 @@ export default function App() {
   const [burnSubtitles, setBurnSubtitles] = useState(true);
 
   const {
-    status, progress, errorMsg, clips, failedCount,
-    isRunning, progressPct,
-    handleGenerate, handleRerender, handleRerunAI, cancelJob,
+    status,
+    progress,
+    errorMsg,
+    clips,
+    failedCount,
+    isRunning,
+    progressPct,
+    handleGenerate,
+    handleRerender,
+    handleRerunAI,
+    cancelJob,
   } = useClipJobs({
-    inputType, url, localFile, mode, provider, apiKey,
-    manualStart, manualEnd, aspectRatio, captionStyle, burnSubtitles,
-    outputFolder, quality,
+    inputType,
+    url,
+    localFile,
+    mode,
+    provider,
+    apiKey,
+    manualStart,
+    manualEnd,
+    aspectRatio,
+    captionStyle,
+    burnSubtitles,
+    outputFolder,
+    quality,
     notify,
     closeHistory: () => {},
   });
@@ -72,39 +97,60 @@ export default function App() {
 
   if (!splashComplete) {
     return (
-      <SplashScreen 
-        isInitializing={isInitializing} 
-        onFinish={() => setSplashComplete(true)} 
+      <SplashScreen
+        isInitializing={isInitializing}
+        onFinish={() => setSplashComplete(true)}
       />
     );
   }
 
   const contextValue = {
-    theme, setTheme,
-    provider, setProvider,
-    apiKeys, setApiKey,
-    outputFolder, setOutputFolder,
-    quality, setQuality,
-    mode, setMode,
-    inputType, setInputType,
-    url, setUrl,
+    theme,
+    setTheme,
+    provider,
+    setProvider,
+    apiKeys,
+    setApiKey,
+    outputFolder,
+    setOutputFolder,
+    quality,
+    setQuality,
+    mode,
+    setMode,
+    inputType,
+    setInputType,
+    url,
+    setUrl,
     setLocalFile,
-    aspectRatio, setAspectRatio,
-    captionStyle, setCaptionStyle,
-    burnSubtitles, setBurnSubtitles,
-    manualStart, setManualStart,
-    manualEnd, setManualEnd,
-    errorMsg, isRunning, status, progressPct, progress,
-    handleGenerate, cancelJob,
-    clips, failedCount, videoSrc,
-    handleRerender, handleRerunAI
+    aspectRatio,
+    setAspectRatio,
+    captionStyle,
+    setCaptionStyle,
+    burnSubtitles,
+    setBurnSubtitles,
+    manualStart,
+    setManualStart,
+    manualEnd,
+    setManualEnd,
+    errorMsg,
+    isRunning,
+    status,
+    progressPct,
+    progress,
+    handleGenerate,
+    cancelJob,
+    clips,
+    failedCount,
+    videoSrc,
+    handleRerender,
+    handleRerunAI,
   };
 
   return (
     <AppContext.Provider value={contextValue}>
       <HashRouter>
         <Toasts toasts={toasts} />
-        
+
         <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<WorkspacePage />} />
