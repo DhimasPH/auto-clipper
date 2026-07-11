@@ -339,6 +339,36 @@ def _video_duration(path: str):
     return None
 
 
+def build_crop_filter(aspect_ratio: str, center_pct: float) -> str:
+    """ffmpeg crop expression for a given target aspect ratio.
+
+    Portrait/square ratios keep the full source height and crop the width,
+    horizontally centred on the detected face. Landscape (16:9) instead keeps
+    the full width and crops the height, centred vertically. The returned
+    string must not contain a comma (it is concatenated with ",ass=...").
+    """
+    if aspect_ratio == "1:1":
+        return f"crop=trunc(ih/2)*2:ih:iw*{center_pct}-ih/2:0"
+    elif aspect_ratio == "4:5":
+        return f"crop=trunc(ih*4/5/2)*2:ih:iw*{center_pct}-ih*4/10:0"
+    elif aspect_ratio == "16:9":
+        return "crop=iw:trunc(iw*9/16/2)*2:0:(ih-trunc(iw*9/16/2)*2)/2"
+    else:  # 9:16 default
+        return f"crop=trunc(ih*9/16/2)*2:ih:iw*{center_pct}-ih*9/32:0"
+
+
+def output_width(aspect_ratio: str, src_w: int, src_h: int) -> int:
+    """Rendered clip width (even) for subtitle sizing, per aspect ratio."""
+    if aspect_ratio == "1:1":
+        return (int(src_h) // 2) * 2
+    elif aspect_ratio == "4:5":
+        return (int(src_h * 4 / 5) // 2) * 2
+    elif aspect_ratio == "16:9":
+        return (int(src_w) // 2) * 2 if src_w else 0
+    else:  # 9:16 default
+        return (int(src_h * 9 / 16) // 2) * 2 if src_h else 0
+
+
 def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                      end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16",
                      register_proc=None, should_cancel=None) -> str:
@@ -375,12 +405,7 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     center_pct = detect_primary_face_center(input_path, start_time=start_s, end_time=end_s)
     
     # Calculate crop dimensions based on aspect ratio
-    if aspect_ratio == "1:1":
-        crop_filter = f"crop=trunc(ih/2)*2:ih:iw*{center_pct}-ih/2:0"
-    elif aspect_ratio == "4:5":
-        crop_filter = f"crop=trunc(ih*4/5/2)*2:ih:iw*{center_pct}-ih*4/10:0"
-    else: # 9:16 default
-        crop_filter = f"crop=trunc(ih*9/16/2)*2:ih:iw*{center_pct}-ih*9/32:0"
+    crop_filter = build_crop_filter(aspect_ratio, center_pct)
 
     # Build an optional subtitle-burning variant. We generate an .ass sized to
     # the clip and reference it by basename while running ffmpeg from that
@@ -392,12 +417,9 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
         import json
         is_json = subtitle_path.endswith(".json")
         src_w, src_h = _video_dims(input_path)
-        if aspect_ratio == "1:1":
-            out_w = (int(src_h) // 2) * 2
-        elif aspect_ratio == "4:5":
-            out_w = (int(src_h * 4 / 5) // 2) * 2
-        else:
-            out_w = (int(src_h * 9 / 16) // 2) * 2 if src_h else 0
+        out_w = output_width(aspect_ratio, src_w, src_h)
+        # Landscape crops height from width, so subtitle canvas height differs.
+        out_h = int(src_w * 9 / 16) if aspect_ratio == "16:9" else src_h
             
         ass_text = ""
         
@@ -408,11 +430,11 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             if is_json:
                 data = json.loads(content)
                 words = data.get("words", [])
-                ass_text = words_to_karaoke_ass(words, out_w, src_h, start_s, end_s)
+                ass_text = words_to_karaoke_ass(words, out_w, out_h, start_s, end_s)
             else:
                 clip_srt = shift_srt_for_clip(content, start_s, end_s)
                 if clip_srt.strip():
-                    ass_text = srt_to_ass(clip_srt, out_w, src_h)
+                    ass_text = srt_to_ass(clip_srt, out_w, out_h)
         except Exception as e:
             print(f"Failed to generate ASS: {e}")
             ass_text = ""

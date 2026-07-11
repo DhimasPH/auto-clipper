@@ -36,7 +36,7 @@ export default function App() {
 
   const [inputType, setInputType] = useState<"url" | "local">("url");
   const [localFile, setLocalFile] = useState<File | null>(null);
-  const [aspectRatio, setAspectRatio] = useState<"1:1" | "4:5" | "9:16">("9:16");
+  const [aspectRatio, setAspectRatio] = useState<"1:1" | "4:5" | "9:16" | "16:9">("9:16");
   const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke">("standard");
 
   useEffect(() => {

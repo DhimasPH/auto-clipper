@@ -9,8 +9,8 @@ interface GenerateFormProps {
   url: string;
   setUrl: Dispatch<SetStateAction<string>>;
   setLocalFile: Dispatch<SetStateAction<File | null>>;
-  aspectRatio: "1:1" | "4:5" | "9:16";
-  setAspectRatio: Dispatch<SetStateAction<"1:1" | "4:5" | "9:16">>;
+  aspectRatio: "1:1" | "4:5" | "9:16" | "16:9";
+  setAspectRatio: Dispatch<SetStateAction<"1:1" | "4:5" | "9:16" | "16:9">>;
   captionStyle: "standard" | "karaoke";
   setCaptionStyle: Dispatch<SetStateAction<"standard" | "karaoke">>;
   provider: "openai" | "gemini";
@@ -173,7 +173,7 @@ export default function GenerateForm({
             Rasio Video (Aspect Ratio)
           </label>
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            {(["1:1", "4:5", "9:16"] as const).map((ratio) => (
+            {(["1:1", "4:5", "9:16", "16:9"] as const).map((ratio) => (
               <button
                 key={ratio}
                 onClick={() => setAspectRatio(ratio)}
@@ -185,7 +185,7 @@ export default function GenerateForm({
                   cursor: "pointer", fontWeight: 600
                 }}
               >
-                {ratio === "9:16" ? "9:16 (Vertical)" : ratio === "4:5" ? "4:5 (Portrait)" : "1:1 (Square)"}
+                {ratio === "9:16" ? "9:16 (Vertical)" : ratio === "4:5" ? "4:5 (Portrait)" : ratio === "16:9" ? "16:9 (Landscape)" : "1:1 (Square)"}
               </button>
             ))}
           </div>

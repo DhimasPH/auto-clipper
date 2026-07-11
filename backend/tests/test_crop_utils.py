@@ -68,3 +68,25 @@ def test_crop_falls_back_when_subtitles_fail(mock_detect, mock_popen, tmp_path):
     res = crop_to_vertical("in.mp4", "out.mp4", "00:00:00", "00:00:10", subtitle_path=str(srt))
     assert res == "out.mp4"
     assert mock_popen.call_count == 2
+
+
+def test_build_crop_filter_ratios():
+    from backend.crop_utils import build_crop_filter
+    # Existing vertical/square ratios keep full height and crop width (unchanged).
+    assert build_crop_filter("1:1", 0.5) == "crop=trunc(ih/2)*2:ih:iw*0.5-ih/2:0"
+    assert build_crop_filter("4:5", 0.5) == "crop=trunc(ih*4/5/2)*2:ih:iw*0.5-ih*4/10:0"
+    assert build_crop_filter("9:16", 0.5) == "crop=trunc(ih*9/16/2)*2:ih:iw*9/32:0".replace("iw*9/32", "iw*0.5-ih*9/32")
+    # Landscape keeps full width and crops height; no comma (feeds "crop,ass=").
+    lf = build_crop_filter("16:9", 0.5)
+    assert lf.startswith("crop=iw:"), lf
+    assert "9/16" in lf
+    assert "," not in lf
+
+
+def test_output_width_ratios():
+    from backend.crop_utils import output_width
+    # Landscape output width == full source width.
+    assert output_width("16:9", 1920, 1080) == 1920
+    # Vertical/square derive width from source height (even).
+    assert output_width("1:1", 1920, 1080) == 1080
+    assert output_width("9:16", 1920, 1080) == (int(1080 * 9 / 16) // 2) * 2

@@ -173,6 +173,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                         <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "0.25rem", color: "var(--text-secondary)" }}>{t("history.aspect_ratio")}</label>
                         <select value={localAspectRatio} onChange={(e) => setLocalAspectRatio(e.target.value)} style={{ padding: "0.4rem", borderRadius: "4px", background: "var(--input-bg)", color: "var(--text-primary)", border: "1px solid var(--border)" }}>
                           <option value="9:16">{t("history.ar_9_16")}</option>
+                          <option value="16:9">{t("history.ar_16_9")}</option>
                           <option value="4:5">{t("history.ar_4_5")}</option>
                           <option value="1:1">{t("history.ar_1_1")}</option>
                         </select>

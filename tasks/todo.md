@@ -19,6 +19,9 @@ Empat task dikerjakan test-driven, tiap task punya commit sendiri:
 - [x] **T2 (todo 3.3):** `HistoryModal` full i18n (namespace `history.*`, key baru di en/id). `a46be8d`
 - [x] **T3 (todo 1.5):** Backend hitung `failed` per job + ekspos di `GET /jobs/{id}`; FE tampilkan "X berhasil, Y gagal". `0bb79fe`
 - [x] **T4 (Fase 7.2 FE):** Tombol "AI Koreksi" digate via `canRerunAI()` (`metadata.ai_job`). `0d6f198`
+- [x] **T5 (todo 3.1):** Warna hardcoded → design token. `cb20cec`
+- [x] **T6 (todo 3.4):** Pecah `App.tsx` 919→162 baris (hooks + komponen). `6332f1e`
+- [x] **T7:** Opsi rasio **Landscape 16:9** (backend crop + FE selector + i18n).
 
 Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 3.1** (inline color → token),
 **Task 3.4** (pecah `App.tsx`), dan Backlog. Refactor FE besar sebaiknya didahului setup Vitest.
@@ -116,7 +119,7 @@ Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 
 
 ## Fase 5: AI & Video Polish
 - [x] **Task 5.1:** Caption Karaoke/Word-by-word → `words_to_karaoke_ass` (OpenAI/Whisper saja; Gemini di-disable di UI).
-- [x] **Task 5.2:** Opsi Aspect Ratio (1:1, 4:5) → filter crop + subtitle width, OK.
+- [x] **Task 5.2:** Opsi Aspect Ratio (1:1, 4:5, 9:16, **16:9 Landscape**) → filter crop + subtitle width, OK. Landscape memotong tinggi dari lebar penuh (kebalikan mode vertikal); logika diekstrak ke `build_crop_filter`/`output_width` + diuji.
 - [/] **Task 5.3:** Upload file lokal (.mp4)
   - [x] Endpoint `/upload` + toggle input + skip download untuk `local:`.
   - [x] `python-multipart` sudah di `requirements.txt` (dipakai `/upload`); bug path `source_video` untuk upload lokal sudah diperbaiki di 7.4. Re-render/koreksi upload lokal jalan.
