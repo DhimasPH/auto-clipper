@@ -167,14 +167,11 @@ export default function GenerateForm({
                 <label className="text-label text-text-secondary block mb-2">{t('main.subtitle_style_label', 'Subtitle Style')}</label>
                 <div className="grid grid-cols-2 gap-3">
                   {(["standard", "karaoke"] as const).map((style) => {
-                    const disabled = provider === "gemini" && style === "karaoke";
                     return (
                       <button
                         key={style}
-                        disabled={disabled}
                         onClick={() => setCaptionStyle(style)}
                         className={`py-2 px-3 rounded-lg border font-medium transition-colors ${
-                          disabled ? 'opacity-50 cursor-not-allowed border-border bg-input-bg text-text-secondary' :
                           captionStyle === style
                             ? 'border-accent bg-accent/10 text-accent'
                             : 'border-border bg-bg-surface text-text-secondary hover:border-border-active'

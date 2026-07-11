@@ -44,10 +44,7 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem("ac_provider", provider);
-    if (provider === "gemini" && captionStyle === "karaoke") {
-      setCaptionStyle("standard");
-    }
-  }, [provider, captionStyle]);
+  }, [provider]);
 
   const [mode, setMode] = useState<"ai" | "manual">("ai");
   const [manualStart, setManualStart] = useState("00:00:00");

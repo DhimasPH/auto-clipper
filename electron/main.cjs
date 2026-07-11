@@ -70,7 +70,9 @@ function killBackend() {
     if (process.platform === "win32") {
       // pythonProcess.kill() does NOT kill grandchildren on Windows, which
       // leaves a zombie backend holding port 8000. taskkill /T kills the tree.
-      spawn("taskkill", ["/pid", String(pid), "/T", "/F"]);
+      // Must use spawnSync so Electron doesn't exit before the kill command completes.
+      const { spawnSync } = require("child_process");
+      spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"]);
     } else {
       pythonProcess.kill("SIGTERM");
     }

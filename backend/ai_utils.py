@@ -160,11 +160,15 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, ext
 
 
 def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False):
-    from faster_whisper import WhisperModel
     import os
-    
     # Let faster-whisper automatically choose GPU if available, else fallback to CPU.
-    model = WhisperModel("small", device="auto", compute_type="default")
+    try:
+        from faster_whisper import WhisperModel
+        model = WhisperModel("small", device="auto", compute_type="default")
+    except Exception as e:
+        print(f"Warning: Failed to load WhisperModel with device='auto' ({e}). Falling back to CPU.")
+        from faster_whisper import WhisperModel
+        model = WhisperModel("small", device="cpu", compute_type="default")
     
     segments, info = model.transcribe(audio_path, word_timestamps=karaoke)
     
