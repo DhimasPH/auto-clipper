@@ -7,8 +7,8 @@ import { InputGroup } from '../ui/InputGroup';
 interface OutputSectionProps {
   outputFolder: string;
   setOutputFolder: (folder: string) => void;
-  quality: "best" | "1080p" | "720p";
-  setQuality: (q: "best" | "1080p" | "720p") => void;
+  quality: "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p";
+  setQuality: (q: "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p") => void;
 }
 
 export const OutputSection: React.FC<OutputSectionProps> = ({
@@ -59,8 +59,11 @@ export const OutputSection: React.FC<OutputSectionProps> = ({
           onChange={(e) => setQuality(e.target.value as any)}
           options={[
             { label: 'Best (Otomatis) (Bawaan)', value: 'best' },
-            { label: '1080p (Maksimal)', value: '1080p' },
-            { label: '720p (Lebih Cepat)', value: '720p' }
+            { label: '2160p (4K)', value: '2160p' },
+            { label: '1440p (2K)', value: '1440p' },
+            { label: '1080p', value: '1080p' },
+            { label: '720p', value: '720p' },
+            { label: '480p', value: '480p' }
           ]}
         />
       </div>

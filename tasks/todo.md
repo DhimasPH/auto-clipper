@@ -171,7 +171,7 @@ presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesa
 
 ## Backlog belum tersentuh (dari ROADMAP)
 
-- [/] Kualitas download + **probing format** — **backend selesai** (T8, commit `5c367bd`): `quality_to_format` (best/2160/1440/1080/720/480, fallback `<=height`) + `probe_formats` + `GET /probe`, diuji pytest. FE (dropdown dinamis + tombol "Cek kualitas") **ditunda** nunggu refactor enterprise-UI settle.
+- [x] Kualitas download + **probing format** — **selesai full-stack**. Backend (T8, `5c367bd`): `quality_to_format` (best/2160/1440/1080/720/480, fallback `<=height`) + `probe_formats` + `GET /probe`, diuji pytest. FE (T8-FE): opsi kualitas diperluas di `GenerateForm` (manual) & `OutputSection` (Settings) + tombol "Cek kualitas tersedia" (panggil `/probe`, tampilkan resolusi) di bawah input URL.
 - [x] Perbanyak opsi AI provider — **selesai (7 provider)**: OpenAI, Gemini, DeepSeek, Groq, OpenRouter, xAI Grok, Mistral. Backend registry `OPENAI_COMPAT_PROVIDERS` + `process_with_openai_compatible` (T11, `6879488`). FE: registry `src/lib/providers.ts`, Settings dropdown + field key per-provider, key disimpan sebagai map di safeStorage dengan migrasi (T12, `7ab4b5a`). Diuji pytest + tsc/build.
 - [/] Notif OS: **cek focus selesai** (T9, renderer-side). Sisa opsional: pindah ke Electron main-process `Notification` + IPC (butuh QA Electron).
 - [ ] Auto-update (electron-updater) — disebut di roadmap, belum ada.

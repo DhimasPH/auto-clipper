@@ -1,4 +1,6 @@
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
+import axios from "axios";
+import { API_URL } from "../App";
 import { useTranslation } from "react-i18next";
 import { Link2, FileVideo, Wand2, Scissors, StopCircle, Type } from "lucide-react";
 import { SegmentedControl } from "./ui/SegmentedControl";
@@ -25,8 +27,8 @@ interface GenerateFormProps {
   setManualStart: Dispatch<SetStateAction<string>>;
   manualEnd: string;
   setManualEnd: Dispatch<SetStateAction<string>>;
-  quality: "best" | "1080p" | "720p";
-  setQuality: Dispatch<SetStateAction<"best" | "1080p" | "720p">>;
+  quality: "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p";
+  setQuality: Dispatch<SetStateAction<"best" | "2160p" | "1440p" | "1080p" | "720p" | "480p">>;
   errorMsg: string;
   isRunning: boolean;
   status: string;
@@ -55,6 +57,21 @@ export default function GenerateForm({
   cancelJob,
 }: GenerateFormProps) {
   const { t } = useTranslation();
+  const [availHeights, setAvailHeights] = useState<number[]>([]);
+  const [probing, setProbing] = useState(false);
+
+  const probeQualities = async () => {
+    if (!url) return;
+    setProbing(true);
+    try {
+      const r = await axios.get(`${API_URL}/probe`, { params: { url } });
+      setAvailHeights(r.data.heights || []);
+    } catch {
+      setAvailHeights([]);
+    } finally {
+      setProbing(false);
+    }
+  };
 
   return (
     <main className="bg-bg-secondary rounded-card border border-border p-6 shadow-sm flex flex-col gap-6">
@@ -95,13 +112,25 @@ export default function GenerateForm({
       {/* Input Field */}
       <div>
         {inputType === "url" ? (
-          <InputGroup
-            label={t('main.url_label', 'Video URL')}
-            placeholder={t('main.url_placeholder', 'https://youtube.com/watch?...')}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            icon={Link2}
-          />
+          <div className="space-y-2">
+            <InputGroup
+              label={t('main.url_label', 'Video URL')}
+              placeholder={t('main.url_placeholder', 'https://youtube.com/watch?...')}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              icon={Link2}
+            />
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={probeQualities} disabled={!url || probing}>
+                {probing ? "Mengecek..." : "Cek kualitas tersedia"}
+              </Button>
+              {availHeights.length > 0 && (
+                <span className="text-caption text-text-secondary">
+                  Tersedia: {availHeights.map((h) => `${h}p`).join(", ")}
+                </span>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="space-y-2">
             <label className="text-label text-text-secondary">{t('main.local_file_label', 'Select Local Video File')}</label>
@@ -204,8 +233,11 @@ export default function GenerateForm({
             onChange={(e) => setQuality(e.target.value as any)}
             options={[
               { label: 'Best (Otomatis)', value: 'best' },
-              { label: '1080p (Maksimal)', value: '1080p' },
-              { label: '720p (Lebih cepat)', value: '720p' }
+              { label: '2160p (4K)', value: '2160p' },
+              { label: '1440p (2K)', value: '1440p' },
+              { label: '1080p', value: '1080p' },
+              { label: '720p', value: '720p' },
+              { label: '480p', value: '480p' }
             ]}
           />
         </div>
