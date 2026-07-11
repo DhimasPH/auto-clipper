@@ -10,9 +10,8 @@ export interface ClipJobParams {
   url: string;
   localFile: File | null;
   mode: "ai" | "manual";
-  provider: "openai" | "gemini";
-  openaiKey: string;
-  geminiKey: string;
+  provider: string;
+  apiKey: string;
   manualStart: string;
   manualEnd: string;
   aspectRatio: string;
@@ -121,12 +120,8 @@ export function useClipJobs(p: ClipJobParams) {
       notify(t('toast.clip_failed', { num: '', msg: 'Video lokal belum dipilih!' }), "error");
       return;
     }
-    if (p.mode === "ai" && p.provider === "openai" && !p.openaiKey) {
-      notify(t('toast.clip_failed', { num: '', msg: 'API Key OpenAI belum diisi! Silakan isi di Settings.' }), "error");
-      return;
-    }
-    if (p.mode === "ai" && p.provider === "gemini" && !p.geminiKey) {
-      notify(t('toast.clip_failed', { num: '', msg: 'API Key Gemini belum diisi! Silakan isi di Settings.' }), "error");
+    if (p.mode === "ai" && !p.apiKey) {
+      notify(t('toast.clip_failed', { num: '', msg: 'API Key belum diisi! Silakan isi di Settings.' }), "error");
       return;
     }
 
@@ -156,7 +151,7 @@ export function useClipJobs(p: ClipJobParams) {
       const res = await axios.post(`${API_URL}/jobs`, {
         url: finalUrl,
         provider: p.provider,
-        api_key: p.provider === "openai" ? p.openaiKey : p.geminiKey,
+        api_key: p.apiKey,
         mode: p.mode,
         manual_start: p.manualStart,
         manual_end: p.manualEnd,
@@ -223,7 +218,7 @@ export function useClipJobs(p: ClipJobParams) {
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerun_ai`, {
         url: "dummy",
         provider: p.provider,
-        api_key: p.provider === "openai" ? p.openaiKey : p.geminiKey,
+        api_key: p.apiKey,
         mode: "rerun_ai",
         manual_start: "00:00:00",
         manual_end: "00:00:00",

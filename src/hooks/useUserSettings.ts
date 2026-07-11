@@ -1,19 +1,34 @@
 import { useState, useEffect } from "react";
 import { setApiUrl } from "../App";
 
-export type Quality = "best" | "1080p" | "720p";
+export type Quality = "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p";
+
+const LS_KEYS = "ac_api_keys";
+
+function decodeLegacy(): Record<string, string> {
+  const m: Record<string, string> = {};
+  try {
+    const lsApi = localStorage.getItem("ac_api_key"); // legacy: gemini key
+    const lsOpenai = localStorage.getItem("ac_openai_key");
+    if (lsApi) m.gemini = atob(lsApi);
+    if (lsOpenai) m.openai = atob(lsOpenai);
+  } catch (e) {}
+  return m;
+}
 
 /**
- * User settings that persist across sessions: API keys (via Electron
- * safeStorage with localStorage migration), output folder and quality.
- * Also resolves the backend port on startup.
+ * Persisted user settings: a per-provider API key map (Electron safeStorage,
+ * with migration from the old openaiKey/geminiKey shape), output folder and
+ * download quality. Also resolves the backend port on startup.
  */
 export function useUserSettings() {
   const [isInitializing, setIsInitializing] = useState(true);
-  const [openaiKey, setOpenaiKey] = useState("");
-  const [geminiKey, setGeminiKey] = useState("");
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [outputFolder, setOutputFolder] = useState(() => localStorage.getItem("ac_output_folder") || "");
   const [quality, setQuality] = useState<Quality>(() => (localStorage.getItem("ac_quality") as Quality) || "best");
+
+  const setApiKey = (id: string, value: string) =>
+    setApiKeys((prev) => ({ ...prev, [id]: value }));
 
   useEffect(() => {
     async function init() {
@@ -23,31 +38,33 @@ export function useUserSettings() {
           setApiUrl(`http://127.0.0.1:${port}`);
         }
 
-        const keys = await window.electronAPI.getApiKeys();
-        if (keys && (keys.openaiKey || keys.geminiKey)) {
-          setOpenaiKey(keys.openaiKey || "");
-          setGeminiKey(keys.geminiKey || "");
+        const stored: any = await window.electronAPI.getApiKeys();
+        if (stored && stored.apiKeys && typeof stored.apiKeys === "object") {
+          setApiKeys(stored.apiKeys);
+        } else if (stored && (stored.openaiKey || stored.geminiKey)) {
+          // Migrate old flat shape -> provider map.
+          const migrated = { openai: stored.openaiKey || "", gemini: stored.geminiKey || "" };
+          setApiKeys(migrated);
+          await window.electronAPI.saveApiKeys({ apiKeys: migrated });
         } else {
-          // Migration from localStorage
-          const lsApi = localStorage.getItem("ac_api_key");
-          const lsOpenai = localStorage.getItem("ac_openai_key");
-          if (lsApi || lsOpenai) {
-            const keyA = lsApi ? atob(lsApi) : "";
-            const keyB = lsOpenai ? atob(lsOpenai) : "";
-            await window.electronAPI.saveApiKeys({ openaiKey: keyB, geminiKey: keyA });
-            setOpenaiKey(keyB);
-            setGeminiKey(keyA);
+          const legacy = decodeLegacy();
+          if (Object.keys(legacy).length) {
+            setApiKeys(legacy);
+            await window.electronAPI.saveApiKeys({ apiKeys: legacy });
             localStorage.removeItem("ac_api_key");
             localStorage.removeItem("ac_openai_key");
           }
         }
       } else {
-        // Fallback for browser (development)
+        // Browser dev fallback.
         try {
-          const lsApi = localStorage.getItem("ac_api_key");
-          const lsOpenai = localStorage.getItem("ac_openai_key");
-          if (lsApi) setGeminiKey(atob(lsApi));
-          if (lsOpenai) setOpenaiKey(atob(lsOpenai));
+          const raw = localStorage.getItem(LS_KEYS);
+          if (raw) {
+            setApiKeys(JSON.parse(atob(raw)));
+          } else {
+            const legacy = decodeLegacy();
+            if (Object.keys(legacy).length) setApiKeys(legacy);
+          }
         } catch (e) {}
       }
       setIsInitializing(false);
@@ -56,17 +73,15 @@ export function useUserSettings() {
   }, []);
 
   useEffect(() => {
-    if (!isInitializing) {
-      if (window.electronAPI) {
-        window.electronAPI.saveApiKeys({ openaiKey, geminiKey });
-      } else {
-        if (geminiKey) localStorage.setItem("ac_api_key", btoa(geminiKey));
-        else localStorage.removeItem("ac_api_key");
-        if (openaiKey) localStorage.setItem("ac_openai_key", btoa(openaiKey));
-        else localStorage.removeItem("ac_openai_key");
-      }
+    if (isInitializing) return;
+    if (window.electronAPI) {
+      window.electronAPI.saveApiKeys({ apiKeys });
+    } else {
+      try {
+        localStorage.setItem(LS_KEYS, btoa(JSON.stringify(apiKeys)));
+      } catch (e) {}
     }
-  }, [openaiKey, geminiKey, isInitializing]);
+  }, [apiKeys, isInitializing]);
 
   useEffect(() => {
     localStorage.setItem("ac_output_folder", outputFolder);
@@ -78,8 +93,7 @@ export function useUserSettings() {
 
   return {
     isInitializing,
-    openaiKey, setOpenaiKey,
-    geminiKey, setGeminiKey,
+    apiKeys, setApiKey,
     outputFolder, setOutputFolder,
     quality, setQuality,
   };

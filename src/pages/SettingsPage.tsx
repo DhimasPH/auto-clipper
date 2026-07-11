@@ -22,10 +22,8 @@ export const SettingsPage: React.FC = () => {
         <ProviderSection 
           provider={ctx.provider} 
           setProvider={ctx.setProvider}
-          openaiKey={ctx.openaiKey}
-          setOpenaiKey={ctx.setOpenaiKey}
-          geminiKey={ctx.geminiKey}
-          setGeminiKey={ctx.setGeminiKey}
+          apiKeys={ctx.apiKeys}
+          setApiKey={ctx.setApiKey}
         />
         <OutputSection 
           outputFolder={ctx.outputFolder}

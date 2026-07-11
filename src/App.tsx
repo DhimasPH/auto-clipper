@@ -12,6 +12,7 @@ import { useTheme } from "./hooks/useTheme";
 import { useToasts } from "./hooks/useToasts";
 import { useUserSettings } from "./hooks/useUserSettings";
 import { useClipJobs } from "./hooks/useClipJobs";
+import { ProviderId, DEFAULT_PROVIDER } from "./lib/providers";
 
 export let API_URL = "http://127.0.0.1:8000";
 export function setApiUrl(url: string) {
@@ -24,8 +25,7 @@ export default function App() {
   const { t } = useTranslation();
   const {
     isInitializing,
-    openaiKey, setOpenaiKey,
-    geminiKey, setGeminiKey,
+    apiKeys, setApiKey,
     outputFolder, setOutputFolder,
     quality, setQuality,
   } = useUserSettings();
@@ -33,9 +33,11 @@ export default function App() {
   const { toasts, notify } = useToasts();
 
   const [url, setUrl] = useState("");
-  const [provider, setProvider] = useState<"openai" | "gemini">(() => {
-    return (localStorage.getItem("ac_provider") as any) || "openai";
+  const [provider, setProvider] = useState<ProviderId>(() => {
+    return (localStorage.getItem("ac_provider") as ProviderId) || DEFAULT_PROVIDER;
   });
+
+  const apiKey = apiKeys[provider] || "";
 
   const [inputType, setInputType] = useState<"url" | "local">("url");
   const [localFile, setLocalFile] = useState<File | null>(null);
@@ -56,7 +58,7 @@ export default function App() {
     isRunning, progressPct,
     handleGenerate, handleRerender, handleRerunAI, cancelJob,
   } = useClipJobs({
-    inputType, url, localFile, mode, provider, openaiKey, geminiKey,
+    inputType, url, localFile, mode, provider, apiKey,
     manualStart, manualEnd, aspectRatio, captionStyle, burnSubtitles,
     outputFolder, quality,
     notify,
@@ -78,8 +80,7 @@ export default function App() {
   const contextValue = {
     theme, setTheme,
     provider, setProvider,
-    openaiKey, setOpenaiKey,
-    geminiKey, setGeminiKey,
+    apiKeys, setApiKey,
     outputFolder, setOutputFolder,
     quality, setQuality,
     mode, setMode,
