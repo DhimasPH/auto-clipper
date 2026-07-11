@@ -21,7 +21,6 @@ export const WorkspacePage: React.FC = () => {
           setLocalFile={ctx.setLocalFile}
           aspectRatio={ctx.aspectRatio} setAspectRatio={ctx.setAspectRatio}
           captionStyle={ctx.captionStyle} setCaptionStyle={ctx.setCaptionStyle}
-          provider={ctx.provider}
           burnSubtitles={ctx.burnSubtitles} setBurnSubtitles={ctx.setBurnSubtitles}
           manualStart={ctx.manualStart} setManualStart={ctx.setManualStart}
           manualEnd={ctx.manualEnd} setManualEnd={ctx.setManualEnd}

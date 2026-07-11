@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
-import { Trash2, Download, Folder, RefreshCw, Wand2 } from "lucide-react";
+import { Trash2, RefreshCw, Wand2 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { AppContext, API_URL } from "../App";
 import { canRerunAI } from "../lib/history";
