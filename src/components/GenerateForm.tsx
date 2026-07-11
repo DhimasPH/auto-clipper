@@ -19,7 +19,6 @@ interface GenerateFormProps {
   setAspectRatio: Dispatch<SetStateAction<"1:1" | "4:5" | "9:16" | "16:9">>;
   captionStyle: "standard" | "karaoke";
   setCaptionStyle: Dispatch<SetStateAction<"standard" | "karaoke">>;
-  provider: "openai" | "gemini";
   burnSubtitles: boolean;
   setBurnSubtitles: Dispatch<SetStateAction<boolean>>;
   manualStart: string;
@@ -44,7 +43,6 @@ export default function GenerateForm({
   setLocalFile,
   aspectRatio, setAspectRatio,
   captionStyle, setCaptionStyle,
-  provider,
   burnSubtitles, setBurnSubtitles,
   manualStart, setManualStart,
   manualEnd, setManualEnd,
