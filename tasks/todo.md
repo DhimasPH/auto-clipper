@@ -69,12 +69,13 @@ Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 
   - [/] **Banyak string masih hardcoded** — `HistoryModal.tsx` kini full i18n (semua string via `t('history.*')`, key baru di en/id). Sisa: sebagian App.tsx & SettingsModal masih hardcoded.
 - [/] **Task 3.4:** UI/UX Polish
   - [x] Ekstrak komponen (`Header`, `ClipCard`, `SettingsModal`, `HistoryModal`, `FAQModal`).
-  - [ ] App.tsx masih **919 baris** (target <300/file belum tercapai); responsive belum dicek menyeluruh.
+  - [/] App.tsx dipecah **919 → 162 baris**: logika ke hooks (`useUserSettings`, `useTheme`, `useToasts`, `useBackendHealth`, `useClipJobs`) + UI ke komponen (`Toasts`, `GenerateForm`, `ClipsResult`). Behavior-preserving (JSX dipindah verbatim, props bertipe). Dijaga `scripts/check_file_size.mjs` (App.tsx ≤300).
+    - [ ] Sisa: `GenerateForm.tsx` (453) & `SettingsModal.tsx` (332) masih >300 (mayoritas inline style verbose) — soft-warn. Responsive belum dicek menyeluruh (butuh QA visual).
 
 ### Checkpoint Fase 3
 - [x] Tema berfungsi (Dark/Light/System).
 - [/] Ganti bahasa (ID/EN) realtime → jalan tapi belum menyeluruh (ada teks hardcoded).
-- [ ] Kode frontend modular (<300 line/file).
+- [/] Kode frontend modular (<300 line/file). → App.tsx & mayoritas file sudah <300; `GenerateForm`/`SettingsModal` masih di atas (inline style), belum kritis.
 
 ---
 
