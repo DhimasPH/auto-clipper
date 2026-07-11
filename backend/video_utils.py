@@ -30,12 +30,36 @@ class _SilentLogger:
 class DownloadCancelledError(Exception):
     pass
 
+def quality_to_format(quality: str) -> str:
+    """yt-dlp format selector for a requested quality label.
+
+    Heights use '<=' so yt-dlp gracefully falls back to the best resolution at
+    or below the target when the exact one isn't available.
+    """
+    caps = {"2160p": 2160, "1440p": 1440, "1080p": 1080, "720p": 720, "480p": 480}
+    h = caps.get(quality)
+    if h:
+        return f"bestvideo[height<={h}][ext=mp4]+bestaudio[ext=m4a]/best[height<={h}][ext=mp4]/best"
+    return 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+
+
+def probe_formats(url: str) -> list:
+    """Available video heights for a URL, descending & unique, via yt-dlp."""
+    ydl_opts = {
+        'quiet': True, 'no_warnings': True, 'skip_download': True,
+        'logger': _SilentLogger(),
+    }
+    sink = io.StringIO()
+    with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    formats = (info or {}).get("formats", []) if isinstance(info, dict) else []
+    heights = {f.get("height") for f in formats if isinstance(f, dict) and f.get("height")}
+    return sorted(heights, reverse=True)
+
+
 def download_youtube_video(url: str, output_path: str, quality: str = "best", is_cancelled: callable = None) -> Path:
-    format_str = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
-    if quality == "1080p":
-        format_str = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
-    elif quality == "720p":
-        format_str = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+    format_str = quality_to_format(quality)
 
     ydl_opts = {
         'format': format_str,

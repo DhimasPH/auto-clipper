@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from backend.db import init_db, get_all_history, delete_history
 from backend.jobs import create_job, get_job, cancel_job
+from backend.video_utils import probe_formats
 import os
 import sys
 import shutil
@@ -45,6 +46,17 @@ def api_upload_video(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
     # Return local path prefixed with local: so jobs.py knows to skip download
     return {"status": "success", "url": f"local:{file_path}"}
+
+@app.get("/probe")
+def api_probe(url: str):
+    """Return available video heights (descending) for a source URL."""
+    if not url or url.startswith("local:") or not is_valid_source_url(url):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid untuk probing."})
+    try:
+        return {"status": "success", "heights": probe_formats(url.strip())}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
 
 @app.get("/health")
 def health_check():
