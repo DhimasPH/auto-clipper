@@ -8,7 +8,7 @@ Status:
 
 > Diperbarui 2026-07-11 (sesi lanjutan) berdasarkan audit kode langsung + hasil `/build auto`.
 > Fondasi besar solid; temuan broken Fase 7 sudah beres. Sesi terakhir menuntaskan
-> T1–T4 (lihat "Log Sesi" di bawah). Verifikasi: **24 test pytest lolos**, `tsc` + `vite build` clean,
+> T1–T7 (lihat "Log Sesi" di bawah). Verifikasi: **26 test pytest lolos**, `tsc` + `vite build` clean,
 > plus check harness `scripts/check_i18n.mjs` & `scripts/check_history.mjs`.
 
 ---
@@ -25,8 +25,8 @@ Empat task dikerjakan test-driven, tiap task punya commit sendiri:
 - [x] **T6 (todo 3.4):** Pecah `App.tsx` 919→162 baris (hooks + komponen). `6332f1e`
 - [x] **T7:** Opsi rasio **Landscape 16:9** (backend crop + FE selector + i18n).
 
-Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 3.1** (inline color → token),
-**Task 3.4** (pecah `App.tsx`), dan Backlog. Refactor FE besar sebaiknya didahului setup Vitest.
+Ditunda: **Task 1.2** (notif tanpa cek focus) & Backlog. Task 2.2 di-QA user OK (output Gemini); peningkatan
+presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesai (T5/T6).
 
 ---
 
@@ -48,7 +48,7 @@ Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 
 
 ### Checkpoint Fase 1
 
-- [x] Build clean tanpa error. → diverifikasi sesi 2026-07-11: `tsc` + `vite build` lolos, 24 test pytest lolos.
+- [x] Build clean tanpa error. → diverifikasi sesi 2026-07-11: `tsc` + `vite build` lolos, 26 test pytest lolos.
 - [x] Flow utama tidak terganggu.
 
 ---
@@ -58,7 +58,7 @@ Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 
 - [x] **Task 2.1:** Audit & Fix Subtitle Sizing → `crop_utils.srt_to_ass` pin PlayRes + font ratio, OK.
 - [x] **Task 2.2:** Perbaiki Timing & Kalimat Subtitle
   - [x] Rebase timing SRT/ASS per klip.
-  - [x] Kualitas kalimat/timing masih dikeluhkan user → perlu evaluasi (transcript Whisper vs Gemini). Butuh screenshot.
+  - [x] Kualitas kalimat/timing di-QA user: **OK** (output Gemini). Catatan: timing Gemini berbasis tebakan LLM; peningkatan presisi via Whisper lokal opsional — lihat Backlog.
 
 ### Checkpoint Fase 2
 
@@ -97,7 +97,7 @@ Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 
 - [x] **Task 3.5.3:** Lanjut Klip Berikutnya → try/except per-klip di backend, OK.
 - [x] **Task 3.5.4:** Dukungan URL Multi-Platform
   - [x] Longgarkan validasi frontend.
-  - [x] **IG & X/Twitter masih DITOLAK** whitelist backend (`main.py` cuma izinkan youtube/youtu.be/tiktok). TikTok OK.
+  - [x] IG & X/Twitter **didukung** (whitelist backend diperluas di 7.5: youtube/youtu.be/tiktok/instagram/x/twitter). Di-QA OK.
 
 ### Checkpoint Fase 3.5
 
@@ -113,18 +113,18 @@ Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 
 - [x] **Task 4.2:** Frontend Integrasi Async Job → polling status + progress dari server. OK.
 - [x] **Task 4.3:** Cancel/Stop Proses
   - [x] Endpoint cancel + tombol "Batal" di UI.
-  - [x] **Tidak benar-benar menghentikan ffmpeg.** Cancel cuma set flag yang dicek antar-langkah; render clip yang sedang jalan tetap selesai (`_run_ffmpeg` pakai `subprocess.run` blocking tanpa simpan PID).
+  - [x] Cancel **benar-benar menghentikan ffmpeg** (7.3): `_run_ffmpeg` pakai `subprocess.Popen` + `cancel_job` mem-`kill()` proses berjalan. Di-QA OK.
 - [x] **Task 4.4:** Handle App Di-close Mendadak
   - [x] Bind event window close + dialog konfirmasi.
-  - [x] **Cleanup temp files → BELUM.** Close juga tidak memanggil cancel job; file partial numpuk di `temp_downloads`.
+  - [x] Cleanup temp intermediate saat quit (7.6): `cleanupTempIntermediates()` di `will-quit`; render dihentikan via `killBackend`. Di-QA OK.
 - [x] **Task 4.5:** History (SQLite)
   - [x] Tabel history (`db.py`), endpoint `GET/DELETE /history`, tab History di UI.
-  - [x] Catatan: re-render dari history rusak untuk **upload lokal** (bug path `source_video`, lihat Fase 7).
+  - [x] Re-render dari history untuk **upload lokal** jalan (bug path `source_video` diperbaiki di 7.4). Di-QA OK.
 
 ### Checkpoint Fase 4
 
 - [x] Progress berjalan mulus tanpa hang.
-- [x] Batal render bisa menghentikan ffmpeg → **TIDAK** (lihat 4.3).
+- [x] Batal render bisa menghentikan ffmpeg → **YA** (diperbaiki 7.3).
 - [x] History clips tersimpan & bisa dilihat lagi.
 
 ---
@@ -145,12 +145,12 @@ Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 
 - [x] **Task 6.2:** API Key via safeStorage → enkripsi `secrets.enc`, migrasi dari localStorage. OK.
 - [x] **Task 6.3:** CORS & Input Validation Hardening
   - [x] Batasi origin FastAPI (bukan `*` lagi) + guard path-traversal `/video`.
-  - [x] Whitelist URL belum lengkap (IG/X hilang — lihat Task 3.5.4).
+  - [x] Whitelist URL lengkap (IG/X ditambahkan di 7.5).
 
 ### Checkpoint Fase 6
 
 - [x] Renderer tanpa akses node langsung.
-- [ ] "Siap release" → belum, masih ada fitur broken (Fase 7).
+- [/] "Siap release" → fitur broken Fase 7 sudah beres & di-QA. Sisa sebelum rilis: notif focus-check (1.2) & backlog.
 
 ---
 
@@ -174,3 +174,4 @@ Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 
 - [ ] Perbanyak opsi AI provider (baru OpenAI & Gemini).
 - [ ] Notif OS: cek focus + pindah ke Electron main-process `Notification` + IPC.
 - [ ] Auto-update (electron-updater) — disebut di roadmap, belum ada.
+- [ ] (Opsional) Timing subtitle presisi via **Whisper lokal** (mis. faster-whisper) — akurasi lintas-provider tanpa API key; + polish post-processing segmen jalur Gemini.
