@@ -6,23 +6,25 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+// SplashScreen uses fixed brand colors (shown before the theme applies), so
+// it is intentionally exempt from the token rule.
+const EXEMPT = new Set(["SplashScreen.tsx"]);
 const files = [
   "src/App.tsx",
-  ...readdirSync(join(root, "src/components")).filter((f) => f.endsWith(".tsx")).map((f) => "src/components/" + f),
+  ...readdirSync(join(root, "src/components")).filter((f) => f.endsWith(".tsx") && !EXEMPT.has(f)).map((f) => "src/components/" + f),
 ];
 
 const patterns = [
-  /#[0-9a-fA-F]{3,8}\b/,           // hex colors
-  /\brgba?\s*\(/,                   // rgb()/rgba()
-  /["'](white|black)["']/,          // quoted colour keywords
-  /\blinear-gradient\s*\(/,         // gradients (contain hex)
+  /#[0-9a-fA-F]{3,8}\b/,
+  /\brgba?\s*\(/,
+  /["'](white|black)["']/,
+  /\blinear-gradient\s*\(/,
 ];
 
 const failures = [];
 for (const rel of files) {
   const text = readFileSync(join(root, rel), "utf8");
   text.split("\n").forEach((line, i) => {
-    // ignore lines that only reference tokens
     for (const re of patterns) {
       if (re.test(line)) {
         failures.push(`${rel}:${i + 1}: ${line.trim()}`);

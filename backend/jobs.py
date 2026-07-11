@@ -24,16 +24,13 @@ def log_error(context: str) -> None:
     except Exception:
         pass
 
-def create_job(url: str, provider: str, api_key: str, mode: str, manual_start: str, manual_end: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best") -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best") -> str:
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
         "url": url,
         "provider": provider,
         "api_key": api_key,
-        "mode": mode,
-        "manual_start": manual_start,
-        "manual_end": manual_end,
         "aspect_ratio": aspect_ratio,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
@@ -135,36 +132,26 @@ def _run_job(job_id: str):
             _finalize_job(job_id, "CANCELLED")
             return
             
-        # 2. AI PROCESSING or MANUAL
-        if job["mode"] == "ai":
-            job["status"] = "TRANSCRIBING"
-            job["progress"] = f"Menganalisis video dengan {job['provider']}..."
-            
-            is_karaoke = (job["caption_style"] == "karaoke")
-            
-            if job["provider"] == "gemini":
-                ai_result = process_with_gemini(output_path, job["api_key"])
-            elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
-                ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke)
-            else:
-                ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke)
-                
-            highlights = ai_result.get("highlights", [])
-            subtitle_path = ai_result.get("subtitle_path")
-            
-            metadata["subtitle_path"] = subtitle_path
-            
-            if not highlights:
-                raise ValueError("Tidak ada highlight yang ditemukan oleh AI.")
+        # 2. AI PROCESSING
+        job["status"] = "TRANSCRIBING"
+        job["progress"] = f"Menganalisis video dengan {job['provider']}..."
+
+        is_karaoke = (job["caption_style"] == "karaoke")
+
+        if job["provider"] == "gemini":
+            ai_result = process_with_gemini(output_path, job["api_key"])
+        elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
+            ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke)
         else:
-            highlights = [{
-                "start_time": job["manual_start"],
-                "end_time": job["manual_end"],
-                "description": "Manual custom clip",
-                "description_en": "Manual custom clip",
-                "description_id": "Klip manual",
-            }]
-            subtitle_path = None
+            ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke)
+
+        highlights = ai_result.get("highlights", [])
+        subtitle_path = ai_result.get("subtitle_path")
+
+        metadata["subtitle_path"] = subtitle_path
+
+        if not highlights:
+            raise ValueError("Tidak ada highlight yang ditemukan oleh AI.")
             
         if job["cancelled"]:
             _finalize_job(job_id, "CANCELLED")

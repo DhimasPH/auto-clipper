@@ -10,11 +10,8 @@ export interface ClipJobParams {
   inputType: "url" | "local";
   url: string;
   localFile: File | null;
-  mode: "ai" | "manual";
   provider: string;
   apiKey: string;
-  manualStart: string;
-  manualEnd: string;
   aspectRatio: string;
   captionStyle: string;
   burnSubtitles: boolean;
@@ -121,7 +118,7 @@ export function useClipJobs(p: ClipJobParams) {
       notify(t('toast.clip_failed', { num: '', msg: 'Video lokal belum dipilih!' }), "error");
       return;
     }
-    if (p.mode === "ai" && !p.apiKey) {
+    if (!p.apiKey) {
       notify(t('toast.clip_failed', { num: '', msg: 'API Key belum diisi! Silakan isi di Settings.' }), "error");
       return;
     }
@@ -153,9 +150,6 @@ export function useClipJobs(p: ClipJobParams) {
         url: finalUrl,
         provider: p.provider,
         api_key: p.apiKey,
-        mode: p.mode,
-        manual_start: p.manualStart,
-        manual_end: p.manualEnd,
         aspect_ratio: p.aspectRatio,
         caption_style: p.captionStyle,
         burn_subs: p.burnSubtitles,
@@ -185,9 +179,6 @@ export function useClipJobs(p: ClipJobParams) {
         url: "dummy",
         provider: "openai",
         api_key: "dummy",
-        mode: "rerender",
-        manual_start: "00:00:00",
-        manual_end: "00:00:00",
         aspect_ratio: customAspectRatio,
         caption_style: customCaptionStyle,
         burn_subs: customBurnSubs,
@@ -220,9 +211,6 @@ export function useClipJobs(p: ClipJobParams) {
         url: "dummy",
         provider: p.provider,
         api_key: p.apiKey,
-        mode: "rerun_ai",
-        manual_start: "00:00:00",
-        manual_end: "00:00:00",
         aspect_ratio: p.aspectRatio,
         caption_style: p.captionStyle,
         burn_subs: p.burnSubtitles,

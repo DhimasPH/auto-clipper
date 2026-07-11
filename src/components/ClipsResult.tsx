@@ -5,11 +5,10 @@ interface ClipsResultProps {
   clips: Clip[];
   status: string;
   failedCount: number;
-  mode: "ai" | "manual";
   videoSrc: (p: string, v?: number) => string;
 }
 
-export default function ClipsResult({ clips, status, failedCount, mode, videoSrc }: ClipsResultProps) {
+export default function ClipsResult({ clips, status, failedCount, videoSrc }: ClipsResultProps) {
   if (clips.length === 0) return null;
   
   return (
@@ -36,7 +35,6 @@ export default function ClipsResult({ clips, status, failedCount, mode, videoSrc
             key={clip.path}
             clip={clip}
             index={i}
-            mode={mode}
             videoSrc={videoSrc}
           />
         ))}

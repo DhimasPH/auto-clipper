@@ -57,9 +57,6 @@ export default function App() {
     localStorage.setItem("ac_provider", provider);
   }, [provider]);
 
-  const [mode, setMode] = useState<"ai" | "manual">("ai");
-  const [manualStart, setManualStart] = useState("00:00:00");
-  const [manualEnd, setManualEnd] = useState("00:00:15");
   const [burnSubtitles, setBurnSubtitles] = useState(true);
 
   const {
@@ -78,11 +75,8 @@ export default function App() {
     inputType,
     url,
     localFile,
-    mode,
     provider,
     apiKey,
-    manualStart,
-    manualEnd,
     aspectRatio,
     captionStyle,
     burnSubtitles,
@@ -115,8 +109,6 @@ export default function App() {
     setOutputFolder,
     quality,
     setQuality,
-    mode,
-    setMode,
     inputType,
     setInputType,
     url,
@@ -128,10 +120,6 @@ export default function App() {
     setCaptionStyle,
     burnSubtitles,
     setBurnSubtitles,
-    manualStart,
-    setManualStart,
-    manualEnd,
-    setManualEnd,
     errorMsg,
     isRunning,
     status,

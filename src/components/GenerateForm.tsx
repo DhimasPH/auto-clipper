@@ -2,16 +2,15 @@ import { Dispatch, SetStateAction, useState } from "react";
 import axios from "axios";
 import { API_URL } from "../App";
 import { useTranslation } from "react-i18next";
-import { Link2, FileVideo, Wand2, Scissors, StopCircle, Type } from "lucide-react";
-import { SegmentedControl } from "./ui/SegmentedControl";
+import { Link2, FileVideo, Wand2, StopCircle, Type } from "lucide-react";
 import { InputGroup } from "./ui/InputGroup";
 import { Select } from "./ui/Select";
 import { ToggleSwitch } from "./ui/ToggleSwitch";
 import { Button } from "./ui/Button";
 
+type Quality = "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p";
+
 interface GenerateFormProps {
-  mode: "ai" | "manual";
-  setMode: Dispatch<SetStateAction<"ai" | "manual">>;
   inputType: "url" | "local";
   setInputType: Dispatch<SetStateAction<"url" | "local">>;
   url: string;
@@ -23,12 +22,8 @@ interface GenerateFormProps {
   setCaptionStyle: Dispatch<SetStateAction<"standard" | "karaoke">>;
   burnSubtitles: boolean;
   setBurnSubtitles: Dispatch<SetStateAction<boolean>>;
-  manualStart: string;
-  setManualStart: Dispatch<SetStateAction<string>>;
-  manualEnd: string;
-  setManualEnd: Dispatch<SetStateAction<string>>;
-  quality: "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p";
-  setQuality: Dispatch<SetStateAction<"best" | "2160p" | "1440p" | "1080p" | "720p" | "480p">>;
+  quality: Quality;
+  setQuality: Dispatch<SetStateAction<Quality>>;
   errorMsg: string;
   isRunning: boolean;
   status: string;
@@ -39,15 +34,12 @@ interface GenerateFormProps {
 }
 
 export default function GenerateForm({
-  mode, setMode,
   inputType, setInputType,
   url, setUrl,
   setLocalFile,
   aspectRatio, setAspectRatio,
   captionStyle, setCaptionStyle,
   burnSubtitles, setBurnSubtitles,
-  manualStart, setManualStart,
-  manualEnd, setManualEnd,
   quality, setQuality,
   errorMsg,
   isRunning,
@@ -75,17 +67,6 @@ export default function GenerateForm({
 
   return (
     <main className="bg-bg-secondary rounded-card border border-border p-6 shadow-sm flex flex-col gap-6">
-      
-      {/* Mode Selector */}
-      <SegmentedControl
-        options={[
-          { label: t('main.ai_mode', 'AI Mode'), value: 'ai' },
-          { label: t('main.manual_mode', 'Manual Mode'), value: 'manual' }
-        ]}
-        value={mode}
-        onChange={(val) => setMode(val as any)}
-        className="w-full"
-      />
 
       {/* Input Type */}
       <div className="flex gap-4 p-1 bg-input-bg rounded-xl">
@@ -172,63 +153,47 @@ export default function GenerateForm({
         </div>
       </div>
 
-      {mode === "ai" ? (
-        <div className="space-y-6 animate-slide-up">
-          {/* Subtitle Settings */}
-          <div className="p-4 bg-bg-surface rounded-xl border border-border space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-accent/10 rounded-lg text-accent">
-                  <Type className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-body font-medium text-text-primary">{t('main.burn_subtitles', 'Burn Subtitles')}</h4>
-                  <p className="text-caption text-text-secondary">{t('main.burn_subtitles_desc', 'Embed captions directly into the video')}</p>
-                </div>
+      {/* Subtitle Settings */}
+      <div className="space-y-6 animate-slide-up">
+        <div className="p-4 bg-bg-surface rounded-xl border border-border space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-accent/10 rounded-lg text-accent">
+                <Type className="w-5 h-5" />
               </div>
-              <ToggleSwitch checked={burnSubtitles} onChange={setBurnSubtitles} />
+              <div>
+                <h4 className="text-body font-medium text-text-primary">{t('main.burn_subtitles', 'Burn Subtitles')}</h4>
+                <p className="text-caption text-text-secondary">{t('main.burn_subtitles_desc', 'Embed captions directly into the video')}</p>
+              </div>
             </div>
-
-            {burnSubtitles && (
-              <div className="pt-4 border-t border-border">
-                <label className="text-label text-text-secondary block mb-2">{t('main.subtitle_style_label', 'Subtitle Style')}</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {(["standard", "karaoke"] as const).map((style) => {
-                    return (
-                      <button
-                        key={style}
-                        onClick={() => setCaptionStyle(style)}
-                        className={`py-2 px-3 rounded-lg border font-medium transition-colors ${
-                          captionStyle === style
-                            ? 'border-accent bg-accent/10 text-accent'
-                            : 'border-border bg-bg-surface text-text-secondary hover:border-border-active'
-                        }`}
-                      >
-                        {style === "standard" ? "Standard (Baris)" : "Karaoke (Word-by-word)"}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <ToggleSwitch checked={burnSubtitles} onChange={setBurnSubtitles} />
           </div>
+
+          {burnSubtitles && (
+            <div className="pt-4 border-t border-border">
+              <label className="text-label text-text-secondary block mb-2">{t('main.subtitle_style_label', 'Subtitle Style')}</label>
+              <div className="grid grid-cols-2 gap-3">
+                {(["standard", "karaoke"] as const).map((style) => (
+                  <button
+                    key={style}
+                    onClick={() => setCaptionStyle(style)}
+                    className={`py-2 px-3 rounded-lg border font-medium transition-colors ${
+                      captionStyle === style
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-border bg-bg-surface text-text-secondary hover:border-border-active'
+                    }`}
+                  >
+                    {style === "standard" ? "Standard (Baris)" : "Karaoke (Word-by-word)"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-slide-up bg-bg-surface p-4 rounded-xl border border-border">
-          <InputGroup
-            label={t('main.manual_range_label', 'Start Time')}
-            placeholder="00:00:00"
-            value={manualStart}
-            onChange={(e) => setManualStart(e.target.value)}
-          />
-          <InputGroup
-            label={t('main.manual_end', 'End Time')}
-            placeholder="00:00:15"
-            value={manualEnd}
-            onChange={(e) => setManualEnd(e.target.value)}
-          />
+
+        {inputType === "url" && (
           <Select
-            label="Kualitas Video"
+            label="Kualitas Video (Download)"
             value={quality}
             onChange={(e) => setQuality(e.target.value as any)}
             options={[
@@ -240,8 +205,8 @@ export default function GenerateForm({
               { label: '480p', value: '480p' }
             ]}
           />
-        </div>
-      )}
+        )}
+      </div>
 
       {errorMsg && (
         <div className="p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-body">
@@ -253,22 +218,22 @@ export default function GenerateForm({
       <div className="pt-2">
         {isRunning ? (
           <div className="space-y-4">
-            <Button 
-              variant="danger" 
+            <Button
+              variant="danger"
               className="w-full h-14 text-lg font-bold animate-pulse-glow-red"
               icon={StopCircle}
               onClick={cancelJob}
             >
               Batalkan Proses
             </Button>
-            
+
             <div className="space-y-2">
               <div className="flex justify-between text-caption text-text-secondary font-medium">
                 <span>{progress || 'Processing...'}</span>
                 <span>{progressPct}%</span>
               </div>
               <div className="w-full h-2 bg-surface-raised rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-accent transition-all duration-300 ease-out rounded-full"
                   style={{ width: `${progressPct}%` }}
                 />
@@ -276,13 +241,13 @@ export default function GenerateForm({
             </div>
           </div>
         ) : (
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             className="w-full h-14 text-lg font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-shadow"
-            icon={mode === "ai" ? Wand2 : Scissors}
+            icon={Wand2}
             onClick={handleGenerate}
           >
-            {mode === "ai" ? t('main.btn_generate', 'Generate AI Clips') : t('main.btn_manual_clip', 'Create Manual Clip')}
+            {t('main.btn_generate', 'Generate AI Clips')}
           </Button>
         )}
       </div>

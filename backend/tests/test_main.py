@@ -89,3 +89,10 @@ def test_probe_endpoint_ok(monkeypatch):
 def test_probe_endpoint_rejects_invalid_url():
     r = client.get("/probe", params={"url": "https://example.com/x"})
     assert r.status_code == 400
+
+
+def test_create_job_request_has_no_manual_fields():
+    from backend.main import CreateJobRequest
+    fields = CreateJobRequest.model_fields
+    for gone in ("mode", "manual_start", "manual_end"):
+        assert gone not in fields, f"{gone} should be removed from CreateJobRequest"

@@ -67,9 +67,6 @@ class CreateJobRequest(BaseModel):
     url: str
     provider: str = "openai"
     api_key: str = ""
-    mode: str = "ai"
-    manual_start: str = ""
-    manual_end: str = ""
     aspect_ratio: str = "9:16"
     caption_style: str = "standard"
     burn_subs: bool = True
@@ -123,8 +120,8 @@ def api_create_job(req: CreateJobRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid. Didukung: YouTube, TikTok, Instagram, X/Twitter, atau upload file lokal."})
 
     job_id = create_job(
-        req.url.strip(), req.provider, req.api_key.strip(), req.mode, 
-        req.manual_start, req.manual_end, req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality
+        req.url.strip(), req.provider, req.api_key.strip(),
+        req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality
     )
     return {"status": "success", "job_id": job_id}
 

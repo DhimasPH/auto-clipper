@@ -132,7 +132,6 @@ export const HistoryPage: React.FC = () => {
                         v: Date.now(),
                       }}
                       index={idx}
-                      mode="ai"
                       videoSrc={(path) =>
                         `${API_URL}/video?path=${encodeURIComponent(path)}`
                       }

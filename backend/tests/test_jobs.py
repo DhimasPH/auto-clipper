@@ -71,3 +71,11 @@ def test_run_job_tracks_success_and_failed(tmp_path, monkeypatch):
         assert job["failed"] == 1
     finally:
         jobs.active_jobs.pop(job_id, None)
+
+
+def test_create_job_has_no_manual_params():
+    import inspect
+    from backend.jobs import create_job
+    params = inspect.signature(create_job).parameters
+    for gone in ("mode", "manual_start", "manual_end"):
+        assert gone not in params, f"{gone} should be removed from create_job"

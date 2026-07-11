@@ -16,14 +16,12 @@ export interface Clip {
 interface ClipCardProps {
   clip: Clip;
   index: number;
-  mode: "ai" | "manual";
   videoSrc: (path: string, v: number) => string;
 }
 
 export default function ClipCard({
   clip,
   index,
-  mode,
   videoSrc
 }: ClipCardProps) {
   const { t, i18n } = useTranslation();
@@ -45,7 +43,7 @@ export default function ClipCard({
       </div>
       <div className="flex flex-col flex-1">
         <h3 className="text-body font-bold text-text-primary mb-2">
-          {mode === "ai" ? t('clip.title_ai', { num: index + 1 }) : t('clip.title_manual', 'Manual Clip')}
+          {t('clip.title_ai', { num: index + 1 })}
         </h3>
         <p className="text-caption text-text-secondary leading-relaxed mb-4 flex-1">
           {currentDescription}
