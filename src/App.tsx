@@ -113,13 +113,10 @@ export default function App() {
   const [clips, setClips] = useState<Clip[]>([]);
   const [totalClips, setTotalClips] = useState(0);
 
-  // Subtitle controls: default on before generate; the source .srt path is kept
-  // so a clip can be re-rendered with captions toggled after generation.
+  // Global subtitle toggle applied before generating (per-clip live toggle was
+  // removed — use this + History re-render to change captions).
   const [burnSubtitles, setBurnSubtitles] = useState(true);
-  const [subtitlePath, setSubtitlePath] = useState<string | null>(null);
-  const [sourcePath] = useState("");
-  const [reRendering, setReRendering] = useState<number | null>(null);
-  
+
   // Task 1.3: FAQ Modal state
   const [isFAQOpen, setIsFAQOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -265,7 +262,6 @@ export default function App() {
     setProgress("");
     setClips([]);
     setTotalClips(0);
-    setSubtitlePath(null);
 
     try {
       setStatus("GENERATING");
@@ -378,44 +374,6 @@ export default function App() {
       const msg = err.response?.data?.message || err.message || "Gagal memulai AI Koreksi.";
       setErrorMsg(msg);
       notify(`⚠️ ${msg}`, "error");
-    }
-  };
-
-  // Re-render one already-generated clip with captions turned on/off.
-  const toggleClipSubs = async (index: number) => {
-    const clip = clips[index];
-    if (!clip || !sourcePath) return;
-    const wantSubs = !clip.subs;
-    setReRendering(index);
-    notify(
-      `✂️ ${wantSubs ? "Menambahkan" : "Menghapus"} subtitle di clip ${index + 1}...`,
-    );
-    try {
-      const res = await axios.post(`${API_URL}/crop`, {
-        file_path: sourcePath,
-        start_time: clip.start,
-        end_time: clip.end,
-        subtitle_path: wantSubs ? subtitlePath : null,
-      });
-      if (res.data.status === "error") throw new Error(res.data.message);
-      setClips((prev) =>
-        prev.map((c, i) =>
-          i === index
-            ? { ...c, path: res.data.file_path, subs: wantSubs, v: c.v + 1 }
-            : c,
-        ),
-      );
-      notify(
-        `✅ Clip ${index + 1}: subtitle ${wantSubs ? "aktif" : "nonaktif"}`,
-        "success",
-      );
-    } catch (err: any) {
-      notify(
-        `⚠️ ${err.response?.data?.message || err.message || "Gagal render ulang"}`,
-        "error",
-      );
-    } finally {
-      setReRendering(null);
     }
   };
 
@@ -912,13 +870,10 @@ export default function App() {
           <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
             {clips.map((clip, i) => (
               <ClipCard
-                key={clip.v}
+                key={clip.path}
                 clip={clip}
                 index={i}
                 mode={mode}
-                subtitlePath={subtitlePath}
-                reRendering={reRendering === i}
-                onToggleSubs={() => toggleClipSubs(i)}
                 videoSrc={videoSrc}
               />
             ))}

@@ -80,6 +80,24 @@ function killBackend() {
   pythonProcess = null;
 }
 
+function cleanupTempIntermediates() {
+  // Selective cleanup on shutdown: delete only transient render intermediates
+  // (.ass/.srt subtitle files and extracted audio). We deliberately DO NOT
+  // touch source_*/upload_* videos or finished clips, because History re-render
+  // depends on those still existing on disk.
+  try {
+    const tempDir = path.join(app.getPath("appData"), "AutoClipper", "temp_downloads");
+    if (!fs.existsSync(tempDir)) return;
+    for (const name of fs.readdirSync(tempDir)) {
+      if (/\.(ass|srt)$/i.test(name) || /_audio\.mp3$/i.test(name)) {
+        try {
+          fs.unlinkSync(path.join(tempDir, name));
+        } catch (e) {}
+      }
+    }
+  } catch (e) {}
+}
+
 function createWindow() {
   Menu.setApplicationMenu(null);
 
@@ -177,6 +195,7 @@ app.whenReady().then(() => {
 // Kill the backend before the app actually exits, on every shutdown path.
 app.on("before-quit", killBackend);
 app.on("will-quit", killBackend);
+app.on("will-quit", cleanupTempIntermediates);
 process.on("exit", killBackend);
 
 app.on("window-all-closed", () => {

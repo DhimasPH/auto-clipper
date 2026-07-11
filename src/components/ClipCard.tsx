@@ -13,9 +13,6 @@ interface ClipCardProps {
   clip: Clip;
   index: number;
   mode: "ai" | "manual";
-  subtitlePath: string | null;
-  reRendering: boolean;
-  onToggleSubs: () => void;
   videoSrc: (path: string, v: number) => string;
 }
 
@@ -23,9 +20,6 @@ export default function ClipCard({
   clip,
   index,
   mode,
-  subtitlePath,
-  reRendering,
-  onToggleSubs,
   videoSrc
 }: ClipCardProps) {
   const { t } = useTranslation();
@@ -76,32 +70,7 @@ export default function ClipCard({
         >
           {clip.description}
         </p>
-        
-        {subtitlePath && (
-          <button
-            onClick={onToggleSubs}
-            disabled={reRendering}
-            style={{
-              display: "block",
-              marginTop: "0.75rem",
-              padding: "0.4rem 0.75rem",
-              borderRadius: "8px",
-              border: "1px solid var(--border)",
-              background: clip.subs ? "var(--accent)" : "var(--button-hover)",
-              color: clip.subs ? "#fff" : "var(--text-secondary)",
-              fontSize: "0.8rem",
-              cursor: reRendering ? "not-allowed" : "pointer",
-              opacity: reRendering ? 0.6 : 1,
-            }}
-          >
-            {reRendering
-              ? t('clip.btn_rerender')
-              : clip.subs
-                ? t('clip.btn_sub_on')
-                : t('clip.btn_sub_off')}
-          </button>
-        )}
-        
+
           <a
             href={videoSrc(clip.path, clip.v)}
             download

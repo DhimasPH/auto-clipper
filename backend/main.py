@@ -86,20 +86,29 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
+SUPPORTED_URL_RE = re.compile(
+    r'^(https?://)?(www\.|m\.)?'
+    r'(youtube\.com|youtu\.be|tiktok\.com|vt\.tiktok\.com|instagram\.com|x\.com|twitter\.com)/.+',
+    re.IGNORECASE,
+)
+
+
+def is_valid_source_url(url: str) -> bool:
+    """Whitelist of platforms we route to yt-dlp, plus local uploads."""
+    if not url:
+        return False
+    if url.startswith("local:"):
+        return True
+    return bool(SUPPORTED_URL_RE.match(url.strip()))
+
+
 @app.post("/jobs")
 def api_create_job(req: CreateJobRequest):
     if not req.url:
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL is required"})
-        
-    # Input Validation Hardening (Task 6.5)
-    valid_url = False
-    if req.url.startswith("local:"):
-        valid_url = True
-    elif re.match(r'^(https?://)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com)/.+', req.url):
-        valid_url = True
-        
-    if not valid_url:
-        return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid. Hanya mendukung YouTube, TikTok, atau upload file lokal."})
+
+    if not is_valid_source_url(req.url):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid. Didukung: YouTube, TikTok, Instagram, X/Twitter, atau upload file lokal."})
 
     job_id = create_job(
         req.url.strip(), req.provider, req.api_key.strip(), req.mode, 

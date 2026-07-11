@@ -1,28 +1,60 @@
 from fastapi.testclient import TestClient
-from backend.main import app
+from backend.main import app, is_valid_source_url
 
 client = TestClient(app)
 
 
 def test_health_check():
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
 
 
-def test_process_ai_missing_file_returns_404():
-    r = client.post("/process-ai", json={"file_path": "/nope.mp4", "api_key": "x"})
-    assert r.status_code == 404
+def test_is_valid_source_url_accepts_supported_platforms():
+    assert is_valid_source_url("https://www.youtube.com/watch?v=abc")
+    assert is_valid_source_url("https://youtu.be/abc")
+    assert is_valid_source_url("https://www.tiktok.com/@u/video/123")
+    assert is_valid_source_url("https://www.instagram.com/reel/abc/")
+    assert is_valid_source_url("https://x.com/u/status/123")
+    assert is_valid_source_url("https://twitter.com/u/status/123")
+    assert is_valid_source_url("local:/tmp/x.mp4")
+
+
+def test_is_valid_source_url_rejects_others():
+    assert not is_valid_source_url("")
+    assert not is_valid_source_url("https://example.com/video")
+    assert not is_valid_source_url("not a url")
+
+
+def test_create_job_rejects_invalid_url():
+    r = client.post("/jobs", json={"url": "https://example.com/x"})
+    assert r.status_code == 400
     assert r.json()["status"] == "error"
 
 
-def test_crop_missing_file_returns_404():
-    r = client.post(
-        "/crop",
-        json={"file_path": "/nope.mp4", "start_time": "0", "end_time": "1"},
-    )
+def test_create_job_accepts_valid_url(monkeypatch):
+    # Avoid spawning a real download/render thread.
+    monkeypatch.setattr("backend.main.create_job", lambda *a, **k: "fake-id")
+    r = client.post("/jobs", json={"url": "https://youtube.com/watch?v=abc"})
+    assert r.status_code == 200
+    assert r.json()["job_id"] == "fake-id"
+
+
+def test_get_unknown_job_404():
+    r = client.get("/jobs/does-not-exist")
     assert r.status_code == 404
-    assert r.json()["status"] == "error"
+
+
+def test_cancel_unknown_job_404():
+    r = client.post("/jobs/does-not-exist/cancel")
+    assert r.status_code == 404
+
+
+def test_history_list_ok():
+    r = client.get("/history")
+    assert r.status_code == 200
+    assert r.json()["status"] == "success"
+    assert isinstance(r.json()["history"], list)
 
 
 def test_video_missing_returns_404():

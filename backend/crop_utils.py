@@ -312,10 +312,17 @@ def _video_dims(path: str):
     return (w, h)
 
 
-def _run_ffmpeg(cmd, cwd=None):
-    """Run ffmpeg, returning (ok, stderr_text)."""
-    proc = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return proc.returncode == 0, proc.stderr.decode("utf-8", "ignore")
+def _run_ffmpeg(cmd, cwd=None, register=None):
+    """Run ffmpeg, returning (ok, stderr_text).
+
+    Uses Popen (not subprocess.run) so the caller can register the live process
+    handle and kill it mid-render on cancel.
+    """
+    proc = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if register:
+        register(proc)
+    _, stderr = proc.communicate()
+    return proc.returncode == 0, (stderr or b"").decode("utf-8", "ignore")
 
 
 def _video_duration(path: str):
@@ -333,7 +340,8 @@ def _video_duration(path: str):
 
 
 def crop_to_vertical(input_path: str, output_path: str, start_time: str,
-                     end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16") -> str:
+                     end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16",
+                     register_proc=None, should_cancel=None) -> str:
     """Crop to 9:16, trim to [start, end], and optionally burn subtitles.
 
     ``subtitle_path`` should point at a full-video .srt; a per-clip subtitle is
@@ -432,14 +440,20 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             output_path,
         ]
 
+    if should_cancel and should_cancel():
+        raise RuntimeError("Dibatalkan oleh pengguna.")
+
     # Try with burned-in subtitles first; if that fails (e.g. ffmpeg built
     # without libass), fall back to a plain crop so a clip is still produced.
     if subtitle_vf is not None:
-        ok, _ = _run_ffmpeg(build_cmd(subtitle_vf), cwd=subtitle_cwd)
+        ok, _ = _run_ffmpeg(build_cmd(subtitle_vf), cwd=subtitle_cwd, register=register_proc)
         if ok:
             return output_path
+        # Don't run the fallback render if the user just cancelled.
+        if should_cancel and should_cancel():
+            raise RuntimeError("Dibatalkan oleh pengguna.")
 
-    ok, err = _run_ffmpeg(build_cmd(crop_filter))
+    ok, err = _run_ffmpeg(build_cmd(crop_filter), register=register_proc)
     if not ok:
         raise RuntimeError(f"ffmpeg failed: {err[-800:]}")
     return output_path

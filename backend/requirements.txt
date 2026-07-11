@@ -8,3 +8,4 @@ yt-dlp>=2024.8.0
 openai>=1.30
 opencv-python-headless>=4.9,<5.0.0
 google-genai>=0.3.0
+python-multipart>=0.0.9

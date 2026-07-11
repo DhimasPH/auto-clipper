@@ -72,16 +72,26 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
     threading.Thread(target=_run_rerender_job, args=(job_id,), daemon=True).start()
     return job_id
 
-def create_rerun_ai_job(history_id: str, prompt: str, aspect_ratio: str, burn_subs: bool, output_dir: str, api_key: str, provider: str) -> str:
-    # Future implementation for rerun AI
-    pass
-
 def get_job(job_id: str) -> dict:
     return active_jobs.get(job_id)
 
+def _register_proc(job: dict, proc):
+    """Stash the currently-running ffmpeg process so cancel can kill it."""
+    job["_proc"] = proc
+
 def cancel_job(job_id: str):
     if job_id in active_jobs:
-        active_jobs[job_id]["cancelled"] = True
+        job = active_jobs[job_id]
+        job["cancelled"] = True
+        # Actually terminate the ffmpeg render in progress, otherwise the
+        # current clip keeps rendering to completion before the flag is seen.
+        proc = job.get("_proc")
+        if proc is not None:
+            try:
+                if proc.poll() is None:
+                    proc.kill()
+            except Exception:
+                pass
 
 def _run_job(job_id: str):
     job = active_jobs[job_id]
@@ -104,6 +114,10 @@ def _run_job(job_id: str):
             output_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             download_youtube_video(job["url"], output_path, job.get("quality", "best"))
+
+        # Remember the real source path so re-render/re-run works for BOTH
+        # downloads and local uploads (was previously hardcoded in _finalize_job).
+        job["source_path"] = output_path
         
         if job["cancelled"]:
             _finalize_job(job_id, "CANCELLED")
@@ -165,9 +179,12 @@ def _run_job(job_id: str):
             try:
                 result_path = crop_to_vertical(
                     output_path, clip_output, seg["start_time"], seg["end_time"],
-                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None, aspect_ratio=job["aspect_ratio"]
+                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
+                    aspect_ratio=job["aspect_ratio"],
+                    register_proc=lambda p: _register_proc(job, p),
+                    should_cancel=lambda: job["cancelled"],
                 )
-                
+
                 # Append to clips
                 job["clips"].append({
                     "path": result_path,
@@ -230,9 +247,12 @@ def _run_rerender_job(job_id: str):
             try:
                 result_path = crop_to_vertical(
                     output_path, clip_output, seg["start_time"], seg["end_time"],
-                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None, aspect_ratio=job["aspect_ratio"]
+                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
+                    aspect_ratio=job["aspect_ratio"],
+                    register_proc=lambda p: _register_proc(job, p),
+                    should_cancel=lambda: job["cancelled"],
                 )
-                
+
                 job["clips"].append({
                     "path": result_path,
                     "description": seg.get("description", f"Highlight {i+1}"),
@@ -257,11 +277,10 @@ def _run_rerender_job(job_id: str):
 
 def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str):
     from backend.db import get_history
-    hist = get_history()
-    job_record = next((j for j in hist if j["id"] == history_job_id), None)
+    job_record = get_history(history_job_id)
     if not job_record:
         raise ValueError("History job not found")
-        
+
     metadata = job_record.get("metadata", {})
     source_video = metadata.get("source_video")
     if not source_video or not os.path.exists(source_video):
@@ -323,14 +342,16 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             if job["cancelled"]: break
             job["progress"] = f"Memotong klip {i+1} dari {len(highlights)} (AI Koreksi)..."
             try:
-                from backend.video_utils import crop_to_vertical
                 clip_output = os.path.join(get_temp_dir(), f"{job_id}_clip_{i+1}.mp4")
                 if job.get("output_dir"):
                     clip_output = os.path.join(job["output_dir"], f"{job_id}_clip_{i+1}.mp4")
-                    
+
                 result_path = crop_to_vertical(
                     source_video, clip_output, seg["start_time"], seg["end_time"],
-                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None, aspect_ratio=job["aspect_ratio"]
+                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
+                    aspect_ratio=job["aspect_ratio"],
+                    register_proc=lambda p: _register_proc(job, p),
+                    should_cancel=lambda: job["cancelled"],
                 )
                 
                 job["clips"].append({
@@ -358,11 +379,19 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
 def _finalize_job(job_id: str, status: str, metadata: dict = None):
     job = active_jobs[job_id]
     job["status"] = status
-    
+
     if metadata is None:
         metadata = {}
-    metadata["source_video"] = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
-    
+    # Use the REAL source path (download or local upload), not a hardcoded name.
+    # Keep any source_video already carried over from a re-render/re-run job.
+    if not metadata.get("source_video"):
+        src = job.get("source_path")
+        if src:
+            metadata["source_video"] = src
+    # Flag AI jobs so the UI can offer "AI Koreksi" (needs highlights to re-run).
+    if metadata.get("highlights") and job.get("mode") == "ai":
+        metadata["ai_job"] = True
+
     if status == "DONE" or status == "ERROR" or status == "CANCELLED":
         try:
             from backend.db import save_history

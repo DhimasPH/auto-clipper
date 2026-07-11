@@ -35,30 +35,36 @@ def test_detect_primary_face_center(mock_cap):
     center = detect_primary_face_center("dummy.mp4")
     assert center == 0.5 # Default when no video/face
 
-@patch('backend.crop_utils.subprocess.run')
+def _fake_proc(returncode):
+    """A stand-in for subprocess.Popen matching how _run_ffmpeg uses it."""
+    p = MagicMock()
+    p.communicate.return_value = (b"", b"")
+    p.returncode = returncode
+    p.poll.return_value = returncode
+    return p
+
+
+@patch('backend.crop_utils.subprocess.Popen')
 @patch('backend.crop_utils.detect_primary_face_center')
-def test_crop_to_vertical(mock_detect, mock_run):
+def test_crop_to_vertical(mock_detect, mock_popen):
     mock_detect.return_value = 0.5
-    mock_run.return_value = MagicMock(returncode=0, stderr=b"")
+    mock_popen.return_value = _fake_proc(0)
 
     res = crop_to_vertical("in.mp4", "out.mp4", "00:00:00", "00:00:10")
     assert res == "out.mp4"
-    mock_run.assert_called_once()
+    mock_popen.assert_called_once()
 
 
-@patch('backend.crop_utils.subprocess.run')
+@patch('backend.crop_utils.subprocess.Popen')
 @patch('backend.crop_utils.detect_primary_face_center')
-def test_crop_falls_back_when_subtitles_fail(mock_detect, mock_run, tmp_path):
+def test_crop_falls_back_when_subtitles_fail(mock_detect, mock_popen, tmp_path):
     """If the subtitle burn fails, a plain crop should still be produced."""
     mock_detect.return_value = 0.5
     # First call (with subtitles) fails, second (plain crop) succeeds.
-    mock_run.side_effect = [
-        MagicMock(returncode=1, stderr=b"No such filter: 'subtitles'"),
-        MagicMock(returncode=0, stderr=b""),
-    ]
+    mock_popen.side_effect = [_fake_proc(1), _fake_proc(0)]
     srt = tmp_path / "subs.srt"
     srt.write_text("1\n00:00:00,000 --> 00:00:05,000\nhello\n")
 
     res = crop_to_vertical("in.mp4", "out.mp4", "00:00:00", "00:00:10", subtitle_path=str(srt))
     assert res == "out.mp4"
-    assert mock_run.call_count == 2
+    assert mock_popen.call_count == 2
