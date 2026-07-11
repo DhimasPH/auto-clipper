@@ -272,15 +272,25 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
     }
 
 
-DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+# OpenAI-compatible providers: transcription is local (faster-whisper), and
+# these endpoints only pick highlights from the transcript text via the
+# standard chat.completions API, so one code path serves them all.
+OPENAI_COMPAT_PROVIDERS = {
+    "deepseek": {"base_url": "https://api.deepseek.com", "model": "deepseek-chat"},
+    "groq": {"base_url": "https://api.groq.com/openai/v1", "model": "llama-3.3-70b-versatile"},
+    "openrouter": {"base_url": "https://openrouter.ai/api/v1", "model": "openai/gpt-4o-mini"},
+    "xai": {"base_url": "https://api.x.ai/v1", "model": "grok-2-latest"},
+    "mistral": {"base_url": "https://api.mistral.ai/v1", "model": "mistral-large-latest"},
+}
 
 
-def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "") -> dict:
-    """DeepSeek pipeline: local faster-whisper transcript -> DeepSeek picks highlights.
+def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
+                                   karaoke: bool = False, extra_prompt: str = "") -> dict:
+    """Local faster-whisper transcript -> an OpenAI-compatible LLM picks highlights."""
+    cfg = OPENAI_COMPAT_PROVIDERS.get(provider)
+    if not cfg:
+        raise ValueError(f"Unknown OpenAI-compatible provider: {provider}")
 
-    Transcription is local (no API key needed); DeepSeek's OpenAI-compatible
-    chat endpoint selects highlights from the accurate transcript text.
-    """
     base, _ = os.path.splitext(file_path)
     audio_path = base + "_audio.mp3"
     extract_audio(file_path, audio_path)
@@ -300,7 +310,7 @@ def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, e
 
     highlights = get_highlights(
         transcript_text, api_key, extra_prompt,
-        base_url=DEEPSEEK_BASE_URL, model="deepseek-chat",
+        base_url=cfg["base_url"], model=cfg["model"],
     )
 
     return {
@@ -308,3 +318,8 @@ def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, e
         "highlights": highlights,
         "subtitle_path": subtitle_path,
     }
+
+
+def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "") -> dict:
+    """Back-compat wrapper -> process_with_openai_compatible(..., "deepseek")."""
+    return process_with_openai_compatible(file_path, api_key, "deepseek", karaoke=karaoke, extra_prompt=extra_prompt)

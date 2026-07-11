@@ -65,3 +65,30 @@ def test_process_with_deepseek(mock_extract, mock_tx, mock_hl, tmp_path):
     _, kwargs = mock_hl.call_args
     assert kwargs.get("base_url") == "https://api.deepseek.com"
     assert kwargs.get("model") == "deepseek-chat"
+
+
+def test_openai_compat_registry_has_expected_providers():
+    from backend.ai_utils import OPENAI_COMPAT_PROVIDERS
+    for pid in ("deepseek", "groq", "openrouter", "xai", "mistral"):
+        assert pid in OPENAI_COMPAT_PROVIDERS, pid
+        cfg = OPENAI_COMPAT_PROVIDERS[pid]
+        assert cfg["base_url"].startswith("https://")
+        assert cfg["model"]
+
+
+@patch('backend.ai_utils.get_highlights')
+@patch('backend.ai_utils.transcribe_with_faster_whisper')
+@patch('backend.ai_utils.extract_audio')
+def test_process_with_openai_compatible_routes_provider(mock_extract, mock_tx, mock_hl, tmp_path):
+    from backend.ai_utils import process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
+    mock_tx.return_value = "1\n00:00:01,000 --> 00:00:03,000\nhi\n"
+    mock_hl.return_value = [{"start_time": "00:00:01.000", "end_time": "00:00:03.000",
+                             "description_en": "a", "description_id": "b"}]
+    f = tmp_path / "v.mp4"
+    f.write_bytes(b"x")
+    res = process_with_openai_compatible(str(f), "key", "groq")
+    assert res["highlights"] == mock_hl.return_value
+    assert res["subtitle_path"].endswith(".srt")
+    _, kwargs = mock_hl.call_args
+    assert kwargs.get("base_url") == OPENAI_COMPAT_PROVIDERS["groq"]["base_url"]
+    assert kwargs.get("model") == OPENAI_COMPAT_PROVIDERS["groq"]["model"]

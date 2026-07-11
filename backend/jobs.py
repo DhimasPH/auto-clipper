@@ -4,7 +4,7 @@ import traceback
 import re
 import os
 from backend.video_utils import download_youtube_video
-from backend.ai_utils import process_with_openai, process_with_gemini, process_with_deepseek
+from backend.ai_utils import process_with_openai, process_with_gemini, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
 from backend.crop_utils import crop_to_vertical
 from backend.db import save_history, get_app_data_dir
 
@@ -144,8 +144,8 @@ def _run_job(job_id: str):
             
             if job["provider"] == "gemini":
                 ai_result = process_with_gemini(output_path, job["api_key"])
-            elif job["provider"] == "deepseek":
-                ai_result = process_with_deepseek(output_path, job["api_key"], karaoke=is_karaoke)
+            elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
+                ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke)
             else:
                 ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke)
                 
@@ -347,11 +347,11 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         is_karaoke = (job["caption_style"] == "karaoke")
         extra_prompt = job.get("extra_prompt", "")
         
-        from backend.ai_utils import process_with_gemini, process_with_openai, process_with_deepseek
+        from backend.ai_utils import process_with_gemini, process_with_openai, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
         if job["provider"] == "gemini":
             ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt)
-        elif job["provider"] == "deepseek":
-            ai_result = process_with_deepseek(source_video, job["api_key"], karaoke=is_karaoke, extra_prompt=extra_prompt)
+        elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
+            ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt)
         else:
             ai_result = process_with_openai(source_video, job["api_key"], karaoke=is_karaoke, extra_prompt=extra_prompt)
             
