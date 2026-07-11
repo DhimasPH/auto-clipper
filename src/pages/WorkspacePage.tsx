@@ -24,11 +24,7 @@ export const WorkspacePage: React.FC = () => {
           quality={ctx.quality} setQuality={ctx.setQuality}
           errorMsg={ctx.errorMsg}
           isRunning={ctx.isRunning}
-          status={ctx.status}
-          progressPct={ctx.progressPct}
-          progress={ctx.progress}
           handleGenerate={ctx.handleGenerate}
-          cancelJob={ctx.cancelJob}
         />
 
         <ClipsResult

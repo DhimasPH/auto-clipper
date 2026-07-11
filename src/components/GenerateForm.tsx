@@ -2,7 +2,7 @@ import { Dispatch, SetStateAction, useState } from "react";
 import axios from "axios";
 import { API_URL } from "../App";
 import { useTranslation } from "react-i18next";
-import { Link2, FileVideo, Wand2, StopCircle, Type } from "lucide-react";
+import { Link2, FileVideo, Wand2, Type } from "lucide-react";
 import { InputGroup } from "./ui/InputGroup";
 import { Select } from "./ui/Select";
 import { ToggleSwitch } from "./ui/ToggleSwitch";
@@ -26,11 +26,7 @@ interface GenerateFormProps {
   setQuality: Dispatch<SetStateAction<Quality>>;
   errorMsg: string;
   isRunning: boolean;
-  status: string;
-  progressPct: number;
-  progress: string;
   handleGenerate: () => void;
-  cancelJob: () => void;
 }
 
 export default function GenerateForm({
@@ -43,10 +39,7 @@ export default function GenerateForm({
   quality, setQuality,
   errorMsg,
   isRunning,
-  progressPct,
-  progress,
   handleGenerate,
-  cancelJob,
 }: GenerateFormProps) {
   const { t } = useTranslation();
   const [availHeights, setAvailHeights] = useState<number[]>([]);
@@ -153,7 +146,7 @@ export default function GenerateForm({
         </div>
       </div>
 
-      {/* Subtitle Settings */}
+      {/* Subtitle + Quality */}
       <div className="space-y-6 animate-slide-up">
         <div className="p-4 bg-bg-surface rounded-xl border border-border space-y-4">
           <div className="flex items-center justify-between">
@@ -214,42 +207,17 @@ export default function GenerateForm({
         </div>
       )}
 
-      {/* Action Area */}
+      {/* Action */}
       <div className="pt-2">
-        {isRunning ? (
-          <div className="space-y-4">
-            <Button
-              variant="danger"
-              className="w-full h-14 text-lg font-bold animate-pulse-glow-red"
-              icon={StopCircle}
-              onClick={cancelJob}
-            >
-              Batalkan Proses
-            </Button>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-caption text-text-secondary font-medium">
-                <span>{progress || 'Processing...'}</span>
-                <span>{progressPct}%</span>
-              </div>
-              <div className="w-full h-2 bg-surface-raised rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-accent transition-all duration-300 ease-out rounded-full"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <Button
-            variant="primary"
-            className="w-full h-14 text-lg font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-shadow"
-            icon={Wand2}
-            onClick={handleGenerate}
-          >
-            {t('main.btn_generate', 'Generate AI Clips')}
-          </Button>
-        )}
+        <Button
+          variant="primary"
+          className="w-full h-14 text-lg font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-shadow"
+          icon={Wand2}
+          onClick={handleGenerate}
+          disabled={isRunning}
+        >
+          {isRunning ? "Memproses..." : t('main.btn_generate', 'Generate AI Clips')}
+        </Button>
       </div>
 
     </main>
