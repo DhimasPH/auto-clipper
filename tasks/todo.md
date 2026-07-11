@@ -22,7 +22,7 @@ Status:
 - [x] **Task 1.3:** Halaman FAQ / Tutorial (F) → `FAQModal.tsx` + tombol header, OK.
 - [x] **Task 1.4:** Simpan Default Settings (D)
   - [x] Persist provider & API key. → **disempurnakan oleh Task 6.2**: key kini via safeStorage terenkripsi, bukan `localStorage`+`btoa` (itu tinggal fallback dev).
-  - [ ] Catatan i18n `settings.api_key_note` masih bilang "disimpan di browser" → menyesatkan, perlu diperbaiki.
+  - [x] Catatan i18n `settings.api_key_note` diperbaiki → kini mencerminkan penyimpanan terenkripsi (safeStorage), bukan "browser".
 - [/] **Task 1.5:** Kalau 1 Clip Gagal, Lanjut Clip Lain (G)
   - [x] Loop crop per-klip pakai try/except mandiri (di backend `_run_job`).
   - [ ] Tampilkan jumlah success/failed. → FE cuma tampilkan jumlah sukses, breakdown belum.

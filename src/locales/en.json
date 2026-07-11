@@ -36,7 +36,7 @@
     "provider_label": "AI Provider",
     "api_key_openai": "OpenAI API Key",
     "api_key_gemini": "Gemini API Key",
-    "api_key_note": "Stored locally on your device",
+    "api_key_note": "Encrypted and stored securely on your device",
     "close": "Close",
     "save": "Save"
   },
