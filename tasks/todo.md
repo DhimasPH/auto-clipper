@@ -136,6 +136,7 @@ presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesa
 - [x] **Task 5.3:** Upload file lokal (.mp4)
   - [x] Endpoint `/upload` + toggle input + skip download untuk `local:`.
   - [x] `python-multipart` sudah di `requirements.txt` (dipakai `/upload`); bug path `source_video` untuk upload lokal sudah diperbaiki di 7.4. Re-render/koreksi upload lokal jalan.
+- [x] **Task 5.4:** Transkrip **Whisper lokal** (`faster-whisper`, model `small`, `device="auto"`→fallback CPU) → timestamp akurat tanpa API key; Gemini fokus pilih highlight. Works (lihat `docs/implement-whispper-local.md`). Ini menuntaskan isu timing 2.2 secara benar.
 
 ---
 
@@ -174,4 +175,3 @@ presisi timing (Whisper lokal) opsional — lihat Backlog. Task 3.1 & 3.4 selesa
 - [ ] Perbanyak opsi AI provider (baru OpenAI & Gemini).
 - [ ] Notif OS: cek focus + pindah ke Electron main-process `Notification` + IPC.
 - [ ] Auto-update (electron-updater) — disebut di roadmap, belum ada.
-- [ ] (Opsional) Timing subtitle presisi via **Whisper lokal** (mis. faster-whisper) — akurasi lintas-provider tanpa API key; + polish post-processing segmen jalur Gemini.
