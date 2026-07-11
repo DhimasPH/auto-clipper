@@ -47,7 +47,7 @@ export default function SettingsModal({
         left: 0,
         width: "100%",
         height: "100%",
-        background: "rgba(0,0,0,0.6)",
+        background: "var(--overlay-bg)",
         backdropFilter: "blur(4px)",
         display: "flex",
         alignItems: "center",
@@ -104,7 +104,7 @@ export default function SettingsModal({
                   borderRadius: "8px",
                   border: "1px solid",
                   borderColor: theme === tOpt ? "var(--accent)" : "var(--border)",
-                  background: theme === tOpt ? "rgba(99, 102, 241, 0.1)" : "var(--input-bg)",
+                  background: theme === tOpt ? "var(--accent-subtle)" : "var(--input-bg)",
                   color: theme === tOpt ? "var(--accent)" : "var(--text-primary)",
                   cursor: "pointer",
                 }}
@@ -129,7 +129,7 @@ export default function SettingsModal({
                 borderRadius: "8px",
                 border: "1px solid",
                 borderColor: i18n.language === 'id' ? "var(--accent)" : "var(--border)",
-                background: i18n.language === 'id' ? "rgba(99, 102, 241, 0.1)" : "var(--input-bg)",
+                background: i18n.language === 'id' ? "var(--accent-subtle)" : "var(--input-bg)",
                 color: i18n.language === 'id' ? "var(--accent)" : "var(--text-primary)",
                 cursor: "pointer",
               }}
@@ -144,7 +144,7 @@ export default function SettingsModal({
                 borderRadius: "8px",
                 border: "1px solid",
                 borderColor: i18n.language === 'en' ? "var(--accent)" : "var(--border)",
-                background: i18n.language === 'en' ? "rgba(99, 102, 241, 0.1)" : "var(--input-bg)",
+                background: i18n.language === 'en' ? "var(--accent-subtle)" : "var(--input-bg)",
                 color: i18n.language === 'en' ? "var(--accent)" : "var(--text-primary)",
                 cursor: "pointer",
               }}
@@ -272,7 +272,7 @@ export default function SettingsModal({
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: "#ef4444",
+                  color: "var(--danger)",
                   cursor: "pointer",
                   fontSize: "1.2rem",
                 }}
@@ -316,7 +316,7 @@ export default function SettingsModal({
             marginTop: "1rem",
             padding: "0.75rem",
             background: "var(--accent)",
-            color: "#fff",
+            color: "var(--on-accent)",
             border: "none",
             borderRadius: "8px",
             fontWeight: "bold",

@@ -29,7 +29,7 @@ export default function Header({ onOpenSettings, backendStatus, onOpenFAQ, onOpe
             fontSize: "2.5rem",
             fontWeight: 800,
             letterSpacing: "-1px",
-            background: "linear-gradient(90deg, #818cf8, #c084fc)",
+            background: "var(--brand-gradient)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             display: "inline-block",
@@ -113,7 +113,7 @@ export default function Header({ onOpenSettings, backendStatus, onOpenFAQ, onOpe
             alignItems: "center",
             gap: "0.5rem",
             fontSize: "0.875rem",
-            background: "rgba(255,255,255,0.05)",
+            background: "var(--surface-subtle)",
             padding: "0.5rem 1rem",
             borderRadius: "99px",
             border: "1px solid var(--border)",
@@ -124,7 +124,7 @@ export default function Header({ onOpenSettings, backendStatus, onOpenFAQ, onOpe
               width: "8px",
               height: "8px",
               borderRadius: "50%",
-              backgroundColor: backendStatus === "Connected" ? "#10b981" : "#ef4444",
+              backgroundColor: backendStatus === "Connected" ? "var(--success)" : "var(--danger)",
             }}
           />
           {t('header.backend_status')}: {backendStatus}

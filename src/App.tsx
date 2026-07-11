@@ -440,15 +440,15 @@ export default function App() {
               padding: "0.75rem 1rem",
               borderRadius: "12px",
               fontSize: "0.875rem",
-              color: "white",
+              color: "var(--on-accent)",
               background:
                 t.kind === "error"
-                  ? "rgba(239, 68, 68, 0.95)"
+                  ? "var(--toast-error-bg)"
                   : t.kind === "success"
-                    ? "rgba(16, 185, 129, 0.95)"
-                    : "rgba(30, 30, 46, 0.95)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.35)",
+                    ? "var(--toast-success-bg)"
+                    : "var(--toast-info-bg)",
+              border: "1px solid var(--toast-border)",
+              boxShadow: "0 4px 20px var(--toast-shadow)",
             }}
           >
             {t.text}
@@ -491,7 +491,7 @@ export default function App() {
               borderRadius: "8px",
               border: "none",
               background: mode === "ai" ? "var(--accent)" : "transparent",
-              color: mode === "ai" ? "#fff" : "var(--text-secondary)",
+              color: mode === "ai" ? "var(--on-accent)" : "var(--text-secondary)",
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.2s",
@@ -507,7 +507,7 @@ export default function App() {
               borderRadius: "8px",
               border: "none",
               background: mode === "manual" ? "var(--accent)" : "transparent",
-              color: mode === "manual" ? "#fff" : "var(--text-secondary)",
+              color: mode === "manual" ? "var(--on-accent)" : "var(--text-secondary)",
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.2s",
@@ -524,7 +524,7 @@ export default function App() {
             style={{
               flex: 1, padding: "0.75rem", borderRadius: "8px", border: "none",
               background: inputType === "url" ? "var(--accent)" : "transparent",
-              color: inputType === "url" ? "#fff" : "var(--text-secondary)",
+              color: inputType === "url" ? "var(--on-accent)" : "var(--text-secondary)",
               fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
             }}
           >
@@ -535,7 +535,7 @@ export default function App() {
             style={{
               flex: 1, padding: "0.75rem", borderRadius: "8px", border: "none",
               background: inputType === "local" ? "var(--accent)" : "transparent",
-              color: inputType === "local" ? "#fff" : "var(--text-secondary)",
+              color: inputType === "local" ? "var(--on-accent)" : "var(--text-secondary)",
               fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
             }}
           >
@@ -589,7 +589,7 @@ export default function App() {
                 style={{
                   flex: 1, padding: "0.5rem", borderRadius: "8px", border: "1px solid",
                   borderColor: aspectRatio === ratio ? "var(--accent)" : "var(--border)",
-                  background: aspectRatio === ratio ? "rgba(99, 102, 241, 0.1)" : "var(--input-bg)",
+                  background: aspectRatio === ratio ? "var(--accent-subtle)" : "var(--input-bg)",
                   color: aspectRatio === ratio ? "var(--accent)" : "var(--text-primary)",
                   cursor: "pointer", fontWeight: 600
                 }}
@@ -621,7 +621,7 @@ export default function App() {
                       style={{
                         flex: 1, padding: "0.5rem", borderRadius: "8px", border: "1px solid",
                         borderColor: captionStyle === style ? "var(--accent)" : "var(--border)",
-                        background: captionStyle === style ? "rgba(99, 102, 241, 0.1)" : "var(--input-bg)",
+                        background: captionStyle === style ? "var(--accent-subtle)" : "var(--input-bg)",
                         color: captionStyle === style ? "var(--accent)" : "var(--text-primary)",
                         cursor: disabled ? "not-allowed" : "pointer", fontWeight: 600,
                         opacity: disabled ? 0.5 : 1
@@ -684,8 +684,8 @@ export default function App() {
                   padding: "0.875rem 1rem",
                   borderRadius: "12px",
                   border: "1px solid var(--border)",
-                  background: "rgba(0,0,0,0.2)",
-                  color: "white",
+                  background: "var(--scrim)",
+                  color: "var(--on-accent)",
                   fontSize: "1rem",
                   outline: "none",
                   transition: "border-color 0.2s",
@@ -779,13 +779,13 @@ export default function App() {
               padding: "1rem",
               borderRadius: "12px",
               border: "none",
-              background: "#ef4444",
-              color: "#fff",
+              background: "var(--danger)",
+              color: "var(--on-accent)",
               fontSize: "1rem",
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.2s",
-              boxShadow: "0 4px 14px 0 rgba(239, 68, 68, 0.39)",
+              boxShadow: "0 4px 14px 0 var(--danger-shadow)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -805,12 +805,12 @@ export default function App() {
               borderRadius: "12px",
               border: "none",
               background: "var(--accent)",
-              color: "#fff",
+              color: "var(--on-accent)",
               fontSize: "1rem",
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.2s",
-              boxShadow: "0 4px 14px 0 rgba(99, 102, 241, 0.39)",
+              boxShadow: "0 4px 14px 0 var(--accent-shadow)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -831,7 +831,7 @@ export default function App() {
                 width: "100%",
                 height: "8px",
                 borderRadius: "99px",
-                background: "rgba(255,255,255,0.1)",
+                background: "var(--surface-raised)",
                 overflow: "hidden",
               }}
             >

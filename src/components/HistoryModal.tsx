@@ -59,7 +59,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
       style={{
         position: "fixed",
         top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        backgroundColor: "var(--overlay-bg)",
         backdropFilter: "blur(4px)",
         display: "flex",
         alignItems: "center",
@@ -119,7 +119,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                   <a href={job.url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)", textDecoration: "none" }}>
                     {job.url}
                   </a>
-                  <button onClick={() => deleteHistory(job.id)} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer" }}>🗑️</button>
+                  <button onClick={() => deleteHistory(job.id)} style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer" }}>🗑️</button>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "var(--text-secondary)" }}>
                   <span>{new Date(job.created_at).toLocaleString()}</span>
@@ -132,7 +132,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                         <a href={`${API_URL}/video?path=${encodeURIComponent(clip.path)}`} download style={{
                           padding: "0.25rem 0.5rem",
                           background: "var(--accent)",
-                          color: "#fff",
+                          color: "var(--on-accent)",
                           textDecoration: "none",
                           borderRadius: "4px",
                           fontSize: "0.8rem",
@@ -166,7 +166,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
 
                 {/* Pop-up Mini Re-render */}
                 {activeRerenderId === job.id && (
-                  <div style={{ marginTop: "1rem", padding: "1rem", background: "rgba(255,255,255,0.05)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                  <div style={{ marginTop: "1rem", padding: "1rem", background: "var(--surface-subtle)", borderRadius: "8px", border: "1px solid var(--border)" }}>
                     <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem" }}>{t("history.rerender_options")}</h4>
                     <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
                       <div>
@@ -195,7 +195,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                       )}
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button onClick={() => { onRerender(job.id, localAspectRatio, localCaptionStyle, localBurnSubs); setActiveRerenderId(null); }} style={{ padding: "0.4rem 0.75rem", background: "var(--accent)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>{t("history.start_rerender")}</button>
+                      <button onClick={() => { onRerender(job.id, localAspectRatio, localCaptionStyle, localBurnSubs); setActiveRerenderId(null); }} style={{ padding: "0.4rem 0.75rem", background: "var(--accent)", color: "var(--on-accent)", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>{t("history.start_rerender")}</button>
                       <button onClick={() => setActiveRerenderId(null)} style={{ padding: "0.4rem 0.75rem", background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem" }}>{t("history.cancel")}</button>
                     </div>
                   </div>
@@ -203,7 +203,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
 
                 {/* Pop-up Mini AI Koreksi */}
                 {activeAiId === job.id && (
-                  <div style={{ marginTop: "1rem", padding: "1rem", background: "rgba(255,255,255,0.05)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                  <div style={{ marginTop: "1rem", padding: "1rem", background: "var(--surface-subtle)", borderRadius: "8px", border: "1px solid var(--border)" }}>
                     <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem" }}>{t("history.ai_correct")}</h4>
                     <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.8rem", color: "var(--text-secondary)" }}>{t("history.ai_correct_desc")}</p>
                     <textarea
@@ -213,7 +213,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                       style={{ width: "100%", height: "60px", padding: "0.5rem", borderRadius: "4px", background: "var(--input-bg)", color: "var(--text-primary)", border: "1px solid var(--border)", marginBottom: "0.5rem", fontFamily: "inherit" }}
                     />
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button onClick={() => { onRerunAI(job.id, extraPrompt); setActiveAiId(null); setExtraPrompt(""); }} style={{ padding: "0.4rem 0.75rem", background: "var(--accent)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>{t("history.run_ai")}</button>
+                      <button onClick={() => { onRerunAI(job.id, extraPrompt); setActiveAiId(null); setExtraPrompt(""); }} style={{ padding: "0.4rem 0.75rem", background: "var(--accent)", color: "var(--on-accent)", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>{t("history.run_ai")}</button>
                       <button onClick={() => setActiveAiId(null)} style={{ padding: "0.4rem 0.75rem", background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer", fontSize: "0.85rem" }}>{t("history.cancel")}</button>
                     </div>
                   </div>
@@ -226,7 +226,7 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                       style={{
                         padding: "0.4rem 0.75rem",
                         background: "var(--accent)",
-                        color: "#fff",
+                        color: "var(--on-accent)",
                         border: "none",
                         borderRadius: "4px",
                         fontSize: "0.8rem",
@@ -259,8 +259,8 @@ export default function HistoryModal({ isOpen, onClose, onRerender, onRerunAI }:
                     style={{
                       padding: "0.4rem 0.75rem",
                       background: "transparent",
-                      color: "#ef4444",
-                      border: "1px solid #ef4444",
+                      color: "var(--danger)",
+                      border: "1px solid var(--danger)",
                       borderRadius: "4px",
                       fontSize: "0.8rem",
                       cursor: "pointer",

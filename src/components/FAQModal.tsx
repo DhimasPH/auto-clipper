@@ -18,7 +18,7 @@ export default function FAQModal({ isOpen, onClose }: FAQModalProps) {
         left: 0,
         width: "100%",
         height: "100%",
-        background: "rgba(0,0,0,0.6)",
+        background: "var(--overlay-bg)",
         backdropFilter: "blur(4px)",
         display: "flex",
         alignItems: "center",
@@ -100,12 +100,12 @@ export default function FAQModal({ isOpen, onClose }: FAQModalProps) {
         <div
           style={{
             padding: "1rem",
-            background: "rgba(239, 68, 68, 0.1)",
-            borderLeft: "4px solid #ef4444",
+            background: "var(--danger-bg)",
+            borderLeft: "4px solid var(--danger)",
             borderRadius: "4px",
           }}
         >
-          <strong style={{ color: "#ef4444" }}>⚠️ {t('faq.note_title')}</strong>
+          <strong style={{ color: "var(--danger)" }}>⚠️ {t('faq.note_title')}</strong>
           <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.9rem", color: "var(--text-secondary)" }}>
             {t('faq.note_desc')}
           </p>

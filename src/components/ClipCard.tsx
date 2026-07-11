@@ -38,7 +38,7 @@ export default function ClipCard({
       <div
         style={{
           aspectRatio: "9/16",
-          background: "rgba(0,0,0,0.5)",
+          background: "var(--scrim-strong)",
           borderRadius: "8px",
           overflow: "hidden",
         }}
@@ -52,7 +52,7 @@ export default function ClipCard({
             width: "100%",
             height: "100%",
             objectFit: "contain",
-            background: "#000",
+            background: "var(--video-bg)",
           }}
         />
       </div>

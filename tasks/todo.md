@@ -59,9 +59,10 @@ Ditunda (butuh QA visual / keputusan): **Task 2.2** (kualitas subtitle), **Task 
 ---
 
 ## Fase 3: Fondasi UI (Theme + i18n + Polish)
-- [!] **Task 3.1:** Refactor CSS ke Design Tokens
+- [/] **Task 3.1:** Refactor CSS ke Design Tokens
   - [x] Buat custom variables di `index.css`.
-  - [ ] **Hapus inline colors di JSX → BELUM.** Warna masih hardcoded (`#ef4444`, gradient, `white`, `rgba(...)`) tersebar di App.tsx & komponen; styling mayoritas masih inline.
+  - [x] **Warna hardcoded di JSX dihapus.** Semua `#hex`/`rgba`/`white`/gradient di `.tsx` (45 titik, 6 file) diganti ke token semantik baru di `index.css` (nilai identik → pixel sama). Dijaga `scripts/check_colors.mjs`.
+  - [ ] Sisa: styling layout/spacing masih inline (bukan warna) — masuk ranah Task 3.4 polish.
 - [x] **Task 3.2:** Dark / Light / System Theme Toggle → jalan, TAPI default `system` (roadmap minta `light`).
 - [/] **Task 3.3:** Setup i18n (ID + EN)
   - [x] `react-i18next` + `locales/id.json` & `en.json`, default ID.

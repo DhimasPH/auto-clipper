@@ -11,6 +11,28 @@
   --button-hover: rgba(255, 255, 255, 0.1);
   --error-bg: rgba(239, 68, 68, 0.1);
   --error-text: #f87171;
+
+  /* Semantic tokens extracted from inline styles (Task 3.1).
+     Fixed values (not theme-overridden) to preserve prior rendering. */
+  --on-accent: #fff;
+  --video-bg: #000;
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --danger-shadow: rgba(239, 68, 68, 0.39);
+  --success: #10b981;
+  --accent-subtle: rgba(99, 102, 241, 0.1);
+  --accent-shadow: rgba(99, 102, 241, 0.39);
+  --surface-subtle: rgba(255, 255, 255, 0.05);
+  --surface-raised: rgba(255, 255, 255, 0.1);
+  --scrim: rgba(0, 0, 0, 0.2);
+  --scrim-strong: rgba(0, 0, 0, 0.5);
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --toast-error-bg: rgba(239, 68, 68, 0.95);
+  --toast-success-bg: rgba(16, 185, 129, 0.95);
+  --toast-info-bg: rgba(30, 30, 46, 0.95);
+  --toast-border: rgba(255, 255, 255, 0.12);
+  --toast-shadow: rgba(0, 0, 0, 0.35);
+  --brand-gradient: linear-gradient(90deg, #818cf8, #c084fc);
 }
 
 [data-theme="light"] {
