@@ -14,7 +14,12 @@ import re
 # agar FFmpeg dan dependensi lain yang dibundel bisa ditemukan.
 if getattr(sys, 'frozen', False):
     bin_dir = os.path.dirname(sys.executable)
-    os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
+    paths = [
+        bin_dir,
+        os.path.join(bin_dir, "bin"), # Windows resource path
+        os.path.join(os.path.dirname(bin_dir), "Resources", "bin") # macOS resource path
+    ]
+    os.environ["PATH"] = os.pathsep.join(paths) + os.pathsep + os.environ.get("PATH", "")
 
 # Initialize DB on startup
 init_db()

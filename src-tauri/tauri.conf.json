@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Auto Clipper",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "identifier": "com.autoclipper.app",
   "build": {
     "frontendDist": "../dist",
@@ -30,7 +30,7 @@
       "../bin/backend"
     ],
     "resources": [
-      "../bin/ffmpeg.exe"
+      "../bin/ffmpeg*"
     ],
     "icon": [
       "icons/32x32.png",
