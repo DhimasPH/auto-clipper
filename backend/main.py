@@ -185,10 +185,11 @@ if __name__ == "__main__":
 
     port = get_free_port()
     
-    # Cetak port ke stdout agar ditangkap oleh Electron main.cjs
+    # Cetak port ke stdout agar ditangkap oleh frontend
     print(f"AUTO_CLIPPER_BACKEND_PORT={port}")
+    print(f"PORT:{port}")
     sys.stdout.flush()
 
-    # reload=False: the reloader spawns an extra child process that Electron
+    # reload=False: the reloader spawns an extra child process that Electron/Tauri
     # can't reliably kill on Windows, leaving a zombie backend.
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=port, reload=False)
+    uvicorn.run(app, host="127.0.0.1", port=port, reload=False)

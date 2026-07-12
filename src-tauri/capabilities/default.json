@@ -8,7 +8,26 @@
   "permissions": [
     "core:default",
     "shell:default",
+    "shell:allow-open",
     "dialog:default",
-    "stronghold:default"
+    "stronghold:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "backend",
+          "sidecar": true
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "backend",
+          "sidecar": true
+        }
+      ]
+    }
   ]
 }

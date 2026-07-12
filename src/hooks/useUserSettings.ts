@@ -23,22 +23,48 @@ let backendPortPromise: Promise<number | null> | null = null;
 async function spawnBackend(): Promise<number | null> {
   if (backendPortPromise) return backendPortPromise;
   backendPortPromise = new Promise((resolve) => {
+    let resolved = false;
+    const finish = (port: number | null) => {
+        if (!resolved) {
+            resolved = true;
+            resolve(port);
+        }
+    };
+    
+    setTimeout(() => {
+        if (!resolved) {
+            console.error("Backend spawn timed out after 15 seconds.");
+            finish(null);
+        }
+    }, 15000);
+
     try {
-      const cmd = Command.sidecar("bin/backend");
+      const cmd = Command.sidecar("backend");
       cmd.stdout.on("data", (line) => {
+        console.log("Backend stdout:", line);
         if (line.includes("PORT:")) {
           const p = parseInt(line.split("PORT:")[1].trim(), 10);
-          resolve(p);
+          finish(p);
         }
       });
       cmd.stderr.on("data", (line) => console.error("Backend stderr:", line));
-      cmd.spawn().then(() => {}).catch((e) => {
+      cmd.on("close", (data) => {
+          console.log("Backend closed:", data.code);
+          finish(null);
+      });
+      cmd.on("error", (e) => {
+          console.error("Backend error:", e);
+          finish(null);
+      });
+      cmd.spawn().then((child) => {
+          console.log("Backend spawned with pid:", child.pid);
+      }).catch((e) => {
         console.error("Failed to spawn backend:", e);
-        resolve(null);
+        finish(null);
       });
     } catch (e) {
       console.error(e);
-      resolve(null);
+      finish(null);
     }
   });
   return backendPortPromise;

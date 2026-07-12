@@ -11,7 +11,7 @@ pub fn run() {
       let result = hasher.finalize();
       let mut key = [0u8; 32];
       key.copy_from_slice(&result);
-      key
+      key.to_vec()
     }).build())
     .setup(|app| {
       if cfg!(debug_assertions) {
