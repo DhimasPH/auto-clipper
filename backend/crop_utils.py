@@ -46,6 +46,8 @@ def detect_primary_face_center(video_path: str, start_time=None, end_time=None) 
     if no face is found.
     """
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    if face_cascade.empty():
+        return 0.5
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():

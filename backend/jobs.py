@@ -138,8 +138,9 @@ def _run_job(job_id: str):
 
         is_karaoke = (job["caption_style"] == "karaoke")
 
-        if job["provider"] == "gemini":
-            ai_result = process_with_gemini(output_path, job["api_key"])
+        if job["provider"].startswith("gemini"):
+            model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.5-flash"
+            ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name)
         elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
             ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke)
         else:
@@ -335,8 +336,9 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         extra_prompt = job.get("extra_prompt", "")
         
         from backend.ai_utils import process_with_gemini, process_with_openai, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
-        if job["provider"] == "gemini":
-            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt)
+        if job["provider"].startswith("gemini"):
+            model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.5-flash"
+            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=model_name)
         elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
             ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt)
         else:

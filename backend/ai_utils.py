@@ -212,9 +212,10 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False):
         return "\n\n".join(srt_lines) + "\n"
 
 
-def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "") -> dict:
+def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-2.5-flash") -> dict:
     import json
     import os
+    import time
     from backend.video_utils import extract_audio
     
     client = genai.Client(api_key=api_key)
@@ -256,7 +257,7 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
     )
 
     response = _with_retry(lambda: client.models.generate_content(
-        model='gemini-2.5-flash',
+        model=model_name,
         contents=[video_file, prompt],
         config=types.GenerateContentConfig(
             response_mime_type="application/json",

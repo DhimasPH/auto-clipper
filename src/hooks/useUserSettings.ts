@@ -74,6 +74,9 @@ async function spawnBackend(): Promise<number | null> {
 
 
 async function safeSaveKeys(keys: Record<string, string>) {
+    // Always save to localStorage as a reliable backup
+    localStorage.setItem(LS_KEYS, btoa(JSON.stringify(keys)));
+    
     if (IS_TAURI) {
         try {
             const sh = await Stronghold.load("ac_vault", "ac_pass");
@@ -83,11 +86,8 @@ async function safeSaveKeys(keys: Record<string, string>) {
             await store.insert("apiKeys", Array.from(value));
             await sh.save();
         } catch (e) {
-            console.error("Stronghold save error, fallback to LS", e);
-            localStorage.setItem(LS_KEYS, btoa(JSON.stringify(keys)));
+            console.error("Stronghold save error", e);
         }
-    } else {
-        localStorage.setItem(LS_KEYS, btoa(JSON.stringify(keys)));
     }
 }
 
@@ -102,14 +102,14 @@ async function safeGetKeys(): Promise<Record<string, string> | null> {
                 return JSON.parse(new TextDecoder().decode(new Uint8Array(val)));
             }
         } catch (e) {
-             console.error("Stronghold load error, fallback to LS", e);
-             const raw = localStorage.getItem(LS_KEYS);
-             if (raw) return JSON.parse(atob(raw));
+             console.error("Stronghold load error", e);
         }
-    } else {
-        const raw = localStorage.getItem(LS_KEYS);
-        if (raw) return JSON.parse(atob(raw));
     }
+    
+    // Fallback to LS if not in Tauri, Stronghold failed, or Stronghold was empty
+    const raw = localStorage.getItem(LS_KEYS);
+    if (raw) return JSON.parse(atob(raw));
+    
     return null;
 }
 
