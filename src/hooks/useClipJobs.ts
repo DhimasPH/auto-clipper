@@ -50,10 +50,7 @@ export function useClipJobs(p: ClipJobParams) {
 
   // Polling effect for async job status.
   useEffect(() => {
-    // Task 4.2: Block exit if job is running
-    if (window.electronAPI) {
-      window.electronAPI.setJobActive(!!activeJobId);
-    }
+    // Task 4.2: Block exit if job is running (Handle in Tauri Rust side if needed)
 
     if (status === "IDLE" || status === "DONE" || status === "ERROR") return;
     let interval: any;

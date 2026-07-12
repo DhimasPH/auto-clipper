@@ -176,6 +176,24 @@ if __name__ == "__main__":
     import uvicorn
     import socket
     import sys
+    import threading
+    import os
+
+    # Watchdog thread: if the parent process (Tauri) closes or crashes,
+    # the stdin pipe will break and read() will return empty.
+    # We then force-kill the backend to prevent zombie processes.
+    def watchdog():
+        try:
+            # Block until EOF is reached (pipe closed by parent)
+            sys.stdin.read()
+        except Exception:
+            pass
+        finally:
+            # When parent dies, kill this process
+            os._exit(0)
+
+    # Start the watchdog as a daemon thread
+    threading.Thread(target=watchdog, daemon=True).start()
 
     # Find a free port dynamically
     def get_free_port():
@@ -185,10 +203,11 @@ if __name__ == "__main__":
 
     port = get_free_port()
     
-    # Cetak port ke stdout agar ditangkap oleh Electron main.cjs
+    # Cetak port ke stdout agar ditangkap oleh frontend
     print(f"AUTO_CLIPPER_BACKEND_PORT={port}")
+    print(f"PORT:{port}")
     sys.stdout.flush()
 
-    # reload=False: the reloader spawns an extra child process that Electron
+    # reload=False: the reloader spawns an extra child process that Electron/Tauri
     # can't reliably kill on Windows, leaving a zombie backend.
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=port, reload=False)
+    uvicorn.run(app, host="127.0.0.1", port=port, reload=False)

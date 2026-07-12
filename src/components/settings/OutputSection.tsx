@@ -1,4 +1,5 @@
 import React from 'react';
+import { open } from '@tauri-apps/plugin-dialog';
 import { FolderOutput, FolderOpen, X } from 'lucide-react';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
@@ -14,11 +15,10 @@ interface OutputSectionProps {
 export const OutputSection: React.FC<OutputSectionProps> = ({
   outputFolder, setOutputFolder, quality, setQuality
 }) => {
-
   const handleSelectFolder = async () => {
-    if (window.electronAPI) {
-      const folder = await window.electronAPI.selectFolder();
-      if (folder) setOutputFolder(folder);
+    if ('__TAURI_INTERNALS__' in window) {
+      const folder = await open({ directory: true, multiple: false });
+      if (folder) setOutputFolder(folder as string);
     } else {
       alert("Fitur pilih folder hanya tersedia di aplikasi Desktop.");
     }

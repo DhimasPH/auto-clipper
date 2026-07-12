@@ -7,15 +7,38 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ isInitializing, onFinish }) => {
   const [fading, setFading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    if (!isInitializing) {
-      setFading(true);
+    let interval: NodeJS.Timeout;
+    
+    if (isInitializing) {
+      // Simulate progress up to 90%
+      interval = setInterval(() => {
+        setProgress(p => {
+          if (p >= 90) return 90;
+          // Progress slows down as it gets closer to 90%
+          const increment = p > 70 ? 0.5 : p > 40 ? 1.5 : 2;
+          return Math.min(p + increment, 90);
+        });
+      }, 100);
+    } else {
+      // Once backend is ready, snap to 100%
+      setProgress(100);
+      
+      // Give a short delay to let user see 100%, then start fading
       const timer = setTimeout(() => {
-        onFinish();
-      }, 500); // 500ms fade-out duration
+        setFading(true);
+        setTimeout(() => {
+          onFinish();
+        }, 500); // 500ms fade-out duration
+      }, 300);
       return () => clearTimeout(timer);
     }
+    
+    return () => {
+        if (interval) clearInterval(interval);
+    };
   }, [isInitializing, onFinish]);
 
   return (
@@ -43,9 +66,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isInitializing, onFi
         Long-form to Shorts. Secara Otomatis.
       </p>
 
-      {/* Minimalist Loading Indicator */}
-      <div className="w-48 h-1 bg-gray-200 rounded overflow-hidden">
-        <div className="h-full bg-[#3B82F6] animate-pulse rounded" style={{ width: '60%' }} />
+      {/* Dynamic Loading Indicator */}
+      <div className="w-48 h-1.5 bg-gray-200 rounded overflow-hidden relative">
+        <div 
+          className="absolute left-0 top-0 h-full bg-[#3B82F6] transition-all duration-200 ease-out rounded" 
+          style={{ width: `${progress}%` }} 
+        />
       </div>
     </div>
   );
