@@ -15,7 +15,7 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "backend",
+          "name": "../bin/backend",
           "sidecar": true
         }
       ]
@@ -24,7 +24,7 @@
       "identifier": "shell:allow-spawn",
       "allow": [
         {
-          "name": "backend",
+          "name": "../bin/backend",
           "sidecar": true
         }
       ]

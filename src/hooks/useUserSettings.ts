@@ -39,12 +39,13 @@ async function spawnBackend(): Promise<number | null> {
     }, 15000);
 
     try {
-      const cmd = Command.sidecar("backend");
+      const cmd = Command.sidecar("../bin/backend");
       cmd.stdout.on("data", (line) => {
         console.log("Backend stdout:", line);
         if (line.includes("PORT:")) {
           const p = parseInt(line.split("PORT:")[1].trim(), 10);
           finish(p);
+          window.dispatchEvent(new CustomEvent("backend-port-found", { detail: p }));
         }
       });
       cmd.stderr.on("data", (line) => console.error("Backend stderr:", line));
@@ -124,6 +125,13 @@ export function useUserSettings() {
   useEffect(() => {
     async function init() {
       if (IS_TAURI) {
+        window.addEventListener("backend-port-found", ((e: CustomEvent) => {
+            console.log("Late backend connection established!");
+            setApiUrl(`http://127.0.0.1:${e.detail}`);
+            // trigger a re-render or state update if needed
+            setApiKey("dummy", "trigger-re-render"); 
+        }) as EventListener);
+
         const port = await spawnBackend();
         if (port) {
           setApiUrl(`http://127.0.0.1:${port}`);
