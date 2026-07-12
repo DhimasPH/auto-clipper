@@ -179,18 +179,22 @@ if __name__ == "__main__":
     import threading
     import os
 
-    # Watchdog thread: if the parent process (Tauri) closes or crashes,
-    # the stdin pipe will break and read() will return empty.
-    # We then force-kill the backend to prevent zombie processes.
+    import time
+
+    # Watchdog thread: kills backend if no heartbeat received from frontend in 30 seconds
+    last_heartbeat = time.time()
+
+    @app.post("/heartbeat")
+    def api_heartbeat():
+        global last_heartbeat
+        last_heartbeat = time.time()
+        return {"status": "ok"}
+
     def watchdog():
-        try:
-            # Block until EOF is reached (pipe closed by parent)
-            sys.stdin.read()
-        except Exception:
-            pass
-        finally:
-            # When parent dies, kill this process
-            os._exit(0)
+        while True:
+            time.sleep(5)
+            if time.time() - last_heartbeat > 30:
+                os._exit(0)
 
     # Start the watchdog as a daemon thread
     threading.Thread(target=watchdog, daemon=True).start()

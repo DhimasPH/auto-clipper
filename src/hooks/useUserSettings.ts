@@ -127,7 +127,14 @@ export function useUserSettings() {
       if (IS_TAURI) {
         window.addEventListener("backend-port-found", ((e: CustomEvent) => {
             console.log("Late backend connection established!");
-            setApiUrl(`http://127.0.0.1:${e.detail}`);
+            const port = e.detail;
+            setApiUrl(`http://127.0.0.1:${port}`);
+            
+            // Start heartbeat
+            setInterval(() => {
+                fetch(`http://127.0.0.1:${port}/heartbeat`, { method: "POST" }).catch(() => {});
+            }, 5000);
+
             // trigger a re-render or state update if needed
             setApiKey("dummy", "trigger-re-render"); 
         }) as EventListener);
@@ -135,6 +142,11 @@ export function useUserSettings() {
         const port = await spawnBackend();
         if (port) {
           setApiUrl(`http://127.0.0.1:${port}`);
+          
+          // Start heartbeat
+          setInterval(() => {
+              fetch(`http://127.0.0.1:${port}/heartbeat`, { method: "POST" }).catch(() => {});
+          }, 5000);
         }
       }
 
