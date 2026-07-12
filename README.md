@@ -38,17 +38,19 @@ Anda tidak perlu repot dengan terminal. Buka halaman **[Releases](../../releases
 ### Opsi 2: Menjalankan Mode Developer (Build Source)
 Jika Anda ingin ikut berkontribusi atau mengembangkan fitur baru:
 
-1. **Persiapan:** Pastikan Anda memiliki Node.js (v20+), Python (3.11+), dan OpenAI API Key.
+1. **Persiapan:** Pastikan Anda memiliki Node.js (v20+), Python (3.11+), Rust / Cargo (untuk build desktop), dan OpenAI API Key.
 2. **Jalankan Backend (Python):**
+   *(Tauri akan menjalankan sidecar backend secara otomatis, tetapi untuk build awal sidecar-nya Anda perlu meng-compile-nya sekali saja)*
    ```bash
-   cd backend
-   pip install -r requirements.txt
-   python main.py
+   pip install pyinstaller
+   pyinstaller --onefile backend/main.py --name backend
+   mkdir bin
+   # Salin dist/backend.exe ke bin/backend-<TARGET_TRIPLET>.exe (sesuaikan dengan OS Anda)
    ```
-3. **Jalankan Frontend (Electron/React):** Buka terminal baru di root proyek:
+3. **Jalankan Frontend (Tauri/React):** Buka terminal baru di root proyek:
    ```bash
    npm install
-   npm run electron:dev
+   npm run tauri dev
    ```
 
 ---
