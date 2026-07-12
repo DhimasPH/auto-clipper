@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Download, Folder } from "lucide-react";
 import { Button } from "./ui/Button";
+import { open } from "@tauri-apps/plugin-shell";
 
 export interface Clip {
   path: string;
@@ -63,9 +64,9 @@ export default function ClipCard({
             className="!px-3"
             icon={Folder}
             title="Buka Folder"
-            onClick={() => {
-              if (window.electronAPI) {
-                window.electronAPI.openFolder(clip.path);
+            onClick={async () => {
+              if ('__TAURI_INTERNALS__' in window) {
+                await open(clip.path);
               }
             }}
           />

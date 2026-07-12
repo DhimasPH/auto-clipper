@@ -9,3 +9,17 @@ temp_downloads/
 *.db
 *.ass
 release/
+
+# Tauri & Rust
+src-tauri/target/
+src-tauri/Cargo.lock
+
+# Build & Binaries (PyInstaller)
+build/
+bin/
+*.spec
+
+# Local config/vaults
+ac_vault*
+.ac_vault*
+.env
