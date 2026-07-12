@@ -23,3 +23,6 @@ bin/
 ac_vault*
 .ac_vault*
 .env
+
+# Docs
+docs/
