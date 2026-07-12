@@ -176,6 +176,24 @@ if __name__ == "__main__":
     import uvicorn
     import socket
     import sys
+    import threading
+    import os
+
+    # Watchdog thread: if the parent process (Tauri) closes or crashes,
+    # the stdin pipe will break and read() will return empty.
+    # We then force-kill the backend to prevent zombie processes.
+    def watchdog():
+        try:
+            # Block until EOF is reached (pipe closed by parent)
+            sys.stdin.read()
+        except Exception:
+            pass
+        finally:
+            # When parent dies, kill this process
+            os._exit(0)
+
+    # Start the watchdog as a daemon thread
+    threading.Thread(target=watchdog, daemon=True).start()
 
     # Find a free port dynamically
     def get_free_port():
