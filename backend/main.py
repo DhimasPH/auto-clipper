@@ -81,6 +81,18 @@ class CreateJobRequest(BaseModel):
     quality: str = "best"
     extra_prompt: str = ""
 
+class SaveFileRequest(BaseModel):
+    src: str
+    dest: str
+
+@app.post("/save_file")
+def api_save_file(req: SaveFileRequest):
+    try:
+        shutil.copy2(req.src, req.dest)
+        return {"status": "success"}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
 @app.post("/jobs/{job_id}/rerender")
 def api_rerender_job(job_id: str, req: CreateJobRequest):
     try:

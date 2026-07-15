@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 import { Download, Folder } from "lucide-react";
 import { Button } from "./ui/Button";
 import { open } from "@tauri-apps/plugin-shell";
+import { save } from "@tauri-apps/plugin-dialog";
+import { API_URL } from "../App";
 
 export interface Clip {
   path: string;
@@ -51,14 +53,38 @@ export default function ClipCard({
         </p>
 
         <div className="flex gap-2 mt-auto">
-          <a
-            href={videoSrc(clip.path, clip.v)}
-            download
-            className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-accent text-on-accent rounded-button text-caption font-medium hover:brightness-110 transition-all"
+          <button
+            onClick={async (e) => {
+              if ('__TAURI_INTERNALS__' in window) {
+                e.preventDefault();
+                try {
+                  const filename = clip.path.replace(/\\/g, '/').split('/').pop() || 'clip.mp4';
+                  const savePath = await save({
+                    defaultPath: filename,
+                    filters: [{ name: 'Video', extensions: ['mp4'] }]
+                  });
+                  if (savePath) {
+                    await fetch(`${API_URL}/save_file`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ src: clip.path, dest: savePath })
+                    });
+                  }
+                } catch (err) {
+                  console.error("Save failed", err);
+                }
+              } else {
+                const a = document.createElement('a');
+                a.href = videoSrc(clip.path, clip.v);
+                a.download = clip.path.replace(/\\/g, '/').split('/').pop() || 'clip.mp4';
+                a.click();
+              }
+            }}
+            className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-accent text-on-accent rounded-button text-caption font-medium hover:brightness-110 transition-all cursor-pointer"
           >
             <Download className="w-4 h-4" />
             {t('clip.btn_download', 'Download')}
-          </a>
+          </button>
           <Button
             variant="outline"
             className="!px-3"
@@ -66,7 +92,14 @@ export default function ClipCard({
             title="Buka Folder"
             onClick={async () => {
               if ('__TAURI_INTERNALS__' in window) {
-                await open(clip.path);
+                try {
+                  const lastSlash = clip.path.replace(/\\/g, '/').lastIndexOf('/');
+                  const dir = clip.path.substring(0, lastSlash);
+                  await open(dir);
+                } catch (err) {
+                  console.error("Open folder failed", err);
+                  await open(clip.path); // fallback to old behavior
+                }
               }
             }}
           />

@@ -160,6 +160,13 @@ def _run_job(job_id: str):
             
         # 3. CROPPING
         job["status"] = "CROPPING"
+        
+        try:
+            from backend.crop_utils import to_seconds
+            highlights.sort(key=lambda x: to_seconds(x.get("start_time", "00:00:00")))
+        except Exception:
+            pass
+            
         segments = highlights[:MAX_CLIPS]
         metadata["highlights"] = segments
         
@@ -232,6 +239,13 @@ def _run_rerender_job(job_id: str):
         highlights = metadata.get("highlights", [])
         
         job["status"] = "CROPPING"
+        
+        try:
+            from backend.crop_utils import to_seconds
+            highlights.sort(key=lambda x: to_seconds(x.get("start_time", "00:00:00")))
+        except Exception:
+            pass
+            
         segments = highlights[:MAX_CLIPS]
         
         for i, seg in enumerate(segments):
@@ -352,6 +366,13 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             raise ValueError("Tidak ada klip baru yang ditemukan AI dengan instruksi tersebut.")
             
         job["status"] = "CROPPING"
+        
+        try:
+            from backend.crop_utils import to_seconds
+            highlights.sort(key=lambda x: to_seconds(x.get("start_time", "00:00:00")))
+        except Exception:
+            pass
+            
         for i, seg in enumerate(highlights):
             if job["cancelled"]: break
             job["progress"] = f"Memotong klip {i+1} dari {len(highlights)} (AI Koreksi)..."
