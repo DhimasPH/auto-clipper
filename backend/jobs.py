@@ -24,7 +24,7 @@ def log_error(context: str) -> None:
     except Exception:
         pass
 
-def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best") -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "") -> str:
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -36,6 +36,9 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "burn_subs": burn_subs,
         "output_dir": output_dir,
         "quality": quality,
+        "title": title,
+        "enable_broll": enable_broll,
+        "pexels_api_key": pexels_api_key,
         "status": "PENDING",
         "progress": "",
         "cancelled": False,
@@ -93,7 +96,9 @@ def cancel_job(job_id: str):
                 pass
 
 def _run_job(job_id: str):
+    import time
     job = active_jobs[job_id]
+    job["start_time"] = time.time()
     
     try:
         if job["cancelled"]:
@@ -175,6 +180,17 @@ def _run_job(job_id: str):
                 _finalize_job(job_id, "CANCELLED")
                 return
                 
+            broll_path = None
+            if job.get("enable_broll") and job.get("pexels_api_key"):
+                job["progress"] = f"Mengunduh B-Roll untuk klip {i+1}..."
+                from backend.broll import download_pexels_broll
+                query = seg.get("broll_query_en") or seg.get("description_en")
+                if query:
+                    broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
+                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out)
+                    if success:
+                        broll_path = broll_out
+
             job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
             
             safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
@@ -184,8 +200,15 @@ def _run_job(job_id: str):
             
             if job.get("output_dir"):
                 out_dir = job["output_dir"]
+                safe_title = ""
+                if job.get("title"):
+                    safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
+                    if safe_title:
+                        out_dir = os.path.join(out_dir, safe_title)
                 os.makedirs(out_dir, exist_ok=True)
-                clip_output = os.path.join(out_dir, f"AutoClipper_{job_id}_clip_{i+1}.mp4")
+                
+                filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
+                clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
             
             try:
                 result_path = crop_to_vertical(
@@ -194,6 +217,7 @@ def _run_job(job_id: str):
                     aspect_ratio=job["aspect_ratio"],
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=lambda: job["cancelled"],
+                    broll_path=broll_path
                 )
 
                 # Append to clips
@@ -224,7 +248,9 @@ def _run_job(job_id: str):
         _finalize_job(job_id, "ERROR", locals().get('metadata', {}))
 
 def _run_rerender_job(job_id: str):
+    import time
     job = active_jobs[job_id]
+    job["start_time"] = time.time()
     metadata = job["metadata"]
     try:
         if job["cancelled"]:
@@ -253,6 +279,17 @@ def _run_rerender_job(job_id: str):
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
                 
+            broll_path = None
+            if job.get("enable_broll") and job.get("pexels_api_key"):
+                job["progress"] = f"Mengunduh B-Roll untuk klip {i+1}..."
+                from backend.broll import download_pexels_broll
+                query = seg.get("broll_query_en") or seg.get("description_en")
+                if query:
+                    broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
+                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out)
+                    if success:
+                        broll_path = broll_out
+
             job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
             
             safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
@@ -262,8 +299,15 @@ def _run_rerender_job(job_id: str):
             
             if job.get("output_dir"):
                 out_dir = job["output_dir"]
+                safe_title = ""
+                if job.get("title"):
+                    safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
+                    if safe_title:
+                        out_dir = os.path.join(out_dir, safe_title)
                 os.makedirs(out_dir, exist_ok=True)
-                clip_output = os.path.join(out_dir, f"AutoClipper_{job_id}_clip_{i+1}.mp4")
+                
+                filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
+                clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
             
             try:
                 result_path = crop_to_vertical(
@@ -272,6 +316,7 @@ def _run_rerender_job(job_id: str):
                     aspect_ratio=job["aspect_ratio"],
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=lambda: job["cancelled"],
+                    broll_path=broll_path
                 )
 
                 job["clips"].append({
@@ -338,7 +383,9 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
     return new_job_id
 
 def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
+    import time
     job = active_jobs[job_id]
+    job["start_time"] = time.time()
     metadata = dict(old_metadata) # clone
     try:
         if job["cancelled"]: return
@@ -375,11 +422,32 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             
         for i, seg in enumerate(highlights):
             if job["cancelled"]: break
+            
+            broll_path = None
+            if job.get("enable_broll") and job.get("pexels_api_key"):
+                job["progress"] = f"Mengunduh B-Roll untuk klip {i+1}..."
+                from backend.broll import download_pexels_broll
+                query = seg.get("broll_query_en") or seg.get("description_en")
+                if query:
+                    broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
+                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out)
+                    if success:
+                        broll_path = broll_out
+                        
             job["progress"] = f"Memotong klip {i+1} dari {len(highlights)} (AI Koreksi)..."
             try:
                 clip_output = os.path.join(get_temp_dir(), f"{job_id}_clip_{i+1}.mp4")
                 if job.get("output_dir"):
-                    clip_output = os.path.join(job["output_dir"], f"{job_id}_clip_{i+1}.mp4")
+                    out_dir = job["output_dir"]
+                    safe_title = ""
+                    if job.get("title"):
+                        safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
+                        if safe_title:
+                            out_dir = os.path.join(out_dir, safe_title)
+                    os.makedirs(out_dir, exist_ok=True)
+                    
+                    filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
+                    clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
 
                 result_path = crop_to_vertical(
                     source_video, clip_output, seg["start_time"], seg["end_time"],
@@ -387,6 +455,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     aspect_ratio=job["aspect_ratio"],
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=lambda: job["cancelled"],
+                    broll_path=broll_path
                 )
                 
                 job["clips"].append({
@@ -415,11 +484,17 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         _finalize_job(job_id, "ERROR", metadata)
 
 def _finalize_job(job_id: str, status: str, metadata: dict = None):
+    import time
     job = active_jobs[job_id]
     job["status"] = status
 
     if metadata is None:
         metadata = {}
+        
+    if "start_time" in job:
+        metadata["duration_seconds"] = int(time.time() - job["start_time"])
+    metadata["title"] = job.get("title", "")
+    metadata["quality"] = job.get("quality", "best")
     # Use the REAL source path (download or local upload), not a hardcoded name.
     # Keep any source_video already carried over from a re-render/re-run job.
     if not metadata.get("source_video"):

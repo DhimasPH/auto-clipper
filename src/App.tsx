@@ -58,6 +58,9 @@ export default function App() {
   }, [provider]);
 
   const [burnSubtitles, setBurnSubtitles] = useState(true);
+  const [title, setTitle] = useState("");
+  const [enableBroll, setEnableBroll] = useState(false);
+  const pexelsApiKey = apiKeys["pexels"] || "";
 
   const {
     status,
@@ -83,6 +86,9 @@ export default function App() {
     burnSubtitles,
     outputFolder,
     quality,
+    title,
+    enableBroll,
+    pexelsApiKey,
     notify,
     closeHistory: () => {},
   });
@@ -121,6 +127,10 @@ export default function App() {
     setCaptionStyle,
     burnSubtitles,
     setBurnSubtitles,
+    title,
+    setTitle,
+    enableBroll,
+    setEnableBroll,
     errorMsg,
     isRunning,
     status,

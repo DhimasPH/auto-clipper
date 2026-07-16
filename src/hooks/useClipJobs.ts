@@ -17,6 +17,9 @@ export interface ClipJobParams {
   burnSubtitles: boolean;
   outputFolder: string;
   quality: string;
+  title: string;
+  enableBroll: boolean;
+  pexelsApiKey: string;
   notify: (text: string, kind?: ToastKind) => void;
   closeHistory: () => void;
 }
@@ -73,11 +76,11 @@ export function useClipJobs(p: ClipJobParams) {
             setActiveJobId(null);
             setProgress("");
             const doneMsg = failedN > 0
-              ? `🎉 Selesai! ${job.clips.length} klip berhasil, ${failedN} gagal`
-              : `🎉 Selesai! ${job.clips.length} clip berhasil dibuat`;
+              ? t('toast.done_partial', { count: job.clips.length, failed: failedN, defaultValue: `🎉 Selesai! ${job.clips.length} klip berhasil, ${failedN} gagal` })
+              : t('toast.done_all', { count: job.clips.length, defaultValue: `🎉 Selesai! ${job.clips.length} clip berhasil dibuat` });
             notify(doneMsg, "success");
             if (shouldNotifyOS()) {
-              new Notification("Auto Clipper Selesai", { body: failedN > 0 ? `${job.clips.length} berhasil, ${failedN} gagal` : `${job.clips.length} clip berhasil dibuat!` });
+              new Notification(t('toast.os_notify_title', 'Auto Clipper Selesai'), { body: failedN > 0 ? t('toast.done_partial', { count: job.clips.length, failed: failedN, defaultValue: `${job.clips.length} berhasil, ${failedN} gagal` }) : t('toast.done_all', { count: job.clips.length, defaultValue: `${job.clips.length} clip berhasil dibuat!` }) });
             }
           } else if (job.status === "ERROR") {
             setStatus("ERROR");
@@ -87,7 +90,7 @@ export function useClipJobs(p: ClipJobParams) {
             setProgress("");
           } else if (job.status === "CANCELLED") {
             setStatus("IDLE");
-            notify("⛔ Proses dibatalkan.", "error");
+            notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
             setActiveJobId(null);
             setProgress("");
           } else {
@@ -115,15 +118,19 @@ export function useClipJobs(p: ClipJobParams) {
 
   const handleGenerate = async () => {
     if (p.inputType === "url" && !p.url) {
-      notify(t('toast.clip_failed', { num: '', msg: 'URL kosong!' }), "error");
+      notify(t('toast.clip_failed', { num: '', msg: t('toast.url_empty', 'URL kosong!') }), "error");
       return;
     }
     if (p.inputType === "local" && !p.localFile) {
-      notify(t('toast.clip_failed', { num: '', msg: 'Video lokal belum dipilih!' }), "error");
+      notify(t('toast.clip_failed', { num: '', msg: t('toast.local_file_empty', 'Video lokal belum dipilih!') }), "error");
       return;
     }
     if (!p.apiKey) {
-      notify(t('toast.clip_failed', { num: '', msg: 'API Key belum diisi! Silakan isi di Settings.' }), "error");
+      notify(t('toast.clip_failed', { num: '', msg: t('toast.api_key_req', 'API Key belum diisi! Silakan isi di Settings.') }), "error");
+      return;
+    }
+    if (!p.title || !p.title.trim()) {
+      notify(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
       return;
     }
 
@@ -139,7 +146,7 @@ export function useClipJobs(p: ClipJobParams) {
 
       let finalUrl = p.url;
       if (p.inputType === "local" && p.localFile) {
-        notify("🚀 Mengunggah video lokal...");
+        notify(t('toast.uploading', '🚀 Mengunggah video lokal...'));
         const formData = new FormData();
         formData.append("file", p.localFile);
         const uploadRes = await axios.post(`${API_URL}/upload`, formData, {
@@ -149,7 +156,7 @@ export function useClipJobs(p: ClipJobParams) {
         finalUrl = uploadRes.data.url;
       }
 
-      notify("🚀 Memulai proses di latar belakang...");
+      notify(t('toast.starting_bg', '🚀 Memulai proses di latar belakang...'));
 
       const res = await axios.post(`${API_URL}/jobs`, {
         url: finalUrl,
@@ -159,7 +166,10 @@ export function useClipJobs(p: ClipJobParams) {
         caption_style: p.captionStyle,
         burn_subs: p.burnSubtitles,
         output_dir: p.outputFolder,
-        quality: p.quality
+        quality: p.quality,
+        title: p.title,
+        enable_broll: p.enableBroll,
+        pexels_api_key: p.pexelsApiKey
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -189,19 +199,22 @@ export function useClipJobs(p: ClipJobParams) {
         caption_style: customCaptionStyle,
         burn_subs: customBurnSubs,
         output_dir: p.outputFolder,
-        quality: p.quality
+        quality: p.quality,
+        title: "", // re-render keeps the existing title in backend if not overridden
+        enable_broll: p.enableBroll,
+        pexels_api_key: p.pexelsApiKey
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
 
       setActiveJobId(res.data.job_id);
       p.closeHistory();
-      notify("🚀 Memulai re-render dari history...");
+      notify(t('toast.starting_rerender', '🚀 Memulai re-render dari history...'));
     } catch (err: any) {
       console.error(err);
       setStatus("ERROR");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || "Gagal memulai re-render.";
+      const msg = err.response?.data?.message || err.message || t('toast.rerender_fail', 'Gagal memulai re-render.');
       setErrorMsg(msg);
       notify(`⚠️ ${msg}`, "error");
     }
@@ -223,6 +236,9 @@ export function useClipJobs(p: ClipJobParams) {
         burn_subs: p.burnSubtitles,
         output_dir: p.outputFolder,
         quality: p.quality,
+        title: "", // re-run AI keeps the existing title in backend
+        enable_broll: p.enableBroll,
+        pexels_api_key: p.pexelsApiKey,
         extra_prompt: extraPrompt
       });
 
@@ -230,12 +246,12 @@ export function useClipJobs(p: ClipJobParams) {
 
       setActiveJobId(res.data.job_id);
       p.closeHistory();
-      notify("✨ Memulai proses AI Koreksi dari history...");
+      notify(t('toast.starting_ai_correct', '✨ Memulai proses AI Koreksi dari history...'));
     } catch (err: any) {
       console.error(err);
       setStatus("ERROR");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || "Gagal memulai AI Koreksi.";
+      const msg = err.response?.data?.message || err.message || t('toast.ai_correct_fail', 'Gagal memulai AI Koreksi.');
       setErrorMsg(msg);
       notify(`⚠️ ${msg}`, "error");
     }

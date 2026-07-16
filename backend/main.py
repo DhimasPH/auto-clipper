@@ -80,6 +80,9 @@ class CreateJobRequest(BaseModel):
     output_dir: str = ""
     quality: str = "best"
     extra_prompt: str = ""
+    title: str = ""
+    enable_broll: bool = False
+    pexels_api_key: str = ""
 
 class SaveFileRequest(BaseModel):
     src: str
@@ -89,6 +92,30 @@ class SaveFileRequest(BaseModel):
 def api_save_file(req: SaveFileRequest):
     try:
         shutil.copy2(req.src, req.dest)
+        return {"status": "success"}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+class OpenFolderRequest(BaseModel):
+    path: str
+
+@app.post("/open_folder")
+def api_open_folder(req: OpenFolderRequest):
+    try:
+        import subprocess
+        folder_path = req.path
+        if not os.path.exists(folder_path):
+            # Coba cari path direktorinya jika yang dikirim berupa file
+            folder_path = os.path.dirname(req.path)
+            if not os.path.exists(folder_path):
+                return JSONResponse(status_code=404, content={"status": "error", "message": "Folder not found"})
+
+        if sys.platform == 'win32':
+            os.startfile(folder_path)
+        elif sys.platform == 'darwin':
+            subprocess.Popen(['open', folder_path])
+        else:
+            subprocess.Popen(['xdg-open', folder_path])
         return {"status": "success"}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -140,7 +167,8 @@ def api_create_job(req: CreateJobRequest):
 
     job_id = create_job(
         req.url.strip(), req.provider, req.api_key.strip(),
-        req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality
+        req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
+        req.title, req.enable_broll, req.pexels_api_key.strip()
     )
     return {"status": "success", "job_id": job_id}
 

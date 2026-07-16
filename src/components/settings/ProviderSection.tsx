@@ -17,6 +17,7 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
 }) => {
   const { t } = useTranslation();
   const [showKey, setShowKey] = useState(false);
+  const [showPexels, setShowPexels] = useState(false);
   const current = PROVIDERS.find((p) => p.id === provider);
   const keyVal = apiKeys[provider] || '';
 
@@ -55,8 +56,26 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
           </button>
 
           {!keyVal && (
-            <p className="text-caption text-warning mt-1">API key required for AI mode</p>
+            <p className="text-caption text-warning mt-1">{t('settings.api_key_req', 'API key required for AI mode')}</p>
           )}
+        </div>
+        
+        <div className="relative pt-4 border-t border-border">
+          <InputGroup
+            label={t('settings.pexels_api_key', 'Pexels API Key (Optional)')}
+            type={showPexels ? 'text' : 'password'}
+            value={apiKeys["pexels"] || ''}
+            onChange={(e) => setApiKey("pexels", e.target.value)}
+            placeholder="..."
+            icon={Lock}
+            helperText={t('settings.pexels_api_key_note', 'Required for Dynamic B-Roll feature')}
+          />
+          <button
+            className="absolute right-3 top-[67px] text-text-secondary hover:text-text-primary p-1"
+            onClick={() => setShowPexels(!showPexels)}
+          >
+            {showPexels ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
         </div>
       </div>
     </div>
