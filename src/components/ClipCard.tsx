@@ -91,15 +91,32 @@ export default function ClipCard({
             icon={Folder}
             title="Buka Folder"
             onClick={async () => {
+              const lastSlash = clip.path.replace(/\\/g, '/').lastIndexOf('/');
+              const dir = clip.path.substring(0, lastSlash);
+              
               if ('__TAURI_INTERNALS__' in window) {
                 try {
-                  const lastSlash = clip.path.replace(/\\/g, '/').lastIndexOf('/');
-                  const dir = clip.path.substring(0, lastSlash);
-                  await open(dir);
+                  await fetch(`${API_URL}/open_folder`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: dir })
+                  });
                 } catch (err) {
-                  console.error("Open folder failed", err);
-                  await open(clip.path); // fallback to old behavior
+                  console.error("Open folder API failed", err);
+                  // fallback to old tauri open
+                  try {
+                    await open(dir);
+                  } catch (e2) {
+                    await open(clip.path);
+                  }
                 }
+              } else {
+                // Not in Tauri (e.g. dev server), still try backend API
+                await fetch(`${API_URL}/open_folder`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ path: dir })
+                });
               }
             }}
           />

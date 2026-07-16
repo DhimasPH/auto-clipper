@@ -27,6 +27,8 @@ export const WorkspacePage: React.FC = () => {
             captionStyle={ctx.captionStyle} setCaptionStyle={ctx.setCaptionStyle}
             burnSubtitles={ctx.burnSubtitles} setBurnSubtitles={ctx.setBurnSubtitles}
             quality={ctx.quality} setQuality={ctx.setQuality}
+            title={ctx.title} setTitle={ctx.setTitle}
+            enableBroll={ctx.enableBroll} setEnableBroll={ctx.setEnableBroll}
             errorMsg={ctx.errorMsg}
             isRunning={ctx.isRunning}
             handleGenerate={ctx.handleGenerate}

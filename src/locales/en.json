@@ -17,7 +17,17 @@
     "burn_subtitles": "Burn Subtitles",
     "burn_subtitles_desc": "Embed captions directly into the video",
     "subtitle_style_label": "Subtitle Style",
-    "loading_settings": "Loading settings..."
+    "loading_settings": "Loading settings...",
+    "project_title_label": "Project Title",
+    "project_title_placeholder": "e.g. Radit Podcast",
+    "project_title_desc": "Used to name the output folder neatly.",
+    "dynamic_broll": "Dynamic B-Roll",
+    "dynamic_broll_desc": "Automatically add illustration videos (Pexels API)",
+    "video_quality_label": "Video Quality (Download)",
+    "quality_best": "Best (Auto)",
+    "probing": "Checking...",
+    "probe_btn": "Check available qualities",
+    "probe_avail": "Available:"
   },
   "clip": {
     "title_ai": "Clip {{num}}",
@@ -36,7 +46,10 @@
     "provider_label": "AI Provider",
     "api_key_openai": "OpenAI API Key",
     "api_key_gemini": "Gemini API Key",
+    "pexels_api_key": "Pexels API Key (Optional)",
+    "pexels_api_key_note": "Required for Dynamic B-Roll feature",
     "api_key_note": "Encrypted and stored securely on your device",
+    "api_key_req": "API key required for AI mode",
     "close": "Close",
     "save": "Save"
   },
@@ -82,7 +95,31 @@
     "delete": "Delete"
   },
   "toast": {
-    "clip_failed": "⚠️ Clip {{num}} failed: {{msg}}"
+    "clip_failed": "⚠️ Clip {{num}} failed: {{msg}}",
+    "title_required": "Project Title is required!",
+    "api_key_req": "API Key is required! Please configure it in Settings.",
+    "done_partial": "🎉 Done! {{count}} clips successful, {{failed}} failed",
+    "done_all": "🎉 Done! {{count}} clips successfully generated",
+    "os_notify_title": "Auto Clipper Finished",
+    "cancelled": "⛔ Process cancelled.",
+    "url_empty": "URL is empty!",
+    "local_file_empty": "Local video not selected!",
+    "uploading": "🚀 Uploading local video...",
+    "starting_bg": "🚀 Starting background process...",
+    "starting_rerender": "🚀 Starting re-render from history...",
+    "rerender_fail": "Failed to start re-render.",
+    "starting_ai_correct": "✨ Starting AI Correction from history...",
+    "ai_correct_fail": "Failed to start AI Correction."
+  },
+  "busy": {
+    "processing": "Processing...",
+    "preparing": "Preparing process...",
+    "progress": "Progress",
+    "elapsed": "⏳ Elapsed time:",
+    "estimated": "Estimated remaining:",
+    "calculating": "Calculating...",
+    "warning": "Please wait until the process completes. The app is temporarily locked so no other processes run concurrently — do not close the app.",
+    "cancel": "Cancel Process"
   },
   "sidebar": {
     "menu": "Menu",

@@ -90,9 +90,9 @@ export const HistoryPage: React.FC = () => {
                     rel="noreferrer"
                     className="text-body font-medium text-text-primary hover:text-accent truncate block"
                   >
-                    {job.url}
+                    {job.metadata?.title ? `${job.metadata.title} - ${job.url}` : job.url}
                   </a>
-                  <div className="flex items-center gap-3 mt-2 text-caption text-text-secondary">
+                  <div className="flex items-center gap-3 mt-2 text-caption text-text-secondary flex-wrap">
                     <span>{new Date(job.created_at).toLocaleString()}</span>
                     <span>•</span>
                     <Badge
@@ -106,6 +106,18 @@ export const HistoryPage: React.FC = () => {
                     >
                       {job.status}
                     </Badge>
+                    {job.metadata?.duration_seconds != null && (
+                      <>
+                        <span>•</span>
+                        <span>⏱️ {Math.floor(job.metadata.duration_seconds / 60)}m {job.metadata.duration_seconds % 60}s</span>
+                      </>
+                    )}
+                    {job.metadata?.quality && (
+                      <>
+                        <span>•</span>
+                        <span className="uppercase text-xs font-semibold px-2 py-0.5 bg-accent/10 text-accent rounded-full">{job.metadata.quality}</span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <Button

@@ -17,7 +17,17 @@
     "burn_subtitles": "Pasang Subtitle",
     "burn_subtitles_desc": "Masukkan subtitle langsung ke dalam video",
     "subtitle_style_label": "Gaya Subtitle",
-    "loading_settings": "Memuat pengaturan..."
+    "loading_settings": "Memuat pengaturan...",
+    "project_title_label": "Judul Proyek",
+    "project_title_placeholder": "Misal: Podcast Radit",
+    "project_title_desc": "Digunakan untuk nama folder agar rapi di output.",
+    "dynamic_broll": "Dynamic B-Roll",
+    "dynamic_broll_desc": "Otomatis tambahkan video ilustrasi (Pexels API)",
+    "video_quality_label": "Kualitas Video (Download)",
+    "quality_best": "Best (Otomatis)",
+    "probing": "Mengecek...",
+    "probe_btn": "Cek kualitas tersedia",
+    "probe_avail": "Tersedia:"
   },
   "clip": {
     "title_ai": "Klip {{num}}",
@@ -36,7 +46,10 @@
     "provider_label": "AI Provider",
     "api_key_openai": "OpenAI API Key",
     "api_key_gemini": "Gemini API Key",
-    "api_key_note": "Disimpan terenkripsi & aman di perangkatmu",
+    "pexels_api_key": "Pexels API Key (Opsional)",
+    "pexels_api_key_note": "Dibutuhkan untuk fitur Dynamic B-Roll",
+    "api_key_note": "Dienkripsi dan disimpan aman di perangkat Anda",
+    "api_key_req": "API key diperlukan untuk mode AI",
     "close": "Tutup",
     "save": "Simpan"
   },
@@ -82,7 +95,31 @@
     "delete": "Hapus"
   },
   "toast": {
-    "clip_failed": "⚠️ Klip {{num}} gagal: {{msg}}"
+    "clip_failed": "⚠️ Klip {{num}} gagal: {{msg}}",
+    "title_required": "Judul Proyek wajib diisi!",
+    "api_key_req": "API Key belum diisi! Silakan isi di Settings.",
+    "done_partial": "🎉 Selesai! {{count}} klip berhasil, {{failed}} gagal",
+    "done_all": "🎉 Selesai! {{count}} klip berhasil dibuat",
+    "os_notify_title": "Auto Clipper Selesai",
+    "cancelled": "⛔ Proses dibatalkan.",
+    "url_empty": "URL kosong!",
+    "local_file_empty": "Video lokal belum dipilih!",
+    "uploading": "🚀 Mengunggah video lokal...",
+    "starting_bg": "🚀 Memulai proses di latar belakang...",
+    "starting_rerender": "🚀 Memulai re-render dari history...",
+    "rerender_fail": "Gagal memulai re-render.",
+    "starting_ai_correct": "✨ Memulai proses AI Koreksi dari history...",
+    "ai_correct_fail": "Gagal memulai AI Koreksi."
+  },
+  "busy": {
+    "processing": "Sedang memproses…",
+    "preparing": "Menyiapkan proses…",
+    "progress": "Progress",
+    "elapsed": "⏳ Waktu berjalan:",
+    "estimated": "Estimasi sisa:",
+    "calculating": "Menghitung...",
+    "warning": "Mohon tunggu hingga proses selesai. Aplikasi terkunci sementara supaya tidak ada proses lain berjalan bersamaan — jangan tutup aplikasi.",
+    "cancel": "Batalkan Proses"
   },
   "sidebar": {
     "menu": "Menu",

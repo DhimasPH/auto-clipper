@@ -403,7 +403,7 @@ def output_width(aspect_ratio: str, src_w: int, src_h: int) -> int:
 
 def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                      end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16",
-                     register_proc=None, should_cancel=None) -> str:
+                     register_proc=None, should_cancel=None, broll_path: str = None) -> str:
     """Crop to 9:16, trim to [start, end], and optionally burn subtitles.
 
     ``subtitle_path`` should point at a full-video .srt; a per-clip subtitle is
@@ -479,35 +479,95 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             ass_name = os.path.basename(clip_ass_path)
             subtitle_vf = f"{crop_filter},ass={ass_name}"
 
-    def build_cmd(vf):
-        return [
+    def build_cmd():
+        cmd = [
             "ffmpeg", "-y",
             "-ss", f"{start_s:.3f}",
-            "-i", input_path,
-            "-t", f"{duration:.3f}",
-            "-vf", vf,
+            "-i", input_path
+        ]
+        
+        if broll_path and os.path.exists(broll_path):
+            cmd.extend(["-i", broll_path])
+            
+        cmd.extend(["-t", f"{duration:.3f}"])
+        
+        # Build filter_complex
+        src_w, src_h = _video_dims(input_path)
+        out_w = output_width(aspect_ratio, src_w, src_h)
+        out_h = int(src_w * 9 / 16) if aspect_ratio == "16:9" else src_h
+        
+        if out_w == 0 or out_h == 0:
+            out_w, out_h = 1080, 1920 # fallback
+            
+        fc = f"[0:v]{crop_filter}[main];"
+        current_v = "[main]"
+        
+        audio_map = "0:a"
+        if broll_path and os.path.exists(broll_path):
+            # 1. Scale/crop B-Roll to exact output dimensions
+            # 2. Apply a slow zoom-in using zoompan (z='1+0.05*time')
+            fc += f"[1:v]scale={out_w}:{out_h}:force_original_aspect_ratio=increase,crop={out_w}:{out_h},zoompan=z='1+0.05*time':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':fps=30:s={out_w}x{out_h}[broll];"
+            fc += f"{current_v}[broll]overlay=0:0:enable='between(t,0,3)'[v1];"
+            current_v = "[v1]"
+            
+            # Generate synthetic "pop" SFX
+            fc += f"aevalsrc='0.3*sin(1200*2*PI*t)*exp(-t*15)':d=0.15[pop1];"
+            fc += f"aevalsrc='0.3*sin(1000*2*PI*t)*exp(-t*15)':d=0.15[pop2];"
+            fc += f"[pop1]adelay=0|0[sfx1];"
+            fc += f"[pop2]adelay=2800|2800[sfx2];"
+            fc += f"[0:a][sfx1][sfx2]amix=inputs=3:duration=first:dropout_transition=0[aout];"
+            audio_map = "[aout]"
+            
+        if subtitle_vf is not None:
+            ass_name = os.path.basename(subtitle_path.rsplit('.', 1)[0] + ".ass")
+            fc += f"{current_v}ass={ass_name}[vout]"
+        else:
+            fc += f"{current_v}copy[vout]"
+            
+        cmd.extend([
+            "-filter_complex", fc,
+            "-map", "[vout]",
+            "-map", audio_map,
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",
             "-preset", "veryfast",
             "-c:a", "aac",
             "-movflags", "+faststart",
-            output_path,
-        ]
+            output_path
+        ])
+        return cmd
 
     if should_cancel and should_cancel():
         raise RuntimeError("Dibatalkan oleh pengguna.")
 
-    # Try with burned-in subtitles first; if that fails (e.g. ffmpeg built
-    # without libass), fall back to a plain crop so a clip is still produced.
-    if subtitle_vf is not None:
-        ok, _ = _run_ffmpeg(build_cmd(subtitle_vf), cwd=subtitle_cwd, register=register_proc)
-        if ok:
-            return output_path
-        # Don't run the fallback render if the user just cancelled.
-        if should_cancel and should_cancel():
-            raise RuntimeError("Dibatalkan oleh pengguna.")
-
-    ok, err = _run_ffmpeg(build_cmd(crop_filter), register=register_proc)
+    ok, err = _run_ffmpeg(build_cmd(), cwd=subtitle_cwd, register=register_proc)
+    
+    # If the user just cancelled, throw error.
+    if should_cancel and should_cancel():
+        raise RuntimeError("Dibatalkan oleh pengguna.")
+        
     if not ok:
-        raise RuntimeError(f"ffmpeg failed: {err[-800:]}")
+        # Fallback to plain crop if complex filter fails (e.g., subtitle issues)
+        if subtitle_vf is not None:
+            print(f"ffmpeg complex failed, falling back to plain crop. Error: {err[-800:]}")
+            fallback_cmd = [
+                "ffmpeg", "-y",
+                "-ss", f"{start_s:.3f}",
+                "-i", input_path,
+                "-t", f"{duration:.3f}",
+                "-vf", crop_filter,
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                "-preset", "veryfast",
+                "-c:a", "aac",
+                "-movflags", "+faststart",
+                output_path,
+            ]
+            ok2, err2 = _run_ffmpeg(fallback_cmd, register=register_proc)
+            if not ok2:
+                raise RuntimeError(f"ffmpeg fallback failed: {err2[-800:]}")
+            return output_path
+        else:
+            raise RuntimeError(f"ffmpeg failed: {err[-800:]}")
+            
     return output_path

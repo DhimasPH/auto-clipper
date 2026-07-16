@@ -120,7 +120,8 @@ def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", ba
         f"{HIGHLIGHT_GUIDANCE}{additional_instructions}\n\n"
         "Return a JSON object with a 'highlights' key holding an array of "
         "objects with 'start_time', 'end_time' (in HH:MM:SS.mmm format), "
-        "'description_en' (in English), and 'description_id' (in Indonesian).\n\n"
+        "'description_en' (in English), 'description_id' (in Indonesian), "
+        "and 'broll_query_en' (a 1-2 word English search query for B-Roll video matching the topic).\n\n"
         f"Transcript:\n{transcript_srt}"
     )
     response = _with_retry(lambda: client.chat.completions.create(
@@ -252,7 +253,8 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
         "Watch this video and read the following accurate transcript. "
         f"{HIGHLIGHT_GUIDANCE}{additional_instructions}\n\n"
         "Return a JSON object with a 'highlights' key holding an array of "
-        "objects with 'start_time', 'end_time' (HH:MM:SS.mmm), 'description_en' (in English), and 'description_id' (in Indonesian).\n\n"
+        "objects with 'start_time', 'end_time' (HH:MM:SS.mmm), 'description_en' (in English), 'description_id' (in Indonesian), "
+        "and 'broll_query_en' (a 1-2 word English search query for B-Roll video matching the topic).\n\n"
         f"Transcript:\n{transcript_text[:30000]}"
     )
 
