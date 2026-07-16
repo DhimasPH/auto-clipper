@@ -476,8 +476,11 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             with open(clip_ass_path, "w", encoding="utf-8") as f:
                 f.write(ass_text)
             subtitle_cwd = os.path.dirname(clip_ass_path) or None
-            ass_name = os.path.basename(clip_ass_path)
-            subtitle_vf = f"{crop_filter},ass={ass_name}"
+            # Normalize path for FFmpeg, replacing \ with / and escaping it
+            ass_name = os.path.basename(clip_ass_path).replace('\\', '/')
+            # Escape colons, brackets, and quotes in the path
+            escaped_ass_name = ass_name.replace(":", "\\\\:").replace("'", "\\\\'")
+            subtitle_vf = f"{crop_filter},ass='{escaped_ass_name}'"
 
     def build_cmd():
         cmd = [
@@ -519,10 +522,10 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             audio_map = "[aout]"
             
         if subtitle_vf is not None:
-            ass_name = os.path.basename(subtitle_path.rsplit('.', 1)[0] + ".ass")
-            fc += f"{current_v}ass={ass_name}[vout]"
+            # ass_name and escaped_ass_name are already defined in the outer scope
+            fc += f"{current_v}ass='{escaped_ass_name}'[vout]"
         else:
-            fc += f"{current_v}copy[vout]"
+            fc += f"{current_v}null[vout]"
             
         cmd.extend([
             "-filter_complex", fc,
@@ -555,7 +558,7 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                 "-ss", f"{start_s:.3f}",
                 "-i", input_path,
                 "-t", f"{duration:.3f}",
-                "-vf", crop_filter,
+                "-vf", subtitle_vf if subtitle_vf is not None else crop_filter,
                 "-c:v", "libx264",
                 "-pix_fmt", "yuv420p",
                 "-preset", "veryfast",
