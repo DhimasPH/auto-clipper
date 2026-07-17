@@ -58,17 +58,17 @@
   },
   "faq": {
     "title": "How to Use",
-    "desc": "Easily turn long videos into vertical viral clips:",
-    "step1_title": "Enter YouTube URL:",
-    "step1_desc": "Supports standard links, youtu.be, and Shorts.",
-    "step2_title": "Setup Provider:",
-    "step2_desc": "Open Settings (⚙️) and enter your AI API Key.",
-    "step3_title": "Generate:",
-    "step3_desc": "Click generate and let AI find the best highlights automatically!",
-    "step4_title": "Download:",
-    "step4_desc": "Click Download MP4 to save the final video.",
-    "note_title": "Important Note",
-    "note_desc": "Ensure your API key has active quota/credits."
+    "desc": "Turn your long-form videos into dozens of viral, ready-to-post clips in minutes:",
+    "step1_title": "Choose Video Source:",
+    "step1_desc": "Paste a YouTube URL or select a local video file from your computer.",
+    "step2_title": "Connect Your AI:",
+    "step2_desc": "Enter your OpenAI or Gemini API Key in Settings to power the AI analysis.",
+    "step3_title": "Generate Clips:",
+    "step3_desc": "Hit 'Generate Viral Clips'. The AI will find the best hooks, create transcripts, and add subtitles automatically.",
+    "step4_title": "Review & Download:",
+    "step4_desc": "Not quite right? Use AI Correction or Re-render to tweak aspect ratios and subtitle styles before downloading.",
+    "note_title": "Dynamic B-Roll (Optional)",
+    "note_desc": "Add a Pexels API Key in Settings to instantly spice up your clips with relevant b-roll footage."
   },
   "history": {
     "title": "🕒 History",
@@ -139,24 +139,28 @@
     "faq_title": "Frequently Asked Questions (FAQ)",
     "faqs": [
       {
-        "q": "Is this app free?",
-        "a": "Yes, the app itself is free and open-source. However, you will need an API Key from OpenAI or Gemini which may incur usage charges on their respective platforms."
+        "q": "Is Auto Clipper totally free?",
+        "a": "The app is 100% free and runs locally on your machine. You only need to provide your own API Key (OpenAI/Gemini), which typically costs pennies per usage."
       },
       {
-        "q": "What types of videos are supported?",
-        "a": "Currently, we support any public YouTube videos of any duration, including YouTube Shorts."
+        "q": "What video sources can I use?",
+        "a": "You can paste any public YouTube link (including Shorts) or upload local video files directly from your computer."
       },
       {
-        "q": "Why does downloading a YouTube video fail?",
-        "a": "Some YouTube videos are DRM-protected, copyrighted, or require a login. Please ensure the video is public."
+        "q": "The AI picked the wrong highlights. How can I fix this?",
+        "a": "Use the 'AI Correction' feature in the History tab. You can give the AI specific instructions like 'Focus only on the SEO tips' and it will regenerate the clip selection."
       },
       {
-        "q": "Can I change the subtitle font?",
-        "a": "Currently, font options are limited, but you can change the subtitle style (Standard / Karaoke) during the re-render process."
+        "q": "How does Dynamic B-Roll work?",
+        "a": "Once you add a free Pexels API Key in settings, the AI automatically finds and inserts relevant stock footage (B-Roll) based on what's being said, making your clips much more engaging."
       },
       {
-        "q": "How long does clipping take?",
-        "a": "It heavily depends on the original video's length and your PC's performance, as the actual video rendering (ffmpeg) runs locally on your machine."
+        "q": "Can I resize clips for TikTok, Instagram Reels, or YouTube Shorts?",
+        "a": "Absolutely. Go to History and click Re-render on any clip. You can switch aspect ratios (9:16, 4:5, 1:1, 16:9) and change subtitle styles without starting from scratch."
+      },
+      {
+        "q": "Why does the video rendering take a while?",
+        "a": "For maximum privacy, Auto Clipper processes all video rendering (ffmpeg) locally on your computer. The speed depends entirely on your hardware specs."
       }
     ]
   },

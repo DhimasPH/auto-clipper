@@ -58,17 +58,17 @@
   },
   "faq": {
     "title": "Panduan Penggunaan",
-    "desc": "Cara mudah mengubah video panjang menjadi klip viral vertikal:",
-    "step1_title": "Masukkan URL YouTube:",
-    "step1_desc": "Mendukung URL standar, youtu.be, dan Shorts.",
-    "step2_title": "Atur Provider:",
-    "step2_desc": "Buka Settings (⚙️) dan masukkan API Key AI.",
-    "step3_title": "Generate:",
-    "step3_desc": "Klik tombol generate, dan AI akan otomatis mencari momen paling menarik!",
-    "step4_title": "Download:",
-    "step4_desc": "Klik Download MP4 untuk menyimpan hasil akhir.",
-    "note_title": "Catatan Penting",
-    "note_desc": "Pastikan API Key memiliki kuota/saldo yang aktif."
+    "desc": "Ubah video panjang jadi puluhan klip viral siap upload dalam hitungan menit:",
+    "step1_title": "Pilih Sumber Video:",
+    "step1_desc": "Masukkan link YouTube atau pilih file video langsung dari komputer Anda.",
+    "step2_title": "Pilih AI Provider:",
+    "step2_desc": "Masukkan API Key OpenAI atau Gemini di menu Settings agar AI bisa menganalisis videonya.",
+    "step3_title": "Mulai Generate:",
+    "step3_desc": "Klik 'Generate Viral Clips'. AI akan memilah momen paling menarik, menyusun transkrip, dan memasang subtitle otomatis.",
+    "step4_title": "Review & Download:",
+    "step4_desc": "Gunakan fitur AI Koreksi atau Re-render untuk mengubah rasio dan gaya subtitle. Klik Download jika sudah puas.",
+    "note_title": "B-Roll Otomatis (Opsional)",
+    "note_desc": "Masukkan Pexels API Key di Settings untuk menambahkan video ilustrasi dinamis pada klip Anda."
   },
   "history": {
     "title": "🕒 Riwayat",
@@ -139,24 +139,28 @@
     "faq_title": "Pertanyaan Umum (FAQ)",
     "faqs": [
       {
-        "q": "Apakah aplikasi ini gratis?",
-        "a": "Ya, aplikasi ini gratis dan open source, tetapi Anda memerlukan API Key dari OpenAI atau Gemini yang mungkin membebankan biaya sesuai penggunaan Anda pada layanan mereka."
+        "q": "Apakah Auto Clipper benar-benar gratis?",
+        "a": "Aplikasinya 100% gratis dan berjalan di komputer Anda. Anda hanya perlu menyediakan API Key (OpenAI/Gemini) Anda sendiri yang biayanya sangat terjangkau per penggunaannya."
       },
       {
-        "q": "Video apa saja yang didukung?",
-        "a": "Saat ini mendukung video YouTube publik (durasi berapapun) termasuk YouTube Shorts."
+        "q": "Sumber video apa saja yang bisa digunakan?",
+        "a": "Anda bisa menggunakan link video YouTube publik (termasuk Shorts) atau file video lokal langsung dari komputer Anda."
       },
       {
-        "q": "Kenapa gagal download video YouTube?",
-        "a": "Beberapa video YouTube dilindungi (DRM/Copyright) atau butuh login untuk diakses. Pastikan video bersifat publik."
+        "q": "Klip yang dihasilkan AI kurang pas. Apa yang harus dilakukan?",
+        "a": "Gunakan fitur 'AI Koreksi' di menu Riwayat (History). Anda bisa memberi instruksi spesifik, misalnya 'Fokus pada topik SEO saja', lalu AI akan membuatkan klip yang lebih relevan."
       },
       {
-        "q": "Apakah bisa merubah font subtitle?",
-        "a": "Untuk saat ini font yang didukung masih terbatas, namun Anda bisa mengubah gaya subtitle (Standard / Karaoke) saat re-render."
+        "q": "Bagaimana cara kerja fitur Dynamic B-Roll?",
+        "a": "Jika Anda memasukkan Pexels API Key di pengaturan, AI akan otomatis mencari dan menyisipkan video ilustrasi (B-Roll) yang relevan, membuat klip Anda jauh lebih menarik."
       },
       {
-        "q": "Berapa lama proses pembuatan klip?",
-        "a": "Sangat tergantung pada durasi video asli dan performa PC Anda, karena proses rendering (ffmpeg) dilakukan sepenuhnya di komputer Anda (lokal)."
+        "q": "Apakah saya bisa mengubah format video untuk Instagram atau TikTok?",
+        "a": "Tentu. Melalui menu Riwayat (History), Anda bisa melakukan Re-render untuk mengubah rasio video menjadi 9:16 (TikTok/Reels), 4:5 (IG), 1:1, atau 16:9, lengkap dengan opsi gaya subtitle."
+      },
+      {
+        "q": "Kenapa proses pembuatan klip terasa lambat?",
+        "a": "Karena Auto Clipper memproses rendering video (ffmpeg) secara offline di komputer Anda demi privasi. Kecepatannya sangat bergantung pada spesifikasi PC/Laptop yang Anda gunakan."
       }
     ]
   },
