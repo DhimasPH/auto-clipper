@@ -70,6 +70,7 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
         'noprogress': True,
         'updatetime': False,
         'logger': _SilentLogger(),
+        'extractor_args': {'youtube': {'player_client': ['web']}},
     }
     
     if is_cancelled:
@@ -83,10 +84,23 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
     # logger. On a broken Windows child-process stream that flush raises
     # OSError [Errno 22], so we redirect both streams to an in-memory sink for
     # the whole call.
-    sink = io.StringIO()
-    with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+    import time
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            sink = io.StringIO()
+            with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+            break
+        except yt_dlp.utils.DownloadError as e:
+            if attempt == max_retries - 1:
+                raise
+            # If we were cancelled during download, don't retry
+            if is_cancelled and is_cancelled():
+                raise DownloadCancelledError("Download cancelled by user")
+            # Wait a bit before retrying, especially useful for 403 blocks
+            time.sleep(2 ** attempt)
 
     return Path(output_path)
 
