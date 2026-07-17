@@ -326,3 +326,40 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
 def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "") -> dict:
     """Back-compat wrapper -> process_with_openai_compatible(..., "deepseek")."""
     return process_with_openai_compatible(file_path, api_key, "deepseek", karaoke=karaoke, extra_prompt=extra_prompt)
+
+def ping_provider(provider: str, api_key: str) -> None:
+    """Pre-flight check to fail-fast on invalid keys or exhausted quotas."""
+    if not api_key:
+        raise Exception(f"API Key for {provider} is missing.")
+        
+    try:
+        if provider.startswith("gemini"):
+            client = genai.Client(api_key=api_key)
+            # We use genai's built-in timeout via http_options if available, or rely on normal timeout
+            client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents="ping",
+                config=types.GenerateContentConfig(max_output_tokens=1)
+            )
+        else:
+            cfg = OPENAI_COMPAT_PROVIDERS.get(provider)
+            if cfg:
+                client = OpenAI(api_key=api_key, base_url=cfg["base_url"], timeout=10.0)
+                model = cfg["model"]
+            else:
+                client = OpenAI(api_key=api_key, timeout=10.0)
+                model = "gpt-4o-mini"
+            
+            client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1
+            )
+    except Exception as e:
+        if _is_transient(e):
+            # Transient error (server overloaded, etc.) - let it pass.
+            # The actual job uses retry logic, so it might succeed later.
+            return
+            
+        msg = getattr(e, "message", None) or str(e)
+        raise Exception(f"AI Provider Error: {msg}")

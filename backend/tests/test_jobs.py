@@ -66,6 +66,8 @@ def test_run_job_tracks_success_and_failed(tmp_path, monkeypatch):
     try:
         jobs._run_job(job_id)
         job = jobs.active_jobs[job_id]
+        if job["status"] != "DONE":
+            print(f"FAILED WITH ERROR: {job['error']}")
         assert job["status"] == "DONE"
         assert len(job["clips"]) == 2
         assert job["failed"] == 1

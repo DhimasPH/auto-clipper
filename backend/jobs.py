@@ -1,7 +1,7 @@
 import threading
+import re
 import uuid
 import traceback
-import re
 import os
 from backend.video_utils import download_youtube_video
 from backend.ai_utils import process_with_openai, process_with_gemini, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
@@ -148,7 +148,6 @@ def _run_job(job_id: str):
         if job["provider"].startswith("gemini"):
             model_name = job["provider"] if job["provider"] != "gemini" else "gemini-3.5-flash"
             # Auto-correct formats like "gemini-3-flash" to "gemini-3.0-flash"
-            import re
             model_name = re.sub(r'^(gemini-\d+)(-(?:flash|pro).*)$', r'\g<1>.0\g<2>', model_name)
             ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name)
         elif job["provider"] in OPENAI_COMPAT_PROVIDERS:

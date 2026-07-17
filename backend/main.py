@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from backend.db import init_db, get_all_history, delete_history
 from backend.jobs import create_job, get_job, cancel_job
+from backend.ai_utils import ping_provider
 from backend.video_utils import probe_formats
 import os
 import sys
@@ -132,6 +133,7 @@ def api_rerender_job(job_id: str, req: CreateJobRequest):
 @app.post("/jobs/{job_id}/rerun_ai")
 def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
     try:
+        ping_provider(req.provider, req.api_key.strip())
         from backend.jobs import create_rerun_ai_job
         new_job_id = create_rerun_ai_job(
             job_id, req.provider, req.api_key.strip(),
@@ -164,6 +166,11 @@ def api_create_job(req: CreateJobRequest):
 
     if not is_valid_source_url(req.url):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid. Didukung: YouTube, TikTok, Instagram, X/Twitter, atau upload file lokal."})
+
+    try:
+        ping_provider(req.provider, req.api_key.strip())
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
     job_id = create_job(
         req.url.strip(), req.provider, req.api_key.strip(),

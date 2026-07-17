@@ -176,7 +176,7 @@ export function useClipJobs(p: ClipJobParams) {
       setActiveJobId(res.data.job_id);
     } catch (err: any) {
       console.error(err);
-      setStatus("ERROR");
+      setStatus("IDLE");
       setProgress("");
       const msg = err.response?.data?.message || err.message || "An unknown error occurred.";
       setErrorMsg(msg);
@@ -249,7 +249,7 @@ export function useClipJobs(p: ClipJobParams) {
       notify(t('toast.starting_ai_correct', '✨ Memulai proses AI Koreksi dari history...'));
     } catch (err: any) {
       console.error(err);
-      setStatus("ERROR");
+      setStatus("IDLE");
       setProgress("");
       const msg = err.response?.data?.message || err.message || t('toast.ai_correct_fail', 'Gagal memulai AI Koreksi.');
       setErrorMsg(msg);

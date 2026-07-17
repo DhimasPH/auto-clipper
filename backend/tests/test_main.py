@@ -35,6 +35,7 @@ def test_create_job_rejects_invalid_url():
 def test_create_job_accepts_valid_url(monkeypatch):
     # Avoid spawning a real download/render thread.
     monkeypatch.setattr("backend.main.create_job", lambda *a, **k: "fake-id")
+    monkeypatch.setattr("backend.main.ping_provider", lambda *a, **k: None)
     r = client.post("/jobs", json={"url": "https://youtube.com/watch?v=abc"})
     assert r.status_code == 200
     assert r.json()["job_id"] == "fake-id"
