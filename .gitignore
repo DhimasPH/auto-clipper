@@ -26,3 +26,7 @@ ac_vault*
 
 # Docs
 docs/
+
+# Worktrees
+.worktrees/
+worktrees/
