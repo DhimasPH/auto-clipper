@@ -164,9 +164,9 @@ def _run_job(job_id: str):
         is_karaoke = (job["caption_style"] == "karaoke")
 
         if job["provider"].startswith("gemini"):
-            model_name = job["provider"] if job["provider"] != "gemini" else "gemini-3.5-flash"
-            # Auto-correct formats like "gemini-3-flash" to "gemini-3.0-flash"
-            model_name = re.sub(r'^(gemini-\d+)(-(?:flash|pro).*)$', r'\g<1>.0\g<2>', model_name)
+            model_name = job["provider"] if job["provider"] != "gemini" else "gemini-1.5-flash"
+            # Auto-correct invalid versions to 1.5
+            model_name = re.sub(r'^gemini-[234](\.[0-9]+)?', 'gemini-1.5', model_name)
             ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name, limit=limit)
         elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
             ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit)
@@ -429,7 +429,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         
         from backend.ai_utils import process_with_gemini, process_with_openai, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
         if job["provider"].startswith("gemini"):
-            model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.5-flash"
+            model_name = job["provider"] if job["provider"] != "gemini" else "gemini-1.5-flash"
+            model_name = re.sub(r'^gemini-[234](\.[0-9]+)?', 'gemini-1.5', model_name)
             ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=model_name, limit=limit)
         elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
             ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit)

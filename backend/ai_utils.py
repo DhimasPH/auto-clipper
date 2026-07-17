@@ -214,7 +214,7 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False):
         return "\n\n".join(srt_lines) + "\n"
 
 
-def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-3.5-flash", limit: int = 3) -> dict:
+def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-1.5-flash", limit: int = 3) -> dict:
     import json
     import os
     import time

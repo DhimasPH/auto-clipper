@@ -70,7 +70,7 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
         'noprogress': True,
         'updatetime': False,
         'logger': _SilentLogger(),
-        'extractor_args': {'youtube': {'player_client': ['web']}},
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
     }
     
     if is_cancelled:
