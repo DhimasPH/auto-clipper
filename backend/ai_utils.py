@@ -224,7 +224,7 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
         return "\n\n".join(srt_lines) + "\n"
 
 
-def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-1.5-flash", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
+def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-2.0-flash", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
     import json
     import os
     import time
@@ -353,12 +353,24 @@ def ping_provider(provider: str, api_key: str) -> None:
     try:
         if provider.startswith("gemini"):
             client = genai.Client(api_key=api_key)
+            model_name = provider if provider != "gemini" else "gemini-2.0-flash"
             # We use genai's built-in timeout via http_options if available, or rely on normal timeout
-            client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents="ping",
-                config=types.GenerateContentConfig(max_output_tokens=1)
-            )
+            try:
+                client.models.generate_content(
+                    model=model_name,
+                    contents="ping",
+                    config=types.GenerateContentConfig(max_output_tokens=1)
+                )
+            except Exception as e:
+                # Fallback if the default 2.0 is not available in their region
+                if model_name == "gemini-2.0-flash":
+                    client.models.generate_content(
+                        model="gemini-1.5-flash",
+                        contents="ping",
+                        config=types.GenerateContentConfig(max_output_tokens=1)
+                    )
+                else:
+                    raise e
         else:
             cfg = OPENAI_COMPAT_PROVIDERS.get(provider)
             if cfg:
