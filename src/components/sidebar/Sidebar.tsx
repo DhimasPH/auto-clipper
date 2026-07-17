@@ -3,11 +3,13 @@ import { Scissors, Clock, Settings, HelpCircle } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useBackendHealth } from '../../hooks/useBackendHealth';
 import { useTranslation } from 'react-i18next';
+import { open } from '@tauri-apps/plugin-shell';
 
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation();
   const backendStatus = useBackendHealth();
   const isConnected = backendStatus === 'Connected';
+  const currentYear = new Date().getFullYear();
 
   return (
     <aside className="w-60 h-screen bg-bg-secondary border-r border-border flex flex-col transition-all duration-200 shrink-0">
@@ -90,6 +92,16 @@ export const Sidebar: React.FC = () => {
           </div>
           <span className="text-caption text-text-secondary">
             {backendStatus}
+          </span>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-border/30 flex flex-col items-center gap-1 text-caption text-text-tertiary">
+          <span>&copy; {currentYear} Auto Clipper</span>
+          <span 
+            className="hover:text-text-primary transition-colors cursor-pointer"
+            onClick={() => open('https://auto-clipper.dhims.web.id')}
+          >
+            Official Website
           </span>
         </div>
       </div>
