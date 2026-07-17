@@ -257,6 +257,16 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
+  const resetJobState = () => {
+    setStatus("IDLE");
+    setClips([]);
+    setErrorMsg("");
+    setProgress("");
+    setActiveJobId(null);
+    setFailedCount(0);
+    setTotalClips(0);
+  };
+
   const isRunning = !!activeJobId || status === "GENERATING";
   const progressPct =
     status === "DOWNLOADING"
@@ -274,6 +284,6 @@ export function useClipJobs(p: ClipJobParams) {
   return {
     status, progress, errorMsg, clips, failedCount,
     isRunning, progressPct, historyVersion,
-    handleGenerate, handleRerender, handleRerunAI, cancelJob,
+    handleGenerate, handleRerender, handleRerunAI, cancelJob, resetJobState,
   };
 }

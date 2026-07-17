@@ -1,5 +1,10 @@
 import ClipCard, { Clip } from "./ClipCard";
 import { Badge } from "./ui/Badge";
+import { Button } from "./ui/Button";
+import { Plus } from "lucide-react";
+import { useContext } from "react";
+import { AppContext } from "../App";
+import { useTranslation } from "react-i18next";
 
 interface ClipsResultProps {
   clips: Clip[];
@@ -9,6 +14,9 @@ interface ClipsResultProps {
 }
 
 export default function ClipsResult({ clips, status, failedCount, videoSrc }: ClipsResultProps) {
+  const { t } = useTranslation();
+  const ctx = useContext(AppContext);
+
   if (clips.length === 0) return null;
   
   return (
@@ -26,6 +34,13 @@ export default function ClipsResult({ clips, status, failedCount, videoSrc }: Cl
           <Badge variant="error">
             {failedCount} failed
           </Badge>
+        )}
+        {(status === "DONE" || status === "ERROR") && (
+          <div className="ml-auto">
+            <Button variant="outline" icon={Plus} onClick={ctx.handleResetWorkspace}>
+              {t("main.btn_new_clip", "Buat Klip Baru")}
+            </Button>
+          </div>
         )}
       </div>
       

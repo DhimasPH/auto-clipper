@@ -75,6 +75,7 @@ export default function App() {
     handleRerender,
     handleRerunAI,
     cancelJob,
+    resetJobState,
   } = useClipJobs({
     inputType,
     url,
@@ -95,6 +96,13 @@ export default function App() {
 
   const videoSrc = (p: string, v = 0) =>
     `${API_URL}/video?path=${encodeURIComponent(p)}&v=${v}`;
+
+  const handleResetWorkspace = () => {
+    setUrl("");
+    setTitle("");
+    setLocalFile(null);
+    resetJobState();
+  };
 
   if (!splashComplete) {
     return (
@@ -144,6 +152,7 @@ export default function App() {
     historyVersion,
     handleRerender,
     handleRerunAI,
+    handleResetWorkspace,
   };
 
   return (

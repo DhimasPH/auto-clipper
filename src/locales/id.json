@@ -6,6 +6,7 @@
     "lang_toggle": "EN"
   },
   "main": {
+    "btn_new_clip": "Buat Klip Baru",
     "ai_mode": "✨ AI Auto Clip",
     "url_label": "URL Video YouTube",
     "url_placeholder": "https://www.youtube.com/watch?v=...",

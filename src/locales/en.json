@@ -6,6 +6,7 @@
     "lang_toggle": "ID"
   },
   "main": {
+    "btn_new_clip": "Create New Clip",
     "ai_mode": "✨ AI Auto Clip",
     "url_label": "YouTube Video URL",
     "url_placeholder": "https://www.youtube.com/watch?v=...",
