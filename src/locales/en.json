@@ -159,5 +159,19 @@
         "a": "It heavily depends on the original video's length and your PC's performance, as the actual video rendering (ffmpeg) runs locally on your machine."
       }
     ]
+  },
+  "updater": {
+    "title": "Application Update",
+    "description": "Check if there is a newer version of Auto Clipper available.",
+    "check_button": "Check for Updates",
+    "checking": "Checking...",
+    "up_to_date": "You are on the latest version.",
+    "check_failed": "Failed to check for updates: ",
+    "available_title": "Update Available",
+    "available_message": "Version {{version}} is available. Do you want to download and install it now?",
+    "install_now": "Install Now",
+    "downloading": "Downloading...",
+    "install_success": "Update installed successfully. Restarting...",
+    "install_failed": "Failed to install update: "
   }
 }

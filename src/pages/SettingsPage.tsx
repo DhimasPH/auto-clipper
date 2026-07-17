@@ -4,6 +4,7 @@ import { AppContext } from '../App';
 import { AppearanceSection } from '../components/settings/AppearanceSection';
 import { ProviderSection } from '../components/settings/ProviderSection';
 import { OutputSection } from '../components/settings/OutputSection';
+import { UpdaterSection } from '../components/settings/UpdaterSection';
 
 export const SettingsPage: React.FC = () => {
   const ctx = useContext(AppContext);
@@ -31,6 +32,7 @@ export const SettingsPage: React.FC = () => {
           quality={ctx.quality}
           setQuality={ctx.setQuality}
         />
+        <UpdaterSection />
       </div>
     </div>
   );

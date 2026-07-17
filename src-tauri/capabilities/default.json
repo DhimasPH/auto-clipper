@@ -11,6 +11,8 @@
     "shell:allow-open",
     "dialog:default",
     "stronghold:default",
+    "updater:default",
+    "process:allow-restart",
     {
       "identifier": "shell:allow-execute",
       "allow": [

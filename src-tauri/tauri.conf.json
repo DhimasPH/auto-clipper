@@ -45,5 +45,13 @@
     "macOS": {
       "minimumSystemVersion": "10.13"
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "__REPLACE_WITH_YOUR_PUBLIC_KEY__",
+      "endpoints": [
+        "https://github.com/DhimasPH/auto-clipper/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

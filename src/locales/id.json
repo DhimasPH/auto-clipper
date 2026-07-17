@@ -159,5 +159,19 @@
         "a": "Sangat tergantung pada durasi video asli dan performa PC Anda, karena proses rendering (ffmpeg) dilakukan sepenuhnya di komputer Anda (lokal)."
       }
     ]
+  },
+  "updater": {
+    "title": "Pembaruan Aplikasi",
+    "description": "Periksa apakah ada versi terbaru Auto Clipper.",
+    "check_button": "Periksa Pembaruan",
+    "checking": "Memeriksa...",
+    "up_to_date": "Anda menggunakan versi terbaru.",
+    "check_failed": "Gagal memeriksa pembaruan: ",
+    "available_title": "Pembaruan Tersedia",
+    "available_message": "Versi {{version}} tersedia. Apakah Anda ingin mengunduh dan memasangnya sekarang?",
+    "install_now": "Pasang Sekarang",
+    "downloading": "Mengunduh...",
+    "install_success": "Pembaruan berhasil dipasang. Memulai ulang...",
+    "install_failed": "Gagal memasang pembaruan: "
   }
 }
