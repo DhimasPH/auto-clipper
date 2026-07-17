@@ -45,6 +45,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "url": url,
         "provider": provider,
         "api_key": api_key,
+        "mode": "ai",
         "aspect_ratio": aspect_ratio,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
