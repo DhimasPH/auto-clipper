@@ -26,6 +26,8 @@
     "dynamic_broll_desc": "Automatically add illustration videos (Pexels API)",
     "video_quality_label": "Video Quality (Download)",
     "quality_best": "Best (Auto)",
+    "max_clips_label": "Max Clips",
+    "max_clips_auto": "Auto (Based on duration)",
     "probing": "Checking...",
     "probe_btn": "Check available qualities",
     "probe_avail": "Available:"

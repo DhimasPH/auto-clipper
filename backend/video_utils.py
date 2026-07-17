@@ -124,3 +124,17 @@ def extract_audio(video_path: str, audio_path: str) -> str:
     ]
     subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return audio_path
+
+def get_video_duration(video_path: str) -> float:
+    """Get video duration in seconds using ffmpeg (bundled), parsing stderr."""
+    import re
+    cmd = ["ffmpeg", "-i", video_path]
+    try:
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
+        match = re.search(r"Duration:\s*(\d{2}):(\d{2}):(\d{2}\.\d+)", res.stderr)
+        if match:
+            h, m, s = match.groups()
+            return int(h) * 3600 + int(m) * 60 + float(s)
+    except Exception:
+        pass
+    return 0.0

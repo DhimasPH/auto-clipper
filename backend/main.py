@@ -84,6 +84,7 @@ class CreateJobRequest(BaseModel):
     title: str = ""
     enable_broll: bool = False
     pexels_api_key: str = ""
+    max_clips: int = 0
 
 class SaveFileRequest(BaseModel):
     src: str
@@ -125,7 +126,7 @@ def api_open_folder(req: OpenFolderRequest):
 def api_rerender_job(job_id: str, req: CreateJobRequest):
     try:
         from backend.jobs import create_rerender_job
-        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir)
+        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips)
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -137,7 +138,7 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
         from backend.jobs import create_rerun_ai_job
         new_job_id = create_rerun_ai_job(
             job_id, req.provider, req.api_key.strip(),
-            req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt
+            req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
@@ -175,7 +176,7 @@ def api_create_job(req: CreateJobRequest):
     job_id = create_job(
         req.url.strip(), req.provider, req.api_key.strip(),
         req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
-        req.title, req.enable_broll, req.pexels_api_key.strip()
+        req.title, req.enable_broll, req.pexels_api_key.strip(), req.max_clips
     )
     return {"status": "success", "job_id": job_id}
 

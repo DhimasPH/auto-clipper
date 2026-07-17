@@ -105,7 +105,7 @@ def _parse_highlights(content: str) -> list:
     return []
 
 
-def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", base_url: str = None, model: str = "gpt-4o-mini") -> list:
+def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", base_url: str = None, model: str = "gpt-4o-mini", limit: int = 3) -> list:
     """Ask the LLM to pick the most engaging short-form highlights.
 
     ``base_url``/``model`` let OpenAI-compatible providers (e.g. DeepSeek)
@@ -114,6 +114,7 @@ def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", ba
     client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
     
     additional_instructions = f"\n\nUSER'S EXTRA INSTRUCTIONS:\n{extra_prompt}" if extra_prompt else ""
+    additional_instructions += f"\nFind up to {limit} of the best highlights."
     
     prompt = (
         "Analyze the following video transcript (SRT format). "
@@ -135,7 +136,7 @@ def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", ba
     return _parse_highlights(response.choices[0].message.content)
 
 
-def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "") -> dict:
+def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3) -> dict:
     """Full OpenAI pipeline: extract audio -> transcribe -> find highlights."""
     base, _ = os.path.splitext(file_path)
     audio_path = base + "_audio.mp3"
@@ -155,7 +156,7 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, ext
             f.write(str(transcript))
         transcript_text = str(transcript)
 
-    highlights = get_highlights(transcript_text, api_key, extra_prompt)
+    highlights = get_highlights(transcript_text, api_key, extra_prompt, limit=limit)
 
     return {
         "transcript": transcript_text,
@@ -213,7 +214,7 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False):
         return "\n\n".join(srt_lines) + "\n"
 
 
-def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-3.5-flash") -> dict:
+def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-3.5-flash", limit: int = 3) -> dict:
     import json
     import os
     import time
@@ -248,6 +249,7 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
         raise Exception("Gemini failed to process the video.")
 
     additional_instructions = f"\n\nUSER'S EXTRA INSTRUCTIONS:\n{extra_prompt}" if extra_prompt else ""
+    additional_instructions += f"\nFind up to {limit} of the best highlights."
 
     prompt = (
         "Watch this video and read the following accurate transcript. "
@@ -288,7 +290,7 @@ OPENAI_COMPAT_PROVIDERS = {
 
 
 def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
-                                   karaoke: bool = False, extra_prompt: str = "") -> dict:
+                                   karaoke: bool = False, extra_prompt: str = "", limit: int = 3) -> dict:
     """Local faster-whisper transcript -> an OpenAI-compatible LLM picks highlights."""
     cfg = OPENAI_COMPAT_PROVIDERS.get(provider)
     if not cfg:
@@ -313,7 +315,7 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
 
     highlights = get_highlights(
         transcript_text, api_key, extra_prompt,
-        base_url=cfg["base_url"], model=cfg["model"],
+        base_url=cfg["base_url"], model=cfg["model"], limit=limit
     )
 
     return {
@@ -323,9 +325,9 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
     }
 
 
-def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "") -> dict:
+def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3) -> dict:
     """Back-compat wrapper -> process_with_openai_compatible(..., "deepseek")."""
-    return process_with_openai_compatible(file_path, api_key, "deepseek", karaoke=karaoke, extra_prompt=extra_prompt)
+    return process_with_openai_compatible(file_path, api_key, "deepseek", karaoke=karaoke, extra_prompt=extra_prompt, limit=limit)
 
 def ping_provider(provider: str, api_key: str) -> None:
     """Pre-flight check to fail-fast on invalid keys or exhausted quotas."""

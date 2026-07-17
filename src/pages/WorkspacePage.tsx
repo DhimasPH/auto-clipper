@@ -29,6 +29,7 @@ export const WorkspacePage: React.FC = () => {
             quality={ctx.quality} setQuality={ctx.setQuality}
             title={ctx.title} setTitle={ctx.setTitle}
             enableBroll={ctx.enableBroll} setEnableBroll={ctx.setEnableBroll}
+            maxClips={ctx.maxClips} setMaxClips={ctx.setMaxClips}
             errorMsg={ctx.errorMsg}
             isRunning={ctx.isRunning}
             handleGenerate={ctx.handleGenerate}

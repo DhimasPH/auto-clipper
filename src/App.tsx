@@ -60,6 +60,7 @@ export default function App() {
   const [burnSubtitles, setBurnSubtitles] = useState(true);
   const [title, setTitle] = useState("");
   const [enableBroll, setEnableBroll] = useState(false);
+  const [maxClips, setMaxClips] = useState(0);
   const pexelsApiKey = apiKeys["pexels"] || "";
 
   const {
@@ -92,6 +93,7 @@ export default function App() {
     pexelsApiKey,
     notify,
     closeHistory: () => {},
+    maxClips,
   });
 
   const videoSrc = (p: string, v = 0) =>
@@ -139,6 +141,8 @@ export default function App() {
     setTitle,
     enableBroll,
     setEnableBroll,
+    maxClips,
+    setMaxClips,
     errorMsg,
     isRunning,
     status,

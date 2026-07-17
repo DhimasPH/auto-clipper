@@ -28,6 +28,8 @@ interface GenerateFormProps {
   setTitle: Dispatch<SetStateAction<string>>;
   enableBroll: boolean;
   setEnableBroll: Dispatch<SetStateAction<boolean>>;
+  maxClips: number;
+  setMaxClips: Dispatch<SetStateAction<number>>;
   errorMsg: string;
   isRunning: boolean;
   handleGenerate: () => void;
@@ -51,6 +53,8 @@ export default function GenerateForm({
   setTitle,
   enableBroll,
   setEnableBroll,
+  maxClips,
+  setMaxClips,
   errorMsg,
   isRunning,
   handleGenerate,
@@ -306,6 +310,20 @@ export default function GenerateForm({
             ]}
           />
         )}
+        
+        <Select
+          label={t("main.max_clips_label", "Max Clips (Batas Klip)")}
+          value={maxClips.toString()}
+          onChange={(e) => setMaxClips(Number(e.target.value))}
+          options={[
+            { label: t("main.max_clips_auto", "Auto (Sesuai Durasi)"), value: "0" },
+            { label: "3", value: "3" },
+            { label: "5", value: "5" },
+            { label: "10", value: "10" },
+            { label: "15", value: "15" },
+            { label: "20", value: "20" },
+          ]}
+        />
       </div>
 
       {errorMsg && (

@@ -22,6 +22,7 @@ export interface ClipJobParams {
   pexelsApiKey: string;
   notify: (text: string, kind?: ToastKind) => void;
   closeHistory: () => void;
+  maxClips: number;
 }
 
 /**
@@ -169,7 +170,8 @@ export function useClipJobs(p: ClipJobParams) {
         quality: p.quality,
         title: p.title,
         enable_broll: p.enableBroll,
-        pexels_api_key: p.pexelsApiKey
+        pexels_api_key: p.pexelsApiKey,
+        max_clips: p.maxClips
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -202,7 +204,8 @@ export function useClipJobs(p: ClipJobParams) {
         quality: p.quality,
         title: "", // re-render keeps the existing title in backend if not overridden
         enable_broll: p.enableBroll,
-        pexels_api_key: p.pexelsApiKey
+        pexels_api_key: p.pexelsApiKey,
+        max_clips: p.maxClips
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -239,7 +242,8 @@ export function useClipJobs(p: ClipJobParams) {
         title: "", // re-run AI keeps the existing title in backend
         enable_broll: p.enableBroll,
         pexels_api_key: p.pexelsApiKey,
-        extra_prompt: extraPrompt
+        extra_prompt: extraPrompt,
+        max_clips: p.maxClips
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);

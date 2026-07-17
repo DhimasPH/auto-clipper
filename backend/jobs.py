@@ -9,7 +9,19 @@ from backend.crop_utils import crop_to_vertical
 from backend.db import save_history, get_app_data_dir
 
 active_jobs = {}
-MAX_CLIPS = 3
+def _get_clip_limit(max_clips: int, duration_seconds: float) -> int:
+    if max_clips > 0:
+        return max_clips
+    minutes = duration_seconds / 60.0
+    if minutes < 5:
+        return 3
+    elif minutes < 15:
+        return 5
+    elif minutes < 30:
+        return 10
+    else:
+        return 15
+
 
 def get_temp_dir():
     return os.path.join(get_app_data_dir(), "temp_downloads")
@@ -26,7 +38,7 @@ def log_error(context: str) -> None:
     except Exception:
         pass
 
-def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "") -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0) -> str:
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -41,6 +53,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "title": title,
         "enable_broll": enable_broll,
         "pexels_api_key": pexels_api_key,
+        "max_clips": max_clips,
         "status": "PENDING",
         "progress": "",
         "cancelled": False,
@@ -51,7 +64,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
     threading.Thread(target=_run_job, args=(job_id,), daemon=True).start()
     return job_id
 
-def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str) -> str:
+def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0) -> str:
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
@@ -65,6 +78,7 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "aspect_ratio": aspect_ratio,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
+        "max_clips": max_clips,
         "status": "PENDING",
         "progress": "",
         "cancelled": False,
@@ -139,6 +153,10 @@ def _run_job(job_id: str):
             _finalize_job(job_id, "CANCELLED")
             return
             
+        from backend.video_utils import get_video_duration
+        dur_secs = get_video_duration(output_path)
+        limit = _get_clip_limit(job.get("max_clips", 0), dur_secs)
+            
         # 2. AI PROCESSING
         job["status"] = "TRANSCRIBING"
         job["progress"] = f"Menganalisis video dengan {job['provider']}..."
@@ -149,11 +167,11 @@ def _run_job(job_id: str):
             model_name = job["provider"] if job["provider"] != "gemini" else "gemini-3.5-flash"
             # Auto-correct formats like "gemini-3-flash" to "gemini-3.0-flash"
             model_name = re.sub(r'^(gemini-\d+)(-(?:flash|pro).*)$', r'\g<1>.0\g<2>', model_name)
-            ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name)
+            ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name, limit=limit)
         elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
-            ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke)
+            ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit)
         else:
-            ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke)
+            ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke, limit=limit)
 
         highlights = ai_result.get("highlights", [])
         subtitle_path = ai_result.get("subtitle_path")
@@ -176,7 +194,7 @@ def _run_job(job_id: str):
         except Exception:
             pass
             
-        segments = highlights[:MAX_CLIPS]
+        segments = highlights[:limit]
         metadata["highlights"] = segments
         
         for i, seg in enumerate(segments):
@@ -276,7 +294,11 @@ def _run_rerender_job(job_id: str):
         except Exception:
             pass
             
-        segments = highlights[:MAX_CLIPS]
+        from backend.video_utils import get_video_duration
+        dur_secs = get_video_duration(output_path)
+        limit = _get_clip_limit(job.get("max_clips", 0), dur_secs)
+            
+        segments = highlights[:limit]
         
         for i, seg in enumerate(segments):
             if job["cancelled"]:
@@ -348,7 +370,7 @@ def _run_rerender_job(job_id: str):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str):
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0):
     from backend.db import get_history
     job_record = get_history(history_job_id)
     if not job_record:
@@ -371,6 +393,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "burn_subs": burn_subs,
         "output_dir": output_dir,
         "quality": "best",
+        "max_clips": max_clips,
         "status": "QUEUED",
         "progress": "Menyiapkan AI Koreksi...",
         "clips": [],
@@ -400,17 +423,18 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         is_karaoke = (job["caption_style"] == "karaoke")
         extra_prompt = job.get("extra_prompt", "")
         
+        from backend.video_utils import get_video_duration
+        dur_secs = get_video_duration(source_video)
+        limit = _get_clip_limit(job.get("max_clips", 0), dur_secs)
+        
         from backend.ai_utils import process_with_gemini, process_with_openai, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
         if job["provider"].startswith("gemini"):
-            model_name = job["provider"] if job["provider"] != "gemini" else "gemini-3.5-flash"
-            # Auto-correct formats like "gemini-3-flash" to "gemini-3.0-flash"
-            import re
-            model_name = re.sub(r'^(gemini-\d+)(-(?:flash|pro).*)$', r'\g<1>.0\g<2>', model_name)
-            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=model_name)
+            model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.5-flash"
+            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=model_name, limit=limit)
         elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
-            ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt)
+            ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit)
         else:
-            ai_result = process_with_openai(source_video, job["api_key"], karaoke=is_karaoke, extra_prompt=extra_prompt)
+            ai_result = process_with_openai(source_video, job["api_key"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit)
             
         highlights = ai_result.get("highlights", [])
         subtitle_path = ai_result.get("subtitle_path")
@@ -427,7 +451,9 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         except Exception:
             pass
             
-        for i, seg in enumerate(highlights):
+        segments = highlights[:limit]
+            
+        for i, seg in enumerate(segments):
             if job["cancelled"]: break
             
             broll_path = None
@@ -441,7 +467,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     if success:
                         broll_path = broll_out
                         
-            job["progress"] = f"Memotong klip {i+1} dari {len(highlights)} (AI Koreksi)..."
+            job["progress"] = f"Memotong klip {i+1} dari {len(segments)} (AI Koreksi)..."
             try:
                 clip_output = os.path.join(get_temp_dir(), f"{job_id}_clip_{i+1}.mp4")
                 if job.get("output_dir"):
