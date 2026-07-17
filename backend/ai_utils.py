@@ -136,12 +136,13 @@ def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", ba
     return _parse_highlights(response.choices[0].message.content)
 
 
-def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3) -> dict:
+def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
     """Full OpenAI pipeline: extract audio -> transcribe -> find highlights."""
     base, _ = os.path.splitext(file_path)
     audio_path = base + "_audio.mp3"
 
-    extract_audio(file_path, audio_path)
+    extract_audio(file_path, audio_path, register_proc=register_proc)
+    if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
     transcript = transcribe_audio(audio_path, api_key, karaoke=karaoke)
 
     if karaoke:
@@ -156,6 +157,7 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, ext
             f.write(str(transcript))
         transcript_text = str(transcript)
 
+    if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
     highlights = get_highlights(transcript_text, api_key, extra_prompt, limit=limit)
 
     return {
@@ -165,7 +167,7 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, ext
     }
 
 
-def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False):
+def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_cancelled: callable = None):
     import os
     
     # Suppress Windows DLL missing error popups (so it falls back to CPU gracefully)
@@ -188,13 +190,21 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False):
         from faster_whisper import WhisperModel
         model = WhisperModel("small", device="auto", compute_type="default")
         segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke)
-        segments = list(segments_gen)  # Force execution to catch lazy CUDA errors
+        segments = []
+        for segment in segments_gen:
+            if is_cancelled and is_cancelled():
+                raise Exception("Transcription cancelled by user")
+            segments.append(segment)
     except Exception as e:
         print(f"Warning: GPU Transcription failed ({e}). Falling back to CPU.")
         from faster_whisper import WhisperModel
         model = WhisperModel("small", device="cpu", compute_type="default")
         segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke)
-        segments = list(segments_gen)
+        segments = []
+        for segment in segments_gen:
+            if is_cancelled and is_cancelled():
+                raise Exception("Transcription cancelled by user")
+            segments.append(segment)
     
     if karaoke:
         words_data = []
@@ -214,7 +224,7 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False):
         return "\n\n".join(srt_lines) + "\n"
 
 
-def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-1.5-flash", limit: int = 3) -> dict:
+def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-1.5-flash", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
     import json
     import os
     import time
@@ -224,9 +234,10 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
 
     base, _ = os.path.splitext(file_path)
     audio_path = base + "_audio.mp3"
-    extract_audio(file_path, audio_path)
+    extract_audio(file_path, audio_path, register_proc=register_proc)
     
-    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke)
+    if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
+    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke, is_cancelled=is_cancelled)
     
     if karaoke:
         subtitle_path = base + ".words.json"
@@ -239,9 +250,11 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
         with open(subtitle_path, "w", encoding="utf-8") as f:
             f.write(transcript_text)
 
+    if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
     video_file = client.files.upload(file=file_path)
 
     while video_file.state.name == "PROCESSING":
+        if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
         time.sleep(2)
         video_file = client.files.get(name=video_file.name)
 
@@ -260,6 +273,7 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
         f"Transcript:\n{transcript_text[:30000]}"
     )
 
+    if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
     response = _with_retry(lambda: client.models.generate_content(
         model=model_name,
         contents=[video_file, prompt],
@@ -290,7 +304,7 @@ OPENAI_COMPAT_PROVIDERS = {
 
 
 def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
-                                   karaoke: bool = False, extra_prompt: str = "", limit: int = 3) -> dict:
+                                   karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
     """Local faster-whisper transcript -> an OpenAI-compatible LLM picks highlights."""
     cfg = OPENAI_COMPAT_PROVIDERS.get(provider)
     if not cfg:
@@ -298,9 +312,10 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
 
     base, _ = os.path.splitext(file_path)
     audio_path = base + "_audio.mp3"
-    extract_audio(file_path, audio_path)
+    extract_audio(file_path, audio_path, register_proc=register_proc)
 
-    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke)
+    if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
+    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke, is_cancelled=is_cancelled)
 
     if karaoke:
         subtitle_path = base + ".words.json"
@@ -313,6 +328,7 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
         with open(subtitle_path, "w", encoding="utf-8") as f:
             f.write(transcript_text)
 
+    if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
     highlights = get_highlights(
         transcript_text, api_key, extra_prompt,
         base_url=cfg["base_url"], model=cfg["model"], limit=limit
@@ -325,9 +341,9 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
     }
 
 
-def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3) -> dict:
+def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
     """Back-compat wrapper -> process_with_openai_compatible(..., "deepseek")."""
-    return process_with_openai_compatible(file_path, api_key, "deepseek", karaoke=karaoke, extra_prompt=extra_prompt, limit=limit)
+    return process_with_openai_compatible(file_path, api_key, "deepseek", karaoke=karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=register_proc)
 
 def ping_provider(provider: str, api_key: str) -> None:
     """Pre-flight check to fail-fast on invalid keys or exhausted quotas."""

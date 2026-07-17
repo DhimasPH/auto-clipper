@@ -125,6 +125,9 @@ def _run_job(job_id: str):
         # 1. DOWNLOAD OR LOCAL FILE
         job["status"] = "DOWNLOADING"
         
+        def is_cancelled():
+            return job.get("cancelled", False)
+            
         if job["url"].startswith("local:"):
             job["progress"] = "Mempersiapkan video lokal..."
             # output_path is exactly the local file we saved in /upload
@@ -134,8 +137,6 @@ def _run_job(job_id: str):
             output_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
-            def is_cancelled():
-                return job.get("cancelled", False)
                 
             try:
                 download_youtube_video(job["url"], output_path, job.get("quality", "best"), is_cancelled=is_cancelled)
@@ -167,11 +168,11 @@ def _run_job(job_id: str):
             model_name = job["provider"] if job["provider"] != "gemini" else "gemini-1.5-flash"
             # Auto-correct invalid versions to 1.5
             model_name = re.sub(r'^gemini-[234](\.[0-9]+)?', 'gemini-1.5', model_name)
-            ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name, limit=limit)
+            ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
         elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
-            ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit)
+            ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
         else:
-            ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke, limit=limit)
+            ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
 
         highlights = ai_result.get("highlights", [])
         subtitle_path = ai_result.get("subtitle_path")
@@ -209,7 +210,7 @@ def _run_job(job_id: str):
                 query = seg.get("broll_query_en") or seg.get("description_en")
                 if query:
                     broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
-                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out)
+                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out, is_cancelled=is_cancelled)
                     if success:
                         broll_path = broll_out
 
@@ -312,7 +313,7 @@ def _run_rerender_job(job_id: str):
                 query = seg.get("broll_query_en") or seg.get("description_en")
                 if query:
                     broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
-                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out)
+                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out, is_cancelled=lambda: job.get("cancelled", False))
                     if success:
                         broll_path = broll_out
 
@@ -427,15 +428,18 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         dur_secs = get_video_duration(source_video)
         limit = _get_clip_limit(job.get("max_clips", 0), dur_secs)
         
+        def is_cancelled():
+            return job.get("cancelled", False)
+
         from backend.ai_utils import process_with_gemini, process_with_openai, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
         if job["provider"].startswith("gemini"):
             model_name = job["provider"] if job["provider"] != "gemini" else "gemini-1.5-flash"
             model_name = re.sub(r'^gemini-[234](\.[0-9]+)?', 'gemini-1.5', model_name)
-            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=model_name, limit=limit)
+            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
         elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
-            ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit)
+            ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
         else:
-            ai_result = process_with_openai(source_video, job["api_key"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit)
+            ai_result = process_with_openai(source_video, job["api_key"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
             
         highlights = ai_result.get("highlights", [])
         subtitle_path = ai_result.get("subtitle_path")
@@ -464,7 +468,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                 query = seg.get("broll_query_en") or seg.get("description_en")
                 if query:
                     broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
-                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out)
+                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out, is_cancelled=is_cancelled)
                     if success:
                         broll_path = broll_out
                         

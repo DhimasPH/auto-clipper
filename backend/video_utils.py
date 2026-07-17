@@ -106,7 +106,7 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
 
 
 
-def extract_audio(video_path: str, audio_path: str) -> str:
+def extract_audio(video_path: str, audio_path: str, register_proc: callable = None) -> str:
     """Extract a compact mono 16kHz audio track for speech-to-text.
 
     Whisper only accepts audio and caps uploads at 25MB, so sending the raw
@@ -122,7 +122,12 @@ def extract_audio(video_path: str, audio_path: str) -> str:
         "-b:a", "64k",
         audio_path,
     ]
-    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if register_proc:
+        register_proc(proc)
+    stdout, stderr = proc.communicate()
+    if proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, cmd, stdout, stderr)
     return audio_path
 
 def get_video_duration(video_path: str) -> float:

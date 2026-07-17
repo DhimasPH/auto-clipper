@@ -2,7 +2,7 @@ import os
 import requests
 from backend.db import get_app_data_dir
 
-def download_pexels_broll(query: str, api_key: str, output_path: str) -> bool:
+def download_pexels_broll(query: str, api_key: str, output_path: str, is_cancelled: callable = None) -> bool:
     """Download a portrait video from Pexels based on the query."""
     if not query or not api_key:
         return False
@@ -50,6 +50,8 @@ def download_pexels_broll(query: str, api_key: str, output_path: str) -> bool:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, 'wb') as f:
             for chunk in video_res.iter_content(chunk_size=8192):
+                if is_cancelled and is_cancelled():
+                    raise Exception("B-Roll download cancelled by user")
                 if chunk:
                     f.write(chunk)
                     
