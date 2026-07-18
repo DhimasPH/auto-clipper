@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "1.2.1"
+version = "1.2.2"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -29,3 +29,6 @@ tauri-plugin-stronghold = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 sha2 = "0.10"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
