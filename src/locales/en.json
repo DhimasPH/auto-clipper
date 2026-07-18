@@ -219,6 +219,7 @@
     "submitted": "🚀 Processing manual clips...",
     "done": "🎉 Manual clips done!",
     "laneAudio": "Audio",
-    "laneVideo": "Video"
+    "laneVideo": "Video",
+    "changeVideo" : "Change Video"
   }
 }

@@ -32,12 +32,16 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [objectUrl, setObjectUrl] = useState<string>('');
-  const [localUrl, setLocalUrl] = useState<string | null>(null);
-  const [meta, setMeta] = useState<Meta>({ status: 'PENDING', duration: null, silence: null, peaks: null });
+  // Persisted across route changes via AppContext (see SmartEditorPage).
+  const localUrl: string | null = ctx.manualLocalUrl;
+  const setLocalUrl = ctx.setManualLocalUrl as (v: string | null) => void;
+  const meta: Meta = ctx.manualMeta ?? { status: 'PENDING', duration: null, silence: null, peaks: null };
+  const setMeta = ctx.setManualMeta as (v: Meta | ((m: Meta) => Meta)) => void;
+  const clips: Clip[] = ctx.manualClips ?? [];
+  const setClips = ctx.setManualClips as (v: Clip[] | ((c: Clip[]) => Clip[])) => void;
   const [mode, setMode] = useState<EditorMode>('precision');
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showSilence, setShowSilence] = useState(true);
-  const [clips, setClips] = useState<Clip[]>([]);
   const [currentTime, setCurrentTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
   const [trim, setTrim] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
@@ -53,9 +57,13 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
   }, [file]);
 
   // Upload the source, then kick off async metadata extraction + poll.
+  // Skips entirely if we already have a session for this file (persisted in
+  // context), so returning to the page doesn't re-upload or re-analyse.
   useEffect(() => {
+    if (localUrl) return;
     let cancelled = false;
     let interval: any;
+    const fail = () => setMeta({ status: 'ERROR', duration: null, silence: null, peaks: null });
     (async () => {
       try {
         const fd = new FormData();
@@ -77,16 +85,16 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
               if (!cancelled) setMeta({ status: 'DONE', duration: d.duration, silence: d.silence, peaks: d.peaks, errors: d.errors });
             } else if (d.status === 'ERROR') {
               clearInterval(interval);
-              if (!cancelled) setMeta((m) => ({ ...m, status: 'ERROR' }));
+              if (!cancelled) fail();
             }
           } catch { /* keep polling */ }
         }, 1500);
       } catch (e) {
-        if (!cancelled) setMeta((m) => ({ ...m, status: 'ERROR' }));
+        if (!cancelled) fail();
       }
     })();
     return () => { cancelled = true; if (interval) clearInterval(interval); };
-  }, [file]);
+  }, [file, localUrl]);
 
   const silenceFailed = meta.status === 'DONE' && (!!meta.errors?.silence || meta.silence == null);
   const peaksFailed = meta.status === 'DONE' && (!!meta.errors?.peaks || meta.peaks == null);
@@ -178,8 +186,6 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
             fetchThumbnails={fetchThumbnails}
             loading={meta.status !== 'DONE'}
             loadingLabel={t('smartEditor.analyzing', 'Menganalisis video…')}
-            audioLabel={t('smartEditor.laneAudio', 'Audio')}
-            videoLabel={t('smartEditor.laneVideo', 'Video')}
           />
 
           <Button variant="outline" icon={Plus} onClick={addPrecisionClip} disabled={duration <= 0}>
