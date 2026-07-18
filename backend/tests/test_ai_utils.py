@@ -92,3 +92,55 @@ def test_process_with_openai_compatible_routes_provider(mock_extract, mock_tx, m
     _, kwargs = mock_hl.call_args
     assert kwargs.get("base_url") == OPENAI_COMPAT_PROVIDERS["groq"]["base_url"]
     assert kwargs.get("model") == OPENAI_COMPAT_PROVIDERS["groq"]["model"]
+
+
+@patch('backend.ai_utils.get_highlights')
+@patch('backend.ai_utils.transcribe_with_faster_whisper')
+@patch('backend.ai_utils.extract_audio')
+def test_process_with_custom_provider_uses_custom_base_url_and_model(mock_extract, mock_tx, mock_hl, tmp_path):
+    from backend.ai_utils import process_with_openai_compatible
+    mock_tx.return_value = "1\n00:00:01,000 --> 00:00:03,000\nhi\n"
+    mock_hl.return_value = [{"start_time": "00:00:01.000", "end_time": "00:00:03.000",
+                             "description_en": "a", "description_id": "b"}]
+    f = tmp_path / "v.mp4"
+    f.write_bytes(b"x")
+    # api_key empty (local server) -> falls back to dummy "-"
+    res = process_with_openai_compatible(
+        str(f), "", "custom",
+        custom_base_url="http://localhost:11434/v1", custom_model_name="llama3",
+    )
+    assert res["highlights"] == mock_hl.return_value
+    args, kwargs = mock_hl.call_args
+    assert kwargs.get("base_url") == "http://localhost:11434/v1"
+    assert kwargs.get("model") == "llama3"
+    # positional: transcript, effective_key, extra_prompt
+    assert args[1] == "-"
+
+
+def test_process_with_custom_provider_requires_base_url_and_model(tmp_path):
+    from backend.ai_utils import process_with_openai_compatible
+    import pytest
+    f = tmp_path / "v.mp4"
+    f.write_bytes(b"x")
+    with pytest.raises(ValueError):
+        process_with_openai_compatible(str(f), "key", "custom",
+                                       custom_base_url="", custom_model_name="")
+
+
+@patch('backend.ai_utils.OpenAI')
+def test_ping_custom_provider_uses_custom_endpoint(mock_openai):
+    from backend.ai_utils import ping_provider
+    client = MagicMock()
+    mock_openai.return_value = client
+    # No api key -> dummy "-"; should not raise.
+    ping_provider("custom", "", custom_base_url="http://localhost:11434/v1", custom_model_name="llama3")
+    mock_openai.assert_called_with(api_key="-", base_url="http://localhost:11434/v1", timeout=10.0)
+    _, kwargs = client.chat.completions.create.call_args
+    assert kwargs["model"] == "llama3"
+
+
+def test_ping_custom_provider_requires_base_url_and_model():
+    from backend.ai_utils import ping_provider
+    import pytest
+    with pytest.raises(Exception):
+        ping_provider("custom", "key", custom_base_url="", custom_model_name="")

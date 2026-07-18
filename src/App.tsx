@@ -43,6 +43,8 @@ export default function App() {
   });
 
   const apiKey = apiKeys[provider] || "";
+  const customBaseUrl = apiKeys["custom_base_url"] || "";
+  const customModelName = apiKeys["custom_model_name"] || "";
 
   const [inputType, setInputType] = useState<"url" | "local">("url");
   const [localFile, setLocalFile] = useState<File | null>(null);
@@ -83,6 +85,8 @@ export default function App() {
     localFile,
     provider,
     apiKey,
+    customBaseUrl,
+    customModelName,
     aspectRatio,
     captionStyle,
     burnSubtitles,

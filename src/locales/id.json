@@ -54,7 +54,14 @@
     "api_key_note": "Dienkripsi dan disimpan aman di perangkat Anda",
     "api_key_req": "API key diperlukan untuk mode AI",
     "close": "Tutup",
-    "save": "Simpan"
+    "save": "Simpan",
+    "custom_config_btn": "⚙️ Atur Konfigurasi Custom",
+    "custom_config_req": "Base URL dan Model Name wajib diisi untuk provider custom",
+    "custom_modal_title": "Konfigurasi Custom Provider",
+    "custom_base_url": "Base URL",
+    "custom_model_name": "Model Name",
+    "custom_api_key": "API Key",
+    "custom_api_key_ph": "Kosongkan jika menggunakan Ollama/Lokal"
   },
   "faq": {
     "title": "Panduan Penggunaan",
@@ -112,7 +119,8 @@
     "starting_rerender": "🚀 Memulai re-render dari history...",
     "rerender_fail": "Gagal memulai re-render.",
     "starting_ai_correct": "✨ Memulai proses AI Koreksi dari history...",
-    "ai_correct_fail": "Gagal memulai AI Koreksi."
+    "ai_correct_fail": "Gagal memulai AI Koreksi.",
+    "custom_config_req": "Base URL dan Model Name custom belum diisi! Silakan atur di Settings."
   },
   "busy": {
     "processing": "Sedang memproses…",
@@ -177,5 +185,9 @@
     "downloading": "Mengunduh...",
     "install_success": "Pembaruan berhasil dipasang. Memulai ulang...",
     "install_failed": "Gagal memasang pembaruan: "
+  },
+  "common": {
+    "cancel": "Batal",
+    "save": "Simpan"
   }
 }

@@ -11,7 +11,8 @@ export type ProviderId =
   | "groq"
   | "openrouter"
   | "xai"
-  | "mistral";
+  | "mistral"
+  | "custom";
 
 export interface ProviderInfo {
   id: ProviderId;
@@ -29,6 +30,7 @@ export const PROVIDERS: ProviderInfo[] = [
   { id: "openrouter", label: "OpenRouter" },
   { id: "xai", label: "xAI Grok" },
   { id: "mistral", label: "Mistral" },
+  { id: "custom", label: "Custom (OpenAI Compatible)" },
 ];
 
 export const DEFAULT_PROVIDER: ProviderId = "openai";

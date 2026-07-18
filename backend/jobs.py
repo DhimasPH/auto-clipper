@@ -38,13 +38,15 @@ def log_error(context: str) -> None:
     except Exception:
         pass
 
-def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0) -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "") -> str:
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
         "url": url,
         "provider": provider,
         "api_key": api_key,
+        "custom_base_url": custom_base_url,
+        "custom_model_name": custom_model_name,
         "mode": "ai",
         "aspect_ratio": aspect_ratio,
         "caption_style": caption_style,
@@ -168,8 +170,8 @@ def _run_job(job_id: str):
         if job["provider"].startswith("gemini"):
             model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.0-flash"
             ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
-        elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
-            ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
+        elif job["provider"] == "custom" or job["provider"] in OPENAI_COMPAT_PROVIDERS:
+            ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"))
         else:
             ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
 
@@ -370,7 +372,7 @@ def _run_rerender_job(job_id: str):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0):
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = ""):
     from backend.db import get_history
     job_record = get_history(history_job_id)
     if not job_record:
@@ -387,6 +389,8 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "url": job_record.get("url", "local:"),
         "provider": provider,
         "api_key": api_key,
+        "custom_base_url": custom_base_url,
+        "custom_model_name": custom_model_name,
         "mode": "ai",
         "aspect_ratio": aspect_ratio,
         "caption_style": job_record.get("caption_style", "standard"),
@@ -434,8 +438,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         if job["provider"].startswith("gemini"):
             model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.0-flash"
             ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
-        elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
-            ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
+        elif job["provider"] == "custom" or job["provider"] in OPENAI_COMPAT_PROVIDERS:
+            ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"))
         else:
             ai_result = process_with_openai(source_video, job["api_key"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
             

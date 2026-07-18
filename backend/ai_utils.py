@@ -304,11 +304,23 @@ OPENAI_COMPAT_PROVIDERS = {
 
 
 def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
-                                   karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
-    """Local faster-whisper transcript -> an OpenAI-compatible LLM picks highlights."""
-    cfg = OPENAI_COMPAT_PROVIDERS.get(provider)
-    if not cfg:
-        raise ValueError(f"Unknown OpenAI-compatible provider: {provider}")
+                                   karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None,
+                                   custom_base_url: str = None, custom_model_name: str = None) -> dict:
+    """Local faster-whisper transcript -> an OpenAI-compatible LLM picks highlights.
+
+    For ``provider == "custom"`` the caller supplies ``custom_base_url`` and
+    ``custom_model_name`` (e.g. a local Ollama/LMStudio/vLLM server). Otherwise
+    the built-in ``OPENAI_COMPAT_PROVIDERS`` registry is used.
+    """
+    if provider == "custom":
+        if not custom_base_url or not custom_model_name:
+            raise ValueError("Custom provider requires a Base URL and Model Name.")
+        base_url, model = custom_base_url, custom_model_name
+    else:
+        cfg = OPENAI_COMPAT_PROVIDERS.get(provider)
+        if not cfg:
+            raise ValueError(f"Unknown OpenAI-compatible provider: {provider}")
+        base_url, model = cfg["base_url"], cfg["model"]
 
     base, _ = os.path.splitext(file_path)
     audio_path = base + "_audio.mp3"
@@ -329,9 +341,12 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
             f.write(transcript_text)
 
     if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
+    # Local servers (Ollama/LMStudio) often need no key; the OpenAI client still
+    # wants a non-empty string, so fall back to a dummy for the custom provider.
+    effective_key = api_key or "-" if provider == "custom" else api_key
     highlights = get_highlights(
-        transcript_text, api_key, extra_prompt,
-        base_url=cfg["base_url"], model=cfg["model"], limit=limit
+        transcript_text, effective_key, extra_prompt,
+        base_url=base_url, model=model, limit=limit
     )
 
     return {
@@ -345,11 +360,29 @@ def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, e
     """Back-compat wrapper -> process_with_openai_compatible(..., "deepseek")."""
     return process_with_openai_compatible(file_path, api_key, "deepseek", karaoke=karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=register_proc)
 
-def ping_provider(provider: str, api_key: str) -> None:
-    """Pre-flight check to fail-fast on invalid keys or exhausted quotas."""
+def ping_provider(provider: str, api_key: str, custom_base_url: str = None, custom_model_name: str = None) -> None:
+    """Pre-flight check to fail-fast on invalid keys, bad URLs or exhausted quotas."""
+    if provider == "custom":
+        if not custom_base_url or not custom_model_name:
+            raise Exception("Custom provider requires a Base URL and Model Name.")
+        try:
+            # api_key is optional for local servers; the client needs a non-empty string.
+            client = OpenAI(api_key=api_key or "-", base_url=custom_base_url, timeout=10.0)
+            client.chat.completions.create(
+                model=custom_model_name,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1,
+            )
+        except Exception as e:
+            if _is_transient(e):
+                return
+            msg = getattr(e, "message", None) or str(e)
+            raise Exception(f"AI Provider Error: {msg}")
+        return
+
     if not api_key:
         raise Exception(f"API Key for {provider} is missing.")
-        
+
     try:
         if provider.startswith("gemini"):
             client = genai.Client(api_key=api_key)

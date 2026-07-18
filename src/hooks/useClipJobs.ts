@@ -12,6 +12,8 @@ export interface ClipJobParams {
   localFile: File | null;
   provider: string;
   apiKey: string;
+  customBaseUrl: string;
+  customModelName: string;
   aspectRatio: string;
   captionStyle: string;
   burnSubtitles: boolean;
@@ -126,7 +128,12 @@ export function useClipJobs(p: ClipJobParams) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.local_file_empty', 'Video lokal belum dipilih!') }), "error");
       return;
     }
-    if (!p.apiKey) {
+    if (p.provider === "custom") {
+      if (!p.customBaseUrl || !p.customModelName) {
+        notify(t('toast.clip_failed', { num: '', msg: t('toast.custom_config_req', 'Base URL dan Model Name custom belum diisi! Silakan atur di Settings.') }), "error");
+        return;
+      }
+    } else if (!p.apiKey) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.api_key_req', 'API Key belum diisi! Silakan isi di Settings.') }), "error");
       return;
     }
@@ -171,7 +178,9 @@ export function useClipJobs(p: ClipJobParams) {
         title: p.title,
         enable_broll: p.enableBroll,
         pexels_api_key: p.pexelsApiKey,
-        max_clips: p.maxClips
+        max_clips: p.maxClips,
+        custom_base_url: p.customBaseUrl,
+        custom_model_name: p.customModelName
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -243,7 +252,9 @@ export function useClipJobs(p: ClipJobParams) {
         enable_broll: p.enableBroll,
         pexels_api_key: p.pexelsApiKey,
         extra_prompt: extraPrompt,
-        max_clips: p.maxClips
+        max_clips: p.maxClips,
+        custom_base_url: p.customBaseUrl,
+        custom_model_name: p.customModelName
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);

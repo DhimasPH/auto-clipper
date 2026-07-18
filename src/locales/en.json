@@ -54,7 +54,14 @@
     "api_key_note": "Encrypted and stored securely on your device",
     "api_key_req": "API key required for AI mode",
     "close": "Close",
-    "save": "Save"
+    "save": "Save",
+    "custom_config_btn": "⚙️ Set Custom Configuration",
+    "custom_config_req": "Base URL and Model Name are required for the custom provider",
+    "custom_modal_title": "Custom Provider Configuration",
+    "custom_base_url": "Base URL",
+    "custom_model_name": "Model Name",
+    "custom_api_key": "API Key",
+    "custom_api_key_ph": "Leave empty if using Ollama/local"
   },
   "faq": {
     "title": "How to Use",
@@ -112,7 +119,8 @@
     "starting_rerender": "🚀 Starting re-render from history...",
     "rerender_fail": "Failed to start re-render.",
     "starting_ai_correct": "✨ Starting AI Correction from history...",
-    "ai_correct_fail": "Failed to start AI Correction."
+    "ai_correct_fail": "Failed to start AI Correction.",
+    "custom_config_req": "Custom Base URL and Model Name are not set! Please configure in Settings."
   },
   "busy": {
     "processing": "Processing...",
@@ -177,5 +185,9 @@
     "downloading": "Downloading...",
     "install_success": "Update installed successfully. Restarting...",
     "install_failed": "Failed to install update: "
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save"
   }
 }

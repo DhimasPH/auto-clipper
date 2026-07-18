@@ -85,6 +85,8 @@ class CreateJobRequest(BaseModel):
     enable_broll: bool = False
     pexels_api_key: str = ""
     max_clips: int = 0
+    custom_base_url: str = ""
+    custom_model_name: str = ""
 
 class SaveFileRequest(BaseModel):
     src: str
@@ -134,11 +136,12 @@ def api_rerender_job(job_id: str, req: CreateJobRequest):
 @app.post("/jobs/{job_id}/rerun_ai")
 def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
     try:
-        ping_provider(req.provider, req.api_key.strip())
+        ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip())
         from backend.jobs import create_rerun_ai_job
         new_job_id = create_rerun_ai_job(
             job_id, req.provider, req.api_key.strip(),
-            req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips
+            req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
+            req.custom_base_url.strip(), req.custom_model_name.strip()
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
@@ -169,14 +172,15 @@ def api_create_job(req: CreateJobRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid. Didukung: YouTube, TikTok, Instagram, X/Twitter, atau upload file lokal."})
 
     try:
-        ping_provider(req.provider, req.api_key.strip())
+        ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip())
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
     job_id = create_job(
         req.url.strip(), req.provider, req.api_key.strip(),
         req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
-        req.title, req.enable_broll, req.pexels_api_key.strip(), req.max_clips
+        req.title, req.enable_broll, req.pexels_api_key.strip(), req.max_clips,
+        req.custom_base_url.strip(), req.custom_model_name.strip()
     )
     return {"status": "success", "job_id": job_id}
 
