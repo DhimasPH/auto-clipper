@@ -297,17 +297,26 @@ export default function GenerateForm({
             label={t("main.video_quality_label", "Kualitas Video (Download)")}
             value={quality}
             onChange={(e) => setQuality(e.target.value as any)}
-            options={[
-              {
-                label: t("main.quality_best", "Best (Otomatis)"),
-                value: "best",
-              },
-              { label: "2160p (4K)", value: "2160p" },
-              { label: "1440p (2K)", value: "1440p" },
-              { label: "1080p", value: "1080p" },
-              { label: "720p", value: "720p" },
-              { label: "480p", value: "480p" },
-            ]}
+            options={
+              availHeights.length > 0
+                ? [
+                    { label: t("main.quality_best", "Best (Otomatis)"), value: "best" },
+                    ...availHeights.map((h) => {
+                      let label = `${h}p`;
+                      if (h >= 2160) label = "2160p (4K)";
+                      else if (h >= 1440) label = "1440p (2K)";
+                      return { label, value: `${h}p` };
+                    }),
+                  ]
+                : [
+                    { label: t("main.quality_best", "Best (Otomatis)"), value: "best" },
+                    { label: "2160p (4K)", value: "2160p" },
+                    { label: "1440p (2K)", value: "1440p" },
+                    { label: "1080p", value: "1080p" },
+                    { label: "720p", value: "720p" },
+                    { label: "480p", value: "480p" },
+                  ]
+            }
           />
         )}
         
