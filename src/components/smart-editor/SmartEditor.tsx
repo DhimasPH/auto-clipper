@@ -1,14 +1,11 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Scissors } from 'lucide-react';
 import { API_URL, AppContext } from '../../App';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Button } from '../ui/Button';
-import { AdvancedTimeline, SpriteMeta } from './AdvancedTimeline';
-import { SilenceBlocksOverlay } from './SilenceBlocksOverlay';
-import { MagneticTrimmer } from './MagneticTrimmer';
-import { AudioHeatmap } from './AudioHeatmap';
+import { ZoomableTimeline } from './ZoomableTimeline';
 import { PlayReactButton } from './PlayReactButton';
 import { buildSnapBoundaries } from '../../lib/snap';
 
@@ -18,7 +15,6 @@ interface Meta {
   duration: number | null;
   silence: { start: number; end: number }[] | null;
   peaks: number[] | null;
-  sprite: SpriteMeta | null;
   errors?: Record<string, string>;
 }
 
@@ -35,9 +31,9 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
   const ctx = useContext(AppContext);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const [objectUrl] = useState(() => URL.createObjectURL(file));
+  const [objectUrl, setObjectUrl] = useState<string>('');
   const [localUrl, setLocalUrl] = useState<string | null>(null);
-  const [meta, setMeta] = useState<Meta>({ status: 'PENDING', duration: null, silence: null, peaks: null, sprite: null });
+  const [meta, setMeta] = useState<Meta>({ status: 'PENDING', duration: null, silence: null, peaks: null });
   const [mode, setMode] = useState<EditorMode>('precision');
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showSilence, setShowSilence] = useState(true);
@@ -45,9 +41,16 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
   const [trim, setTrim] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
-  const [submitting, setSubmitting] = useState(false);
 
   const duration = meta.duration || videoDuration || 0;
+
+  // Own the object URL lifecycle separately from the upload/metadata effect so
+  // React StrictMode's double-invoke can't revoke the URL the <video> is using.
+  useEffect(() => {
+    const u = URL.createObjectURL(file);
+    setObjectUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
 
   // Upload the source, then kick off async metadata extraction + poll.
   useEffect(() => {
@@ -63,7 +66,7 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
         const url = up.data.url as string;
         setLocalUrl(url);
 
-        const job = await axios.post(`${API_URL}/api/extract-metadata`, { path: url, type: ['silence', 'peaks', 'thumbnails'] });
+        const job = await axios.post(`${API_URL}/api/extract-metadata`, { path: url, type: ['silence', 'peaks'] });
         const jobId = job.data.job_id;
         interval = setInterval(async () => {
           try {
@@ -71,7 +74,7 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
             const d = r.data;
             if (d.status === 'DONE') {
               clearInterval(interval);
-              if (!cancelled) setMeta({ status: 'DONE', duration: d.duration, silence: d.silence, peaks: d.peaks, sprite: d.sprite, errors: d.errors });
+              if (!cancelled) setMeta({ status: 'DONE', duration: d.duration, silence: d.silence, peaks: d.peaks, errors: d.errors });
             } else if (d.status === 'ERROR') {
               clearInterval(interval);
               if (!cancelled) setMeta((m) => ({ ...m, status: 'ERROR' }));
@@ -82,7 +85,7 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
         if (!cancelled) setMeta((m) => ({ ...m, status: 'ERROR' }));
       }
     })();
-    return () => { cancelled = true; if (interval) clearInterval(interval); URL.revokeObjectURL(objectUrl); };
+    return () => { cancelled = true; if (interval) clearInterval(interval); };
   }, [file]);
 
   const silenceFailed = meta.status === 'DONE' && (!!meta.errors?.silence || meta.silence == null);
@@ -97,6 +100,12 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
     const v = videoRef.current;
     if (v) v.currentTime = s;
   };
+
+  const fetchThumbnails = useCallback(async (start: number, end: number, count: number): Promise<string[]> => {
+    if (!localUrl) return [];
+    const r = await axios.get(`${API_URL}/api/thumbnails`, { params: { path: localUrl, start, end, count } });
+    return r.data?.thumbnails || [];
+  }, [localUrl]);
 
   const addClip = (start: number, end: number) => {
     setClips((c) => [...c, { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, start, end }]);
@@ -113,54 +122,25 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
     if (duration > 0 && trim.end === 0) setTrim({ start: 0, end: Math.min(15, duration) });
   }, [duration]);
 
-  const submit = async () => {
+  // Route through the shared job pipeline so the manual job reuses the same
+  // global progress overlay (BusyOverlay) and Cancel button as auto-generate.
+  const submit = () => {
     if (!localUrl || clips.length === 0) return;
-    setSubmitting(true);
-    try {
-      const res = await axios.post(`${API_URL}/jobs/manual`, {
-        url: localUrl,
-        clips: clips.map((c) => ({ start: c.start, end: c.end })),
-        aspect_ratio: ctx.aspectRatio,
-        caption_style: ctx.captionStyle,
-        burn_subs: ctx.burnSubtitles,
-        output_dir: ctx.outputFolder,
-        quality: ctx.quality,
-        title: ctx.title,
-      });
-      if (res.data.status === 'error') throw new Error(res.data.message);
-      const jobId = res.data.job_id;
-      ctx.notify?.(t('smartEditor.submitted', '🚀 Memproses klip manual...'), 'success');
-
-      const poll = setInterval(async () => {
-        try {
-          const r = await axios.get(`${API_URL}/jobs/${jobId}`);
-          if (r.data.status === 'DONE') {
-            clearInterval(poll);
-            setSubmitting(false);
-            ctx.notify?.(t('smartEditor.done', '🎉 Klip manual selesai!'), 'success');
-          } else if (r.data.status === 'ERROR') {
-            clearInterval(poll);
-            setSubmitting(false);
-            ctx.notify?.(`⚠️ ${r.data.error || 'error'}`, 'error');
-          }
-        } catch { /* keep polling */ }
-      }, 1500);
-    } catch (e: any) {
-      setSubmitting(false);
-      ctx.notify?.(`⚠️ ${e.response?.data?.message || e.message || 'error'}`, 'error');
-    }
+    ctx.handleManualGenerate?.(localUrl, clips.map((c) => ({ start: c.start, end: c.end })));
   };
 
   return (
     <div className="space-y-5">
-      <video
-        ref={videoRef}
-        src={objectUrl}
-        controls
-        onTimeUpdate={(e) => setCurrentTime((e.target as HTMLVideoElement).currentTime)}
-        onLoadedMetadata={(e) => setVideoDuration((e.target as HTMLVideoElement).duration || 0)}
-        className="w-full max-h-[45vh] rounded-card bg-black"
-      />
+      <div className="max-w-2xl mx-auto w-full">
+        <video
+          ref={videoRef}
+          src={objectUrl}
+          controls
+          onTimeUpdate={(e) => setCurrentTime((e.target as HTMLVideoElement).currentTime)}
+          onLoadedMetadata={(e) => setVideoDuration((e.target as HTMLVideoElement).duration || 0)}
+          className="w-full max-h-[45vh] rounded-card bg-black"
+        />
+      </div>
 
       <SegmentedControl
         options={[
@@ -182,28 +162,25 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
               <input type="checkbox" checked={showSilence} disabled={silenceFailed} onChange={(e) => setShowSilence(e.target.checked)} />
               {t('smartEditor.toggleSilence', 'Tampilkan Jeda')}
             </label>
-            <span className="ml-auto">{t('smartEditor.magneticSnap', 'Snap Magnetik')}: {fmt(trim.start)} – {fmt(trim.end)}</span>
           </div>
 
-          {showHeatmap && !peaksFailed && <AudioHeatmap peaks={meta.peaks} />}
-
-          <AdvancedTimeline
-            sprite={meta.sprite}
+          <ZoomableTimeline
             duration={duration}
             currentTime={currentTime}
             onSeek={seek}
+            peaks={meta.peaks}
+            silence={meta.silence}
+            showSilence={showSilence && !silenceFailed}
+            showWaveform={showHeatmap && !peaksFailed}
+            trim={trim}
+            onTrimChange={(s, e) => setTrim({ start: s, end: e })}
+            boundaries={boundaries}
+            fetchThumbnails={fetchThumbnails}
             loading={meta.status !== 'DONE'}
             loadingLabel={t('smartEditor.analyzing', 'Menganalisis video…')}
-          >
-            {showSilence && !silenceFailed && <SilenceBlocksOverlay silence={meta.silence} duration={duration} />}
-            <MagneticTrimmer
-              start={trim.start}
-              end={trim.end}
-              duration={duration}
-              boundaries={boundaries}
-              onChange={(s, e) => setTrim({ start: s, end: e })}
-            />
-          </AdvancedTimeline>
+            audioLabel={t('smartEditor.laneAudio', 'Audio')}
+            videoLabel={t('smartEditor.laneVideo', 'Video')}
+          />
 
           <Button variant="outline" icon={Plus} onClick={addPrecisionClip} disabled={duration <= 0}>
             {t('smartEditor.addClip', 'Tambah Klip')}
@@ -228,8 +205,8 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
         ))}
       </div>
 
-      <Button variant="primary" icon={submitting ? undefined : Scissors} loading={submitting} disabled={clips.length === 0 || submitting} onClick={submit} fullWidth>
-        {submitting ? t('smartEditor.processing', 'Memproses…') : t('smartEditor.generate', 'Buat Klip')}
+      <Button variant="primary" icon={ctx.isRunning ? undefined : Scissors} loading={ctx.isRunning} disabled={clips.length === 0 || ctx.isRunning || !localUrl} onClick={submit} fullWidth>
+        {ctx.isRunning ? t('smartEditor.processing', 'Memproses…') : t('smartEditor.generate', 'Buat Klip')}
       </Button>
     </div>
   );

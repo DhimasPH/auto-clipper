@@ -55,3 +55,15 @@ def test_manual_job_rejects_empty_clips():
 def test_manual_job_rejects_invalid_url():
     r = client.post("/jobs/manual", json={"url": "ftp://bad", "clips": [{"start": 0, "end": 1}]})
     assert r.status_code == 400
+
+
+def test_thumbnails_endpoint_missing_file():
+    r = client.get("/api/thumbnails", params={"path": "/nope/x.mp4", "start": 0, "end": 3, "count": 6})
+    assert r.status_code == 400
+
+
+def test_thumbnails_endpoint_invalid_range(tmp_path):
+    f = tmp_path / "v.mp4"
+    f.write_bytes(b"x")
+    r = client.get("/api/thumbnails", params={"path": str(f), "start": 5, "end": 5, "count": 6})
+    assert r.status_code == 400

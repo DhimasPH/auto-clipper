@@ -1,18 +1,7 @@
 import React from 'react';
-import { API_URL } from '../../App';
-
-export interface SpriteMeta {
-  url: string;
-  count: number;
-  cols: number;
-  rows: number;
-  thumb_w: number;
-  thumb_h: number;
-  interval: number;
-}
 
 interface AdvancedTimelineProps {
-  sprite: SpriteMeta | null;
+  thumbnails: string[] | null; // base64 data URIs, evenly spaced across duration
   duration: number;
   currentTime: number;
   onSeek: (seconds: number) => void;
@@ -21,9 +10,9 @@ interface AdvancedTimelineProps {
   loadingLabel?: string;
 }
 
-/** Horizontal filmstrip built from a server-generated sprite, plus playhead. */
+/** Full-width filmstrip: frames laid edge-to-edge (cover-cropped), plus playhead. */
 export const AdvancedTimeline: React.FC<AdvancedTimelineProps> = ({
-  sprite, duration, currentTime, onSeek, children, loading, loadingLabel,
+  thumbnails, duration, currentTime, onSeek, children, loading, loadingLabel,
 }) => {
   const barRef = React.useRef<HTMLDivElement>(null);
 
@@ -41,7 +30,7 @@ export const AdvancedTimeline: React.FC<AdvancedTimelineProps> = ({
     <div
       ref={barRef}
       onClick={handleClick}
-      className="relative w-full h-16 rounded-lg overflow-hidden bg-bg-surface border border-border cursor-pointer select-none"
+      className="relative w-full h-24 rounded-lg overflow-hidden bg-black/40 border border-border cursor-pointer select-none"
     >
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center text-caption text-text-secondary bg-bg-surface/80 z-20">
@@ -49,27 +38,21 @@ export const AdvancedTimeline: React.FC<AdvancedTimelineProps> = ({
         </div>
       )}
 
-      {sprite && sprite.count > 0 && (
-        <div className="absolute inset-0">
-          {Array.from({ length: sprite.count }).map((_, i) => {
-            const col = i % sprite.cols;
-            const row = Math.floor(i / sprite.cols);
-            const posX = sprite.cols > 1 ? (col / (sprite.cols - 1)) * 100 : 0;
-            const posY = sprite.rows > 1 ? (row / (sprite.rows - 1)) * 100 : 0;
-            return (
-              <div
-                key={i}
-                className="absolute top-0 bottom-0"
-                style={{
-                  left: `${(i / sprite.count) * 100}%`,
-                  width: `${100 / sprite.count}%`,
-                  backgroundImage: `url(${API_URL}${sprite.url})`,
-                  backgroundSize: `${sprite.cols * 100}% ${sprite.rows * 100}%`,
-                  backgroundPosition: `${posX}% ${posY}%`,
-                }}
-              />
-            );
-          })}
+      {thumbnails && thumbnails.length > 0 && (
+        <div className="absolute inset-0 flex">
+          {thumbnails.map((src, i) => (
+            <div
+              key={i}
+              className="h-full min-w-0"
+              style={{
+                flex: '1 1 0',
+                backgroundImage: `url(${src})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                borderRight: i < thumbnails.length - 1 ? '1px solid rgba(0,0,0,0.25)' : undefined,
+              }}
+            />
+          ))}
         </div>
       )}
 

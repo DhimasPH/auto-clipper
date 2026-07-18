@@ -170,6 +170,14 @@
       {
         "q": "Why does the video rendering take a while?",
         "a": "For maximum privacy, Auto Clipper processes all video rendering (ffmpeg) locally on your computer. The speed depends entirely on your hardware specs."
+      },
+      {
+        "q": "Can I use my own or a local AI model (Ollama, LM Studio, etc.)?",
+        "a": "Yes. In Settings → AI Provider, choose \"Custom (OpenAI Compatible)\", then click \"Set Custom Configuration\" and fill in three fields: Base URL (e.g. http://localhost:11434/v1 for Ollama), Model Name (e.g. llama3), and API Key. Leave the API Key empty if your local server doesn't need one. This lets you connect any OpenAI-compatible endpoint — self-hosted Ollama/LM Studio/vLLM or third-party APIs — so you can use free local models without usage limits. Note: transcription still runs locally; the custom model only picks the highlights."
+      },
+      {
+        "q": "macOS: the backend status stays \"Disconnected\". How do I fix it?",
+        "a": "This affects macOS users who install from the .dmg. The macOS build isn't notarized by Apple yet, so downloading it tags the app and its bundled backend with a quarantine flag, and macOS Gatekeeper blocks the backend from starting — the window opens but the status stays \"Disconnected\". Fix it once: open the Terminal app and run  xattr -cr \"/Applications/Auto Clipper.app\"  then reopen Auto Clipper. The status should turn \"Connected\". Note: right-click → Open alone is often not enough, because it only clears the app shell and not the backend inside it. You only need to do this once per install."
       }
     ]
   },
@@ -209,6 +217,8 @@
     "generate": "Create Clips",
     "processing": "Processing…",
     "submitted": "🚀 Processing manual clips...",
-    "done": "🎉 Manual clips done!"
+    "done": "🎉 Manual clips done!",
+    "laneAudio": "Audio",
+    "laneVideo": "Video"
   }
 }

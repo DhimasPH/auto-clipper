@@ -27,7 +27,7 @@ export const SmartEditorPage: React.FC = () => {
           />
         </label>
       ) : (
-        <div className="max-w-3xl">
+        <div className="w-full">
           <SmartEditor file={file} key={file.name + file.size} />
         </div>
       )}

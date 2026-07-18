@@ -195,6 +195,43 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
+  const handleManualGenerate = async (sourceUrl: string, manualClips: { start: number; end: number }[]) => {
+    if (!sourceUrl || manualClips.length === 0) {
+      notify(t('toast.clip_failed', { num: '', msg: t('smartEditor.noClips', 'Belum ada klip.') }), "error");
+      return;
+    }
+    setErrorMsg("");
+    setProgress("");
+    setClips([]);
+    setTotalClips(manualClips.length);
+    setFailedCount(0);
+    setJobOrigin("workspace");
+
+    try {
+      setStatus("GENERATING");
+      notify(t('smartEditor.submitted', '🚀 Memproses klip manual...'));
+      const res = await axios.post(`${API_URL}/jobs/manual`, {
+        url: sourceUrl,
+        clips: manualClips,
+        aspect_ratio: p.aspectRatio,
+        caption_style: p.captionStyle,
+        burn_subs: p.burnSubtitles,
+        output_dir: p.outputFolder,
+        quality: p.quality,
+        title: p.title,
+      });
+      if (res.data.status === "error") throw new Error(res.data.message);
+      setActiveJobId(res.data.job_id);
+    } catch (err: any) {
+      console.error(err);
+      setStatus("IDLE");
+      setProgress("");
+      const msg = err.response?.data?.message || err.message || "An unknown error occurred.";
+      setErrorMsg(msg);
+      notify(`⚠️ ${msg}`, "error");
+    }
+  };
+
   const handleRerender = async (historyJobId: string, customAspectRatio: string, customCaptionStyle: string, customBurnSubs: boolean) => {
     setJobOrigin("history");
     setStatus("TRANSCRIBING");
@@ -299,6 +336,6 @@ export function useClipJobs(p: ClipJobParams) {
   return {
     status, progress, errorMsg, clips, failedCount,
     isRunning, progressPct, historyVersion,
-    handleGenerate, handleRerender, handleRerunAI, cancelJob, resetJobState,
+    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, cancelJob, resetJobState,
   };
 }

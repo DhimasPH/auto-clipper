@@ -245,33 +245,34 @@ def api_get_metadata(job_id: str):
     job = get_metadata_job(job_id)
     if not job:
         return JSONResponse(status_code=404, content={"status": "error", "message": "Job not found"})
-    sprite = job.get("sprite")
-    sprite_meta = None
-    if sprite:
-        sprite_meta = {k: v for k, v in sprite.items() if k != "path"}
-        sprite_meta["url"] = f"/api/metadata/{job_id}/sprite"
     return {
         "status": job["status"],
         "progress": job.get("progress", ""),
         "duration": job.get("duration"),
         "silence": job.get("silence"),
         "peaks": job.get("peaks"),
-        "sprite": sprite_meta,
+        "thumbnails": job.get("thumbnails"),
         "error": job.get("error"),
         "errors": job.get("errors", {}),
     }
 
 
-@app.get("/api/metadata/{job_id}/sprite")
-def api_get_metadata_sprite(job_id: str):
-    from backend.metadata import get_metadata_job
-    job = get_metadata_job(job_id)
-    if not job or not job.get("sprite"):
-        return JSONResponse(status_code=404, content={"status": "error", "message": "Sprite not found"})
-    p = job["sprite"]["path"]
-    if not os.path.exists(p):
-        return JSONResponse(status_code=404, content={"status": "error", "message": "Sprite file missing"})
-    return FileResponse(p, media_type="image/jpeg")
+@app.get("/api/thumbnails")
+def api_get_thumbnails(path: str, start: float = 0.0, end: float = 0.0, count: int = 12):
+    """On-demand filmstrip thumbnails for a time window (zoomable timeline)."""
+    p = path
+    if p.startswith("local:"):
+        p = p.split("local:")[1]
+    if not p or not os.path.exists(p):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "File tidak ditemukan."})
+    if end <= start:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Rentang waktu tidak valid."})
+    try:
+        from backend.metadata import generate_thumbnails_window
+        uris = generate_thumbnails_window(p, start, end, count)
+        return {"status": "success", "start": start, "end": end, "count": len(uris), "thumbnails": uris}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 
 class ManualJobRequest(BaseModel):

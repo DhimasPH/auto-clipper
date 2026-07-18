@@ -170,6 +170,14 @@
       {
         "q": "Kenapa proses pembuatan klip terasa lambat?",
         "a": "Karena Auto Clipper memproses rendering video (ffmpeg) secara offline di komputer Anda demi privasi. Kecepatannya sangat bergantung pada spesifikasi PC/Laptop yang Anda gunakan."
+      },
+      {
+        "q": "Bisakah saya memakai model AI sendiri atau lokal (Ollama, LM Studio, dll.)?",
+        "a": "Bisa. Di Settings → AI Provider, pilih \"Custom (OpenAI Compatible)\", lalu klik \"Atur Konfigurasi Custom\" dan isi tiga kolom: Base URL (contoh http://localhost:11434/v1 untuk Ollama), Model Name (contoh llama3), dan API Key. Kosongkan API Key jika server lokal Anda tidak membutuhkannya. Fitur ini memungkinkan Anda menghubungkan endpoint apa pun yang kompatibel dengan format OpenAI — Ollama/LM Studio/vLLM yang di-host sendiri maupun API pihak ketiga — sehingga Anda bisa memakai model lokal gratis tanpa batas pemakaian. Catatan: transkripsi tetap berjalan lokal; model custom hanya bertugas memilih highlight."
+      },
+      {
+        "q": "macOS: status backend terus \"Disconnected\". Bagaimana memperbaikinya?",
+        "a": "Ini terjadi pada pengguna macOS yang memasang dari file .dmg. Aplikasi macOS belum dinotarisasi Apple, sehingga saat diunduh, macOS menandai aplikasi beserta komponen backend di dalamnya dengan atribut karantina, lalu Gatekeeper memblokir backend untuk berjalan — jendela terbuka tetapi status tetap \"Disconnected\". Perbaiki sekali saja: buka aplikasi Terminal lalu jalankan  xattr -cr \"/Applications/Auto Clipper.app\"  kemudian buka kembali Auto Clipper. Status akan berubah menjadi \"Connected\". Catatan: klik kanan → Open saja seringkali tidak cukup, karena hanya membersihkan cangkang aplikasi, bukan backend di dalamnya. Cukup lakukan sekali per pemasangan."
       }
     ]
   },
@@ -209,6 +217,8 @@
     "generate": "Buat Klip",
     "processing": "Memproses…",
     "submitted": "🚀 Memproses klip manual...",
-    "done": "🎉 Klip manual selesai!"
+    "done": "🎉 Klip manual selesai!",
+    "laneAudio": "Audio",
+    "laneVideo": "Video"
   }
 }

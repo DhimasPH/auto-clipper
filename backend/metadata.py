@@ -99,41 +99,97 @@ def compute_peaks(video_path: str, target_peaks: int = 1000, sample_rate: int = 
 
 # --- Thumbnail sprite ------------------------------------------------------
 
-def generate_thumbnail_sprite(video_path: str, out_path: str, duration: float,
-                              cols: int = 10, thumb_w: int = 160, thumb_h: int = 90,
-                              max_thumbs: int = 100) -> dict:
-    """Render a downsampled filmstrip sprite (grid) covering the whole video.
+def generate_thumbnails(video_path: str, duration: float,
+                        thumb_w: int = 160, thumb_h: int = 90,
+                        max_thumbs: int = 24) -> list:
+    """Extract evenly-spaced filmstrip thumbnails as base64 JPEG data URIs.
 
-    Returns sprite geometry so the frontend can map a timestamp to a cell.
-    ``count`` thumbnails are spread evenly across ``duration`` (capped at
-    ``max_thumbs`` so an hour-long video isn't thousands of frames).
+    Each frame is scaled to *cover* thumb_w x thumb_h (centre-cropped, no
+    stretching) so the frontend can lay them edge-to-edge like a CapCut/Premiere
+    filmstrip without distortion. Count is small and fixed so an hour-long video
+    stays light and each frame stays recognisable.
     """
+    import base64
+    import tempfile
+    import shutil
+    import glob
+
     if duration <= 0:
         duration = 1.0
-    count = max(1, min(max_thumbs, int(duration)))
-    rows = math.ceil(count / cols)
+    count = max(6, min(max_thumbs, max(6, int(duration))))
     fps = count / duration if duration else 1.0
 
-    cmd = [
-        "ffmpeg", "-y", "-i", video_path,
-        "-vf", f"fps={fps:.6f},scale={thumb_w}:{thumb_h}:force_original_aspect_ratio=increase,"
-               f"crop={thumb_w}:{thumb_h},tile={cols}x{rows}",
-        "-frames:v", "1", "-qscale:v", "3",
-        out_path,
-    ]
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                         text=True, encoding="utf-8", errors="replace")
-    if res.returncode != 0 or not os.path.exists(out_path):
-        raise RuntimeError(f"sprite generation failed: {(res.stderr or '')[-500:]}")
-    return {
-        "path": out_path,
-        "count": count,
-        "cols": cols,
-        "rows": rows,
-        "thumb_w": thumb_w,
-        "thumb_h": thumb_h,
-        "interval": duration / count,
-    }
+    tmpdir = tempfile.mkdtemp(prefix="ac_thumbs_")
+    try:
+        pattern = os.path.join(tmpdir, "th_%04d.jpg")
+        cmd = [
+            "ffmpeg", "-y", "-i", video_path,
+            "-vf", f"fps={fps:.6f},scale={thumb_w}:{thumb_h}:force_original_aspect_ratio=increase,"
+                   f"crop={thumb_w}:{thumb_h}",
+            "-qscale:v", "4", "-frames:v", str(count),
+            pattern,
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, encoding="utf-8", errors="replace")
+        files = sorted(glob.glob(os.path.join(tmpdir, "th_*.jpg")))
+        if res.returncode != 0 and not files:
+            raise RuntimeError(f"thumbnail generation failed: {(res.stderr or '')[-500:]}")
+        uris = []
+        for fp in files:
+            with open(fp, "rb") as fh:
+                b64 = base64.b64encode(fh.read()).decode("ascii")
+            uris.append(f"data:image/jpeg;base64,{b64}")
+        return uris
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def generate_thumbnails_window(video_path: str, start: float, end: float, count: int,
+                               thumb_w: int = 160, thumb_h: int = 90) -> list:
+    """Extract `count` cover-cropped thumbnails evenly across [start, end].
+
+    Powers the zoomable timeline: the frontend requests just the frames for the
+    currently-visible window, so an hour-long video never renders more frames
+    than fit on screen.
+    """
+    import base64
+    import tempfile
+    import shutil
+    import glob
+
+    start = max(0.0, float(start))
+    end = float(end)
+    span = end - start
+    if span <= 0:
+        span = 1.0
+        end = start + span
+    count = max(1, min(60, int(count)))
+    fps = count / span
+
+    tmpdir = tempfile.mkdtemp(prefix="ac_thumbs_")
+    try:
+        pattern = os.path.join(tmpdir, "th_%04d.jpg")
+        cmd = [
+            "ffmpeg", "-y",
+            "-ss", f"{start:.3f}", "-to", f"{end:.3f}",
+            "-i", video_path,
+            "-vf", f"fps={fps:.6f},scale={thumb_w}:{thumb_h}:force_original_aspect_ratio=increase,"
+                   f"crop={thumb_w}:{thumb_h}",
+            "-qscale:v", "5", "-frames:v", str(count),
+            pattern,
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, encoding="utf-8", errors="replace")
+        files = sorted(glob.glob(os.path.join(tmpdir, "th_*.jpg")))
+        if res.returncode != 0 and not files:
+            raise RuntimeError(f"windowed thumbnail generation failed: {(res.stderr or '')[-400:]}")
+        uris = []
+        for fp in files:
+            with open(fp, "rb") as fh:
+                uris.append("data:image/jpeg;base64," + base64.b64encode(fh.read()).decode("ascii"))
+        return uris
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 # --- Async job orchestration ----------------------------------------------
@@ -147,7 +203,7 @@ def create_metadata_job(video_path: str, types: list) -> str:
         "types": types or ["silence"],
         "silence": None,
         "peaks": None,
-        "sprite": None,
+        "thumbnails": None,
         "error": None,
         "errors": {},  # per-artifact soft failures
     }
@@ -184,7 +240,9 @@ def _run_metadata_job(job_id: str, video_path: str):
     if "peaks" in types:
         job["progress"] = "Computing waveform..."
         try:
-            job["peaks"] = compute_peaks(video_path)
+            # Higher resolution so the waveform still shows detail when zoomed in.
+            target = min(16000, max(2000, int(duration * 8)))
+            job["peaks"] = compute_peaks(video_path, target_peaks=target)
         except Exception as e:
             job["errors"]["peaks"] = str(e)
             job["peaks"] = []
@@ -192,11 +250,10 @@ def _run_metadata_job(job_id: str, video_path: str):
     if "thumbnails" in types:
         job["progress"] = "Generating thumbnails..."
         try:
-            sprite_path = os.path.join(_meta_dir(), f"sprite_{job_id}.jpg")
-            job["sprite"] = generate_thumbnail_sprite(video_path, sprite_path, duration)
+            job["thumbnails"] = generate_thumbnails(video_path, duration)
         except Exception as e:
             job["errors"]["thumbnails"] = str(e)
-            job["sprite"] = None
+            job["thumbnails"] = []
 
     job["progress"] = ""
     job["status"] = "DONE"

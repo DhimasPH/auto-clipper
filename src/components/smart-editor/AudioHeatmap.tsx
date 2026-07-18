@@ -26,13 +26,24 @@ export const AudioHeatmap: React.FC<AudioHeatmapProps> = ({ peaks, peakThreshold
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, w, h);
 
-    const max = Math.max(...peaks) || 1;
+    // Percentile-based scaling: colour and height are relative to the track's
+    // own distribution, not just its single loudest sample. This stops a calm
+    // but steady clip from rendering entirely red/tall (the old max-normalised
+    // approach did exactly that).
+    const sorted = [...peaks].sort((a, b) => a - b);
+    const pct = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
+    const loudThreshold = pct(0.9);   // top ~10% counts as a "peak"
+    const heightRef = pct(0.97) || Math.max(...peaks) || 1;
+    const dynamicRange = pct(0.95) - pct(0.5);
+
     const barW = w / peaks.length;
     const mid = h / 2;
     for (let i = 0; i < peaks.length; i++) {
-      const norm = peaks[i] / max;
+      const norm = Math.min(1, peaks[i] / heightRef);
       const barH = Math.max(1, norm * (h - 2));
-      ctx.fillStyle = norm >= peakThreshold ? '#ef4444' : '#64748b';
+      // Only flag genuine peaks, and only when the track actually has dynamics.
+      const isPeak = dynamicRange > 0.02 && peaks[i] >= loudThreshold && peaks[i] >= peakThreshold * heightRef;
+      ctx.fillStyle = isPeak ? '#ef4444' : '#64748b';
       ctx.fillRect(i * barW, mid - barH / 2, Math.max(1, barW - 0.5), barH);
     }
   }, [peaks, peakThreshold, height]);
