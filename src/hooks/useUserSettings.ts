@@ -31,12 +31,18 @@ async function spawnBackend(): Promise<number | null> {
         }
     };
     
+    // The backend is a large one-file PyInstaller bundle; on a cold start
+    // (first launch, slower disks, macOS Gatekeeper scanning) it can take well
+    // over 15s to self-extract and import heavy deps. A short timeout gave up
+    // before it printed its port. The "backend-port-found" listener below still
+    // connects late if the process eventually starts, so this is only the
+    // pessimistic fallback.
     setTimeout(() => {
         if (!resolved) {
-            console.error("Backend spawn timed out after 15 seconds.");
+            console.error("Backend spawn timed out after 45 seconds.");
             finish(null);
         }
-    }, 15000);
+    }, 45000);
 
     try {
       const cmd = Command.sidecar("../bin/backend");

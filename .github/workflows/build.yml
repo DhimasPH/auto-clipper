@@ -86,6 +86,19 @@ jobs:
           EOF
           python copy_bin.py
 
+      - name: Ad-hoc codesign macOS binaries
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          # Ensure the executable bit survived the copy, then apply an ad-hoc
+          # signature. Unsigned PyInstaller binaries are frequently "Killed: 9"
+          # by macOS on launch; an ad-hoc signature lets them run once the user
+          # has cleared the download quarantine (see README macOS notes).
+          chmod +x "bin/backend-${{ matrix.target }}" "bin/ffmpeg" || true
+          codesign --force --deep --sign - "bin/backend-${{ matrix.target }}"
+          codesign --force --sign - "bin/ffmpeg" || true
+          codesign --verify --verbose "bin/backend-${{ matrix.target }}" || true
+
       - name: Install Node.js dependencies
         run: npm install
 

@@ -35,6 +35,20 @@ Karena aplikasi ini melakukan pemrosesan video dan pelacakan wajah secara lokal,
 ### Opsi 1: Menggunakan Installer Praktis (Rekomendasi)
 Anda tidak perlu repot dengan terminal. Buka halaman **[Releases](../../releases)** di GitHub kami dan unduh file installer (`.exe`, `.dmg`, atau `.AppImage`). Semua kebutuhan termasuk FFmpeg dan Backend sudah dibundel di dalamnya!
 
+> #### ⚠️ Pengguna macOS: Status "Backend Disconnected"
+>
+> Aplikasi macOS saat ini **belum di-notarisasi Apple**. Karena itu, ketika Anda mengunduh `.dmg` dari internet, macOS menandai aplikasi (dan komponen backend di dalamnya) dengan atribut *quarantine*, sehingga backend diblokir oleh Gatekeeper dan status tampil **"Disconnected"** meski jendela aplikasi terbuka.
+>
+> **Solusi (sekali saja):** setelah menyeret aplikasi ke folder Applications, buka **Terminal** lalu jalankan:
+>
+> ```bash
+> xattr -cr "/Applications/Auto Clipper.app"
+> ```
+>
+> Perintah ini menghapus atribut quarantine dari aplikasi **beserta** backend di dalamnya (opsi `-r` bersifat rekursif). Buka kembali aplikasinya — status akan berubah menjadi **"Connected"**. Anda hanya perlu melakukan ini sekali per pemasangan.
+>
+> Catatan: klik-kanan → *Open* saja seringkali **tidak cukup**, karena hanya membersihkan cangkang aplikasi, bukan binary backend di dalamnya.
+
 ### Opsi 2: Menjalankan Mode Developer (Build Source)
 Jika Anda ingin ikut berkontribusi atau mengembangkan fitur baru:
 
