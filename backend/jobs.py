@@ -198,7 +198,18 @@ def _run_job(job_id: str):
             
         segments = highlights[:limit]
         metadata["highlights"] = segments
-        
+
+        # Detect layout once for the whole video (gaming split-screen auto-detect).
+        # Sparse sampling keeps this cheap even for hour-long streams, and doing it
+        # once keeps every clip's framing consistent. Only 9:16 uses split-screen.
+        job_layout = None
+        if job.get("aspect_ratio") == "9:16":
+            try:
+                from backend.crop_utils import detect_video_layout
+                job_layout = detect_video_layout(output_path)
+            except Exception:
+                job_layout = None
+
         for i, seg in enumerate(segments):
             if job["cancelled"]:
                 _finalize_job(job_id, "CANCELLED")
@@ -241,7 +252,8 @@ def _run_job(job_id: str):
                     aspect_ratio=job["aspect_ratio"],
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=lambda: job["cancelled"],
-                    broll_path=broll_path
+                    broll_path=broll_path,
+                    layout=job_layout
                 )
 
                 # Append to clips
@@ -301,7 +313,15 @@ def _run_rerender_job(job_id: str):
         limit = _get_clip_limit(job.get("max_clips", 0), dur_secs)
             
         segments = highlights[:limit]
-        
+
+        job_layout = None
+        if job.get("aspect_ratio") == "9:16":
+            try:
+                from backend.crop_utils import detect_video_layout
+                job_layout = detect_video_layout(output_path)
+            except Exception:
+                job_layout = None
+
         for i, seg in enumerate(segments):
             if job["cancelled"]:
                 _finalize_job(job_id, "CANCELLED", metadata)
@@ -344,7 +364,8 @@ def _run_rerender_job(job_id: str):
                     aspect_ratio=job["aspect_ratio"],
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=lambda: job["cancelled"],
-                    broll_path=broll_path
+                    broll_path=broll_path,
+                    layout=job_layout
                 )
 
                 job["clips"].append({
@@ -459,7 +480,15 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             pass
             
         segments = highlights[:limit]
-            
+
+        job_layout = None
+        if job.get("aspect_ratio") == "9:16":
+            try:
+                from backend.crop_utils import detect_video_layout
+                job_layout = detect_video_layout(source_video)
+            except Exception:
+                job_layout = None
+
         for i, seg in enumerate(segments):
             if job["cancelled"]: break
             
@@ -495,7 +524,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     aspect_ratio=job["aspect_ratio"],
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=lambda: job["cancelled"],
-                    broll_path=broll_path
+                    broll_path=broll_path,
+                    layout=job_layout
                 )
                 
                 job["clips"].append({

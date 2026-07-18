@@ -100,6 +100,84 @@ def detect_primary_face_center(video_path: str, start_time=None, end_time=None) 
     return center
 
 
+def detect_video_layout(video_path: str, start_time=None, end_time=None, samples: int = 12) -> dict:
+    """Classify a video as gaming split-screen vs. a standard centred crop.
+
+    Samples a *fixed* number of frames spread across the window (sparse, so a
+    1-hour stream costs the same as a 1-minute clip), detects the largest face
+    per frame, and takes the median of the face box across samples. A small face
+    parked in a corner is the tell-tale sign of a gaming facecam.
+
+    Returns a dict with normalised (0-1) geometry so callers don't depend on the
+    source resolution::
+
+        {"mode": "gaming"|"standard",
+         "face_box": (x, y, w, h) | None,
+         "face_area_ratio": float,
+         "face_center": (cx, cy)}
+    """
+    import statistics
+
+    result = {"mode": "standard", "face_box": None, "face_area_ratio": 0.0, "face_center": (0.5, 0.5)}
+
+    cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    if cascade.empty():
+        return result
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        cap.release()
+        return result
+
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+    dur = total_frames / fps if fps else 0.0
+
+    if start_time is not None:
+        s = to_seconds(start_time)
+        e = to_seconds(end_time) if end_time is not None else s + 30.0
+    else:
+        s, e = 0.0, (dur if dur else 1.0)
+    if e <= s:
+        e = s + 1.0
+
+    boxes = []  # each: (cx, cy, area_ratio, x, y, w, h) all normalised
+    for i in range(samples):
+        t = s + (e - s) * (i / (samples - 1) if samples > 1 else 0.5)
+        cap.set(cv2.CAP_PROP_POS_MSEC, t * 1000.0)
+        ret, frame = cap.read()
+        if not ret:
+            continue
+        fh_, fw_ = frame.shape[0], frame.shape[1]
+        if not fw_ or not fh_:
+            continue
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = cascade.detectMultiScale(gray, 1.1, 4)
+        if len(faces) > 0:
+            x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
+            boxes.append((
+                (x + w / 2) / fw_, (y + h / 2) / fh_, (w * h) / (fw_ * fh_),
+                x / fw_, y / fh_, w / fw_, h / fh_,
+            ))
+
+    cap.release()
+
+    if not boxes:
+        return result
+
+    med = lambda idx: statistics.median([b[idx] for b in boxes])
+    cx, cy, area = med(0), med(1), med(2)
+    result["face_center"] = (cx, cy)
+    result["face_area_ratio"] = area
+    result["face_box"] = (med(3), med(4), med(5), med(6))
+
+    # Small face (<15% of the frame) parked in a corner => gaming facecam.
+    in_corner = (cx < 0.35 or cx > 0.65) and (cy < 0.35 or cy > 0.65)
+    if area < 0.15 and in_corner:
+        result["mode"] = "gaming"
+
+    return result
+
+
 def _parse_srt_ts(ts: str) -> float:
     ts = ts.strip().replace('.', ',')
     h, m, rest = ts.split(':')
@@ -389,6 +467,55 @@ def build_crop_filter(aspect_ratio: str, center_pct: float) -> str:
         return f"crop=trunc(ih*9/16/2)*2:ih:iw*{center_pct}-ih*9/32:0"
 
 
+def build_split_screen_filter(face_box, src_w: int, src_h: int, out_w: int, out_h: int,
+                              in_label: str = "0:v", out_label: str = "main") -> str:
+    """Build a filter_complex chain that stacks gameplay over a zoomed facecam.
+
+    Top half: the gameplay, scaled to *cover* the top of the canvas (centred,
+    overflow cropped — no distortion). Bottom half: the detected facecam box
+    (padded for headroom, clamped in-frame), zoomed to cover the bottom half.
+
+    Returns a chain ending in ``[out_label]`` sized ``out_w`` x (2*half), or
+    ``None`` if inputs are unusable so the caller can fall back to a plain crop.
+    """
+    if not face_box or not src_w or not src_h or not out_w or not out_h:
+        return None
+
+    cw = (int(out_w) // 2) * 2
+    half = (int(out_h) // 2 // 2) * 2  # even half-height
+    if cw <= 0 or half <= 0:
+        return None
+
+    fx, fy, fw, fh = face_box
+    PAD = 1.6
+    bw = min(1.0, max(0.0, fw) * PAD)
+    bh = min(1.0, max(0.0, fh) * PAD)
+    if bw <= 0 or bh <= 0:
+        return None
+    bcx = fx + fw / 2
+    bcy = fy + fh / 2
+    bx = min(max(0.0, bcx - bw / 2), 1.0 - bw)
+    by = min(max(0.0, bcy - bh / 2), 1.0 - bh)
+
+    px = (int(bx * src_w) // 2) * 2
+    py = (int(by * src_h) // 2) * 2
+    pw = max(2, (int(bw * src_w) // 2) * 2)
+    ph = max(2, (int(bh * src_h) // 2) * 2)
+    if px + pw > src_w:
+        pw = (int(src_w - px) // 2) * 2
+    if py + ph > src_h:
+        ph = (int(src_h - py) // 2) * 2
+    if pw <= 0 or ph <= 0:
+        return None
+
+    return (
+        f"[{in_label}]split=2[g0][f0];"
+        f"[g0]scale={cw}:{half}:force_original_aspect_ratio=increase,crop={cw}:{half}[game];"
+        f"[f0]crop={pw}:{ph}:{px}:{py},scale={cw}:{half}:force_original_aspect_ratio=increase,crop={cw}:{half}[face];"
+        f"[game][face]vstack=inputs=2[{out_label}];"
+    )
+
+
 def output_width(aspect_ratio: str, src_w: int, src_h: int) -> int:
     """Rendered clip width (even) for subtitle sizing, per aspect ratio."""
     if aspect_ratio == "1:1":
@@ -403,7 +530,8 @@ def output_width(aspect_ratio: str, src_w: int, src_h: int) -> int:
 
 def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                      end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16",
-                     register_proc=None, should_cancel=None, broll_path: str = None) -> str:
+                     register_proc=None, should_cancel=None, broll_path: str = None,
+                     layout: dict = None) -> str:
     """Crop to 9:16, trim to [start, end], and optionally burn subtitles.
 
     ``subtitle_path`` should point at a full-video .srt; a per-clip subtitle is
@@ -434,8 +562,24 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             f"Highlight window is invalid (start {start_s:.1f}s, end {end_s:.1f}s)."
         )
 
-    center_pct = detect_primary_face_center(input_path, start_time=start_s, end_time=end_s)
-    
+    # Layout: when the caller supplies one (computed once per job) we reuse its
+    # face position and gaming classification instead of re-detecting per clip.
+    gaming = False
+    face_box = None
+    if layout is None:
+        center_pct = detect_primary_face_center(input_path, start_time=start_s, end_time=end_s)
+    else:
+        cx = (layout.get("face_center") or (0.5, 0.5))[0]
+        _sw, _sh = _video_dims(input_path)
+        if _sw and _sh:
+            half_window = (_sh * 9 / 16) / _sw / 2
+            lo, hi = half_window, 1 - half_window
+            cx = max(lo, min(hi, cx)) if lo <= hi else cx
+        center_pct = cx
+        # Split-screen only makes sense for the 9:16 target (see design spec).
+        gaming = aspect_ratio == "9:16" and layout.get("mode") == "gaming" and bool(layout.get("face_box"))
+        face_box = layout.get("face_box")
+
     # Calculate crop dimensions based on aspect ratio
     crop_filter = build_crop_filter(aspect_ratio, center_pct)
 
@@ -482,27 +626,28 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             escaped_ass_name = ass_name.replace(":", "\\\\:").replace("'", "\\\\'")
             subtitle_vf = f"{crop_filter},ass='{escaped_ass_name}'"
 
-    def build_cmd():
+    def build_cmd(use_split: bool = False):
         cmd = [
             "ffmpeg", "-y",
             "-ss", f"{start_s:.3f}",
             "-i", input_path
         ]
-        
+
         if broll_path and os.path.exists(broll_path):
             cmd.extend(["-i", broll_path])
-            
+
         cmd.extend(["-t", f"{duration:.3f}"])
-        
+
         # Build filter_complex
         src_w, src_h = _video_dims(input_path)
         out_w = output_width(aspect_ratio, src_w, src_h)
         out_h = int(src_w * 9 / 16) if aspect_ratio == "16:9" else src_h
-        
+
         if out_w == 0 or out_h == 0:
             out_w, out_h = 1080, 1920 # fallback
-            
-        fc = f"[0:v]{crop_filter}[main];"
+
+        split_fc = build_split_screen_filter(face_box, src_w, src_h, out_w, out_h) if use_split else None
+        fc = split_fc if split_fc else f"[0:v]{crop_filter}[main];"
         current_v = "[main]"
         
         audio_map = "0:a"
@@ -543,8 +688,14 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     if should_cancel and should_cancel():
         raise RuntimeError("Dibatalkan oleh pengguna.")
 
-    ok, err = _run_ffmpeg(build_cmd(), cwd=subtitle_cwd, register=register_proc)
-    
+    ok, err = _run_ffmpeg(build_cmd(use_split=gaming), cwd=subtitle_cwd, register=register_proc)
+
+    # Gaming split-screen is best-effort: if the complex filter fails, retry with
+    # the plain centred crop so the job still produces a clip.
+    if not ok and gaming:
+        print(f"split-screen ffmpeg failed, falling back to standard crop. Error: {err[-800:]}")
+        ok, err = _run_ffmpeg(build_cmd(use_split=False), cwd=subtitle_cwd, register=register_proc)
+
     # If the user just cancelled, throw error.
     if should_cancel and should_cancel():
         raise RuntimeError("Dibatalkan oleh pengguna.")

@@ -90,3 +90,133 @@ def test_output_width_ratios():
     # Vertical/square derive width from source height (even).
     assert output_width("1:1", 1920, 1080) == 1080
     assert output_width("9:16", 1920, 1080) == (int(1080 * 9 / 16) // 2) * 2
+
+
+# --- Gaming Split-Screen Auto-Detect --------------------------------------
+
+def _fake_layout_cap(fps=30.0, frame_count=30):
+    inst = MagicMock()
+    inst.isOpened.return_value = True
+
+    def get(prop):
+        import backend.crop_utils as cu
+        if prop == cu.cv2.CAP_PROP_FPS:
+            return fps
+        if prop == cu.cv2.CAP_PROP_FRAME_COUNT:
+            return frame_count
+        return 0
+    inst.get.side_effect = get
+    frame = MagicMock()
+    frame.shape = (1080, 1920, 3)
+    inst.read.return_value = (True, frame)
+    return inst, frame
+
+
+@patch('backend.crop_utils.cv2.cvtColor')
+@patch('backend.crop_utils.cv2.CascadeClassifier')
+@patch('backend.crop_utils.cv2.VideoCapture')
+def test_detect_video_layout_gaming_corner_face(mock_cap, mock_cascade, mock_cvt):
+    from backend.crop_utils import detect_video_layout
+    cascade = mock_cascade.return_value
+    cascade.empty.return_value = False
+    # Small facecam parked in the bottom-right corner.
+    cascade.detectMultiScale.return_value = [(1650, 850, 180, 140)]
+    inst, frame = _fake_layout_cap()
+    mock_cap.return_value = inst
+    mock_cvt.return_value = frame
+
+    res = detect_video_layout("dummy.mp4")
+    assert res["mode"] == "gaming"
+    assert res["face_box"] is not None
+    assert res["face_area_ratio"] < 0.15
+
+
+@patch('backend.crop_utils.cv2.cvtColor')
+@patch('backend.crop_utils.cv2.CascadeClassifier')
+@patch('backend.crop_utils.cv2.VideoCapture')
+def test_detect_video_layout_standard_centered_face(mock_cap, mock_cascade, mock_cvt):
+    from backend.crop_utils import detect_video_layout
+    cascade = mock_cascade.return_value
+    cascade.empty.return_value = False
+    # Large, centred face (talking head / podcast).
+    cascade.detectMultiScale.return_value = [(660, 240, 600, 600)]
+    inst, frame = _fake_layout_cap()
+    mock_cap.return_value = inst
+    mock_cvt.return_value = frame
+
+    res = detect_video_layout("dummy.mp4")
+    assert res["mode"] == "standard"
+
+
+@patch('backend.crop_utils.cv2.cvtColor')
+@patch('backend.crop_utils.cv2.CascadeClassifier')
+@patch('backend.crop_utils.cv2.VideoCapture')
+def test_detect_video_layout_no_face(mock_cap, mock_cascade, mock_cvt):
+    from backend.crop_utils import detect_video_layout
+    cascade = mock_cascade.return_value
+    cascade.empty.return_value = False
+    cascade.detectMultiScale.return_value = []
+    inst, frame = _fake_layout_cap()
+    mock_cap.return_value = inst
+    mock_cvt.return_value = frame
+
+    res = detect_video_layout("dummy.mp4")
+    assert res["mode"] == "standard"
+    assert res["face_box"] is None
+
+
+def test_build_split_screen_filter_9_16():
+    from backend.crop_utils import build_split_screen_filter
+    fc = build_split_screen_filter((0.8, 0.8, 0.1, 0.1), 1920, 1080, 606, 1080)
+    assert fc is not None
+    assert "vstack=inputs=2" in fc
+    assert fc.count("crop=") >= 2
+    assert fc.strip().endswith("[main];")
+
+
+def test_build_split_screen_filter_none_without_box():
+    from backend.crop_utils import build_split_screen_filter
+    assert build_split_screen_filter(None, 1920, 1080, 606, 1080) is None
+
+
+@patch('backend.crop_utils.subprocess.Popen')
+@patch('backend.crop_utils._video_dims')
+def test_crop_uses_split_screen_for_gaming_layout(mock_dims, mock_popen):
+    mock_dims.return_value = (1920, 1080)
+    mock_popen.return_value = _fake_proc(0)
+    layout = {"mode": "gaming", "face_box": (0.8, 0.8, 0.1, 0.1),
+              "face_center": (0.85, 0.85), "face_area_ratio": 0.01}
+    crop_to_vertical("in.mp4", "out.mp4", "00:00:00", "00:00:10",
+                     aspect_ratio="9:16", layout=layout)
+    cmd = mock_popen.call_args[0][0]
+    assert any("vstack" in str(a) for a in cmd)
+
+
+@patch('backend.crop_utils.subprocess.Popen')
+@patch('backend.crop_utils._video_dims')
+def test_crop_gaming_falls_back_to_plain_crop(mock_dims, mock_popen):
+    """If the split-screen filter fails, a plain centred crop should still run."""
+    mock_dims.return_value = (1920, 1080)
+    mock_popen.side_effect = [_fake_proc(1), _fake_proc(0)]
+    layout = {"mode": "gaming", "face_box": (0.8, 0.8, 0.1, 0.1),
+              "face_center": (0.85, 0.85), "face_area_ratio": 0.01}
+    res = crop_to_vertical("in.mp4", "out.mp4", "00:00:00", "00:00:10",
+                           aspect_ratio="9:16", layout=layout)
+    assert res == "out.mp4"
+    assert mock_popen.call_count == 2
+    # Second attempt is the plain crop (no vstack).
+    plain_cmd = mock_popen.call_args_list[1][0][0]
+    assert not any("vstack" in str(a) for a in plain_cmd)
+
+
+@patch('backend.crop_utils.subprocess.Popen')
+@patch('backend.crop_utils._video_dims')
+def test_crop_standard_layout_does_not_split(mock_dims, mock_popen):
+    mock_dims.return_value = (1920, 1080)
+    mock_popen.return_value = _fake_proc(0)
+    layout = {"mode": "standard", "face_box": None,
+              "face_center": (0.5, 0.5), "face_area_ratio": 0.0}
+    crop_to_vertical("in.mp4", "out.mp4", "00:00:00", "00:00:10",
+                     aspect_ratio="9:16", layout=layout)
+    cmd = mock_popen.call_args[0][0]
+    assert not any("vstack" in str(a) for a in cmd)
