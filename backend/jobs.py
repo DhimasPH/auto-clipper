@@ -67,6 +67,42 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
     threading.Thread(target=_run_job, args=(job_id,), daemon=True).start()
     return job_id
 
+
+def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption_style: str = "standard",
+                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "") -> str:
+    """Manual clipper job: cut user-chosen ranges, no AI highlight selection.
+
+    Reuses the existing crop + faster-whisper caption pipeline but bypasses any
+    LLM provider entirely (see the Smart Manual Clipper design spec).
+    """
+    job_id = str(uuid.uuid4())
+    active_jobs[job_id] = {
+        "id": job_id,
+        "url": url,
+        "provider": "manual",
+        "api_key": "",
+        "mode": "manual",
+        "manual_clips": clips or [],
+        "aspect_ratio": aspect_ratio,
+        "caption_style": caption_style,
+        "burn_subs": burn_subs,
+        "output_dir": output_dir,
+        "quality": quality,
+        "title": title,
+        "enable_broll": False,
+        "pexels_api_key": "",
+        "max_clips": 0,
+        "status": "PENDING",
+        "progress": "",
+        "cancelled": False,
+        "clips": [],
+        "failed": 0,
+        "error": None,
+    }
+    threading.Thread(target=_run_manual_job, args=(job_id,), daemon=True).start()
+    return job_id
+
+
 def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0) -> str:
     from backend.db import get_history
     hist = get_history(history_id)
@@ -282,6 +318,130 @@ def _run_job(job_id: str):
         log_error(f"JOB {job_id}")
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", locals().get('metadata', {}))
+
+def _run_manual_job(job_id: str):
+    import time
+    job = active_jobs[job_id]
+    job["start_time"] = time.time()
+    metadata = {}
+    try:
+        def is_cancelled():
+            return job.get("cancelled", False)
+
+        if is_cancelled():
+            _finalize_job(job_id, "CANCELLED")
+            return
+
+        # 1. Resolve source (local upload or download).
+        job["status"] = "DOWNLOADING"
+        if job["url"].startswith("local:"):
+            job["progress"] = "Mempersiapkan video lokal..."
+            source_path = job["url"].split("local:")[1]
+        else:
+            job["progress"] = "Mengunduh video..."
+            source_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
+            os.makedirs(os.path.dirname(source_path), exist_ok=True)
+            download_youtube_video(job["url"], source_path, job.get("quality", "best"), is_cancelled=is_cancelled)
+        if not os.path.exists(source_path):
+            raise ValueError("Video sumber tidak ditemukan.")
+        job["source_path"] = source_path
+
+        clips = job.get("manual_clips", [])
+        if not clips:
+            raise ValueError("Tidak ada klip yang dipilih.")
+
+        # 2. Optional captions: transcribe the source once with faster-whisper
+        #    (no LLM), then let crop_to_vertical shift subtitles per clip.
+        subtitle_path = None
+        if job.get("burn_subs", True):
+            if is_cancelled():
+                _finalize_job(job_id, "CANCELLED")
+                return
+            job["status"] = "TRANSCRIBING"
+            job["progress"] = "Membuat subtitle otomatis..."
+            from backend.ai_utils import transcribe_with_faster_whisper
+            from backend.video_utils import extract_audio
+            import json as _json
+            is_karaoke = (job.get("caption_style") == "karaoke")
+            base, _ = os.path.splitext(source_path)
+            audio_path = base + "_audio.mp3"
+            extract_audio(source_path, audio_path, register_proc=lambda p: _register_proc(job, p))
+            transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=is_karaoke, is_cancelled=is_cancelled)
+            if is_karaoke:
+                subtitle_path = base + ".words.json"
+                with open(subtitle_path, "w", encoding="utf-8") as f:
+                    _json.dump(transcript_data, f)
+            else:
+                subtitle_path = base + ".srt"
+                with open(subtitle_path, "w", encoding="utf-8") as f:
+                    f.write(transcript_data)
+
+        # 3. Detect layout once (gaming split-screen auto-detect, 9:16 only).
+        job_layout = None
+        if job.get("aspect_ratio") == "9:16":
+            try:
+                from backend.crop_utils import detect_video_layout
+                job_layout = detect_video_layout(source_path)
+            except Exception:
+                job_layout = None
+
+        # 4. Crop each user-selected range.
+        job["status"] = "CROPPING"
+        for i, clip in enumerate(clips):
+            if is_cancelled():
+                _finalize_job(job_id, "CANCELLED")
+                return
+            job["progress"] = f"Merender klip {i+1} dari {len(clips)}..."
+            start_t = clip.get("start")
+            end_t = clip.get("end")
+
+            clip_output = os.path.join(get_temp_dir(), f"{job_id}_manual_{i+1}.mp4")
+            if job.get("output_dir"):
+                out_dir = job["output_dir"]
+                safe_title = ""
+                if job.get("title"):
+                    safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
+                    if safe_title:
+                        out_dir = os.path.join(out_dir, safe_title)
+                os.makedirs(out_dir, exist_ok=True)
+                filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
+                clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
+
+            try:
+                result_path = crop_to_vertical(
+                    source_path, clip_output, start_t, end_t,
+                    subtitle_path=subtitle_path,
+                    aspect_ratio=job["aspect_ratio"],
+                    register_proc=lambda p: _register_proc(job, p),
+                    should_cancel=lambda: job["cancelled"],
+                    layout=job_layout,
+                )
+                job["clips"].append({
+                    "path": result_path,
+                    "description": f"Manual Clip {i+1}",
+                    "description_en": f"Manual Clip {i+1}",
+                    "description_id": f"Klip Manual {i+1}",
+                    "start": start_t,
+                    "end": end_t,
+                    "subs": bool(subtitle_path),
+                    "v": 0,
+                })
+            except Exception as e:
+                log_error(f"MANUAL JOB CROP {job_id}")
+                job["failed"] = job.get("failed", 0) + 1
+                print(f"Manual clip {i+1} failed: {e}")
+
+        if not job["clips"]:
+            raise ValueError("Semua klip gagal dirender.")
+
+        metadata["manual_clips"] = clips
+        _finalize_job(job_id, "DONE", metadata)
+
+    except Exception as e:
+        log_error(f"MANUAL JOB {job_id}")
+        job["error"] = str(e)
+        _finalize_job(job_id, "ERROR", metadata)
+
 
 def _run_rerender_job(job_id: str):
     import time

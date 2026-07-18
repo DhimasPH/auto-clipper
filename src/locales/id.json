@@ -137,7 +137,8 @@
     "workspace": "Ruang Kerja",
     "history": "Riwayat",
     "settings": "Pengaturan",
-    "help": "Bantuan / FAQ"
+    "help": "Bantuan / FAQ",
+    "smart_editor": "Smart Clipper"
   },
   "help": {
     "title": "Bantuan & Panduan",
@@ -189,5 +190,25 @@
   "common": {
     "cancel": "Batal",
     "save": "Simpan"
+  },
+  "smartEditor": {
+    "title": "Smart Manual Clipper",
+    "subtitle": "Potong klip sendiri — presisi atau reflek, tanpa AI",
+    "pickVideo": "Pilih video lokal untuk mulai",
+    "modePrecision": "Mode Presisi",
+    "modePlayReact": "Mode Play & React",
+    "holdToRecord": "Tahan Untuk Klip",
+    "recording": "Merekam…",
+    "toggleHeatmap": "Tampilkan Heatmap Audio",
+    "toggleSilence": "Tampilkan Jeda",
+    "magneticSnap": "Snap Magnetik",
+    "analyzing": "Menganalisis video…",
+    "addClip": "Tambah Klip",
+    "clips": "Daftar Klip",
+    "noClips": "Belum ada klip.",
+    "generate": "Buat Klip",
+    "processing": "Memproses…",
+    "submitted": "🚀 Memproses klip manual...",
+    "done": "🎉 Klip manual selesai!"
   }
 }

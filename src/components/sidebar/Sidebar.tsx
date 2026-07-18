@@ -1,5 +1,5 @@
 import React from "react";
-import { Scissors, Clock, Settings, HelpCircle } from "lucide-react";
+import { Scissors, Clock, Settings, HelpCircle, Wand2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useBackendHealth } from "../../hooks/useBackendHealth";
 import { useTranslation } from "react-i18next";
@@ -42,6 +42,20 @@ export const Sidebar: React.FC = () => {
         >
           <Scissors className="w-5 h-5" />
           {t("sidebar.workspace", "Workspace")}
+        </NavLink>
+
+        <NavLink
+          to="/editor"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-body transition-colors ${
+              isActive
+                ? "bg-accent/10 text-accent font-medium border-l-2 border-accent"
+                : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated border-l-2 border-transparent"
+            }`
+          }
+        >
+          <Wand2 className="w-5 h-5" />
+          {t("sidebar.smart_editor", "Smart Clipper")}
         </NavLink>
 
         <NavLink

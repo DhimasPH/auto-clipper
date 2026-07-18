@@ -137,7 +137,8 @@
     "workspace": "Workspace",
     "history": "History",
     "settings": "Settings",
-    "help": "Help / FAQ"
+    "help": "Help / FAQ",
+    "smart_editor": "Smart Clipper"
   },
   "help": {
     "title": "Help & Guide",
@@ -189,5 +190,25 @@
   "common": {
     "cancel": "Cancel",
     "save": "Save"
+  },
+  "smartEditor": {
+    "title": "Smart Manual Clipper",
+    "subtitle": "Cut clips yourself — precise or reflex, no AI",
+    "pickVideo": "Choose a local video to start",
+    "modePrecision": "Precision Mode",
+    "modePlayReact": "Play & React Mode",
+    "holdToRecord": "Hold to Clip",
+    "recording": "Recording…",
+    "toggleHeatmap": "Show Audio Heatmap",
+    "toggleSilence": "Show Silence Blocks",
+    "magneticSnap": "Magnetic Snap",
+    "analyzing": "Analyzing video…",
+    "addClip": "Add Clip",
+    "clips": "Clips",
+    "noClips": "No clips yet.",
+    "generate": "Create Clips",
+    "processing": "Processing…",
+    "submitted": "🚀 Processing manual clips...",
+    "done": "🎉 Manual clips done!"
   }
 }

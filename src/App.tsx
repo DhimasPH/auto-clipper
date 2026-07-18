@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { WorkspacePage } from "./pages/WorkspacePage";
+import { SmartEditorPage } from "./pages/SmartEditorPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { HelpPage } from "./pages/HelpPage";
@@ -122,6 +123,7 @@ export default function App() {
   const contextValue = {
     theme,
     setTheme,
+    notify,
     provider,
     setProvider,
     apiKeys,
@@ -171,6 +173,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<WorkspacePage />} />
+            <Route path="editor" element={<SmartEditorPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="help" element={<HelpPage />} />

@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+from typing import List
 from backend.db import init_db, get_all_history, delete_history
 from backend.jobs import create_job, get_job, cancel_job
 from backend.ai_utils import ping_provider
@@ -215,6 +216,92 @@ def api_get_history():
 def api_delete_history(job_id: str):
     delete_history(job_id)
     return {"status": "success"}
+
+
+class ExtractMetadataRequest(BaseModel):
+    path: str
+    type: List[str] = ["silence"]
+
+
+@app.post("/api/extract-metadata")
+def api_extract_metadata(req: ExtractMetadataRequest):
+    """Kick off async metadata extraction (silence / peaks / thumbnails).
+
+    Returns a job_id immediately; the frontend polls GET /api/metadata/{id}.
+    """
+    path = req.path
+    if path.startswith("local:"):
+        path = path.split("local:")[1]
+    if not path or not os.path.exists(path):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "File tidak ditemukan."})
+    from backend.metadata import create_metadata_job
+    job_id = create_metadata_job(path, req.type)
+    return {"status": "success", "job_id": job_id}
+
+
+@app.get("/api/metadata/{job_id}")
+def api_get_metadata(job_id: str):
+    from backend.metadata import get_metadata_job
+    job = get_metadata_job(job_id)
+    if not job:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Job not found"})
+    sprite = job.get("sprite")
+    sprite_meta = None
+    if sprite:
+        sprite_meta = {k: v for k, v in sprite.items() if k != "path"}
+        sprite_meta["url"] = f"/api/metadata/{job_id}/sprite"
+    return {
+        "status": job["status"],
+        "progress": job.get("progress", ""),
+        "duration": job.get("duration"),
+        "silence": job.get("silence"),
+        "peaks": job.get("peaks"),
+        "sprite": sprite_meta,
+        "error": job.get("error"),
+        "errors": job.get("errors", {}),
+    }
+
+
+@app.get("/api/metadata/{job_id}/sprite")
+def api_get_metadata_sprite(job_id: str):
+    from backend.metadata import get_metadata_job
+    job = get_metadata_job(job_id)
+    if not job or not job.get("sprite"):
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Sprite not found"})
+    p = job["sprite"]["path"]
+    if not os.path.exists(p):
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Sprite file missing"})
+    return FileResponse(p, media_type="image/jpeg")
+
+
+class ManualJobRequest(BaseModel):
+    url: str
+    clips: List[dict] = []
+    aspect_ratio: str = "9:16"
+    caption_style: str = "standard"
+    burn_subs: bool = True
+    output_dir: str = ""
+    quality: str = "best"
+    title: str = ""
+
+
+@app.post("/jobs/manual")
+def api_create_manual_job(req: ManualJobRequest):
+    if not req.url:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "URL is required"})
+    if not is_valid_source_url(req.url):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid untuk klip manual."})
+    if not req.clips:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Tidak ada klip yang dipilih."})
+    try:
+        from backend.jobs import create_manual_job
+        job_id = create_manual_job(
+            req.url.strip(), req.clips, req.aspect_ratio, req.caption_style,
+            req.burn_subs, req.output_dir, req.quality, req.title,
+        )
+        return {"status": "success", "job_id": job_id}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 
 @app.get("/video")
