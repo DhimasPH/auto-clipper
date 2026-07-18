@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Auto Clipper",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "identifier": "com.autoclipper.app",
   "build": {
     "frontendDist": "../dist",
@@ -25,6 +25,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": "v1Compatible",
     "targets": "all",
     "externalBin": [
       "../bin/backend"
