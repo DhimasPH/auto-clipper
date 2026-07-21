@@ -7,6 +7,7 @@ from backend.video_utils import download_youtube_video
 from backend.ai_utils import process_with_openai, process_with_gemini, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
 from backend.crop_utils import crop_to_vertical
 from backend.db import save_history, get_app_data_dir
+from backend.logger import log_app, log_error
 
 active_jobs = {}
 def _get_clip_limit(max_clips: int, duration_seconds: float) -> int:
@@ -26,17 +27,7 @@ def _get_clip_limit(max_clips: int, duration_seconds: float) -> int:
 def get_temp_dir():
     return os.path.join(get_app_data_dir(), "temp_downloads")
 
-def get_error_log_path():
-    return os.path.join(get_app_data_dir(), "backend_error.log")
 
-def log_error(context: str) -> None:
-    import datetime
-    try:
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(get_error_log_path(), "a") as f:
-            f.write(f"[{timestamp}] {context} ERROR:\n{traceback.format_exc()}\n")
-    except Exception:
-        pass
 
 def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "") -> str:
     job_id = str(uuid.uuid4())
@@ -163,16 +154,19 @@ def _run_job(job_id: str):
         metadata = {}
         # 1. DOWNLOAD OR LOCAL FILE
         job["status"] = "DOWNLOADING"
+        log_app(f"[{job_id}] " + str("DOWNLOADING"))
         
         def is_cancelled():
             return job.get("cancelled", False)
             
         if job["url"].startswith("local:"):
             job["progress"] = "Mempersiapkan video lokal..."
+            log_app(f"[{job_id}] " + str("Mempersiapkan video lokal..."))
             # output_path is exactly the local file we saved in /upload
             output_path = job["url"].split("local:")[1]
         else:
             job["progress"] = "Mengunduh video..."
+            log_app(f"[{job_id}] " + str("Mengunduh video..."))
             output_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
@@ -199,7 +193,9 @@ def _run_job(job_id: str):
             
         # 2. AI PROCESSING
         job["status"] = "TRANSCRIBING"
+        log_app(f"[{job_id}] " + str("TRANSCRIBING"))
         job["progress"] = f"Menganalisis video dengan {job['provider']}..."
+        log_app(f"[{job_id}] " + str(f"Menganalisis video dengan {job['provider']}..."))
 
         is_karaoke = (job["caption_style"] == "karaoke")
 
@@ -225,6 +221,7 @@ def _run_job(job_id: str):
             
         # 3. CROPPING
         job["status"] = "CROPPING"
+        log_app(f"[{job_id}] " + str("CROPPING"))
         
         try:
             from backend.crop_utils import to_seconds
@@ -254,6 +251,7 @@ def _run_job(job_id: str):
             broll_path = None
             if job.get("enable_broll") and job.get("pexels_api_key"):
                 job["progress"] = f"Mengunduh B-Roll untuk klip {i+1}..."
+                log_app(f"[{job_id}] " + str(f"Mengunduh B-Roll untuk klip {i+1}..."))
                 from backend.broll import download_pexels_broll
                 query = seg.get("broll_query_en") or seg.get("description_en")
                 if query:
@@ -263,6 +261,7 @@ def _run_job(job_id: str):
                         broll_path = broll_out
 
             job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
+            log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(segments)}..."))
             
             safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
             import shutil
@@ -306,7 +305,7 @@ def _run_job(job_id: str):
             except Exception as e:
                 log_error(f"JOB CROP {job_id}")
                 job["failed"] = job.get("failed", 0) + 1
-                print(f"Clip {i+1} failed: {e}")
+                log_error(f"Clip {i+1} failed", str(e))
                 
         # Done
         if not job["clips"]:
@@ -334,11 +333,14 @@ def _run_manual_job(job_id: str):
 
         # 1. Resolve source (local upload or download).
         job["status"] = "DOWNLOADING"
+        log_app(f"[{job_id}] " + str("DOWNLOADING"))
         if job["url"].startswith("local:"):
             job["progress"] = "Mempersiapkan video lokal..."
+            log_app(f"[{job_id}] " + str("Mempersiapkan video lokal..."))
             source_path = job["url"].split("local:")[1]
         else:
             job["progress"] = "Mengunduh video..."
+            log_app(f"[{job_id}] " + str("Mengunduh video..."))
             source_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
             os.makedirs(os.path.dirname(source_path), exist_ok=True)
             download_youtube_video(job["url"], source_path, job.get("quality", "best"), is_cancelled=is_cancelled)
@@ -358,7 +360,9 @@ def _run_manual_job(job_id: str):
                 _finalize_job(job_id, "CANCELLED")
                 return
             job["status"] = "TRANSCRIBING"
+            log_app(f"[{job_id}] " + str("TRANSCRIBING"))
             job["progress"] = "Membuat subtitle otomatis..."
+            log_app(f"[{job_id}] " + str("Membuat subtitle otomatis..."))
             from backend.ai_utils import transcribe_with_faster_whisper
             from backend.video_utils import extract_audio
             import json as _json
@@ -387,11 +391,13 @@ def _run_manual_job(job_id: str):
 
         # 4. Crop each user-selected range.
         job["status"] = "CROPPING"
+        log_app(f"[{job_id}] " + str("CROPPING"))
         for i, clip in enumerate(clips):
             if is_cancelled():
                 _finalize_job(job_id, "CANCELLED")
                 return
             job["progress"] = f"Merender klip {i+1} dari {len(clips)}..."
+            log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(clips)}..."))
             start_t = clip.get("start")
             end_t = clip.get("end")
 
@@ -429,7 +435,7 @@ def _run_manual_job(job_id: str):
             except Exception as e:
                 log_error(f"MANUAL JOB CROP {job_id}")
                 job["failed"] = job.get("failed", 0) + 1
-                print(f"Manual clip {i+1} failed: {e}")
+                log_error(f"Manual clip {i+1} failed", str(e))
 
         if not job["clips"]:
             raise ValueError("Semua klip gagal dirender.")
@@ -461,6 +467,7 @@ def _run_rerender_job(job_id: str):
         highlights = metadata.get("highlights", [])
         
         job["status"] = "CROPPING"
+        log_app(f"[{job_id}] " + str("CROPPING"))
         
         try:
             from backend.crop_utils import to_seconds
@@ -490,6 +497,7 @@ def _run_rerender_job(job_id: str):
             broll_path = None
             if job.get("enable_broll") and job.get("pexels_api_key"):
                 job["progress"] = f"Mengunduh B-Roll untuk klip {i+1}..."
+                log_app(f"[{job_id}] " + str(f"Mengunduh B-Roll untuk klip {i+1}..."))
                 from backend.broll import download_pexels_broll
                 query = seg.get("broll_query_en") or seg.get("description_en")
                 if query:
@@ -499,6 +507,7 @@ def _run_rerender_job(job_id: str):
                         broll_path = broll_out
 
             job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
+            log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(segments)}..."))
             
             safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
             import shutil
@@ -541,7 +550,7 @@ def _run_rerender_job(job_id: str):
             except Exception as e:
                 log_error(f"JOB RERENDER CROP {job_id}")
                 job["failed"] = job.get("failed", 0) + 1
-                print(f"Clip {i+1} failed: {e}")
+                log_error(f"Clip {i+1} failed", str(e))
                 
         if not job["clips"]:
              raise ValueError("Semua klip gagal dirender.")
@@ -603,7 +612,9 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         if job["cancelled"]: return
 
         job["status"] = "TRANSCRIBING"
+        log_app(f"[{job_id}] " + str("TRANSCRIBING"))
         job["progress"] = f"Menganalisis ulang dengan {job['provider']}..."
+        log_app(f"[{job_id}] " + str(f"Menganalisis ulang dengan {job['provider']}..."))
         
         is_karaoke = (job["caption_style"] == "karaoke")
         extra_prompt = job.get("extra_prompt", "")
@@ -632,6 +643,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             raise ValueError("Tidak ada klip baru yang ditemukan AI dengan instruksi tersebut.")
             
         job["status"] = "CROPPING"
+        log_app(f"[{job_id}] " + str("CROPPING"))
         
         try:
             from backend.crop_utils import to_seconds
@@ -655,6 +667,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             broll_path = None
             if job.get("enable_broll") and job.get("pexels_api_key"):
                 job["progress"] = f"Mengunduh B-Roll untuk klip {i+1}..."
+                log_app(f"[{job_id}] " + str(f"Mengunduh B-Roll untuk klip {i+1}..."))
                 from backend.broll import download_pexels_broll
                 query = seg.get("broll_query_en") or seg.get("description_en")
                 if query:
@@ -664,6 +677,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                         broll_path = broll_out
                         
             job["progress"] = f"Memotong klip {i+1} dari {len(segments)} (AI Koreksi)..."
+            log_app(f"[{job_id}] " + str(f"Memotong klip {i+1} dari {len(segments)} (AI Koreksi)..."))
             try:
                 clip_output = os.path.join(get_temp_dir(), f"{job_id}_clip_{i+1}.mp4")
                 if job.get("output_dir"):
@@ -701,7 +715,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             except Exception as e:
                 log_error(f"JOB RERUN AI CROP {job_id}")
                 job["failed"] = job.get("failed", 0) + 1
-                print(f"Clip {i+1} failed: {e}")
+                log_error(f"Clip {i+1} failed", str(e))
                 
         if not job["clips"]:
              raise ValueError("Semua klip gagal dirender pada AI Koreksi.")
@@ -717,6 +731,7 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     import time
     job = active_jobs[job_id]
     job["status"] = status
+    log_app(f"[{job_id}] " + str(status))
 
     if metadata is None:
         metadata = {}
