@@ -8,6 +8,7 @@ from google.genai import types
 
 from backend.video_utils import extract_audio
 from backend.crop_utils import to_seconds, _fmt_srt_ts
+from backend.logger import log_ai
 
 
 _TRANSIENT_MARKERS = (
@@ -133,7 +134,9 @@ def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", ba
         ],
         response_format={"type": "json_object"},
     ))
-    return _parse_highlights(response.choices[0].message.content)
+    response_text = response.choices[0].message.content
+    log_ai("openai_compatible", model, prompt, response_text)
+    return _parse_highlights(response_text)
 
 
 def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
@@ -282,7 +285,9 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
         ),
     ))
 
-    highlights = _parse_highlights(response.text)
+    response_text = response.text
+    log_ai("gemini", model_name, prompt, response_text)
+    highlights = _parse_highlights(response_text)
 
     return {
         "transcript": transcript_text,
