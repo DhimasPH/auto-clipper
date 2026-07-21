@@ -300,6 +300,7 @@ def _run_job(job_id: str):
                     "start": seg["start_time"],
                     "end": seg["end_time"],
                     "subs": bool(subtitle_path),
+                    "social": seg.get("social", {}),
                     "v": 0
                 })
             except Exception as e:
@@ -350,7 +351,10 @@ def _run_manual_job(job_id: str):
 
         clips = job.get("manual_clips", [])
         if not clips:
-            raise ValueError("Tidak ada klip yang dipilih.")
+            from backend.video_utils import get_video_duration
+            from backend.crop_utils import _fmt_srt_ts
+            dur_secs = get_video_duration(source_path)
+            clips = [{"start": "00:00:00.000", "end": _fmt_srt_ts(dur_secs)}]
 
         # 2. Optional captions: transcribe the source once with faster-whisper
         #    (no LLM), then let crop_to_vertical shift subtitles per clip.
@@ -545,6 +549,7 @@ def _run_rerender_job(job_id: str):
                     "start": seg["start_time"],
                     "end": seg["end_time"],
                     "subs": bool(subtitle_path),
+                    "social": seg.get("social", {}),
                     "v": 0
                 })
             except Exception as e:
@@ -710,6 +715,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     "start": seg["start_time"],
                     "end": seg["end_time"],
                     "subs": bool(subtitle_path),
+                    "social": seg.get("social", {}),
                     "v": 0
                 })
             except Exception as e:

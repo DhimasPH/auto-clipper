@@ -4,6 +4,7 @@ import { AppLayout } from "./layouts/AppLayout";
 import { WorkspacePage } from "./pages/WorkspacePage";
 import { SmartEditorPage } from "./pages/SmartEditorPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { ManualDownloaderPage } from "./pages/ManualDownloaderPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { HelpPage } from "./pages/HelpPage";
 import Toasts from "./components/Toasts";
@@ -187,6 +188,7 @@ export default function App() {
           <Route path="/" element={<AppLayout />}>
             <Route index element={<WorkspacePage />} />
             <Route path="editor" element={<SmartEditorPage />} />
+            <Route path="downloader" element={<ManualDownloaderPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="help" element={<HelpPage />} />
