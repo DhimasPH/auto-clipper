@@ -14,14 +14,14 @@ from backend.logger import log_ai
 _TRANSIENT_MARKERS = (
     "unavailable", "overloaded", "high demand", "temporarily",
     "resource_exhausted", "rate limit", "timeout", "try again",
-    "500", "502", "503", "504",
+    "500", "502", "503", "504", "524",
 )
 
 
 def _is_transient(err) -> bool:
     """True for errors worth retrying (server overload, rate spikes, timeouts)."""
     code = getattr(err, "code", None) or getattr(err, "status_code", None)
-    if code in (429, 500, 502, 503, 504):
+    if code in (429, 500, 502, 503, 504, 524):
         return True
     msg = str(err).lower()
     return any(marker in msg for marker in _TRANSIENT_MARKERS)
