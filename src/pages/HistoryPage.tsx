@@ -51,7 +51,7 @@ export const HistoryPage: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-8 w-full mx-auto">
       <div className="flex justify-between items-center mb-8">
         <PageHeader
           title="History"
@@ -90,7 +90,9 @@ export const HistoryPage: React.FC = () => {
                     rel="noreferrer"
                     className="text-body font-medium text-text-primary hover:text-accent truncate block"
                   >
-                    {job.metadata?.title ? `${job.metadata.title} - ${job.url}` : job.url}
+                    {job.metadata?.title
+                      ? `${job.metadata.title} - ${job.url}`
+                      : job.url}
                   </a>
                   <div className="flex items-center gap-3 mt-2 text-caption text-text-secondary flex-wrap">
                     <span>{new Date(job.created_at).toLocaleString()}</span>
@@ -109,13 +111,18 @@ export const HistoryPage: React.FC = () => {
                     {job.metadata?.duration_seconds != null && (
                       <>
                         <span>•</span>
-                        <span>⏱️ {Math.floor(job.metadata.duration_seconds / 60)}m {job.metadata.duration_seconds % 60}s</span>
+                        <span>
+                          ⏱️ {Math.floor(job.metadata.duration_seconds / 60)}m{" "}
+                          {job.metadata.duration_seconds % 60}s
+                        </span>
                       </>
                     )}
                     {job.metadata?.quality && (
                       <>
                         <span>•</span>
-                        <span className="uppercase text-xs font-semibold px-2 py-0.5 bg-accent/10 text-accent rounded-full">{job.metadata.quality}</span>
+                        <span className="uppercase text-xs font-semibold px-2 py-0.5 bg-accent/10 text-accent rounded-full">
+                          {job.metadata.quality}
+                        </span>
                       </>
                     )}
                   </div>
@@ -141,6 +148,7 @@ export const HistoryPage: React.FC = () => {
                         start: clip.start || "",
                         end: clip.end || "",
                         subs: clip.subs || false,
+                        social: clip.social,
                         v: Date.now(),
                       }}
                       index={idx}

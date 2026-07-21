@@ -1,11 +1,11 @@
-import React, { useContext, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Link2, Type, Folder, Download } from 'lucide-react';
-import { PageHeader } from '../components/ui/PageHeader';
-import { AppContext } from '../App';
-import { InputGroup } from '../components/ui/InputGroup';
-import { ToggleSwitch } from '../components/ui/ToggleSwitch';
-import { Button } from '../components/ui/Button';
+import React, { useContext, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Link2, Type, Folder, Download } from "lucide-react";
+import { PageHeader } from "../components/ui/PageHeader";
+import { AppContext } from "../App";
+import { InputGroup } from "../components/ui/InputGroup";
+import { ToggleSwitch } from "../components/ui/ToggleSwitch";
+import { Button } from "../components/ui/Button";
 
 export const ManualDownloaderPage: React.FC = () => {
   const { t } = useTranslation();
@@ -22,15 +22,21 @@ export const ManualDownloaderPage: React.FC = () => {
   return (
     <div className="p-8">
       <PageHeader
-        title={t('manualDownloader.title', 'Manual Downloader')}
-        subtitle={t('manualDownloader.subtitle', 'Download video penuh beserta subtitle otomatis')}
+        title={t("manualDownloader.title", "Manual Downloader")}
+        subtitle={t(
+          "manualDownloader.subtitle",
+          "Download video penuh beserta subtitle otomatis",
+        )}
       />
 
       <div className="max-w-3xl mx-auto bg-bg-secondary rounded-card border border-border p-6 shadow-sm flex flex-col gap-6">
         <div className="space-y-2">
           <InputGroup
             label={t("main.url_label", "Video URL")}
-            placeholder={t("main.url_placeholder", "https://youtube.com/watch?... ")}
+            placeholder={t(
+              "main.url_placeholder",
+              "https://youtube.com/watch?... ",
+            )}
             value={downloadUrl}
             onChange={(e) => setDownloadUrl(e.target.value)}
             icon={Link2}
@@ -40,7 +46,10 @@ export const ManualDownloaderPage: React.FC = () => {
         <div className="space-y-2">
           <InputGroup
             label={t("main.project_title_label", "Judul Proyek (Opsional)")}
-            placeholder={t("main.project_title_placeholder", "Misal: Podcast Radit Full")}
+            placeholder={t(
+              "main.project_title_placeholder",
+              "Misal: Podcast Radit Full",
+            )}
             value={downloadTitle}
             onChange={(e) => setDownloadTitle(e.target.value)}
             icon={Folder}
@@ -48,7 +57,9 @@ export const ManualDownloaderPage: React.FC = () => {
         </div>
 
         <div className="space-y-2">
-          <label className="text-label text-text-secondary">{t("main.aspect_ratio_label", "Video Aspect Ratio")}</label>
+          <label className="text-label text-text-secondary">
+            {t("main.aspect_ratio_label", "Video Aspect Ratio")}
+          </label>
           <div className="grid grid-cols-2 gap-3">
             {(["16:9", "9:16"] as const).map((ratio) => (
               <button
@@ -60,7 +71,9 @@ export const ManualDownloaderPage: React.FC = () => {
                     : "border-border bg-bg-surface text-text-secondary hover:border-border-active hover:text-text-primary"
                 }`}
               >
-                <span>{ratio === "9:16" ? "9:16 (Vertical)" : "16:9 (Landscape)"}</span>
+                <span>
+                  {ratio === "9:16" ? "9:16 (Vertical)" : "16:9 (Landscape)"}
+                </span>
               </button>
             ))}
           </div>
@@ -73,11 +86,21 @@ export const ManualDownloaderPage: React.FC = () => {
                 <Type className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-body font-medium text-text-primary">{t("main.burn_subtitles", "Burn Subtitles")}</h4>
-                <p className="text-caption text-text-secondary">{t("main.burn_subtitles_desc", "Embed captions directly into the video")}</p>
+                <h4 className="text-body font-medium text-text-primary">
+                  {t("main.burn_subtitles", "Burn Subtitles")}
+                </h4>
+                <p className="text-caption text-text-secondary">
+                  {t(
+                    "main.burn_subtitles_desc",
+                    "Embed captions directly into the video",
+                  )}
+                </p>
               </div>
             </div>
-            <ToggleSwitch checked={ctx.burnSubtitles} onChange={ctx.setBurnSubtitles} />
+            <ToggleSwitch
+              checked={ctx.burnSubtitles}
+              onChange={ctx.setBurnSubtitles}
+            />
           </div>
 
           {ctx.burnSubtitles && (
@@ -93,7 +116,9 @@ export const ManualDownloaderPage: React.FC = () => {
                         : "border-border bg-bg-surface text-text-secondary hover:border-border-active"
                     }`}
                   >
-                    {style === "standard" ? "Standard (Baris)" : "Karaoke (Word-by-word)"}
+                    {style === "standard"
+                      ? "Standard (Baris)"
+                      : "Karaoke (Word-by-word)"}
                   </button>
                 ))}
               </div>
@@ -115,7 +140,9 @@ export const ManualDownloaderPage: React.FC = () => {
             onClick={handleDownload}
             disabled={ctx.isRunning || !downloadUrl}
           >
-            {ctx.isRunning ? t('main.probing', 'Memproses...') : t('manualDownloader.btn_download', 'Mulai Download')}
+            {ctx.isRunning
+              ? t("main.probing", "Memproses...")
+              : t("manualDownloader.btn_download", "Mulai Download")}
           </Button>
         </div>
       </div>
