@@ -57,14 +57,14 @@ HIGHLIGHT_GUIDANCE = (
 
 
 def build_srt_from_segments(segments) -> str:
-    """Turn a list of {start_time, end_time, text} into SRT text."""
+    """Turn a list of {start_time, end_time, text} or {start, end, text} into SRT text."""
     lines = []
     idx = 1
     for seg in segments or []:
         if not isinstance(seg, dict):
             continue
-        st = to_seconds(seg.get("start_time"))
-        et = to_seconds(seg.get("end_time"))
+        st = to_seconds(seg.get("start_time") or seg.get("start"))
+        et = to_seconds(seg.get("end_time") or seg.get("end"))
         text = str(seg.get("text") or "").strip()
         if not text or et <= st:
             continue
@@ -167,8 +167,10 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, ext
         subtitle_path = base + ".words.json"
         with open(subtitle_path, "w", encoding="utf-8") as f:
             json.dump(transcript, f)
-        # Convert to SRT for Gemini prompt if needed
-        transcript_text = transcript.get("text", "")
+        # Build SRT from OpenAI verbose_json segments for the AI prompt
+        raw_segments = transcript.get("segments", [])
+        srt_segments = [{"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} for s in raw_segments]
+        transcript_text = build_srt_from_segments(srt_segments)
     else:
         subtitle_path = base + ".srt"
         with open(subtitle_path, "w", encoding="utf-8") as f:
@@ -226,6 +228,7 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
     
     if karaoke:
         words_data = []
+        segments_data = []
         for segment in segments:
             for word in segment.words:
                 words_data.append({
@@ -233,7 +236,12 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
                     "start": word.start,
                     "end": word.end
                 })
-        return {"words": words_data}
+            segments_data.append({
+                "start": segment.start,
+                "end": segment.end,
+                "text": segment.text.strip()
+            })
+        return {"words": words_data, "segments": segments_data}
     else:
         from backend.crop_utils import _fmt_srt_ts
         srt_lines = []
@@ -261,7 +269,7 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
         subtitle_path = base + ".words.json"
         with open(subtitle_path, "w", encoding="utf-8") as f:
             json.dump(transcript_data, f)
-        transcript_text = " ".join([w["word"] for w in transcript_data.get("words", [])])
+        transcript_text = build_srt_from_segments(transcript_data.get("segments", []))
     else:
         subtitle_path = base + ".srt"
         transcript_text = transcript_data
@@ -297,7 +305,7 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
         "- 'description_id': Indonesian video description with a CTA\n"
         "- 'hashtags_en': Array of 5-7 English hashtags\n"
         "- 'hashtags_id': Array of 5-7 Indonesian hashtags\n\n"
-        f"Transcript:\n{transcript_text[:30000]}"
+        f"Transcript:\n{transcript_text}"
     )
 
     if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
@@ -362,7 +370,7 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
         subtitle_path = base + ".words.json"
         with open(subtitle_path, "w", encoding="utf-8") as f:
             json.dump(transcript_data, f)
-        transcript_text = " ".join([w["word"] for w in transcript_data.get("words", [])])
+        transcript_text = build_srt_from_segments(transcript_data.get("segments", []))
     else:
         subtitle_path = base + ".srt"
         transcript_text = transcript_data
