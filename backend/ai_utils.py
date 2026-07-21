@@ -21,8 +21,11 @@ _TRANSIENT_MARKERS = (
 def _is_transient(err) -> bool:
     """True for errors worth retrying (server overload, rate spikes, timeouts)."""
     code = getattr(err, "code", None) or getattr(err, "status_code", None)
-    if code in (429, 500, 502, 503, 504, 524):
-        return True
+    try:
+        if code is not None and (int(code) == 429 or 500 <= int(code) < 600):
+            return True
+    except (ValueError, TypeError):
+        pass
     msg = str(err).lower()
     return any(marker in msg for marker in _TRANSIENT_MARKERS)
 
@@ -35,7 +38,11 @@ def _with_retry(fn, attempts: int = 4, base_delay: float = 2.0):
         except Exception as e:
             if not _is_transient(e) or i == attempts - 1:
                 raise
-            time.sleep(base_delay * (2 ** i) + random.uniform(0, 0.5))
+            delay = base_delay * (2 ** i) + random.uniform(0, 0.5)
+            from backend.logger import log_app
+            msg = getattr(e, "message", None) or str(e)
+            log_app(f"AI API transient error: {msg}. Retrying in {delay:.2f}s (Attempt {i+1} of {attempts-1})")
+            time.sleep(delay)
 
 
 HIGHLIGHT_GUIDANCE = (
