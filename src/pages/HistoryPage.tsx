@@ -141,14 +141,11 @@ export const HistoryPage: React.FC = () => {
                     <ClipCard
                       key={clip.path || idx}
                       clip={{
-                        path: clip.path,
+                        ...clip,
                         description: clip.description || "",
-                        description_id: clip.description_id || "",
-                        description_en: clip.description_en || "",
                         start: clip.start || "",
                         end: clip.end || "",
                         subs: clip.subs || false,
-                        social: clip.social,
                         v: Date.now(),
                       }}
                       index={idx}

@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
-import { Download, Folder } from "lucide-react";
+import { Download, Folder, Sparkles } from "lucide-react";
 import { Button } from "./ui/Button";
 import { open } from "@tauri-apps/plugin-shell";
 import { save } from "@tauri-apps/plugin-dialog";
 import { API_URL } from "../App";
+import { SocialKitModal } from "./SocialKitModal";
 
 export interface SocialData {
   titles_en?: string[];
@@ -13,6 +14,10 @@ export interface SocialData {
   hashtags_en?: string[];
   hashtags_id?: string[];
   thumbnail_layout?: string;
+  best_time_to_post_en?: string;
+  best_time_to_post_id?: string;
+  backsound_en?: string;
+  backsound_id?: string;
 }
 
 export interface Clip {
@@ -41,7 +46,7 @@ export default function ClipCard({
   videoSrc
 }: ClipCardProps) {
   const { t, i18n } = useTranslation();
-  const [showSocial, setShowSocial] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const currentDescription = i18n.language === 'id' 
     ? (clip.description_id || clip.description)
@@ -69,83 +74,12 @@ export default function ClipCard({
         {clip.social && (
           <div className="mb-4">
             <button
-              onClick={() => setShowSocial(!showSocial)}
-              className="text-accent text-caption font-medium hover:underline flex items-center gap-1"
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 py-2 px-3 bg-accent/10 text-accent rounded-button text-caption font-medium hover:bg-accent/20 transition-all cursor-pointer"
             >
-              {showSocial ? t('clip.hide_social', 'Sembunyikan Social Kit') : t('clip.show_social', 'Tampilkan Social Kit')}
+              <Sparkles className="w-4 h-4" />
+              {t('clip.social_kit', 'Social Kit')}
             </button>
-            {showSocial && (
-              <div className="mt-2 p-3 bg-bg-surface rounded-lg border border-border text-caption space-y-3">
-                {/* Titles */}
-                <div>
-                  <div className="font-medium text-text-primary mb-1">
-                    {t('clip.social_titles', 'Judul Viral (Pilih satu):')}
-                  </div>
-                  <ul className="list-disc pl-4 text-text-secondary space-y-1">
-                    {(i18n.language === 'id' ? clip.social.titles_id : clip.social.titles_en)?.map((title, i) => (
-                      <li key={i} className="flex justify-between items-start gap-2">
-                        <span>{title}</span>
-                        <button
-                          title="Copy"
-                          onClick={() => navigator.clipboard.writeText(title)}
-                          className="text-accent hover:text-accent/80 shrink-0"
-                        >
-                          Copy
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-medium text-text-primary">
-                      {t('clip.social_desc', 'Deskripsi:')}
-                    </span>
-                    <button
-                      title="Copy"
-                      onClick={() => navigator.clipboard.writeText((i18n.language === 'id' ? clip.social?.description_id : clip.social?.description_en) || '')}
-                      className="text-accent hover:text-accent/80"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <p className="text-text-secondary line-clamp-3 hover:line-clamp-none">
-                    {i18n.language === 'id' ? clip.social.description_id : clip.social.description_en}
-                  </p>
-                </div>
-
-                {/* Hashtags */}
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-medium text-text-primary">
-                      {t('clip.social_hashtags', 'Hashtags:')}
-                    </span>
-                    <button
-                      title="Copy"
-                      onClick={() => navigator.clipboard.writeText(((i18n.language === 'id' ? clip.social?.hashtags_id : clip.social?.hashtags_en) || []).join(' '))}
-                      className="text-accent hover:text-accent/80"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <p className="text-text-secondary">
-                    {(i18n.language === 'id' ? clip.social.hashtags_id : clip.social.hashtags_en)?.join(' ')}
-                  </p>
-                </div>
-
-                {/* Thumbnail Idea */}
-                <div>
-                  <div className="font-medium text-text-primary mb-1">
-                    {t('clip.social_thumbnail', 'Ide Thumbnail:')}
-                  </div>
-                  <p className="text-text-secondary">
-                    {clip.social.thumbnail_layout}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -219,6 +153,14 @@ export default function ClipCard({
           />
         </div>
       </div>
+      {clip.social && (
+        <SocialKitModal 
+          isOpen={showModal} 
+          onClose={() => setShowModal(false)} 
+          social={clip.social} 
+          clipIndex={index + 1} 
+        />
+      )}
     </div>
   );
 }

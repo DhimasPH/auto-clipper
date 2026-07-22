@@ -5,6 +5,7 @@ import time
 from openai import OpenAI
 from google import genai
 from google.genai import types
+from datetime import datetime as _dt, timezone as _tz
 
 from backend.video_utils import extract_audio
 from backend.crop_utils import to_seconds, _fmt_srt_ts
@@ -47,12 +48,43 @@ def _with_retry(fn, attempts: int = 4, base_delay: float = 2.0):
 
 HIGHLIGHT_GUIDANCE = (
     "Pick the most engaging, self-contained moments for vertical short-form "
-    "video (TikTok/Reels/Shorts). Each highlight must: start on a strong hook, "
-    "contain a complete thought AND a complete sentence (NEVER cut off mid-sentence or mid-word), be genuinely "
+    "video (TikTok/Reels/Shorts). Each highlight must: start on a STRONG hook that grabs attention in the first 2 seconds, "
+    "contain a complete thought AND a complete sentence (NEVER cut mid-sentence or mid-word), be genuinely "
     "interesting/funny/surprising on its own without context, and run strictly between "
-    "15-45 seconds. Set start/end precisely on natural speech pauses (silence). "
+    "20-120 seconds. Set start/end PRECISELY on natural speech pauses (silence gaps). "
+    "Prefer longer clips (60-90s) when the narrative arc is compelling, but allow shorter (20-30s) for punchy standalone moments. "
     "Ensure that the first word is clearly spoken from the beginning and the last word finishes completely. "
     "Return them in chronological order and avoid intros, filler, and dead air."
+)
+
+
+def _get_user_datetime_context() -> str:
+    now = _dt.now().astimezone()
+    dt_str = now.strftime("%A, %Y-%m-%d %H:%M")
+    tz_offset_hours = now.utcoffset().total_seconds() / 3600
+    tz_sign = "+" if tz_offset_hours >= 0 else "-"
+    tz_str = f"UTC{tz_sign}{abs(int(tz_offset_hours))}"
+    return f"Current user local time: {dt_str} {tz_str}"
+
+
+SOCIAL_PROMPT_TEMPLATE = (
+    "Return a JSON object with a 'highlights' key holding an array of objects. "
+    "Each object must have 'start_time', 'end_time' (in HH:MM:SS.mmm format), "
+    "'description_en' (in English), 'description_id' (in Indonesian), "
+    "and 'broll_query_en' (STRICTLY 1-2 visual English words, e.g. 'coding man', 'fast car').\n"
+    "ALSO, include a nested 'social' object with the following keys:\n"
+    "- 'titles_en': Array of 3 English titles (Clickbait, Educational, Minimalist)\n"
+    "- 'titles_id': Array of 3 Indonesian titles (Clickbait, Edukatif, Minimalis)\n"
+    "- 'thumbnail_layout': English string describing a visual layout and hook text for a thumbnail\n"
+    "- 'description_en': English video description with a CTA\n"
+    "- 'description_id': Indonesian video description with a CTA\n"
+    "- 'hashtags_en': Array of 5-7 English hashtags\n"
+    "- 'hashtags_id': Array of 5-7 Indonesian hashtags\n"
+    "- 'best_time_to_post_en': English recommendation for the best day+time to post this specific clip for maximum engagement, based on the content type/topic and the user's timezone. Include the specific date and time window.\n"
+    "- 'best_time_to_post_id': Same but in Indonesian\n"
+    "- 'backsound_en': English recommendation for background music - suggest specific song names and artists that match the clip's mood/vibe/energy, plus the genre. Example: \"Upbeat lo-fi hip hop, e.g. 'Snowman' by WYS or 'Coffee' by beabadoobee\"\n"
+    "- 'backsound_id': Same but in Indonesian\n\n"
+    "{datetime_context}"
 )
 
 
@@ -127,18 +159,7 @@ def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", ba
     prompt = (
         "Analyze the following video transcript (SRT format). "
         f"{HIGHLIGHT_GUIDANCE}{additional_instructions}\n\n"
-        "Return a JSON object with a 'highlights' key holding an array of objects. "
-        "Each object must have 'start_time', 'end_time' (in HH:MM:SS.mmm format), "
-        "'description_en' (in English), 'description_id' (in Indonesian), "
-        "and 'broll_query_en' (STRICTLY 1-2 visual English words, e.g. 'coding man', 'fast car').\n"
-        "ALSO, include a nested 'social' object with the following keys:\n"
-        "- 'titles_en': Array of 3 English titles (Clickbait, Educational, Minimalist)\n"
-        "- 'titles_id': Array of 3 Indonesian titles (Clickbait, Edukatif, Minimalis)\n"
-        "- 'thumbnail_layout': English string describing a visual layout and hook text for a thumbnail\n"
-        "- 'description_en': English video description with a CTA\n"
-        "- 'description_id': Indonesian video description with a CTA\n"
-        "- 'hashtags_en': Array of 5-7 English hashtags\n"
-        "- 'hashtags_id': Array of 5-7 Indonesian hashtags\n\n"
+        f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
         f"Transcript:\n{transcript_srt}"
     )
     response = _with_retry(lambda: client.chat.completions.create(
@@ -293,18 +314,7 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
     prompt = (
         "Watch this video and read the following accurate transcript. "
         f"{HIGHLIGHT_GUIDANCE}{additional_instructions}\n\n"
-        "Return a JSON object with a 'highlights' key holding an array of objects. "
-        "Each object must have 'start_time', 'end_time' (in HH:MM:SS.mmm format), "
-        "'description_en' (in English), 'description_id' (in Indonesian), "
-        "and 'broll_query_en' (STRICTLY 1-2 visual English words, e.g. 'coding man', 'fast car').\n"
-        "ALSO, include a nested 'social' object with the following keys:\n"
-        "- 'titles_en': Array of 3 English titles (Clickbait, Educational, Minimalist)\n"
-        "- 'titles_id': Array of 3 Indonesian titles (Clickbait, Edukatif, Minimalis)\n"
-        "- 'thumbnail_layout': English string describing a visual layout and hook text for a thumbnail\n"
-        "- 'description_en': English video description with a CTA\n"
-        "- 'description_id': Indonesian video description with a CTA\n"
-        "- 'hashtags_en': Array of 5-7 English hashtags\n"
-        "- 'hashtags_id': Array of 5-7 Indonesian hashtags\n\n"
+        f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
         f"Transcript:\n{transcript_text}"
     )
 
