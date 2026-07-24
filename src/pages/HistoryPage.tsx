@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
-import { Trash2, RefreshCw, Wand2 } from "lucide-react";
+import { Trash2, RefreshCw, Wand2, Play } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { AppContext, API_URL } from "../App";
-import { canRerunAI } from "../lib/history";
+import { canRerunAI, canResumeJob } from "../lib/history";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Select } from "../components/ui/Select";
@@ -287,6 +287,16 @@ export const HistoryPage: React.FC = () => {
                     }
                   >
                     {t("history.ai_correct")}
+                  </Button>
+                )}
+                {job.status === "failed" && canResumeJob(job) && (
+                  <Button
+                    variant="outline"
+                    className="!text-accent !border-accent/30 hover:!bg-accent/10"
+                    icon={Play}
+                    onClick={() => ctx.handleResumeJob(job.id)}
+                  >
+                    Retry
                   </Button>
                 )}
               </div>

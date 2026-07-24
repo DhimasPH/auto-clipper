@@ -83,10 +83,12 @@ export default function App() {
     isRunning,
     progressPct,
     historyVersion,
+    activeJobId,
     handleGenerate,
     handleManualGenerate,
     handleRerender,
     handleRerunAI,
+    handleResumeJob,
     cancelJob,
     resetJobState,
   } = useClipJobs({
@@ -163,6 +165,7 @@ export default function App() {
     status,
     progressPct,
     progress,
+    jobId: activeJobId,
     handleGenerate,
     handleManualGenerate,
     cancelJob,
@@ -176,6 +179,7 @@ export default function App() {
     historyVersion,
     handleRerender,
     handleRerunAI,
+    handleResumeJob,
     handleResetWorkspace,
   };
 

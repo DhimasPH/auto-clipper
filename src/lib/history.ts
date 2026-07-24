@@ -18,3 +18,7 @@ export interface HistoryJobLike {
 export function canRerunAI(job: HistoryJobLike | null | undefined): boolean {
   return !!(job && job.metadata && job.metadata.ai_job);
 }
+
+export function canResumeJob(job: HistoryJobLike | null | undefined): boolean {
+  return !!(job && job.metadata && job.metadata.source_video && job.metadata.subtitle_path);
+}

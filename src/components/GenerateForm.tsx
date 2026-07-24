@@ -1,8 +1,8 @@
-import { Dispatch, SetStateAction, useState } from "react";
+import { Dispatch, SetStateAction, useState, useContext } from "react";
 import axios from "axios";
-import { API_URL } from "../App";
+import { API_URL, AppContext } from "../App";
 import { useTranslation } from "react-i18next";
-import { Link2, FileVideo, Wand2, Type, Folder, Film } from "lucide-react";
+import { Link2, FileVideo, Wand2, Type, Folder, Film, RefreshCw } from "lucide-react";
 import { InputGroup } from "./ui/InputGroup";
 import { Select } from "./ui/Select";
 import { ToggleSwitch } from "./ui/ToggleSwitch";
@@ -60,6 +60,7 @@ export default function GenerateForm({
   handleGenerate,
 }: GenerateFormProps) {
   const { t } = useTranslation();
+  const ctx = useContext(AppContext);
   const [availHeights, setAvailHeights] = useState<number[]>([]);
   const [probing, setProbing] = useState(false);
 
@@ -336,8 +337,20 @@ export default function GenerateForm({
       </div>
 
       {errorMsg && (
-        <div className="p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-body">
-          ⚠️ {errorMsg}
+        <div className="p-4 bg-danger/10 border border-danger/20 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="text-danger text-body">
+            ⚠️ {errorMsg}
+          </div>
+          {ctx.status === "ERROR" && ctx.jobId && (
+            <Button
+              variant="outline"
+              className="whitespace-nowrap"
+              icon={RefreshCw}
+              onClick={() => ctx.handleResumeJob(ctx.jobId)}
+            >
+              Retry
+            </Button>
+          )}
         </div>
       )}
 

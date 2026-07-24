@@ -309,6 +309,30 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
+  const handleResumeJob = async (historyJobId: string) => {
+    setJobOrigin("history");
+    setStatus("TRANSCRIBING");
+    setProgress("");
+    setErrorMsg("");
+
+    try {
+      const res = await axios.post(`${API_URL}/jobs/${historyJobId}/resume`);
+
+      if (res.data.status === "error") throw new Error(res.data.message);
+
+      setActiveJobId(res.data.job_id);
+      p.closeHistory();
+      notify(t('toast.starting_resume', '🔄 Melanjutkan proses AI...'));
+    } catch (err: any) {
+      console.error(err);
+      setStatus("IDLE");
+      setProgress("");
+      const msg = err.response?.data?.message || err.message || t('toast.resume_fail', 'Gagal melanjutkan proses AI.');
+      setErrorMsg(msg);
+      notify(`⚠️ ${msg}`, "error");
+    }
+  };
+
   const resetJobState = () => {
     setStatus("IDLE");
     setClips([]);
@@ -335,7 +359,7 @@ export function useClipJobs(p: ClipJobParams) {
 
   return {
     status, progress, errorMsg, clips, failedCount,
-    isRunning, progressPct, historyVersion,
-    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, cancelJob, resetJobState,
+    isRunning, progressPct, historyVersion, activeJobId,
+    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, cancelJob, resetJobState,
   };
 }
