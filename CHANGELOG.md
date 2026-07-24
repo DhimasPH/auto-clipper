@@ -2,6 +2,10 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.0] - 2026-07-24
+### Added
+- Fitur **Multi-Stage Resume (Retry Cerdas)**: Proses retry kini hanya mensyaratkan ketersediaan file video lokal. Jika gagal di tengah jalan (misal: saat transkripsi Whisper), pengguna tidak perlu *download* ulang videonya, sistem akan secara cerdas melanjutkan tahap transkripsi dari video yang sudah ada.
+
 ## [1.5.0] - 2026-07-22
 ### Added
 - Fitur Social Kit Modal yang lebih rapi (menampilkan judul, deskripsi, hashtag, dan ide thumbnail).
