@@ -20,5 +20,5 @@ export function canRerunAI(job: HistoryJobLike | null | undefined): boolean {
 }
 
 export function canResumeJob(job: HistoryJobLike | null | undefined): boolean {
-  return !!(job && job.metadata && job.metadata.source_video && job.metadata.subtitle_path);
+  return !!(job && job.metadata && job.metadata.source_video);
 }

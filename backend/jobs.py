@@ -822,62 +822,87 @@ def _run_resume_job(job_id: str):
             raise ValueError("Video lokal tidak ditemukan. Silakan proses dari awal.")
 
         subtitle_path = metadata.get("subtitle_path")
-        if not subtitle_path or not os.path.exists(subtitle_path):
-            raise ValueError("File subtitle lokal tidak ditemukan. Silakan proses dari awal.")
+        has_subtitle = subtitle_path and os.path.exists(subtitle_path)
 
-        job["status"] = "TRANSCRIBING"
-        log_app(f"[{job_id}] TRANSCRIBING (Resuming)")
-        job["progress"] = f"Menganalisis ulang dengan {job['provider']} (Resume)..."
+        def is_cancelled():
+            return job.get("cancelled", False)
 
         from backend.video_utils import get_video_duration
         dur_secs = get_video_duration(source_video)
         limit = _get_clip_limit(job.get("max_clips", 0), dur_secs)
 
-        with open(subtitle_path, "r", encoding="utf-8") as f:
-            transcript_text = f.read()
+        highlights = []
 
-        def is_cancelled():
-            return job.get("cancelled", False)
+        if has_subtitle:
+            job["status"] = "TRANSCRIBING"
+            log_app(f"[{job_id}] TRANSCRIBING (Resuming)")
+            job["progress"] = f"Menganalisis ulang dengan {job['provider']} (Resume)..."
 
-        from backend.ai_utils import get_highlights, OPENAI_COMPAT_PROVIDERS
-        if job["provider"].startswith("gemini"):
-            from google import genai
-            from google.genai import types
-            from backend.ai_utils import _with_retry, HIGHLIGHT_GUIDANCE, SOCIAL_PROMPT_TEMPLATE, _get_user_datetime_context, _parse_highlights
-            client = genai.Client(api_key=job["api_key"])
-            model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.0-flash"
-            
-            video_file = client.files.upload(file=source_video)
-            while video_file.state.name == "PROCESSING":
-                if is_cancelled(): raise Exception("Cancelled by user")
-                time.sleep(2)
-                video_file = client.files.get(name=video_file.name)
-            
-            prompt = (
-                "Watch this video and read the following accurate transcript. "
-                f"{HIGHLIGHT_GUIDANCE}\n\nFind up to {limit} of the best highlights.\n\n"
-                f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
-                f"Transcript:\n{transcript_text}"
-            )
-            response = _with_retry(lambda: client.models.generate_content(
-                model=model_name,
-                contents=[video_file, prompt],
-                config=types.GenerateContentConfig(response_mime_type="application/json")
-            ))
-            highlights = _parse_highlights(response.text)
+            with open(subtitle_path, "r", encoding="utf-8") as f:
+                transcript_text = f.read()
+
+            from backend.ai_utils import get_highlights, OPENAI_COMPAT_PROVIDERS
+            if job["provider"].startswith("gemini"):
+                from google import genai
+                from google.genai import types
+                from backend.ai_utils import _with_retry, HIGHLIGHT_GUIDANCE, SOCIAL_PROMPT_TEMPLATE, _get_user_datetime_context, _parse_highlights
+                client = genai.Client(api_key=job["api_key"])
+                model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.0-flash"
+                
+                video_file = client.files.upload(file=source_video)
+                while video_file.state.name == "PROCESSING":
+                    if is_cancelled(): raise Exception("Cancelled by user")
+                    time.sleep(2)
+                    video_file = client.files.get(name=video_file.name)
+                
+                prompt = (
+                    "Watch this video and read the following accurate transcript. "
+                    f"{HIGHLIGHT_GUIDANCE}\n\nFind up to {limit} of the best highlights.\n\n"
+                    f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
+                    f"Transcript:\n{transcript_text}"
+                )
+                response = _with_retry(lambda: client.models.generate_content(
+                    model=model_name,
+                    contents=[video_file, prompt],
+                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                ))
+                highlights = _parse_highlights(response.text)
+            else:
+                base_url = None
+                model = "gpt-4o-mini"
+                if job["provider"] == "custom":
+                    base_url = job.get("custom_base_url")
+                    model = job.get("custom_model_name")
+                elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
+                    cfg = OPENAI_COMPAT_PROVIDERS[job["provider"]]
+                    base_url = cfg["base_url"]
+                    model = cfg["model"]
+                
+                effective_key = job["api_key"] or "-" if job["provider"] == "custom" else job["api_key"]
+                highlights = get_highlights(transcript_text, effective_key, "", base_url=base_url, model=model, limit=limit)
         else:
-            base_url = None
-            model = "gpt-4o-mini"
-            if job["provider"] == "custom":
-                base_url = job.get("custom_base_url")
-                model = job.get("custom_model_name")
-            elif job["provider"] in OPENAI_COMPAT_PROVIDERS:
-                cfg = OPENAI_COMPAT_PROVIDERS[job["provider"]]
-                base_url = cfg["base_url"]
-                model = cfg["model"]
+            job["status"] = "TRANSCRIBING"
+            log_app(f"[{job_id}] TRANSCRIBING (Resuming Extracting)")
+            job["progress"] = f"Mengekstrak dan menganalisis dengan {job['provider']} (Resume)..."
             
-            effective_key = job["api_key"] or "-" if job["provider"] == "custom" else job["api_key"]
-            highlights = get_highlights(transcript_text, effective_key, "", base_url=base_url, model=model, limit=limit)
+            is_karaoke = (job.get("caption_style") == "karaoke")
+            from backend.ai_utils import process_with_gemini, process_with_openai_compatible, process_with_openai, OPENAI_COMPAT_PROVIDERS
+
+            base, _ = os.path.splitext(source_video)
+            predicted_subtitle_path = base + (".words.json" if is_karaoke else ".srt")
+            metadata["subtitle_path"] = predicted_subtitle_path
+
+            if job["provider"].startswith("gemini"):
+                model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.0-flash"
+                ai_result = process_with_gemini(source_video, job["api_key"], model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
+            elif job["provider"] == "custom" or job["provider"] in OPENAI_COMPAT_PROVIDERS:
+                ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"))
+            else:
+                ai_result = process_with_openai(source_video, job["api_key"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
+            
+            highlights = ai_result.get("highlights", [])
+            subtitle_path = ai_result.get("subtitle_path")
+            metadata["subtitle_path"] = subtitle_path
 
         if not highlights:
             raise ValueError("Tidak ada highlight yang ditemukan oleh AI.")
