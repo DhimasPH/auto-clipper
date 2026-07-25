@@ -12,6 +12,11 @@ from backend.crop_utils import to_seconds, _fmt_srt_ts
 from backend.logger import log_ai
 
 
+BROWSER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+}
+
 _TRANSIENT_MARKERS = (
     "unavailable", "overloaded", "high demand", "temporarily",
     "resource_exhausted", "rate limit", "timeout", "try again",
@@ -107,7 +112,7 @@ def build_srt_from_segments(segments) -> str:
 
 def transcribe_audio(audio_path: str, api_key: str, karaoke: bool = False):
     """Transcribe an audio file using OpenAI Whisper."""
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key, default_headers=BROWSER_HEADERS)
     with open(audio_path, "rb") as audio_file:
         if karaoke:
             transcript = _with_retry(lambda: client.audio.transcriptions.create(
@@ -151,7 +156,7 @@ def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", ba
     ``base_url``/``model`` let OpenAI-compatible providers (e.g. DeepSeek)
     reuse this same flow.
     """
-    client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key, base_url=base_url, default_headers=BROWSER_HEADERS) if base_url else OpenAI(api_key=api_key, default_headers=BROWSER_HEADERS)
     
     additional_instructions = f"\n\nUSER'S EXTRA INSTRUCTIONS:\n{extra_prompt}" if extra_prompt else ""
     additional_instructions += f"\nFind up to {limit} of the best highlights."
@@ -414,7 +419,7 @@ def ping_provider(provider: str, api_key: str, custom_base_url: str = None, cust
             raise Exception("Custom provider requires a Base URL and Model Name.")
         try:
             # api_key is optional for local servers; the client needs a non-empty string.
-            client = OpenAI(api_key=api_key or "-", base_url=custom_base_url, timeout=10.0)
+            client = OpenAI(api_key=api_key or "-", base_url=custom_base_url, timeout=10.0, default_headers=BROWSER_HEADERS)
             client.chat.completions.create(
                 model=custom_model_name,
                 messages=[{"role": "user", "content": "ping"}],
@@ -454,10 +459,10 @@ def ping_provider(provider: str, api_key: str, custom_base_url: str = None, cust
         else:
             cfg = OPENAI_COMPAT_PROVIDERS.get(provider)
             if cfg:
-                client = OpenAI(api_key=api_key, base_url=cfg["base_url"], timeout=10.0)
+                client = OpenAI(api_key=api_key, base_url=cfg["base_url"], timeout=10.0, default_headers=BROWSER_HEADERS)
                 model = cfg["model"]
             else:
-                client = OpenAI(api_key=api_key, timeout=10.0)
+                client = OpenAI(api_key=api_key, timeout=10.0, default_headers=BROWSER_HEADERS)
                 model = "gpt-4o-mini"
             
             client.chat.completions.create(
