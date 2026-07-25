@@ -3,6 +3,23 @@ import os
 import re
 import subprocess
 
+_NVENC_AVAILABLE = None
+
+def is_nvenc_available():
+    global _NVENC_AVAILABLE
+    if _NVENC_AVAILABLE is not None:
+        return _NVENC_AVAILABLE
+    try:
+        # Try to encode a 0.1 second blank video using NVENC to test driver capability
+        cmd = [
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=128x128", 
+            "-t", "0.1", "-c:v", "h264_nvenc", "-f", "null", "-"
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        _NVENC_AVAILABLE = (res.returncode == 0)
+    except Exception:
+        _NVENC_AVAILABLE = False
+    return _NVENC_AVAILABLE
 
 def to_seconds(t) -> float:
     """Parse a flexible timestamp into seconds.
@@ -725,9 +742,9 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             "-filter_complex", fc,
             "-map", "[vout]",
             "-map", audio_map,
-            "-c:v", "libx264",
+            "-c:v", "h264_nvenc" if is_nvenc_available() else "libx264",
             "-pix_fmt", "yuv420p",
-            "-preset", "veryfast",
+            "-preset", "p4" if is_nvenc_available() else "veryfast",
             "-c:a", "aac",
             "-movflags", "+faststart",
             output_path
@@ -759,9 +776,9 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                 "-i", input_path,
                 "-t", f"{duration:.3f}",
                 "-vf", subtitle_vf if subtitle_vf is not None else crop_filter,
-                "-c:v", "libx264",
+                "-c:v", "h264_nvenc" if is_nvenc_available() else "libx264",
                 "-pix_fmt", "yuv420p",
-                "-preset", "veryfast",
+                "-preset", "p4" if is_nvenc_available() else "veryfast",
                 "-c:a", "aac",
                 "-movflags", "+faststart",
                 output_path,
