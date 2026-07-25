@@ -52,7 +52,12 @@ app.add_middleware(
 async def verify_token(request: Request, call_next):
     # Biarkan endpoint tertentu tanpa token (video player tidak bisa mengirim header dengan mudah)
     path = request.url.path
-    if path.startswith("/video") or path in ["/health", "/heartbeat"]:
+    if request.method == "OPTIONS" or path.startswith("/video") or path in ["/health", "/heartbeat"]:
+        return await call_next(request)
+        
+    # Skip token verification in development mode (not PyInstaller bundle)
+    import sys
+    if not getattr(sys, 'frozen', False):
         return await call_next(request)
         
     auth_header = request.headers.get("Authorization")

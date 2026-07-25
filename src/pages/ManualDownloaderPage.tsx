@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link2, Type, Folder, Download } from "lucide-react";
+import { Link2, Type, Folder, Download, Gamepad2 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { AppContext } from "../App";
 import { InputGroup } from "../components/ui/InputGroup";
@@ -121,6 +121,33 @@ export const ManualDownloaderPage: React.FC = () => {
                       : "Karaoke (Word-by-word)"}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {ctx.aspectRatio === "9:16" && (
+            <div className="pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-accent/10 rounded-lg text-accent">
+                    <Gamepad2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-body font-medium text-text-primary">
+                      {t("main.gaming_video", "Gaming Video (Split-screen Auto-detect)")}
+                    </h4>
+                    <p className="text-caption text-text-secondary">
+                      {t(
+                        "main.gaming_video_desc",
+                        "Check this if it's a gaming video so the streamer's facecam is automatically detected.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <ToggleSwitch
+                  checked={ctx.isGamingVideo}
+                  onChange={ctx.setIsGamingVideo}
+                />
               </div>
             </div>
           )}
