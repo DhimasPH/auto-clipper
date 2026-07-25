@@ -2,6 +2,12 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.1] - 2026-07-25
+### Changed
+- Refactoring arsitektur backend menjadi berbasis FastAPI untuk stabilitas yang lebih baik.
+- Integrasi Tauri Sidecar dan perbaikan background job processing.
+- Penambahan fungsi Stronghold Storage untuk token.
+
 ## [1.6.0] - 2026-07-24
 ### Added
 - Fitur **Multi-Stage Resume (Retry Cerdas)**: Proses retry kini hanya mensyaratkan ketersediaan file video lokal. Jika gagal di tengah jalan (misal: saat transkripsi Whisper), pengguna tidak perlu *download* ulang videonya, sistem akan secara cerdas melanjutkan tahap transkripsi dari video yang sudah ada.
