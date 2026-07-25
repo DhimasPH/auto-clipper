@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { setApiUrl } from "../App";
 import { Command } from "@tauri-apps/plugin-shell";
 import { Stronghold } from "@tauri-apps/plugin-stronghold";
+import axios from "axios";
 
 export type Quality = "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p";
 
@@ -48,6 +49,27 @@ async function spawnBackend(): Promise<number | null> {
       const cmd = Command.sidecar("../bin/backend");
       cmd.stdout.on("data", (line) => {
         console.log("Backend stdout:", line);
+        if (line.includes("TOKEN:")) {
+            const token = line.split("TOKEN:")[1].trim();
+            
+            axios.interceptors.request.use(config => {
+                if (config.url && (config.url.includes('127.0.0.1') || config.url.includes('localhost'))) {
+                    config.headers['Authorization'] = `Bearer ${token}`;
+                }
+                return config;
+            });
+            
+            const originalFetch = window.fetch;
+            window.fetch = async (...args) => {
+                let [resource, config] = args;
+                const urlStr = typeof resource === 'string' ? resource : (resource as Request).url;
+                if (urlStr.includes('127.0.0.1') || urlStr.includes('localhost')) {
+                    config = config || {};
+                    config.headers = { ...config.headers, 'Authorization': `Bearer ${token}` };
+                }
+                return originalFetch(resource, config);
+            };
+        }
         if (line.includes("PORT:")) {
           const p = parseInt(line.split("PORT:")[1].trim(), 10);
           finish(p);

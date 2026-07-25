@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data: blob: https:; media-src 'self' asset: data: blob: https: http://localhost:* http://127.0.0.1:*; connect-src 'self' tauri: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https:;"
     }
   },
   "bundle": {

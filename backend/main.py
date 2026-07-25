@@ -11,6 +11,10 @@ import os
 import sys
 import shutil
 import re
+import secrets
+from starlette.requests import Request
+
+API_SECRET_TOKEN = secrets.token_hex(32)
 
 # Jika dijalankan sebagai PyInstaller bundle, tambahkan folder executable ke PATH
 # agar FFmpeg dan dependensi lain yang dibundel bisa ditemukan.
@@ -43,6 +47,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def verify_token(request: Request, call_next):
+    # Biarkan endpoint tertentu tanpa token (video player tidak bisa mengirim header dengan mudah)
+    path = request.url.path
+    if path.startswith("/video") or path in ["/health", "/heartbeat"]:
+        return await call_next(request)
+        
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or auth_header != f"Bearer {API_SECRET_TOKEN}":
+        return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized API access"})
+        
+    return await call_next(request)
 
 from backend.db import init_db, get_all_history, delete_history, get_app_data_dir
 
@@ -97,6 +114,12 @@ class SaveFileRequest(BaseModel):
 @app.post("/save_file")
 def api_save_file(req: SaveFileRequest):
     try:
+        abs_src = os.path.abspath(req.src)
+        app_data = os.path.abspath(get_app_data_dir())
+        # Only allow copying files that originate from our AppData directory
+        if not abs_src.startswith(app_data):
+            return JSONResponse(status_code=403, content={"status": "error", "message": "Hanya diperbolehkan menyalin file dari direktori internal aplikasi."})
+            
         shutil.copy2(req.src, req.dest)
         return {"status": "success"}
     except Exception as e:
@@ -111,10 +134,13 @@ def api_open_folder(req: OpenFolderRequest):
         import subprocess
         folder_path = req.path
         if not os.path.exists(folder_path):
-            # Coba cari path direktorinya jika yang dikirim berupa file
             folder_path = os.path.dirname(req.path)
-            if not os.path.exists(folder_path):
-                return JSONResponse(status_code=404, content={"status": "error", "message": "Folder not found"})
+            
+        if not os.path.exists(folder_path):
+            return JSONResponse(status_code=404, content={"status": "error", "message": "Folder not found"})
+            
+        if os.path.isfile(folder_path):
+            folder_path = os.path.dirname(folder_path)
 
         if sys.platform == 'win32':
             os.startfile(folder_path)
@@ -368,6 +394,7 @@ if __name__ == "__main__":
     # Cetak port ke stdout agar ditangkap oleh frontend
     print(f"AUTO_CLIPPER_BACKEND_PORT={port}")
     print(f"PORT:{port}")
+    print(f"TOKEN:{API_SECRET_TOKEN}")
     sys.stdout.flush()
 
     # reload=False: the reloader spawns an extra child process that Electron/Tauri
