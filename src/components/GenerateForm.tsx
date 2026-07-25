@@ -30,6 +30,8 @@ interface GenerateFormProps {
   setEnableBroll: Dispatch<SetStateAction<boolean>>;
   maxClips: number;
   setMaxClips: Dispatch<SetStateAction<number>>;
+  isGamingVideo: boolean;
+  setIsGamingVideo: Dispatch<SetStateAction<boolean>>;
   errorMsg: string;
   isRunning: boolean;
   handleGenerate: () => void;
@@ -55,6 +57,8 @@ export default function GenerateForm({
   setEnableBroll,
   maxClips,
   setMaxClips,
+  isGamingVideo,
+  setIsGamingVideo,
   errorMsg,
   isRunning,
   handleGenerate,
@@ -290,6 +294,27 @@ export default function GenerateForm({
               </div>
             </div>
             <ToggleSwitch checked={enableBroll} onChange={setEnableBroll} />
+          </div>
+          
+          {/* Gaming Video Toggle */}
+          <div className="flex items-center justify-between pt-4 border-t border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-accent/10 rounded-lg text-accent">
+                <Film className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-body font-medium text-text-primary">
+                  {t("main.gaming_video", "Gaming Video (Split-screen Auto-detect)")}
+                </h4>
+                <p className="text-caption text-text-secondary">
+                  {t(
+                    "main.gaming_video_desc",
+                    "Centang jika ini video gaming agar facecam streamer otomatis terdeteksi.",
+                  )}
+                </p>
+              </div>
+            </div>
+            <ToggleSwitch checked={isGamingVideo} onChange={setIsGamingVideo} />
           </div>
         </div>
 

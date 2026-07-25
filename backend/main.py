@@ -88,6 +88,7 @@ class CreateJobRequest(BaseModel):
     max_clips: int = 0
     custom_base_url: str = ""
     custom_model_name: str = ""
+    is_gaming_video: bool = False
 
 class SaveFileRequest(BaseModel):
     src: str
@@ -142,7 +143,7 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
         new_job_id = create_rerun_ai_job(
             job_id, req.provider, req.api_key.strip(),
             req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
-            req.custom_base_url.strip(), req.custom_model_name.strip()
+            req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
@@ -190,7 +191,7 @@ def api_create_job(req: CreateJobRequest):
         req.url.strip(), req.provider, req.api_key.strip(),
         req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
         req.title, req.enable_broll, req.pexels_api_key.strip(), req.max_clips,
-        req.custom_base_url.strip(), req.custom_model_name.strip()
+        req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video
     )
     return {"status": "success", "job_id": job_id}
 
@@ -293,6 +294,7 @@ class ManualJobRequest(BaseModel):
     output_dir: str = ""
     quality: str = "best"
     title: str = ""
+    is_gaming_video: bool = False
 
 
 @app.post("/jobs/manual")
@@ -307,7 +309,7 @@ def api_create_manual_job(req: ManualJobRequest):
         from backend.jobs import create_manual_job
         job_id = create_manual_job(
             req.url.strip(), req.clips, req.aspect_ratio, req.caption_style,
-            req.burn_subs, req.output_dir, req.quality, req.title,
+            req.burn_subs, req.output_dir, req.quality, req.title, req.is_gaming_video
         )
         return {"status": "success", "job_id": job_id}
     except Exception as e:

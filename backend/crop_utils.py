@@ -103,10 +103,9 @@ def detect_primary_face_center(video_path: str, start_time=None, end_time=None) 
 def detect_video_layout(video_path: str, start_time=None, end_time=None, samples: int = 12) -> dict:
     """Classify a video as gaming split-screen vs. a standard centred crop.
 
-    Samples a *fixed* number of frames spread across the window (sparse, so a
-    1-hour stream costs the same as a 1-minute clip), detects the largest face
-    per frame, and takes the median of the face box across samples. A small face
-    parked in a corner is the tell-tale sign of a gaming facecam.
+    Samples a *fixed* number of frames spread across the window. Detects all faces,
+    then clusters them by spatial position. If a cluster of faces is found statically
+    in a corner across many frames, it identifies it as a gaming facecam.
 
     Returns a dict with normalised (0-1) geometry so callers don't depend on the
     source resolution::
@@ -121,8 +120,12 @@ def detect_video_layout(video_path: str, start_time=None, end_time=None, samples
     result = {"mode": "standard", "face_box": None, "face_area_ratio": 0.0, "face_center": (0.5, 0.5)}
 
     cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    cascade_alt = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
+    cascade_prof = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_profileface.xml')
+    
     if cascade.empty():
         return result
+        
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         cap.release()
@@ -140,7 +143,9 @@ def detect_video_layout(video_path: str, start_time=None, end_time=None, samples
     if e <= s:
         e = s + 1.0
 
-    boxes = []  # each: (cx, cy, area_ratio, x, y, w, h) all normalised
+    # Collect all small faces from all sampled frames
+    corner_faces = []
+    
     for i in range(samples):
         t = s + (e - s) * (i / (samples - 1) if samples > 1 else 0.5)
         cap.set(cv2.CAP_PROP_POS_MSEC, t * 1000.0)
@@ -150,29 +155,73 @@ def detect_video_layout(video_path: str, start_time=None, end_time=None, samples
         fh_, fw_ = frame.shape[0], frame.shape[1]
         if not fw_ or not fh_:
             continue
+            
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = cascade.detectMultiScale(gray, 1.1, 4)
+        all_faces = []
+        
+        faces = cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=4, minSize=(15, 15))
         if len(faces) > 0:
-            x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
-            boxes.append((
-                (x + w / 2) / fw_, (y + h / 2) / fh_, (w * h) / (fw_ * fh_),
-                x / fw_, y / fh_, w / fw_, h / fh_,
-            ))
+            all_faces.extend(faces)
+            
+        if not all_faces and not cascade_alt.empty():
+            faces_alt = cascade_alt.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=4, minSize=(15, 15))
+            if len(faces_alt) > 0:
+                all_faces.extend(faces_alt)
+                
+        if not all_faces and not cascade_prof.empty():
+            faces_prof = cascade_prof.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=4, minSize=(15, 15))
+            if len(faces_prof) > 0:
+                all_faces.extend(faces_prof)
+                
+            gray_flip = cv2.flip(gray, 1)
+            faces_prof_flip = cascade_prof.detectMultiScale(gray_flip, scaleFactor=1.05, minNeighbors=4, minSize=(15, 15))
+            if len(faces_prof_flip) > 0:
+                for (x, y, w, h) in faces_prof_flip:
+                    all_faces.append((fw_ - x - w, y, w, h))
+
+        for (x, y, w, h) in all_faces:
+            area = (w * h) / (fw_ * fh_)
+            if area < 0.25:  # Consider faces up to 25% of screen area
+                cx = (x + w / 2) / fw_
+                cy = (y + h / 2) / fh_
+                # Pre-filter: facecam is usually in the corner
+                if (cx < 0.45 or cx > 0.55) and (cy < 0.45 or cy > 0.55):
+                    corner_faces.append((cx, cy, area, x / fw_, y / fh_, w / fw_, h / fh_))
 
     cap.release()
 
-    if not boxes:
+    if not corner_faces:
         return result
 
-    med = lambda idx: statistics.median([b[idx] for b in boxes])
-    cx, cy, area = med(0), med(1), med(2)
-    result["face_center"] = (cx, cy)
-    result["face_area_ratio"] = area
-    result["face_box"] = (med(3), med(4), med(5), med(6))
+    # Cluster faces by spatial proximity to find the static facecam
+    clusters = []
+    for f in corner_faces:
+        cx, cy = f[0], f[1]
+        added = False
+        for c in clusters:
+            # If within 10% spatial distance, it's the same facecam position
+            if abs(c['cx'] - cx) < 0.1 and abs(c['cy'] - cy) < 0.1:
+                c['faces'].append(f)
+                # Update cluster center
+                c['cx'] = sum(x[0] for x in c['faces']) / len(c['faces'])
+                c['cy'] = sum(x[1] for x in c['faces']) / len(c['faces'])
+                added = True
+                break
+        if not added:
+            clusters.append({'cx': cx, 'cy': cy, 'faces': [f]})
 
-    # Small face (<15% of the frame) parked in a corner => gaming facecam.
-    in_corner = (cx < 0.35 or cx > 0.65) and (cy < 0.35 or cy > 0.65)
-    if area < 0.15 and in_corner:
+    # Find the cluster with the most detections
+    best_cluster = max(clusters, key=lambda c: len(c['faces']))
+    
+    # Require facecam to be detected in at least 20% of sampled frames (or 2 frames min)
+    min_detections = max(2, int(samples * 0.2))
+    if len(best_cluster['faces']) >= min_detections:
+        med = lambda idx: statistics.median([b[idx] for b in best_cluster['faces']])
+        cx, cy, area = med(0), med(1), med(2)
+        
+        result["face_center"] = (cx, cy)
+        result["face_area_ratio"] = area
+        result["face_box"] = (med(3), med(4), med(5), med(6))
         result["mode"] = "gaming"
 
     return result

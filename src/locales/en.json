@@ -30,7 +30,9 @@
     "max_clips_auto": "Auto (Based on duration)",
     "probing": "Checking...",
     "probe_btn": "Check available qualities",
-    "probe_avail": "Available:"
+    "probe_avail": "Available:",
+    "gaming_video": "Gaming Video (Split-screen Auto-detect)",
+    "gaming_video_desc": "Check this if it's a gaming video so the streamer's facecam is automatically detected."
   },
   "clip": {
     "title_ai": "Clip {{num}}",
@@ -220,6 +222,6 @@
     "done": "🎉 Manual clips done!",
     "laneAudio": "Audio",
     "laneVideo": "Video",
-    "changeVideo" : "Change Video"
+    "changeVideo": "Change Video"
   }
 }

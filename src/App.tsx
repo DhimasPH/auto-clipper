@@ -65,6 +65,7 @@ export default function App() {
   const [title, setTitle] = useState("");
   const [enableBroll, setEnableBroll] = useState(false);
   const [maxClips, setMaxClips] = useState(0);
+  const [isGamingVideo, setIsGamingVideo] = useState(false);
   const pexelsApiKey = apiKeys["pexels"] || "";
 
   // Smart Manual Clipper state, lifted here so it survives route changes
@@ -110,6 +111,7 @@ export default function App() {
     notify,
     closeHistory: () => {},
     maxClips,
+    isGamingVideo,
   });
 
   const videoSrc = (p: string, v = 0) =>
@@ -160,6 +162,8 @@ export default function App() {
     setEnableBroll,
     maxClips,
     setMaxClips,
+    isGamingVideo,
+    setIsGamingVideo,
     errorMsg,
     isRunning,
     status,

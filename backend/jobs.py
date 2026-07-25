@@ -29,7 +29,7 @@ def get_temp_dir():
 
 
 
-def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "") -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False) -> str:
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -48,6 +48,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "enable_broll": enable_broll,
         "pexels_api_key": pexels_api_key,
         "max_clips": max_clips,
+        "is_gaming_video": is_gaming_video,
         "status": "PENDING",
         "progress": "",
         "cancelled": False,
@@ -60,7 +61,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
 
 
 def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption_style: str = "standard",
-                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "") -> str:
+                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False) -> str:
     """Manual clipper job: cut user-chosen ranges, no AI highlight selection.
 
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
@@ -83,6 +84,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         "enable_broll": False,
         "pexels_api_key": "",
         "max_clips": 0,
+        "is_gaming_video": is_gaming_video,
         "status": "PENDING",
         "progress": "",
         "cancelled": False,
@@ -109,6 +111,7 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "burn_subs": burn_subs,
         "output_dir": output_dir,
         "max_clips": max_clips,
+        "is_gaming_video": hist.get("metadata", {}).get("is_gaming_video", False),
         "status": "PENDING",
         "progress": "",
         "cancelled": False,
@@ -244,11 +247,12 @@ def _run_job(job_id: str):
         # Sparse sampling keeps this cheap even for hour-long streams, and doing it
         # once keeps every clip's framing consistent. Only 9:16 uses split-screen.
         job_layout = None
-        if job.get("aspect_ratio") == "9:16":
+        if job.get("aspect_ratio") == "9:16" and job.get("is_gaming_video"):
             try:
                 from backend.crop_utils import detect_video_layout
                 job_layout = detect_video_layout(output_path)
-            except Exception:
+            except Exception as e:
+                log_error(f"Failed to detect video layout: {e}")
                 job_layout = None
 
         for i, seg in enumerate(segments):
@@ -320,6 +324,7 @@ def _run_job(job_id: str):
         if not job["clips"]:
              raise ValueError("Semua klip gagal dirender.")
              
+        metadata["is_gaming_video"] = job.get("is_gaming_video", False)
         _finalize_job(job_id, "DONE", metadata)
         
     except Exception as e:
@@ -394,11 +399,12 @@ def _run_manual_job(job_id: str):
 
         # 3. Detect layout once (gaming split-screen auto-detect, 9:16 only).
         job_layout = None
-        if job.get("aspect_ratio") == "9:16":
+        if job.get("aspect_ratio") == "9:16" and job.get("is_gaming_video"):
             try:
                 from backend.crop_utils import detect_video_layout
                 job_layout = detect_video_layout(source_path)
-            except Exception:
+            except Exception as e:
+                log_error(f"Failed to detect video layout (manual): {e}")
                 job_layout = None
 
         # 4. Crop each user-selected range.
@@ -498,7 +504,8 @@ def _run_rerender_job(job_id: str):
             try:
                 from backend.crop_utils import detect_video_layout
                 job_layout = detect_video_layout(output_path)
-            except Exception:
+            except Exception as e:
+                log_error(f"Failed to detect video layout (rerender): {e}")
                 job_layout = None
 
         for i, seg in enumerate(segments):

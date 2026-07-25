@@ -25,6 +25,7 @@ export interface ClipJobParams {
   notify: (text: string, kind?: ToastKind) => void;
   closeHistory: () => void;
   maxClips: number;
+  isGamingVideo: boolean;
 }
 
 /**
@@ -180,7 +181,8 @@ export function useClipJobs(p: ClipJobParams) {
         pexels_api_key: p.pexelsApiKey,
         max_clips: p.maxClips,
         custom_base_url: p.customBaseUrl,
-        custom_model_name: p.customModelName
+        custom_model_name: p.customModelName,
+        is_gaming_video: p.isGamingVideo
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -219,6 +221,7 @@ export function useClipJobs(p: ClipJobParams) {
         output_dir: p.outputFolder,
         quality: p.quality,
         title: p.title,
+        is_gaming_video: p.isGamingVideo,
       });
       if (res.data.status === "error") throw new Error(res.data.message);
       setActiveJobId(res.data.job_id);
