@@ -334,8 +334,7 @@ def api_create_manual_job(req: ManualJobRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL is required"})
     if not is_valid_source_url(req.url):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid untuk klip manual."})
-    if not req.clips:
-        return JSONResponse(status_code=400, content={"status": "error", "message": "Tidak ada klip yang dipilih."})
+
     try:
         from backend.jobs import create_manual_job
         job_id = create_manual_job(
