@@ -184,8 +184,8 @@ def detect_video_layout(video_path: str, start_time=None, end_time=None, samples
             if area < 0.25:  # Consider faces up to 25% of screen area
                 cx = (x + w / 2) / fw_
                 cy = (y + h / 2) / fh_
-                # Pre-filter: facecam is usually in the corner
-                if (cx < 0.45 or cx > 0.55) and (cy < 0.45 or cy > 0.55):
+                # Pre-filter: facecam is usually off-center
+                if abs(cx - 0.5) > 0.1 or abs(cy - 0.5) > 0.1:
                     corner_faces.append((cx, cy, area, x / fw_, y / fh_, w / fw_, h / fh_))
 
     cap.release()
