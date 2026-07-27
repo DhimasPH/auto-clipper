@@ -2,6 +2,10 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.3] - 2026-07-27
+### Fixed
+- Memperbaiki isu "ffmpeg is not installed" pada rilis GitHub Actions dengan menyesuaikan path executable ffmpeg agar disertakan dengan benar saat *bundling* oleh Tauri.
+
 ## [1.6.2] - 2026-07-27
 ### Fixed
 - Menambahkan fallback loop cookie untuk browser pada `yt-dlp` guna menyelesaikan isu kegagalan unduhan video YouTube yang diblokir oleh bot protection/age restriction.

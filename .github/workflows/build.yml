@@ -66,18 +66,18 @@ jobs:
         run: |
           cat << 'EOF' > copy_bin.py
           import os, sys, shutil, subprocess
-          os.makedirs('bin', exist_ok=True)
+          os.makedirs('src-tauri/bin', exist_ok=True)
           exe_ext = '.exe' if sys.platform == 'win32' else ''
           
           target = '${{ matrix.target }}'
           
           # Copy backend executable with target triplet (for Tauri externalBin)
-          shutil.copy(os.path.join('dist', f'backend{exe_ext}'), os.path.join('bin', f'backend-{target}{exe_ext}'))
+          shutil.copy(os.path.join('dist', f'backend{exe_ext}'), os.path.join('src-tauri', 'bin', f'backend-{target}{exe_ext}'))
           
           # Copy ffmpeg executable
           try:
               ffmpeg_path = subprocess.check_output(['node', '-e', "console.log(require('@ffmpeg-installer/ffmpeg').path)"]).decode('utf-8').strip()
-              shutil.copy(ffmpeg_path, os.path.join('bin', f'ffmpeg{exe_ext}'))
+              shutil.copy(ffmpeg_path, os.path.join('src-tauri', 'bin', f'ffmpeg{exe_ext}'))
           except Exception as e:
               print('Error: ffmpeg not found!', e)
               sys.exit(1)
@@ -92,10 +92,10 @@ jobs:
           # signature. Unsigned PyInstaller binaries are frequently "Killed: 9"
           # by macOS on launch; an ad-hoc signature lets them run once the user
           # has cleared the download quarantine (see README macOS notes).
-          chmod +x "bin/backend-${{ matrix.target }}" "bin/ffmpeg" || true
-          codesign --force --deep --sign - "bin/backend-${{ matrix.target }}"
-          codesign --force --sign - "bin/ffmpeg" || true
-          codesign --verify --verbose "bin/backend-${{ matrix.target }}" || true
+          chmod +x "src-tauri/bin/backend-${{ matrix.target }}" "src-tauri/bin/ffmpeg" || true
+          codesign --force --deep --sign - "src-tauri/bin/backend-${{ matrix.target }}"
+          codesign --force --sign - "src-tauri/bin/ffmpeg" || true
+          codesign --verify --verbose "src-tauri/bin/backend-${{ matrix.target }}" || true
 
       - name: Install Node.js dependencies
         run: npm install
