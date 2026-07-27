@@ -2,6 +2,10 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.2] - 2026-07-27
+### Fixed
+- Menambahkan fallback loop cookie untuk browser pada `yt-dlp` guna menyelesaikan isu kegagalan unduhan video YouTube yang diblokir oleh bot protection/age restriction.
+
 ## [1.6.1] - 2026-07-25
 ### Changed
 - Refactoring arsitektur backend menjadi berbasis FastAPI untuk stabilitas yang lebih baik.
