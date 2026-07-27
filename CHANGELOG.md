@@ -2,6 +2,10 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.5] - 2026-07-27
+### Fixed
+- Memperbaiki izin eksekusi *sidecar* pada Tauri v2 dengan menyelaraskan string `"bin/backend"` di `src-tauri/capabilities/default.json` agar *backend* dapat berjalan di hasil rilis.
+
 ## [1.6.4] - 2026-07-27
 ### Fixed
 - Memperbaiki isu "disconnected" pada frontend dengan menyelaraskan nama string pemanggilan *sidecar* agar sesuai dengan path `externalBin` terbaru di `tauri.conf.json`.
