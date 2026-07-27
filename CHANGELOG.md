@@ -2,6 +2,10 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.4] - 2026-07-27
+### Fixed
+- Memperbaiki isu "disconnected" pada frontend dengan menyelaraskan nama string pemanggilan *sidecar* agar sesuai dengan path `externalBin` terbaru di `tauri.conf.json`.
+
 ## [1.6.3] - 2026-07-27
 ### Fixed
 - Memperbaiki isu "ffmpeg is not installed" pada rilis GitHub Actions dengan menyesuaikan path executable ffmpeg agar disertakan dengan benar saat *bundling* oleh Tauri.

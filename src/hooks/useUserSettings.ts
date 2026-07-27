@@ -46,7 +46,7 @@ async function spawnBackend(): Promise<number | null> {
     }, 45000);
 
     try {
-      const cmd = Command.sidecar("../bin/backend");
+      const cmd = Command.sidecar("bin/backend");
       cmd.stdout.on("data", (line) => {
         console.log("Backend stdout:", line);
         if (line.includes("TOKEN:")) {
