@@ -45,14 +45,32 @@ def quality_to_format(quality: str) -> str:
 
 def probe_formats(url: str) -> list:
     """Available video heights for a URL, descending & unique, via yt-dlp."""
-    ydl_opts = {
+    base_ydl_opts = {
         'quiet': True, 'no_warnings': True, 'skip_download': True,
         'logger': _SilentLogger(),
     }
-    sink = io.StringIO()
-    with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+    
+    browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
+    info = None
+    last_error = None
+    
+    for browser in browsers_to_try:
+        ydl_opts = dict(base_ydl_opts)
+        if browser:
+            ydl_opts['cookiesfrombrowser'] = (browser,)
+            
+        sink = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+            break
+        except Exception as e:
+            last_error = e
+
+    if info is None and last_error:
+        raise last_error
+
     formats = (info or {}).get("formats", []) if isinstance(info, dict) else []
     heights = {f.get("height") for f in formats if isinstance(f, dict) and f.get("height")}
     return sorted(heights, reverse=True)
@@ -61,7 +79,7 @@ def probe_formats(url: str) -> list:
 def download_youtube_video(url: str, output_path: str, quality: str = "best", is_cancelled: callable = None) -> Path:
     format_str = quality_to_format(quality)
 
-    ydl_opts = {
+    base_ydl_opts = {
         'format': format_str,
         'outtmpl': output_path,
         'merge_output_format': 'mp4',
@@ -76,7 +94,7 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
         def hook(d):
             if is_cancelled():
                 raise DownloadCancelledError("Download cancelled by user")
-        ydl_opts['progress_hooks'] = [hook]
+        base_ydl_opts['progress_hooks'] = [hook]
 
     # yt-dlp snapshots sys.stdout/stderr at construction and writes to them
     # directly for some messages (e.g. deprecation notices), bypassing the
@@ -85,21 +103,44 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
     # the whole call.
     import time
     max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            sink = io.StringIO()
-            with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([url])
+    browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
+    
+    success = False
+    last_error = None
+    
+    for browser in browsers_to_try:
+        ydl_opts = dict(base_ydl_opts)
+        if browser:
+            ydl_opts['cookiesfrombrowser'] = (browser,)
+            
+        for attempt in range(max_retries):
+            try:
+                sink = io.StringIO()
+                with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        ydl.download([url])
+                success = True
+                break
+            except Exception as e:
+                last_error = e
+                # If we were cancelled during download, don't retry and don't try other browsers
+                if is_cancelled and is_cancelled():
+                    raise DownloadCancelledError("Download cancelled by user")
+                
+                # If the error is about unsupported browser, no need to retry this browser
+                err_str = str(e).lower()
+                if "unsupported browser" in err_str or "unsupported platform" in err_str or "failed to load cookies" in err_str:
+                    break # Break retry loop, move to next browser
+                    
+                # Wait a bit before retrying, especially useful for 403 blocks
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)
+                    
+        if success:
             break
-        except yt_dlp.utils.DownloadError as e:
-            if attempt == max_retries - 1:
-                raise
-            # If we were cancelled during download, don't retry
-            if is_cancelled and is_cancelled():
-                raise DownloadCancelledError("Download cancelled by user")
-            # Wait a bit before retrying, especially useful for 403 blocks
-            time.sleep(2 ** attempt)
+            
+    if not success and last_error:
+        raise last_error
 
     return Path(output_path)
 
