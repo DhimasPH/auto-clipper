@@ -2,6 +2,14 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.6] - 2026-07-28
+### Fixed
+- Memperbaiki fitur Retry agar tidak crash saat terjadi network timeout (`getaddrinfo failed`).
+- Menambahkan fallback *retry delay* yang lebih sabar (hingga 8 attempts / ~4 menit) pada integrasi API Gemini untuk mengatasi isu `503 UNAVAILABLE` (server overloaded).
+- Mencegah fitur Retry/AI Koreksi dari proses *re-transcribing* dan mengekstrak ulang audio yang sudah ada, sehingga membuat *retry* dan koreksi AI secara signifikan lebih cepat.
+- Menghapus *placeholder* `ffmpeg.exe` (berukuran 0 byte) bawaan Tauri pada folder *target* yang menyebabkan `[WinError 193]` saat sistem memanggil `ffmpeg`.
+- Memperbaiki halaman Riwayat (History Page) yang tidak merender tombol "Retry" akibat perbedaan *string* status `"ERROR"` pada backend dengan `"failed"` pada frontend.
+
 ## [1.6.5] - 2026-07-27
 ### Fixed
 - Memperbaiki izin eksekusi *sidecar* pada Tauri v2 dengan menyelaraskan string `"bin/backend"` di `src-tauri/capabilities/default.json` agar *backend* dapat berjalan di hasil rilis.

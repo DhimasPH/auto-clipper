@@ -99,9 +99,9 @@ export const HistoryPage: React.FC = () => {
                     <span>•</span>
                     <Badge
                       variant={
-                        job.status === "completed"
+                        (job.status === "completed" || job.status === "DONE")
                           ? "success"
-                          : job.status === "failed"
+                          : (job.status === "failed" || job.status === "ERROR")
                             ? "error"
                             : "neutral"
                       }
@@ -289,7 +289,7 @@ export const HistoryPage: React.FC = () => {
                     {t("history.ai_correct")}
                   </Button>
                 )}
-                {job.status === "failed" && canResumeJob(job) && (
+                {(job.status === "failed" || job.status === "ERROR") && canResumeJob(job) && (
                   <Button
                     variant="outline"
                     className="!text-accent !border-accent/30 hover:!bg-accent/10"

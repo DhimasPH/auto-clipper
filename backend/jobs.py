@@ -856,11 +856,11 @@ def _run_resume_job(job_id: str):
                 client = genai.Client(api_key=job["api_key"])
                 model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.0-flash"
                 
-                video_file = client.files.upload(file=source_video)
+                video_file = _with_retry(lambda: client.files.upload(file=source_video), attempts=8)
                 while video_file.state.name == "PROCESSING":
                     if is_cancelled(): raise Exception("Cancelled by user")
                     time.sleep(2)
-                    video_file = client.files.get(name=video_file.name)
+                    video_file = _with_retry(lambda: client.files.get(name=video_file.name), attempts=8)
                 
                 prompt = (
                     "Watch this video and read the following accurate transcript. "

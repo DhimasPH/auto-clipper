@@ -2,6 +2,7 @@ import yt_dlp
 import contextlib
 import io
 import subprocess
+import os
 from pathlib import Path
 
 
@@ -153,6 +154,9 @@ def extract_audio(video_path: str, audio_path: str, register_proc: callable = No
     (often multi-GB) video fails on real long-form content. A mono 16kHz MP3
     stays tiny even for hour-long videos while keeping speech intelligible.
     """
+    if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+        return audio_path
+
     cmd = [
         "ffmpeg", "-y",
         "-i", video_path,

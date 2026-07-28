@@ -21,6 +21,10 @@ _TRANSIENT_MARKERS = (
     "unavailable", "overloaded", "high demand", "temporarily",
     "resource_exhausted", "rate limit", "timeout", "try again",
     "500", "502", "503", "504", "524",
+    "getaddrinfo failed", "connecterror", "connectionerror",
+    "connection error", "name resolution", "host is unreachable",
+    "socket.gaierror", "network is unreachable", "connection aborted",
+    "connection reset"
 )
 
 
@@ -303,12 +307,12 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
             f.write(transcript_text)
 
     if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-    video_file = client.files.upload(file=file_path)
+    video_file = _with_retry(lambda: client.files.upload(file=file_path), attempts=8)
 
     while video_file.state.name == "PROCESSING":
         if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
         time.sleep(2)
-        video_file = client.files.get(name=video_file.name)
+        video_file = _with_retry(lambda: client.files.get(name=video_file.name), attempts=8)
 
     if video_file.state.name == "FAILED":
         raise Exception("Gemini failed to process the video.")
