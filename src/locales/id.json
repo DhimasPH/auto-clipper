@@ -65,7 +65,16 @@
     "custom_base_url": "Base URL",
     "custom_model_name": "Model Name",
     "custom_api_key": "API Key",
-    "custom_api_key_ph": "Kosongkan jika menggunakan Ollama/Lokal"
+    "custom_api_key_ph": "Kosongkan jika menggunakan Ollama/Lokal",
+    "test_ai_empty": "API Key tidak boleh kosong",
+    "test_ai_success": "API Key valid!",
+    "test_error": "Terjadi kesalahan",
+    "test_failed": "Gagal terhubung ke backend",
+    "test_pexels_empty": "Pexels API Key tidak boleh kosong",
+    "test_pexels_success": "Pexels API Key valid!",
+    "testing": "Menguji...",
+    "test_ai_btn": "Tes Koneksi AI",
+    "test_pexels_btn": "Tes Koneksi Pexels"
   },
   "faq": {
     "title": "Panduan Penggunaan",
@@ -196,6 +205,8 @@
     "available_message": "Versi {{version}} tersedia. Apakah Anda ingin mengunduh dan memasangnya sekarang?",
     "install_now": "Pasang Sekarang",
     "downloading": "Mengunduh...",
+    "download_progress": "Mengunduh file pembaruan...",
+    "warning": "Mohon tunggu hingga proses selesai. Aplikasi jangan ditutup selama proses pembaruan berlangsung.",
     "install_success": "Pembaruan berhasil dipasang. Memulai ulang...",
     "install_failed": "Gagal memasang pembaruan: "
   },

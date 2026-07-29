@@ -65,7 +65,16 @@
     "custom_base_url": "Base URL",
     "custom_model_name": "Model Name",
     "custom_api_key": "API Key",
-    "custom_api_key_ph": "Leave empty if using Ollama/local"
+    "custom_api_key_ph": "Leave empty if using Ollama/local",
+    "test_ai_empty": "API Key cannot be empty",
+    "test_ai_success": "API Key is valid!",
+    "test_error": "Error occurred",
+    "test_failed": "Failed to connect to backend",
+    "test_pexels_empty": "Pexels API Key cannot be empty",
+    "test_pexels_success": "Pexels API Key is valid!",
+    "testing": "Testing...",
+    "test_ai_btn": "Test AI Connection",
+    "test_pexels_btn": "Test Pexels Connection"
   },
   "faq": {
     "title": "How to Use",
@@ -196,6 +205,8 @@
     "available_message": "Version {{version}} is available. Do you want to download and install it now?",
     "install_now": "Install Now",
     "downloading": "Downloading...",
+    "download_progress": "Downloading update file...",
+    "warning": "Please wait until the process completes. Do not close the application during the update process.",
     "install_success": "Update installed successfully. Restarting...",
     "install_failed": "Failed to install update: "
   },
