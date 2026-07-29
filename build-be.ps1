@@ -1,5 +1,5 @@
 Write-Host "Building backend..."
-pyinstaller backend.spec -y
+pyinstaller --clean backend.spec -y
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red

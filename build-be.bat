@@ -1,6 +1,6 @@
 @echo off
 echo Building backend...
-pyinstaller backend.spec -y
+pyinstaller --clean backend.spec -y
 if %errorlevel% neq 0 (
     echo Build failed!
     pause
