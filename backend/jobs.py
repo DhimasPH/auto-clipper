@@ -782,7 +782,7 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
         except Exception:
             pass
 
-def create_resume_job(history_id: str) -> str:
+def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_provider: str = None, fallback_custom_base_url: str = None, fallback_custom_model_name: str = None) -> str:
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
@@ -793,10 +793,10 @@ def create_resume_job(history_id: str) -> str:
     active_jobs[job_id] = {
         "id": job_id,
         "url": hist["url"],
-        "provider": hist_meta.get("provider", "openai"),
-        "api_key": hist_meta.get("api_key", ""),
-        "custom_base_url": hist_meta.get("custom_base_url", ""),
-        "custom_model_name": hist_meta.get("custom_model_name", ""),
+        "provider": hist_meta.get("provider") or fallback_provider or "openai",
+        "api_key": hist_meta.get("api_key") or fallback_api_key or "",
+        "custom_base_url": hist_meta.get("custom_base_url") or fallback_custom_base_url or "",
+        "custom_model_name": hist_meta.get("custom_model_name") or fallback_custom_model_name or "",
         "mode": hist_meta.get("mode", "ai"),
         "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
         "caption_style": hist_meta.get("caption_style", "standard"),

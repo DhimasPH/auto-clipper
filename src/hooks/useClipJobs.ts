@@ -319,7 +319,12 @@ export function useClipJobs(p: ClipJobParams) {
     setErrorMsg("");
 
     try {
-      const res = await axios.post(`${API_URL}/jobs/${historyJobId}/resume`);
+      const res = await axios.post(`${API_URL}/jobs/${historyJobId}/resume`, {
+        api_key: p.apiKey,
+        provider: p.provider,
+        custom_base_url: p.customBaseUrl,
+        custom_model_name: p.customModelName
+      });
 
       if (res.data.status === "error") throw new Error(res.data.message);
 

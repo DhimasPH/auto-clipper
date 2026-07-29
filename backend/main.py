@@ -216,11 +216,26 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
+from pydantic import BaseModel
+from typing import Optional
+
+class ResumeJobRequest(BaseModel):
+    api_key: Optional[str] = None
+    provider: Optional[str] = None
+    custom_base_url: Optional[str] = None
+    custom_model_name: Optional[str] = None
+
 @app.post("/jobs/{job_id}/resume")
-def api_resume_job(job_id: str):
+def api_resume_job(job_id: str, req: ResumeJobRequest):
     try:
         from backend.jobs import create_resume_job
-        new_job_id = create_resume_job(job_id)
+        new_job_id = create_resume_job(
+            job_id,
+            fallback_api_key=req.api_key,
+            fallback_provider=req.provider,
+            fallback_custom_base_url=req.custom_base_url,
+            fallback_custom_model_name=req.custom_model_name
+        )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
