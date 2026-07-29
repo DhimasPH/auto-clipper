@@ -35,26 +35,31 @@ def _is_transient(err) -> bool:
         code = int(code) if code is not None else None
     except (ValueError, TypeError):
         code = None
-    if code is not None:
-        # Auth failures are NEVER transient: retrying won't fix a bad/missing
-        # key, and ping_provider must not swallow them as "valid".
-        if code in (401, 403):
-            return False
-        if code == 429 or 500 <= code < 600:
-            return True
+        
     msg = str(err).lower()
+    
+    # Auth failures are NEVER transient: retrying won't fix a bad/missing
+    # key, and ping_provider must not swallow them as "valid".
+    if code in (401, 403):
+        return False
+        
     # Belt-and-braces: some SDKs omit the status code but the message still
-    # identifies an auth problem (which may coincidentally contain transient
-    # markers like "try again" in OpenAI's 401 help text).
+    # identifies an auth problem.
     if "api key" in msg and ("provided" in msg or "invalid" in msg or "incorrect" in msg or "missing" in msg):
         return False
-    if "authentication" in msg or "unauthorized" in msg or "invalid_api_key" in msg:
+    if "authentication" in msg or "unauthorized" in msg or "invalid_api_key" in msg or "invalid token" in msg:
         return False
+        
     # A missing/unsupported model is a config error, not a transient blip —
     # retrying won't make the provider serve a model it doesn't have. Some
     # gateways (e.g. livrouter) wrap this in a 503, so check before markers.
     if "model_not_found" in msg or "no available channel" in msg or "does not exist" in msg:
         return False
+        
+    # If we haven't hit a hard failure above, check if the code or message indicates a transient error.
+    if code == 429 or (code is not None and 500 <= code < 600):
+        return True
+        
     return any(marker in msg for marker in _TRANSIENT_MARKERS)
 
 
@@ -155,6 +160,11 @@ def transcribe_audio(audio_path: str, api_key: str, karaoke: bool = False):
 
 
 def _parse_highlights(content: str) -> list:
+    import re
+    content = content.strip()
+    content = re.sub(r"^```(?:json)?\s*", "", content)
+    content = re.sub(r"\s*```$", "", content)
+    
     try:
         parsed = json.loads(content)
     except Exception as e:
@@ -512,7 +522,7 @@ def ping_provider(provider: str, api_key: str, custom_base_url: str = None, cust
         return
 
     if not api_key:
-        raise Exception(f"API Key for {provider} is missing.")
+        raise Exception(f"API Key untuk provider '{provider}' kosong. Jika Anda menggunakan proxy lain, pastikan Anda telah memilih 'Custom OpenAI Compatible' di Pengaturan.")
 
     try:
         if provider.startswith("gemini"):
