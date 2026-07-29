@@ -66,7 +66,8 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
         setTestAiMessage(t('settings.test_ai_success', 'API Key is valid!'));
       } else {
         setTestAiStatus('error');
-        setTestAiMessage(data.message || t('settings.test_error', 'Error occurred'));
+        const errMsg = data.message || (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) || t('settings.test_error', 'Error occurred');
+        setTestAiMessage(errMsg === '"Not Found"' || errMsg === 'Not Found' ? 'Backend endpoint not found. Please restart the app.' : errMsg);
       }
     } catch (err: any) {
       setTestAiStatus('error');
@@ -105,7 +106,8 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
         setTestPexelsMessage(t('settings.test_pexels_success', 'Pexels API Key is valid!'));
       } else {
         setTestPexelsStatus('error');
-        setTestPexelsMessage(data.message || t('settings.test_error', 'Error occurred'));
+        const errMsg = data.message || (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) || t('settings.test_error', 'Error occurred');
+        setTestPexelsMessage(errMsg === '"Not Found"' || errMsg === 'Not Found' ? 'Backend endpoint not found. Please restart the app.' : errMsg);
       }
     } catch (err: any) {
       setTestPexelsStatus('error');
