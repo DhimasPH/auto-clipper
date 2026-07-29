@@ -2,6 +2,11 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.7] - 2026-07-29
+### Fixed
+- Memperbaiki isu proses rendering klip yang gagal karena respons dari model AI terbungkus oleh blok *Markdown* (e.g. ` ```json `).
+- Memperbaiki fitur **Retry** pada riwayat gagal karena hilangnya API Key; sekarang *frontend* mengirimkan API Key yang tersimpan sebagai *fallback real-time*.
+
 ## [1.6.6] - 2026-07-28
 ### Fixed
 - Memperbaiki fitur Retry agar tidak crash saat terjadi network timeout (`getaddrinfo failed`).
