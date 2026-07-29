@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Brain, Eye, EyeOff, Lock, Settings2, Server, Box } from 'lucide-react';
+import { Brain, Eye, EyeOff, Lock, Settings2, Server, Box, Loader2 } from 'lucide-react';
 import { Select } from '../ui/Select';
 import { InputGroup } from '../ui/InputGroup';
 import { Button } from '../ui/Button';
@@ -20,12 +20,99 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
   const [showKey, setShowKey] = useState(false);
   const [showPexels, setShowPexels] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
+
+  const [testAiStatus, setTestAiStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [testAiMessage, setTestAiMessage] = useState('');
+  const [testPexelsStatus, setTestPexelsStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [testPexelsMessage, setTestPexelsMessage] = useState('');
   const current = PROVIDERS.find((p) => p.id === provider);
   const keyVal = apiKeys[provider] || '';
   const isCustom = provider === 'custom';
 
   const customBaseUrl = apiKeys['custom_base_url'] || '';
   const customModelName = apiKeys['custom_model_name'] || '';
+
+  const handleTestAi = async () => {
+    if (!keyVal && !isCustom) {
+      setTestAiStatus('error');
+      setTestAiMessage(t('settings.test_ai_empty', 'API Key cannot be empty'));
+      return;
+    }
+    
+    setTestAiStatus('loading');
+    setTestAiMessage('');
+    
+    try {
+      const PORT = (import.meta as any).env?.VITE_BACKEND_PORT || (window as any).backendPort || 8000;
+      const TOKEN = (import.meta as any).env?.VITE_API_TOKEN || (window as any).apiToken || '';
+      
+      const res = await fetch(`http://127.0.0.1:${PORT}/api/settings/test-ai`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TOKEN}`
+        },
+        body: JSON.stringify({
+          provider: provider,
+          api_key: keyVal,
+          custom_base_url: customBaseUrl,
+          custom_model_name: customModelName
+        })
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        setTestAiStatus('success');
+        setTestAiMessage(t('settings.test_ai_success', 'API Key is valid!'));
+      } else {
+        setTestAiStatus('error');
+        setTestAiMessage(data.message || t('settings.test_error', 'Error occurred'));
+      }
+    } catch (err: any) {
+      setTestAiStatus('error');
+      setTestAiMessage(err.message || t('settings.test_failed', 'Failed to connect to backend'));
+    }
+  };
+
+  const handleTestPexels = async () => {
+    const pexelsKey = apiKeys["pexels"] || '';
+    if (!pexelsKey) {
+      setTestPexelsStatus('error');
+      setTestPexelsMessage(t('settings.test_pexels_empty', 'Pexels API Key cannot be empty'));
+      return;
+    }
+    
+    setTestPexelsStatus('loading');
+    setTestPexelsMessage('');
+    
+    try {
+      const PORT = (import.meta as any).env?.VITE_BACKEND_PORT || (window as any).backendPort || 8000;
+      const TOKEN = (import.meta as any).env?.VITE_API_TOKEN || (window as any).apiToken || '';
+      
+      const res = await fetch(`http://127.0.0.1:${PORT}/api/settings/test-pexels`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TOKEN}`
+        },
+        body: JSON.stringify({
+          api_key: pexelsKey
+        })
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        setTestPexelsStatus('success');
+        setTestPexelsMessage(t('settings.test_pexels_success', 'Pexels API Key is valid!'));
+      } else {
+        setTestPexelsStatus('error');
+        setTestPexelsMessage(data.message || t('settings.test_error', 'Error occurred'));
+      }
+    } catch (err: any) {
+      setTestPexelsStatus('error');
+      setTestPexelsMessage(err.message || t('settings.test_failed', 'Failed to connect to backend'));
+    }
+  };
 
   return (
     <div className="bg-bg-secondary rounded-card border border-border p-6 shadow-sm">
@@ -65,7 +152,11 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
               label={`${current?.label || 'Provider'} API Key`}
               type={showKey ? 'text' : 'password'}
               value={keyVal}
-              onChange={(e) => setApiKey(provider, e.target.value)}
+              onChange={(e) => {
+                setApiKey(provider, e.target.value);
+                setTestAiStatus('idle');
+                setTestAiMessage('');
+              }}
               placeholder="..."
               icon={Lock}
               helperText={t('settings.api_key_note', 'Encrypted and stored securely on your device')}
@@ -83,12 +174,34 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
           </div>
         )}
 
+        <div className="mt-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleTestAi} 
+            disabled={testAiStatus === 'loading'}
+            icon={testAiStatus === 'loading' ? Loader2 : undefined}
+          >
+            {testAiStatus === 'loading' ? t('settings.testing', 'Testing...') : t('settings.test_ai_btn', 'Test AI Connection')}
+          </Button>
+          
+          {testAiStatus !== 'idle' && testAiMessage && (
+            <p className={`text-sm mt-2 ${testAiStatus === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+              {testAiMessage}
+            </p>
+          )}
+        </div>
+
         <div className="relative pt-4 border-t border-border">
           <InputGroup
             label={t('settings.pexels_api_key', 'Pexels API Key (Optional)')}
             type={showPexels ? 'text' : 'password'}
             value={apiKeys["pexels"] || ''}
-            onChange={(e) => setApiKey("pexels", e.target.value)}
+            onChange={(e) => {
+              setApiKey("pexels", e.target.value);
+              setTestPexelsStatus('idle');
+              setTestPexelsMessage('');
+            }}
             placeholder="..."
             icon={Lock}
             helperText={t('settings.pexels_api_key_note', 'Required for Dynamic B-Roll feature')}
@@ -99,6 +212,24 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
           >
             {showPexels ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
+
+          <div className="mt-4">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleTestPexels} 
+              disabled={testPexelsStatus === 'loading'}
+              icon={testPexelsStatus === 'loading' ? Loader2 : undefined}
+            >
+              {testPexelsStatus === 'loading' ? t('settings.testing', 'Testing...') : t('settings.test_pexels_btn', 'Test Pexels Connection')}
+            </Button>
+            
+            {testPexelsStatus !== 'idle' && testPexelsMessage && (
+              <p className={`text-sm mt-2 ${testPexelsStatus === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+                {testPexelsMessage}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
