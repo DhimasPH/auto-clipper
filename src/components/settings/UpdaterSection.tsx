@@ -6,12 +6,14 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { useToasts } from '../../hooks/useToasts';
+import UpdateOverlay from './UpdateOverlay';
 
 export const UpdaterSection: React.FC = () => {
   const { t } = useTranslation();
   const [checking, setChecking] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState<any>(null);
   const [downloading, setDownloading] = useState(false);
+  const [progressPct, setProgressPct] = useState(0);
   const { toasts, notify } = useToasts();
   
   const checkForUpdates = async () => {
@@ -24,7 +26,13 @@ export const UpdaterSection: React.FC = () => {
         notify(t('updater.up_to_date', 'Anda menggunakan versi terbaru.'), 'success');
       }
     } catch (err: any) {
-      notify(t('updater.check_failed', 'Gagal memeriksa pembaruan: ') + err, 'error');
+      const errMsg = err?.toString() || '';
+      // @ts-ignore - Check if running inside Tauri context
+      if (errMsg.includes('missing Tauri-Invoke-Key') || errMsg.includes('not supported in browser') || !window.__TAURI_INTERNALS__) {
+        notify(t('updater.browser_dev_warning', 'Fitur pembaruan tidak dapat digunakan jika dijalankan di browser web (mode dev). Silakan jalankan via Tauri.'), 'error');
+      } else {
+        notify(t('updater.check_failed', 'Gagal memeriksa pembaruan: ') + errMsg, 'error');
+      }
     } finally {
       setChecking(false);
     }
@@ -34,7 +42,22 @@ export const UpdaterSection: React.FC = () => {
     if (!updateAvailable) return;
     try {
       setDownloading(true);
-      await updateAvailable.downloadAndInstall();
+      setProgressPct(0);
+      
+      let downloadedBytes = 0;
+      let totalBytes = 0;
+      
+      await updateAvailable.downloadAndInstall((event: any) => {
+        if (event.event === 'Started') {
+          totalBytes = event.data?.contentLength || 0;
+        } else if (event.event === 'Progress') {
+          downloadedBytes += event.data?.chunkLength || 0;
+          if (totalBytes > 0) {
+            setProgressPct((downloadedBytes / totalBytes) * 100);
+          }
+        }
+      });
+      
       notify(t('updater.install_success', 'Pembaruan berhasil dipasang. Memulai ulang...'), 'success');
       setTimeout(async () => {
         await relaunch();
@@ -82,7 +105,7 @@ export const UpdaterSection: React.FC = () => {
       </div>
 
       <ConfirmDialog
-        isOpen={!!updateAvailable}
+        isOpen={!!updateAvailable && !downloading}
         title={t('updater.available_title', 'Pembaruan Tersedia')}
         message={
           t('updater.available_message', 'Versi {{version}} tersedia. Apakah Anda ingin mengunduh dan memasangnya sekarang?', { version: updateAvailable?.version }) 
@@ -90,9 +113,11 @@ export const UpdaterSection: React.FC = () => {
         }
         onConfirm={installUpdate}
         onCancel={() => setUpdateAvailable(null)}
-        confirmLabel={downloading ? t('updater.downloading', 'Mengunduh...') : t('updater.install_now', 'Pasang Sekarang')}
+        confirmLabel={t('updater.install_now', 'Pasang Sekarang')}
         cancelLabel={t('common.cancel', 'Batal')}
       />
+
+      <UpdateOverlay isOpen={downloading} progressPct={progressPct} />
     </div>
   );
 };
