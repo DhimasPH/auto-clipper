@@ -100,6 +100,13 @@ class TestAiRequest(BaseModel):
     custom_base_url: str = ""
     custom_model_name: str = ""
 
+class GenerateSocialKitRequest(BaseModel):
+    description: str
+    provider: str = "openai"
+    api_key: str = ""
+    custom_base_url: str = ""
+    custom_model_name: str = ""
+
 @app.post("/api/settings/test-ai")
 def api_test_ai(req: TestAiRequest):
     try:
@@ -269,6 +276,44 @@ def api_get_job(job_id: str):
         "failed": job.get("failed", 0),
         "error": job["error"]
     }
+
+@app.post("/jobs/{job_id}/clips/{clip_index}/social")
+def api_generate_social_kit(job_id: str, clip_index: int, req: GenerateSocialKitRequest):
+    from backend.jobs import get_job
+    from backend.db import get_history, save_history
+    from backend.ai_utils import generate_social_kit_only
+    
+    job = get_job(job_id)
+    is_active = True
+    if not job:
+        job = get_history(job_id)
+        is_active = False
+        
+    if not job:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Job not found"})
+        
+    clips = job.get("clips") if is_active else job.get("result_clips")
+    
+    if not clips or clip_index < 0 or clip_index >= len(clips):
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Clip not found"})
+
+    try:
+        social_kit = generate_social_kit_only(
+            description=req.description,
+            api_key=req.api_key.strip(),
+            provider=req.provider,
+            base_url=req.custom_base_url.strip(),
+            model=req.custom_model_name.strip()
+        )
+        
+        clips[clip_index]["social"] = social_kit
+        
+        if not is_active:
+            save_history(job["id"], job["url"], job["status"], clips, job.get("metadata"))
+            
+        return {"status": "success", "social": social_kit}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @app.post("/jobs/{job_id}/cancel")
 def api_cancel_job(job_id: str):

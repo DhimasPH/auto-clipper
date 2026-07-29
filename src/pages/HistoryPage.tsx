@@ -149,8 +149,9 @@ export const HistoryPage: React.FC = () => {
                         v: Date.now(),
                       }}
                       index={idx}
-                      videoSrc={(path) =>
-                        `${API_URL}/video?path=${encodeURIComponent(path)}`
+                      jobId={job.id}
+                      videoSrc={(path, v) =>
+                        `${API_URL}/video?path=${encodeURIComponent(path)}&v=${v || 0}`
                       }
                     />
                   ))}

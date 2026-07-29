@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Copy, Check, Clock, Music } from 'lucide-react';
-import { SocialData } from './ClipCard';
+import { X, Copy, Check, Clock, Music, Loader2, Sparkles } from 'lucide-react';
+import { SocialData, Clip } from './ClipCard';
+import { API_URL } from '../App';
 
 export interface SocialKitModalProps {
   isOpen: boolean;
   onClose: () => void;
-  social: SocialData;
+  social?: SocialData;
+  clip: Clip;
+  jobId: string;
   clipIndex: number;
+  onUpdate: (social: SocialData) => void;
 }
 
 const CopyButton: React.FC<{ textToCopy: string; label?: string }> = ({ textToCopy, label }) => {
@@ -39,19 +43,62 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
   isOpen,
   onClose,
   social,
+  clip,
+  jobId,
   clipIndex,
+  onUpdate
 }) => {
   const { t, i18n } = useTranslation();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const titles = i18n.language === 'id' ? social.titles_id : social.titles_en;
-  const description = i18n.language === 'id' ? social.description_id : social.description_en;
-  const hashtags = i18n.language === 'id' ? social.hashtags_id : social.hashtags_en;
-  const bestTime = i18n.language === 'id' ? social.best_time_to_post_id : social.best_time_to_post_en;
-  const backsound = i18n.language === 'id' ? social.backsound_id : social.backsound_en;
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const provider = localStorage.getItem("ac_provider") || "openai";
+      const api_key = localStorage.getItem("ac_api_key") || "";
+      const custom_base_url = localStorage.getItem("ac_custom_base_url") || "";
+      const custom_model_name = localStorage.getItem("ac_custom_model_name") || "";
+      const description = clip.description_en || clip.description_id || clip.description || "";
+
+      const res = await fetch(`${API_URL}/jobs/${jobId}/clips/${clipIndex}/social`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description,
+          provider,
+          api_key,
+          custom_base_url,
+          custom_model_name
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to generate');
+      if (data.status === 'success' && data.social) {
+        onUpdate(data.social);
+      } else {
+        throw new Error(data.message || 'Unknown error');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const titles = i18n.language === 'id' ? social?.titles_id : social?.titles_en;
+  const description = i18n.language === 'id' ? social?.description_id : social?.description_en;
+  const hashtags = i18n.language === 'id' ? social?.hashtags_id : social?.hashtags_en;
+  const bestTime = i18n.language === 'id' ? social?.best_time_to_post_id : social?.best_time_to_post_en;
+  const backsound = i18n.language === 'id' ? social?.backsound_id : social?.backsound_en;
 
   const joinedHashtags = hashtags?.join(' ') || '';
+
+  const hasData = titles || description || joinedHashtags || social?.thumbnail_layout || bestTime || backsound;
+
 
   return (
     <div 
@@ -64,17 +111,51 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
       >
         <div className="flex justify-between items-center p-6 border-b border-border bg-bg-surface shrink-0">
           <h2 className="text-section-title text-text-primary">
-            {t('social_kit.title', 'Social Kit - Clip {{num}}', { num: clipIndex })}
+            {t('social_kit.title', 'Social Kit - Clip {{num}}', { num: clipIndex + 1 })}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-text-secondary hover:text-text-primary transition-colors p-1"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {hasData && (
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 text-accent hover:bg-accent/20 rounded-button text-caption font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {t('common.retry', 'Regenerate')}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-text-secondary hover:text-text-primary transition-colors p-1"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
         
         <div className="p-6 overflow-y-auto flex flex-col gap-6">
+          {error && (
+            <div className="p-4 bg-danger/10 text-danger border border-danger/20 rounded-lg text-body">
+              {error}
+            </div>
+          )}
+
+          {!hasData && (
+            <div className="flex flex-col items-center justify-center py-12 text-center gap-4">
+              <Sparkles className="w-12 h-12 text-accent/50" />
+              <p className="text-text-secondary text-body max-w-sm">
+                {t('social_kit.empty', 'Social kit belum digenerate untuk klip ini. Klik tombol di bawah untuk membuat judul viral, deskripsi, dan hashtag.')}
+              </p>
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-6 py-3 bg-accent text-white hover:bg-accent/90 rounded-button text-body font-medium transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                {isGenerating ? t('common.generating', 'Generating...') : t('common.generate', 'Generate Social Kit')}
+              </button>
+            </div>
+          )}
           {/* Titles */}
           {titles && titles.length > 0 && (
             <div className="flex flex-col gap-3">
@@ -127,7 +208,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
             </>
           )}
 
-          {social.thumbnail_layout && (
+          {social?.thumbnail_layout && (
             <>
               <hr className="border-border" />
               {/* Thumbnail Idea */}

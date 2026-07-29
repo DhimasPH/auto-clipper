@@ -35,6 +35,7 @@ export interface Clip {
 interface ClipCardProps {
   clip: Clip;
   index: number;
+  jobId: string;
   videoSrc: (path: string, v: number) => string;
 }
 
@@ -43,10 +44,13 @@ import { useState } from "react";
 export default function ClipCard({
   clip,
   index,
+  jobId,
   videoSrc
 }: ClipCardProps) {
   const { t, i18n } = useTranslation();
   const [showModal, setShowModal] = useState(false);
+  const [localSocial, setLocalSocial] = useState<SocialData | undefined>(clip.social);
+
 
   const currentDescription = i18n.language === 'id' 
     ? (clip.description_id || clip.description)
@@ -71,7 +75,7 @@ export default function ClipCard({
           {currentDescription}
         </p>
 
-        {clip.social && (
+        {(currentDescription || localSocial) && (
           <div className="mb-4">
             <button
               onClick={() => setShowModal(true)}
@@ -153,12 +157,15 @@ export default function ClipCard({
           />
         </div>
       </div>
-      {clip.social && (
+      {(currentDescription || localSocial) && (
         <SocialKitModal 
           isOpen={showModal} 
           onClose={() => setShowModal(false)} 
-          social={clip.social} 
-          clipIndex={index + 1} 
+          social={localSocial} 
+          clip={clip}
+          jobId={jobId}
+          clipIndex={index} 
+          onUpdate={(newSocial) => setLocalSocial(newSocial)}
         />
       )}
     </div>

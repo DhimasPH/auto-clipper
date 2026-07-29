@@ -184,6 +184,63 @@ def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", ba
     return _parse_highlights(response_text)
 
 
+def generate_social_kit_only(description: str, api_key: str, provider: str = "openai", base_url: str = None, model: str = None) -> dict:
+    """Generate just the social kit for a specific clip description."""
+    prompt = (
+        "Based on the following short video clip description, generate a social media kit with engaging titles, descriptions, hashtags, best posting times, and background music recommendations.\n"
+        "Return strictly valid JSON with NO Markdown formatting.\n"
+        "The JSON MUST be a single object with the following keys:\n"
+        "- 'titles_en': Array of 3 English titles (Clickbait, Educational, Minimalist)\n"
+        "- 'titles_id': Array of 3 Indonesian titles (Clickbait, Edukatif, Minimalis)\n"
+        "- 'thumbnail_layout': English string describing a visual layout and hook text for a thumbnail\n"
+        "- 'description_en': English video description with a CTA\n"
+        "- 'description_id': Indonesian video description with a CTA\n"
+        "- 'hashtags_en': Array of 5-7 English hashtags\n"
+        "- 'hashtags_id': Array of 5-7 Indonesian hashtags\n"
+        "- 'best_time_to_post_en': English recommendation for the best day+time to post this specific clip for maximum engagement, based on the content type/topic and the user's timezone. Include the specific date and time window.\n"
+        "- 'best_time_to_post_id': Same but in Indonesian\n"
+        "- 'backsound_en': English recommendation for background music - suggest specific song names and artists that match the clip's mood/vibe/energy, plus the genre. Example: \"Upbeat lo-fi hip hop, e.g. 'Snowman' by WYS or 'Coffee' by beabadoobee\"\n"
+        "- 'backsound_id': Same but in Indonesian\n\n"
+        f"{_get_user_datetime_context()}\n\n"
+        f"Clip Description:\n{description}"
+    )
+
+    if provider == "gemini":
+        from google import genai
+        from google.genai import types
+        client = genai.Client(api_key=api_key)
+        model_name = model or "gemini-2.5-flash"
+        response = _with_retry(lambda: client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            )
+        ))
+        response_text = response.text
+        log_ai("gemini", model_name, prompt, response_text)
+    else:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url, default_headers=BROWSER_HEADERS) if base_url else OpenAI(api_key=api_key, default_headers=BROWSER_HEADERS)
+        model_name = model or "gpt-4o-mini"
+        response = _with_retry(lambda: client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a professional social media manager. Always return strictly valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            response_format={"type": "json_object"},
+        ))
+        response_text = response.choices[0].message.content
+        log_ai("openai_compatible" if base_url else "openai", model_name, prompt, response_text)
+        
+    try:
+        parsed = json.loads(response_text)
+        return parsed
+    except Exception as e:
+        print(f"Failed to parse social kit: {e}")
+        return {}
+
 def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
     """Full OpenAI pipeline: extract audio -> transcribe -> find highlights."""
     base, _ = os.path.splitext(file_path)
