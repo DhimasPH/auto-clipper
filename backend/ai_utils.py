@@ -50,6 +50,11 @@ def _is_transient(err) -> bool:
         return False
     if "authentication" in msg or "unauthorized" in msg or "invalid_api_key" in msg:
         return False
+    # A missing/unsupported model is a config error, not a transient blip —
+    # retrying won't make the provider serve a model it doesn't have. Some
+    # gateways (e.g. livrouter) wrap this in a 503, so check before markers.
+    if "model_not_found" in msg or "no available channel" in msg or "does not exist" in msg:
+        return False
     return any(marker in msg for marker in _TRANSIENT_MARKERS)
 
 
