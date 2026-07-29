@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_URL } from '../../App';
 import { useTranslation } from 'react-i18next';
 import { Brain, Eye, EyeOff, Lock, Settings2, Server, Box, Loader2 } from 'lucide-react';
 import { Select } from '../ui/Select';
@@ -43,10 +44,9 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
     setTestAiMessage('');
     
     try {
-      const PORT = (import.meta as any).env?.VITE_BACKEND_PORT || (window as any).backendPort || 8000;
       const TOKEN = (import.meta as any).env?.VITE_API_TOKEN || (window as any).apiToken || '';
       
-      const res = await fetch(`http://127.0.0.1:${PORT}/api/settings/test-ai`, {
+      const res = await fetch(`${API_URL}/api/settings/test-ai`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,10 +86,9 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
     setTestPexelsMessage('');
     
     try {
-      const PORT = (import.meta as any).env?.VITE_BACKEND_PORT || (window as any).backendPort || 8000;
       const TOKEN = (import.meta as any).env?.VITE_API_TOKEN || (window as any).apiToken || '';
       
-      const res = await fetch(`http://127.0.0.1:${PORT}/api/settings/test-pexels`, {
+      const res = await fetch(`${API_URL}/api/settings/test-pexels`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
