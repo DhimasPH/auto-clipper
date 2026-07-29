@@ -770,6 +770,10 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     # Flag AI jobs so the UI can offer "AI Koreksi" (needs highlights to re-run).
     if metadata.get("highlights") and job.get("mode") == "ai":
         metadata["ai_job"] = True
+        
+    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "pexels_api_key", "max_clips", "is_gaming_video"]:
+        if key in job:
+            metadata[key] = job[key]
 
     if status == "DONE" or status == "ERROR" or status == "CANCELLED":
         try:
@@ -785,30 +789,32 @@ def create_resume_job(history_id: str) -> str:
         raise ValueError("Video sumber tidak ditemukan di histori.")
 
     job_id = str(uuid.uuid4())
+    hist_meta = hist.get("metadata", {})
     active_jobs[job_id] = {
         "id": job_id,
         "url": hist["url"],
-        "provider": hist.get("provider", "openai"),
-        "api_key": hist.get("api_key", ""),
-        "custom_base_url": hist.get("custom_base_url", ""),
-        "custom_model_name": hist.get("custom_model_name", ""),
-        "mode": hist.get("mode", "ai"),
-        "aspect_ratio": hist.get("aspect_ratio", "9:16"),
-        "caption_style": hist.get("caption_style", "standard"),
-        "burn_subs": hist.get("burn_subs", True),
-        "output_dir": hist.get("output_dir", ""),
-        "quality": hist.get("quality", "best"),
-        "title": hist.get("title", ""),
-        "enable_broll": hist.get("enable_broll", False),
-        "pexels_api_key": hist.get("pexels_api_key", ""),
-        "max_clips": hist.get("max_clips", 0),
+        "provider": hist_meta.get("provider", "openai"),
+        "api_key": hist_meta.get("api_key", ""),
+        "custom_base_url": hist_meta.get("custom_base_url", ""),
+        "custom_model_name": hist_meta.get("custom_model_name", ""),
+        "mode": hist_meta.get("mode", "ai"),
+        "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
+        "caption_style": hist_meta.get("caption_style", "standard"),
+        "burn_subs": hist_meta.get("burn_subs", True),
+        "output_dir": hist_meta.get("output_dir", ""),
+        "quality": hist_meta.get("quality", "best"),
+        "title": hist_meta.get("title", ""),
+        "enable_broll": hist_meta.get("enable_broll", False),
+        "pexels_api_key": hist_meta.get("pexels_api_key", ""),
+        "max_clips": hist_meta.get("max_clips", 0),
+        "is_gaming_video": hist_meta.get("is_gaming_video", False),
         "status": "QUEUED",
         "progress": "Melanjutkan AI Processing...",
         "cancelled": False,
         "clips": [],
         "failed": 0,
         "error": None,
-        "metadata": hist["metadata"]
+        "metadata": hist_meta
     }
     import threading
     threading.Thread(target=_run_resume_job, args=(job_id,), daemon=True).start()
