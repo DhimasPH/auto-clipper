@@ -7,7 +7,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Copying executable..."
-Copy-Item dist\backend.exe bin\backend-x86_64-pc-windows-msvc.exe -Force
-Copy-Item dist\backend.exe bin\backend.exe -Force
+Copy-Item -Force dist\backend.exe bin\backend-x86_64-pc-windows-msvc.exe
+Copy-Item -Force dist\backend.exe bin\backend.exe
+
+if (!(Test-Path -Path "src-tauri\bin")) {
+    New-Item -ItemType Directory -Path "src-tauri\bin" | Out-Null
+}
+Copy-Item -Force dist\backend.exe src-tauri\bin\backend-x86_64-pc-windows-msvc.exe
+Copy-Item -Force dist\backend.exe src-tauri\bin\backend.exe
 
 Write-Host "Build and copy completed successfully!" -ForegroundColor Green
