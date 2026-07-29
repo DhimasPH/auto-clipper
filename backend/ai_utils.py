@@ -32,11 +32,24 @@ def _is_transient(err) -> bool:
     """True for errors worth retrying (server overload, rate spikes, timeouts)."""
     code = getattr(err, "code", None) or getattr(err, "status_code", None)
     try:
-        if code is not None and (int(code) == 429 or 500 <= int(code) < 600):
-            return True
+        code = int(code) if code is not None else None
     except (ValueError, TypeError):
-        pass
+        code = None
+    if code is not None:
+        # Auth failures are NEVER transient: retrying won't fix a bad/missing
+        # key, and ping_provider must not swallow them as "valid".
+        if code in (401, 403):
+            return False
+        if code == 429 or 500 <= code < 600:
+            return True
     msg = str(err).lower()
+    # Belt-and-braces: some SDKs omit the status code but the message still
+    # identifies an auth problem (which may coincidentally contain transient
+    # markers like "try again" in OpenAI's 401 help text).
+    if "api key" in msg and ("provided" in msg or "invalid" in msg or "incorrect" in msg or "missing" in msg):
+        return False
+    if "authentication" in msg or "unauthorized" in msg or "invalid_api_key" in msg:
+        return False
     return any(marker in msg for marker in _TRANSIENT_MARKERS)
 
 

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { X, Copy, Check, Clock, Music, Loader2, Sparkles } from 'lucide-react';
-import { SocialData, Clip } from './ClipCard';
-import { API_URL } from '../App';
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { X, Copy, Check, Clock, Music, Loader2, Sparkles } from "lucide-react";
+import { SocialData, Clip } from "./ClipCard";
+import { API_URL } from "../App";
 
 export interface SocialKitModalProps {
   isOpen: boolean;
@@ -14,7 +14,10 @@ export interface SocialKitModalProps {
   onUpdate: (social: SocialData) => void;
 }
 
-const CopyButton: React.FC<{ textToCopy: string; label?: string }> = ({ textToCopy, label }) => {
+const CopyButton: React.FC<{ textToCopy: string; label?: string }> = ({
+  textToCopy,
+  label,
+}) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -23,7 +26,7 @@ const CopyButton: React.FC<{ textToCopy: string; label?: string }> = ({ textToCo
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy', err);
+      console.error("Failed to copy", err);
     }
   };
 
@@ -46,7 +49,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
   clip,
   jobId,
   clipIndex,
-  onUpdate
+  onUpdate,
 }) => {
   const { t, i18n } = useTranslation();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -59,59 +62,86 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
     setError(null);
     try {
       const provider = localStorage.getItem("ac_provider") || "openai";
-      const api_key = localStorage.getItem("ac_api_key") || "";
-      const custom_base_url = localStorage.getItem("ac_custom_base_url") || "";
-      const custom_model_name = localStorage.getItem("ac_custom_model_name") || "";
-      const description = clip.description_en || clip.description_id || clip.description || "";
+      // API keys are stored as a base64-encoded JSON object under "ac_api_keys"
+      // (see useUserSettings.ts). The legacy flat keys (ac_api_key, etc.) are
+      // no longer written, so reading them always yields "" and causes 401s.
+      let apiKeys: Record<string, string> = {};
+      try {
+        const raw = localStorage.getItem("ac_api_keys");
+        if (raw) apiKeys = JSON.parse(atob(raw));
+      } catch (e) {
+        console.error("Failed to decode stored API keys", e);
+      }
+      const api_key = apiKeys[provider] || "";
+      const custom_base_url = apiKeys["custom_base_url"] || "";
+      const custom_model_name = apiKeys["custom_model_name"] || "";
+      const description =
+        clip.description_en || clip.description_id || clip.description || "";
 
-      const res = await fetch(`${API_URL}/jobs/${jobId}/clips/${clipIndex}/social`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description,
-          provider,
-          api_key,
-          custom_base_url,
-          custom_model_name
-        })
-      });
+      const res = await fetch(
+        `${API_URL}/jobs/${jobId}/clips/${clipIndex}/social`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            description,
+            provider,
+            api_key,
+            custom_base_url,
+            custom_model_name,
+          }),
+        },
+      );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to generate');
-      if (data.status === 'success' && data.social) {
+      if (!res.ok) throw new Error(data.message || "Failed to generate");
+      if (data.status === "success" && data.social) {
         onUpdate(data.social);
       } else {
-        throw new Error(data.message || 'Unknown error');
+        throw new Error(data.message || "Unknown error");
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      setError(err.message || "An error occurred");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const titles = i18n.language === 'id' ? social?.titles_id : social?.titles_en;
-  const description = i18n.language === 'id' ? social?.description_id : social?.description_en;
-  const hashtags = i18n.language === 'id' ? social?.hashtags_id : social?.hashtags_en;
-  const bestTime = i18n.language === 'id' ? social?.best_time_to_post_id : social?.best_time_to_post_en;
-  const backsound = i18n.language === 'id' ? social?.backsound_id : social?.backsound_en;
+  const titles = i18n.language === "id" ? social?.titles_id : social?.titles_en;
+  const description =
+    i18n.language === "id" ? social?.description_id : social?.description_en;
+  const hashtags =
+    i18n.language === "id" ? social?.hashtags_id : social?.hashtags_en;
+  const bestTime =
+    i18n.language === "id"
+      ? social?.best_time_to_post_id
+      : social?.best_time_to_post_en;
+  const backsound =
+    i18n.language === "id" ? social?.backsound_id : social?.backsound_en;
 
-  const joinedHashtags = hashtags?.join(' ') || '';
+  const joinedHashtags = hashtags?.join(" ") || "";
 
-  const hasData = titles || description || joinedHashtags || social?.thumbnail_layout || bestTime || backsound;
-
+  const hasData =
+    titles ||
+    description ||
+    joinedHashtags ||
+    social?.thumbnail_layout ||
+    bestTime ||
+    backsound;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-bg-secondary w-full max-w-2xl max-h-[80vh] flex flex-col rounded-card shadow-dropdown border border-border overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-6 border-b border-border bg-bg-surface shrink-0">
           <h2 className="text-section-title text-text-primary">
-            {t('social_kit.title', 'Social Kit - Clip {{num}}', { num: clipIndex + 1 })}
+            {t("social_kit.title", "Social Kit - Clip {{num}}", {
+              num: clipIndex + 1,
+            })}
           </h2>
           <div className="flex items-center gap-2">
             {hasData && (
@@ -120,8 +150,12 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
                 disabled={isGenerating}
                 className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 text-accent hover:bg-accent/20 rounded-button text-caption font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                {t('common.retry', 'Regenerate')}
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                {t("common.retry", "Regenerate")}
               </button>
             )}
             <button
@@ -132,7 +166,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
             </button>
           </div>
         </div>
-        
+
         <div className="p-6 overflow-y-auto flex flex-col gap-6">
           {error && (
             <div className="p-4 bg-danger/10 text-danger border border-danger/20 rounded-lg text-body">
@@ -144,15 +178,24 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
             <div className="flex flex-col items-center justify-center py-12 text-center gap-4">
               <Sparkles className="w-12 h-12 text-accent/50" />
               <p className="text-text-secondary text-body max-w-sm">
-                {t('social_kit.empty', 'Social kit belum digenerate untuk klip ini. Klik tombol di bawah untuk membuat judul viral, deskripsi, dan hashtag.')}
+                {t(
+                  "social_kit.empty",
+                  "Social kit belum digenerate untuk klip ini. Klik tombol di bawah untuk membuat judul viral, deskripsi, dan hashtag.",
+                )}
               </p>
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
                 className="flex items-center gap-2 px-6 py-3 bg-accent text-white hover:bg-accent/90 rounded-button text-body font-medium transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                {isGenerating ? t('common.generating', 'Generating...') : t('common.generate', 'Generate Social Kit')}
+                {isGenerating ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-5 h-5" />
+                )}
+                {isGenerating
+                  ? t("common.generating", "Generating...")
+                  : t("common.generate", "Generate Social Kit")}
               </button>
             </div>
           )}
@@ -160,19 +203,24 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
           {titles && titles.length > 0 && (
             <div className="flex flex-col gap-3">
               <div className="font-medium text-text-primary text-body">
-                {t('clip.social_titles', 'Judul Viral (Pilih satu):')}
+                {t("clip.social_titles", "Judul Viral (Pilih satu):")}
               </div>
               <div className="flex flex-col gap-2">
                 {titles.map((title, i) => (
-                  <div key={i} className="flex justify-between items-start gap-4 p-3 bg-bg-surface rounded-lg border border-border">
-                    <span className="text-text-secondary text-body">{title}</span>
+                  <div
+                    key={i}
+                    className="flex justify-between items-start gap-4 p-3 bg-bg-surface rounded-lg border border-border"
+                  >
+                    <span className="text-text-secondary text-body">
+                      {title}
+                    </span>
                     <CopyButton textToCopy={title} />
                   </div>
                 ))}
               </div>
             </div>
           )}
-          
+
           <hr className="border-border" />
 
           {/* Description */}
@@ -180,7 +228,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
             <div className="flex flex-col gap-3">
               <div className="flex justify-between items-center">
                 <span className="font-medium text-text-primary text-body">
-                  {t('clip.social_desc', 'Deskripsi:')}
+                  {t("clip.social_desc", "Deskripsi:")}
                 </span>
                 <CopyButton textToCopy={description} label="Copy" />
               </div>
@@ -197,7 +245,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
               <div className="flex flex-col gap-3">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-text-primary text-body">
-                    {t('clip.social_hashtags', 'Hashtags:')}
+                    {t("clip.social_hashtags", "Hashtags:")}
                   </span>
                   <CopyButton textToCopy={joinedHashtags} label="Copy" />
                 </div>
@@ -214,7 +262,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
               {/* Thumbnail Idea */}
               <div className="flex flex-col gap-3">
                 <div className="font-medium text-text-primary text-body">
-                  {t('clip.social_thumbnail', 'Ide Thumbnail:')}
+                  {t("clip.social_thumbnail", "Ide Thumbnail:")}
                 </div>
                 <div className="p-3 bg-bg-surface rounded-lg border border-border text-text-secondary text-body">
                   {social.thumbnail_layout}
@@ -230,7 +278,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
               <div className="flex flex-col gap-3">
                 <div className="font-medium text-text-primary text-body flex items-center gap-2">
                   <Clock className="w-5 h-5 text-accent" />
-                  {t('clip.social_best_time', 'Waktu Terbaik Posting:')}
+                  {t("clip.social_best_time", "Waktu Terbaik Posting:")}
                 </div>
                 <div className="p-3 bg-bg-surface rounded-lg border border-border text-text-secondary text-body">
                   {bestTime}
@@ -246,7 +294,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
               <div className="flex flex-col gap-3">
                 <div className="font-medium text-text-primary text-body flex items-center gap-2">
                   <Music className="w-5 h-5 text-accent" />
-                  {t('clip.social_backsound', 'Saran Backsound:')}
+                  {t("clip.social_backsound", "Saran Backsound:")}
                 </div>
                 <div className="p-3 bg-bg-surface rounded-lg border border-border text-text-secondary text-body">
                   {backsound}
@@ -254,7 +302,6 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
               </div>
             </>
           )}
-
         </div>
       </div>
     </div>
