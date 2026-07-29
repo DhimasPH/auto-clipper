@@ -94,6 +94,22 @@ def health_check():
     return {"status": "ok"}
 
 
+class TestAiRequest(BaseModel):
+    provider: str
+    api_key: str
+    custom_base_url: str = ""
+    custom_model_name: str = ""
+
+@app.post("/api/settings/test-ai")
+def api_test_ai(req: TestAiRequest):
+    try:
+        from backend.ai_utils import ping_provider
+        ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip())
+        return {"status": "success", "message": "API Key is valid!"}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
 class CreateJobRequest(BaseModel):
     url: str
     provider: str = "openai"
