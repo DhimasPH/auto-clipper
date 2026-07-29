@@ -59,3 +59,24 @@ def download_pexels_broll(query: str, api_key: str, output_path: str, is_cancell
     except Exception as e:
         print(f"Failed to fetch B-Roll for query '{query}': {e}")
         return False
+
+def ping_pexels(api_key: str) -> None:
+    """Pre-flight check to fail-fast on invalid Pexels API keys."""
+    if not api_key:
+        raise Exception("Pexels API Key is missing.")
+    
+    url = "https://api.pexels.com/videos/search"
+    headers = {
+        "Authorization": api_key
+    }
+    params = {
+        "query": "test",
+        "per_page": 1
+    }
+    try:
+        res = requests.get(url, headers=headers, params=params, timeout=10)
+        res.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        if hasattr(e, 'response') and e.response is not None and e.response.status_code == 401:
+            raise Exception("Invalid Pexels API Key.")
+        raise Exception(f"Pexels API Error: {str(e)}")

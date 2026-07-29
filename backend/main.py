@@ -110,6 +110,19 @@ def api_test_ai(req: TestAiRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 
+class TestPexelsRequest(BaseModel):
+    api_key: str
+
+@app.post("/api/settings/test-pexels")
+def api_test_pexels(req: TestPexelsRequest):
+    try:
+        from backend.broll import ping_pexels
+        ping_pexels(req.api_key.strip())
+        return {"status": "success", "message": "Pexels API Key is valid!"}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
 class CreateJobRequest(BaseModel):
     url: str
     provider: str = "openai"
