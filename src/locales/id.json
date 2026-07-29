@@ -32,7 +32,9 @@
     "probe_btn": "Cek kualitas tersedia",
     "probe_avail": "Tersedia:",
     "gaming_video": "Video Gaming (Deteksi Otomatis Split-screen)",
-    "gaming_video_desc": "Centang jika ini video gaming agar facecam streamer otomatis terdeteksi."
+    "gaming_video_desc": "Centang jika ini video gaming agar facecam streamer otomatis terdeteksi.",
+    "empty_clips_title": "Klip kamu muncul di sini",
+    "empty_clips_desc": "Masukkan URL atau video lokal, atur format, lalu generate. Hasil klip AI beserta deskripsinya akan tampil di kolom ini."
   },
   "clip": {
     "title_ai": "Klip {{num}}",
@@ -136,11 +138,11 @@
   },
   "sidebar": {
     "menu": "Menu",
-    "workspace": "Ruang Kerja",
+    "workspace": "AI Clipper",
     "history": "Riwayat",
     "settings": "Pengaturan",
     "help": "Bantuan / FAQ",
-    "smart_editor": "Smart Clipper"
+    "smart_editor": "Manual Clipper"
   },
   "help": {
     "title": "Bantuan & Panduan",
@@ -202,7 +204,7 @@
     "save": "Simpan"
   },
   "smartEditor": {
-    "title": "Smart Manual Clipper",
+    "title": "Manual Clipper",
     "subtitle": "Potong klip sendiri — presisi atau reflek, tanpa AI",
     "pickVideo": "Pilih video lokal untuk mulai",
     "modePrecision": "Mode Presisi",
@@ -223,5 +225,9 @@
     "laneAudio": "Audio",
     "laneVideo": "Video",
     "changeVideo": "Ganti Video"
+  },
+  "aiClipper" : {
+    "title": "AI Clipper",
+    "subtitle": "Ubah video panjang jadi klip vertikal"
   }
 }

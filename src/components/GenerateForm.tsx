@@ -1,6 +1,7 @@
 import { Dispatch, SetStateAction, useState, useContext } from "react";
 import axios from "axios";
 import { API_URL, AppContext } from "../App";
+import { SHOW_EXPERIMENTAL_FEATURES } from "../config/features";
 import { useTranslation } from "react-i18next";
 import { Link2, FileVideo, Wand2, Type, Folder, Film, RefreshCw } from "lucide-react";
 import { InputGroup } from "./ui/InputGroup";
@@ -297,25 +298,27 @@ export default function GenerateForm({
           </div>
           
           {/* Gaming Video Toggle */}
-          <div className="flex items-center justify-between pt-4 border-t border-border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-accent/10 rounded-lg text-accent">
-                <Film className="w-5 h-5" />
+          {SHOW_EXPERIMENTAL_FEATURES && (
+            <div className="flex items-center justify-between pt-4 border-t border-border">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-accent/10 rounded-lg text-accent">
+                  <Film className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-body font-medium text-text-primary">
+                    {t("main.gaming_video", "Gaming Video (Split-screen Auto-detect)")}
+                  </h4>
+                  <p className="text-caption text-text-secondary">
+                    {t(
+                      "main.gaming_video_desc",
+                      "Centang jika ini video gaming agar facecam streamer otomatis terdeteksi.",
+                    )}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-body font-medium text-text-primary">
-                  {t("main.gaming_video", "Gaming Video (Split-screen Auto-detect)")}
-                </h4>
-                <p className="text-caption text-text-secondary">
-                  {t(
-                    "main.gaming_video_desc",
-                    "Centang jika ini video gaming agar facecam streamer otomatis terdeteksi.",
-                  )}
-                </p>
-              </div>
+              <ToggleSwitch checked={isGamingVideo} onChange={setIsGamingVideo} />
             </div>
-            <ToggleSwitch checked={isGamingVideo} onChange={setIsGamingVideo} />
-          </div>
+          )}
         </div>
 
         {inputType === "url" && (

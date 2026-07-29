@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link2, Type, Folder, Download, Gamepad2 } from "lucide-react";
+import { SHOW_EXPERIMENTAL_FEATURES } from "../config/features";
 import { PageHeader } from "../components/ui/PageHeader";
 import { AppContext } from "../App";
 import { InputGroup } from "../components/ui/InputGroup";
@@ -125,7 +126,7 @@ export const ManualDownloaderPage: React.FC = () => {
             </div>
           )}
 
-          {ctx.aspectRatio === "9:16" && (
+          {ctx.aspectRatio === "9:16" && SHOW_EXPERIMENTAL_FEATURES && (
             <div className="pt-4 border-t border-border">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

@@ -32,7 +32,9 @@
     "probe_btn": "Check available qualities",
     "probe_avail": "Available:",
     "gaming_video": "Gaming Video (Split-screen Auto-detect)",
-    "gaming_video_desc": "Check this if it's a gaming video so the streamer's facecam is automatically detected."
+    "gaming_video_desc": "Check this if it's a gaming video so the streamer's facecam is automatically detected.",
+    "empty_clips_title": "Your clips appear here",
+    "empty_clips_desc": "Enter a URL or local video, set the format, then generate. The AI clip results and descriptions will appear in this column."
   },
   "clip": {
     "title_ai": "Clip {{num}}",
@@ -136,11 +138,11 @@
   },
   "sidebar": {
     "menu": "Menu",
-    "workspace": "Workspace",
+    "workspace": "AI Clipper",
     "history": "History",
     "settings": "Settings",
     "help": "Help / FAQ",
-    "smart_editor": "Smart Clipper"
+    "smart_editor": "Manual Clipper"
   },
   "help": {
     "title": "Help & Guide",
@@ -223,5 +225,9 @@
     "laneAudio": "Audio",
     "laneVideo": "Video",
     "changeVideo": "Change Video"
+  },
+  "aiClipper" : {
+    "title": "AI Clipper",
+    "subtitle": "Convert a long video into a vertical clip"
   }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { WorkspacePage } from "./pages/WorkspacePage";
 import { SmartEditorPage } from "./pages/SmartEditorPage";
@@ -15,6 +15,7 @@ import { useToasts } from "./hooks/useToasts";
 import { useUserSettings } from "./hooks/useUserSettings";
 import { useClipJobs } from "./hooks/useClipJobs";
 import { ProviderId, DEFAULT_PROVIDER } from "./lib/providers";
+import { SHOW_EXPERIMENTAL_FEATURES } from "./config/features";
 
 export let API_URL = "http://127.0.0.1:8000";
 export function setApiUrl(url: string) {
@@ -195,7 +196,10 @@ export default function App() {
         <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<WorkspacePage />} />
-            <Route path="editor" element={<SmartEditorPage />} />
+            <Route
+              path="editor"
+              element={SHOW_EXPERIMENTAL_FEATURES ? <SmartEditorPage /> : <Navigate to="/" replace />}
+            />
             <Route path="downloader" element={<ManualDownloaderPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="settings" element={<SettingsPage />} />
