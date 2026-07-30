@@ -268,6 +268,7 @@ def _run_job(job_id: str):
         subtitle_path = ai_result.get("subtitle_path")
 
         metadata["subtitle_path"] = subtitle_path
+        metadata["highlights"] = highlights
 
         if not highlights:
             raise ValueError("Tidak ada highlight yang ditemukan oleh AI.")
@@ -706,6 +707,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         highlights = ai_result.get("highlights", [])
         subtitle_path = ai_result.get("subtitle_path")
         metadata["subtitle_path"] = subtitle_path
+        metadata["highlights"] = highlights
         
         if not highlights:
             raise ValueError("Tidak ada klip baru yang ditemukan AI dengan instruksi tersebut.")
