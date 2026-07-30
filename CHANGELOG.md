@@ -2,6 +2,10 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.10] - 2026-07-30
+### Fixed
+- Memperbaiki bug di mana video gagal dipotong (muncul pesan "Semua klip gagal dirender") karena sistem lupa meneruskan data *highlights* dari AI ke fungsi *cropping*.
+- Memperbaiki kegagalan proses *Resume/Retry* dari halaman History yang disebabkan oleh data *highlights* yang tidak tersimpan ke database.
 ## [1.6.9] - 2026-07-30
 ### Fixed
 - Memperbaiki bug aplikasi crash (Converting circular structure to JSON) saat klik tombol "Generate Viral Clips" dengan mencegah pengiriman object Event React ke backend.
