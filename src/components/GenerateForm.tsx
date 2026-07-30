@@ -388,7 +388,7 @@ export default function GenerateForm({
           variant="primary"
           className="w-full h-14 text-lg font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-shadow"
           icon={Wand2}
-          onClick={handleGenerate}
+          onClick={() => handleGenerate()}
           disabled={isRunning}
         >
           {isRunning
