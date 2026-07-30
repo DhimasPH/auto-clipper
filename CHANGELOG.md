@@ -2,6 +2,10 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.9] - 2026-07-30
+### Fixed
+- Memperbaiki bug aplikasi crash (Converting circular structure to JSON) saat klik tombol "Generate Viral Clips" dengan mencegah pengiriman object Event React ke backend.
+
 ## [1.6.8] - 2026-07-30
 ### Added
 - Menambahkan panduan langkah demi langkah penggunaan fitur "Manual AI Editor (Gratis)" di halaman Help / FAQ (mendukung bahasa Indonesia dan Inggris).
