@@ -2,6 +2,15 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.8] - 2026-07-30
+### Added
+- Menambahkan panduan langkah demi langkah penggunaan fitur "Manual AI Editor (Gratis)" di halaman Help / FAQ (mendukung bahasa Indonesia dan Inggris).
+
+### Fixed
+- Memperbaiki alur navigasi fitur "Manual AI" agar tetap berada di halaman History saat melajutkan proses kliping, tidak lagi terlempar ke layar utama.
+- Memperbaiki sistem *parser* JSON (di sisi *frontend* dan *backend*) agar lebih kebal (*robust*) terhadap respons dari AI yang menyertakan teks narasi pengantar atau terbungkus oleh *Markdown code blocks*.
+- Memperbaiki *error* layar putih (*blank white screen*) di halaman Help / FAQ akibat kegagalan muat *icon*.
+
 ## [1.6.7] - 2026-07-29
 ### Fixed
 - Memperbaiki isu proses rendering klip yang gagal karena respons dari model AI terbungkus oleh blok *Markdown* (e.g. ` ```json `).
