@@ -245,7 +245,7 @@
   },
   "manualAI": {
     "title": "Manual AI Clipper",
-    "subtitle": "Generate prompt dari video untuk diproses AI secara manual",
+    "subtitle": "Generate prompt dari video untuk diproses AI secara manual gratis tanpa API KEY",
     "resume_title": "Lanjut Manual AI",
     "resume_subtitle": "Salin prompt ini dan paste ke AI andalanmu, lalu masukkan JSON hasilnya di bawah.",
     "prompt_label": "Prompt untuk AI",

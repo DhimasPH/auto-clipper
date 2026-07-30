@@ -245,7 +245,7 @@
   },
   "manualAI": {
     "title": "Manual AI Clipper",
-    "subtitle": "Generate a prompt from video to be processed manually by AI",
+    "subtitle": "Generate a prompt from video to be processed manually by AI without API KEY",
     "resume_title": "Resume Manual AI",
     "resume_subtitle": "Copy this prompt and paste it to your favorite AI, then paste the JSON result below.",
     "prompt_label": "Prompt for AI",
