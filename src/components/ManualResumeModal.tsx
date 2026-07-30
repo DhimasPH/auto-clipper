@@ -34,7 +34,14 @@ export const ManualResumeModal: React.FC<ManualResumeModalProps> = ({ job, onClo
 
   const validateJson = (text: string) => {
     try {
-      JSON.parse(text);
+      let cleanText = text.trim();
+      const match = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (match) {
+        cleanText = match[1].trim();
+      } else {
+        cleanText = cleanText.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim();
+      }
+      JSON.parse(cleanText);
       return null; // Let the backend _parse_highlights do the heavy lifting
     } catch (e) {
       return t("manualAI.err_invalid_json");

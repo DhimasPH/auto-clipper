@@ -159,11 +159,21 @@ def transcribe_audio(audio_path: str, api_key: str, karaoke: bool = False):
             return transcript
 
 
-def _parse_highlights(content: str) -> list:
+def _clean_json_response(content: str) -> str:
     import re
     content = content.strip()
+    # Find JSON block regardless of leading/trailing text
+    match = re.search(r"```(?:json)?\s*(.*?)\s*```", content, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    # Fallback if the AI returned partial markdown or just the JSON
     content = re.sub(r"^```(?:json)?\s*", "", content)
     content = re.sub(r"\s*```$", "", content)
+    return content.strip()
+
+
+def _parse_highlights(content: str) -> list:
+    content = _clean_json_response(content)
     
     try:
         parsed = json.loads(content)
@@ -288,6 +298,7 @@ def generate_social_kit_only(description: str, api_key: str, provider: str = "op
         log_ai("openai_compatible" if effective_base_url else "openai", model_name, prompt, response_text)
         
     try:
+        response_text = _clean_json_response(response_text)
         parsed = json.loads(response_text)
         return parsed
     except Exception as e:
