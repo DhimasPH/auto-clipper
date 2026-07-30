@@ -340,7 +340,8 @@ def api_generate_social_kit(job_id: str, clip_index: int, req: GenerateSocialKit
             
         return {"status": "success", "social": social_kit}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+        debug_msg = f"DEBUG [provider={req.provider}, key_len={len(req.api_key.strip())}, base_url={req.custom_base_url}]. Error: {str(e)}"
+        return JSONResponse(status_code=500, content={"status": "error", "message": debug_msg})
 
 @app.post("/jobs/{job_id}/cancel")
 def api_cancel_job(job_id: str):

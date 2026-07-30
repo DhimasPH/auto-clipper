@@ -249,11 +249,11 @@ def generate_social_kit_only(description: str, api_key: str, provider: str = "op
         f"Clip Description:\n{description}"
     )
 
-    if provider == "gemini":
+    if provider.startswith("gemini"):
         from google import genai
         from google.genai import types
         client = genai.Client(api_key=api_key)
-        model_name = model or "gemini-2.5-flash"
+        model_name = provider if provider != "gemini" else "gemini-2.0-flash"
         response = _with_retry(lambda: client.models.generate_content(
             model=model_name,
             contents=prompt,
