@@ -115,7 +115,8 @@
     "ai_prompt_placeholder": "e.g. Focus only on funny coding moments",
     "run_ai": "Run AI",
     "rerender_btn": "🔄 Re-render",
-    "delete": "Delete"
+    "delete": "Delete",
+    "lanjut_manual": "Resume Manual"
   },
   "toast": {
     "clip_failed": "⚠️ Clip {{num}} failed: {{msg}}",
@@ -151,7 +152,8 @@
     "history": "History",
     "settings": "Settings",
     "help": "Help / FAQ",
-    "smart_editor": "Manual Clipper"
+    "smart_editor": "Manual Clipper",
+    "manual_ai": "Manual AI Editor"
   },
   "help": {
     "title": "Help & Guide",
@@ -237,8 +239,29 @@
     "laneVideo": "Video",
     "changeVideo": "Change Video"
   },
-  "aiClipper" : {
+  "aiClipper": {
     "title": "AI Clipper",
-    "subtitle": "Convert a long video into a vertical clip"
+    "subtitle": "Turn long videos into vertical clips"
+  },
+  "manualAI": {
+    "title": "Manual AI Clipper",
+    "subtitle": "Generate a prompt from video to be processed manually by AI",
+    "resume_title": "Resume Manual AI",
+    "resume_subtitle": "Copy this prompt and paste it to your favorite AI, then paste the JSON result below.",
+    "prompt_label": "Prompt for AI",
+    "copied": "Copied!",
+    "copy_prompt": "Copy Prompt",
+    "json_label": "JSON Result from AI",
+    "json_placeholder": "Paste the JSON array result from AI here...",
+    "processing": "Processing...",
+    "submit": "Resume Process",
+    "err_not_array": "JSON must be an array (list of clips).",
+    "err_start_time": "Clip {{num}} does not have a valid 'start_time'.",
+    "err_end_time": "Clip {{num}} does not have a valid 'end_time'.",
+    "err_title": "Clip {{num}} does not have a valid 'title'.",
+    "err_invalid_json": "Invalid JSON. Please ensure the format is correct.",
+    "success": "Successfully resumed clipping process!",
+    "err_process": "Failed to process JSON",
+    "prompt_unavailable": "Prompt is unavailable."
   }
 }

@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { WorkspacePage } from "./pages/WorkspacePage";
 import { SmartEditorPage } from "./pages/SmartEditorPage";
+import { ManualAIEditorPage } from "./pages/ManualAIEditorPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { ManualDownloaderPage } from "./pages/ManualDownloaderPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -91,6 +92,7 @@ export default function App() {
     handleRerender,
     handleRerunAI,
     handleResumeJob,
+    startManualResumePolling,
     cancelJob,
     resetJobState,
   } = useClipJobs({
@@ -173,6 +175,7 @@ export default function App() {
     jobId: activeJobId,
     handleGenerate,
     handleManualGenerate,
+    startManualResumePolling,
     cancelJob,
     manualFile, setManualFile,
     manualLocalUrl, setManualLocalUrl,
@@ -196,6 +199,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<WorkspacePage />} />
+            <Route path="manual-ai" element={<ManualAIEditorPage />} />
             <Route
               path="editor"
               element={SHOW_EXPERIMENTAL_FEATURES ? <SmartEditorPage /> : <Navigate to="/" replace />}

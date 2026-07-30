@@ -212,6 +212,22 @@ def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", ba
     return _parse_highlights(response_text)
 
 
+def generate_manual_prompt(transcript_srt: str, extra_prompt: str = "", limit: int = 3) -> str:
+    """Generate the prompt string that users will manually copy to their AI chat."""
+    system_prompt = "System Instruction: You are a professional short-form video editor who finds viral moments. Always return strictly valid JSON."
+    
+    additional_instructions = f"\n\nUSER'S EXTRA INSTRUCTIONS:\n{extra_prompt}" if extra_prompt else ""
+    additional_instructions += f"\nFind up to {limit} of the best highlights."
+    
+    prompt = (
+        "Analyze the following video transcript (SRT format). "
+        f"{HIGHLIGHT_GUIDANCE}{additional_instructions}\n\n"
+        f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
+        f"Transcript:\n{transcript_srt}"
+    )
+    return f"{system_prompt}\n\n{prompt}"
+
+
 def generate_social_kit_only(description: str, api_key: str, provider: str = "openai", base_url: str = None, model: str = None) -> dict:
     """Generate just the social kit for a specific clip description."""
     prompt = (
@@ -249,8 +265,17 @@ def generate_social_kit_only(description: str, api_key: str, provider: str = "op
         log_ai("gemini", model_name, prompt, response_text)
     else:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key, base_url=base_url, default_headers=BROWSER_HEADERS) if base_url else OpenAI(api_key=api_key, default_headers=BROWSER_HEADERS)
-        model_name = model or "gpt-4o-mini"
+        
+        effective_base_url = base_url
+        effective_model = model
+        
+        if provider in OPENAI_COMPAT_PROVIDERS:
+            cfg = OPENAI_COMPAT_PROVIDERS[provider]
+            effective_base_url = effective_base_url or cfg["base_url"]
+            effective_model = effective_model or cfg["model"]
+            
+        client = OpenAI(api_key=api_key, base_url=effective_base_url, default_headers=BROWSER_HEADERS) if effective_base_url else OpenAI(api_key=api_key, default_headers=BROWSER_HEADERS)
+        model_name = effective_model or "gpt-4o-mini"
         response = _with_retry(lambda: client.chat.completions.create(
             model=model_name,
             messages=[
@@ -260,7 +285,7 @@ def generate_social_kit_only(description: str, api_key: str, provider: str = "op
             response_format={"type": "json_object"},
         ))
         response_text = response.choices[0].message.content
-        log_ai("openai_compatible" if base_url else "openai", model_name, prompt, response_text)
+        log_ai("openai_compatible" if effective_base_url else "openai", model_name, prompt, response_text)
         
     try:
         parsed = json.loads(response_text)
@@ -503,6 +528,8 @@ def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, e
 
 def ping_provider(provider: str, api_key: str, custom_base_url: str = None, custom_model_name: str = None) -> None:
     """Pre-flight check to fail-fast on invalid keys, bad URLs or exhausted quotas."""
+    if provider == "manual_ai":
+        return
     if provider == "custom":
         if not custom_base_url or not custom_model_name:
             raise Exception("Custom provider requires a Base URL and Model Name.")

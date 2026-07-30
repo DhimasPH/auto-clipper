@@ -12,7 +12,8 @@ export type ProviderId =
   | "openrouter"
   | "xai"
   | "mistral"
-  | "custom";
+  | "custom"
+  | "manual_ai";
 
 export interface ProviderInfo {
   id: ProviderId;

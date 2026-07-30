@@ -97,6 +97,14 @@ export function useClipJobs(p: ClipJobParams) {
             notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
             setActiveJobId(null);
             setProgress("");
+          } else if (job.status === "AWAITING_MANUAL") {
+            setStatus("IDLE");
+            notify("Prompt manual berhasil dibuat. Silakan buka menu History untuk melanjutkan!", "success");
+            if (jobOrigin === "workspace") {
+               setHistoryVersion((v) => v + 1);
+            }
+            setActiveJobId(null);
+            setProgress("");
           } else {
             // In progress
             setStatus(job.status as any);
@@ -120,7 +128,7 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (overrideProvider?: string) => {
     if (p.inputType === "url" && !p.url) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.url_empty', 'URL kosong!') }), "error");
       return;
@@ -129,12 +137,13 @@ export function useClipJobs(p: ClipJobParams) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.local_file_empty', 'Video lokal belum dipilih!') }), "error");
       return;
     }
-    if (p.provider === "custom") {
+    const currentProvider = overrideProvider || p.provider;
+    if (currentProvider === "custom") {
       if (!p.customBaseUrl || !p.customModelName) {
         notify(t('toast.clip_failed', { num: '', msg: t('toast.custom_config_req', 'Base URL dan Model Name custom belum diisi! Silakan atur di Settings.') }), "error");
         return;
       }
-    } else if (!p.apiKey) {
+    } else if (currentProvider !== "manual_ai" && !p.apiKey) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.api_key_req', 'API Key belum diisi! Silakan isi di Settings.') }), "error");
       return;
     }
@@ -169,7 +178,7 @@ export function useClipJobs(p: ClipJobParams) {
 
       const res = await axios.post(`${API_URL}/jobs`, {
         url: finalUrl,
-        provider: p.provider,
+        provider: overrideProvider || p.provider,
         api_key: p.apiKey,
         aspect_ratio: p.aspectRatio,
         caption_style: p.captionStyle,
@@ -351,6 +360,15 @@ export function useClipJobs(p: ClipJobParams) {
     setTotalClips(0);
   };
 
+  const startManualResumePolling = (jobId: string) => {
+    setActiveJobId(jobId);
+    setJobOrigin("history");
+    setStatus("CROPPING");
+    setProgress("Memproses klip manual...");
+    setErrorMsg("");
+    p.closeHistory();
+  };
+
   const isRunning = !!activeJobId || status === "GENERATING";
   const progressPct =
     status === "DOWNLOADING"
@@ -368,6 +386,6 @@ export function useClipJobs(p: ClipJobParams) {
   return {
     status, progress, errorMsg, clips, failedCount,
     isRunning, progressPct, historyVersion, activeJobId,
-    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, cancelJob, resetJobState,
+    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, startManualResumePolling, cancelJob, resetJobState,
   };
 }

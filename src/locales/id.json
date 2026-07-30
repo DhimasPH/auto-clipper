@@ -115,7 +115,8 @@
     "ai_prompt_placeholder": "Contoh: Fokus cari momen lucu soal coding saja",
     "run_ai": "Jalankan AI",
     "rerender_btn": "🔄 Re-render",
-    "delete": "Hapus"
+    "delete": "Hapus",
+    "lanjut_manual": "Lanjut Manual"
   },
   "toast": {
     "clip_failed": "⚠️ Klip {{num}} gagal: {{msg}}",
@@ -151,7 +152,8 @@
     "history": "Riwayat",
     "settings": "Pengaturan",
     "help": "Bantuan / FAQ",
-    "smart_editor": "Manual Clipper"
+    "smart_editor": "Manual Clipper",
+    "manual_ai": "Manual AI Editor"
   },
   "help": {
     "title": "Bantuan & Panduan",
@@ -240,5 +242,26 @@
   "aiClipper" : {
     "title": "AI Clipper",
     "subtitle": "Ubah video panjang jadi klip vertikal"
+  },
+  "manualAI": {
+    "title": "Manual AI Clipper",
+    "subtitle": "Generate prompt dari video untuk diproses AI secara manual",
+    "resume_title": "Lanjut Manual AI",
+    "resume_subtitle": "Salin prompt ini dan paste ke AI andalanmu, lalu masukkan JSON hasilnya di bawah.",
+    "prompt_label": "Prompt untuk AI",
+    "copied": "Tersalin!",
+    "copy_prompt": "Salin Prompt",
+    "json_label": "Hasil JSON dari AI",
+    "json_placeholder": "Paste array JSON hasil dari AI di sini...",
+    "processing": "Memproses...",
+    "submit": "Lanjutkan Proses",
+    "err_not_array": "JSON harus berupa array (daftar klip).",
+    "err_start_time": "Klip ke-{{num}} tidak memiliki 'start_time' yang valid.",
+    "err_end_time": "Klip ke-{{num}} tidak memiliki 'end_time' yang valid.",
+    "err_title": "Klip ke-{{num}} tidak memiliki 'title' yang valid.",
+    "err_invalid_json": "JSON tidak valid. Pastikan formatnya benar.",
+    "success": "Berhasil melanjutkan proses klip!",
+    "err_process": "Gagal memproses JSON",
+    "prompt_unavailable": "Prompt tidak tersedia."
   }
 }

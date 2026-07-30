@@ -208,7 +208,53 @@ def _run_job(job_id: str):
         metadata["subtitle_path"] = predicted_subtitle_path
 
         try:
-            if job["provider"].startswith("gemini"):
+            if job["provider"] == "manual_ai":
+                from backend.ai_utils import transcribe_with_faster_whisper, extract_audio, build_srt_from_segments
+                import json
+                
+                if os.path.exists(predicted_subtitle_path) and os.path.getsize(predicted_subtitle_path) > 0:
+                    job["progress"] = "Membaca subtitle yang sudah ada..."
+                    log_app(f"[{job_id}] Membaca subtitle yang sudah ada: {predicted_subtitle_path}")
+                    if is_karaoke:
+                        with open(predicted_subtitle_path, "r", encoding="utf-8") as f:
+                            transcript_data = json.load(f)
+                        srt_segments = [{"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} for s in transcript_data.get("segments", [])]
+                        transcript_text = build_srt_from_segments(srt_segments)
+                    else:
+                        with open(predicted_subtitle_path, "r", encoding="utf-8") as f:
+                            transcript_text = f.read()
+                    subtitle_path = predicted_subtitle_path
+                else:
+                    audio_path = base + "_audio.mp3"
+                    job["progress"] = "Mengekstrak audio..."
+                    extract_audio(output_path, audio_path, register_proc=lambda p: _register_proc(job, p))
+                    
+                    job["progress"] = "Mentranskripsi audio (Lokal)..."
+                    transcript = transcribe_with_faster_whisper(audio_path, karaoke=is_karaoke, is_cancelled=is_cancelled)
+                    
+                    if is_karaoke:
+                        subtitle_path = base + ".words.json"
+                        with open(subtitle_path, "w", encoding="utf-8") as f:
+                            json.dump(transcript, f)
+                        srt_segments = [{"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} for s in transcript.get("segments", [])]
+                        transcript_text = build_srt_from_segments(srt_segments)
+                    else:
+                        subtitle_path = base + ".srt"
+                        with open(subtitle_path, "w", encoding="utf-8") as f:
+                            f.write(str(transcript))
+                        transcript_text = str(transcript)
+                    
+                from backend.ai_utils import generate_manual_prompt
+                job["progress"] = "Membuat prompt manual..."
+                manual_prompt = generate_manual_prompt(transcript_text, extra_prompt=metadata.get("extra_prompt", ""), limit=limit)
+                
+                metadata["manual_prompt"] = manual_prompt
+                metadata["subtitle_path"] = subtitle_path
+                job["status"] = "AWAITING_MANUAL"
+                
+                _finalize_job(job_id, "AWAITING_MANUAL", metadata)
+                return
+            elif job["provider"].startswith("gemini"):
                 model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.0-flash"
                 ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
             elif job["provider"] == "custom" or job["provider"] in OPENAI_COMPAT_PROVIDERS:
@@ -230,107 +276,109 @@ def _run_job(job_id: str):
             _finalize_job(job_id, "CANCELLED")
             return
             
-        # 3. CROPPING
-        job["status"] = "CROPPING"
-        log_app(f"[{job_id}] " + str("CROPPING"))
-        
-        try:
-            from backend.crop_utils import to_seconds
-            highlights.sort(key=lambda x: to_seconds(x.get("start_time", "00:00:00")))
-        except Exception:
-            pass
-            
-        segments = highlights[:limit]
-        metadata["highlights"] = segments
-
-        # Detect layout once for the whole video (gaming split-screen auto-detect).
-        # Sparse sampling keeps this cheap even for hour-long streams, and doing it
-        # once keeps every clip's framing consistent. Only 9:16 uses split-screen.
-        job_layout = None
-        if job.get("aspect_ratio") == "9:16" and job.get("is_gaming_video"):
-            try:
-                from backend.crop_utils import detect_video_layout
-                job_layout = detect_video_layout(output_path)
-            except Exception as e:
-                log_error(f"Failed to detect video layout: {e}")
-                job_layout = None
-
-        for i, seg in enumerate(segments):
-            if job["cancelled"]:
-                _finalize_job(job_id, "CANCELLED")
-                return
-                
-            broll_path = None
-            if job.get("enable_broll") and job.get("pexels_api_key"):
-                job["progress"] = f"Mengunduh B-Roll untuk klip {i+1}..."
-                log_app(f"[{job_id}] " + str(f"Mengunduh B-Roll untuk klip {i+1}..."))
-                from backend.broll import download_pexels_broll
-                query = seg.get("broll_query_en") or seg.get("description_en")
-                if query:
-                    broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
-                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out, is_cancelled=is_cancelled)
-                    if success:
-                        broll_path = broll_out
-
-            job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
-            log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(segments)}..."))
-            
-            safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
-            import shutil
-            
-            clip_output = output_path.replace(".mp4", f"_crop_{safe_start_time}.mp4")
-            
-            if job.get("output_dir"):
-                out_dir = job["output_dir"]
-                safe_title = ""
-                if job.get("title"):
-                    safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
-                    if safe_title:
-                        out_dir = os.path.join(out_dir, safe_title)
-                os.makedirs(out_dir, exist_ok=True)
-                
-                filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
-                clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
-            
-            try:
-                result_path = crop_to_vertical(
-                    output_path, clip_output, seg["start_time"], seg["end_time"],
-                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
-                    aspect_ratio=job["aspect_ratio"],
-                    register_proc=lambda p: _register_proc(job, p),
-                    should_cancel=lambda: job["cancelled"],
-                    broll_path=broll_path,
-                    layout=job_layout
-                )
-
-                # Append to clips
-                job["clips"].append({
-                    "path": result_path,
-                    "description": seg.get("description", f"Highlight {i+1}"),
-                    "description_en": seg.get("description_en", seg.get("description", f"Highlight {i+1}")),
-                    "description_id": seg.get("description_id", seg.get("description", f"Sorotan {i+1}")),
-                    "start": seg["start_time"],
-                    "end": seg["end_time"],
-                    "subs": bool(subtitle_path),
-                    "social": seg.get("social", {}),
-                    "v": 0
-                })
-            except Exception as e:
-                log_error(f"JOB CROP {job_id}")
-                job["failed"] = job.get("failed", 0) + 1
-                log_error(f"Clip {i+1} failed", str(e))
-                
-        # Done
-        if not job["clips"]:
-             raise ValueError("Semua klip gagal dirender.")
-             
-        metadata["is_gaming_video"] = job.get("is_gaming_video", False)
-        _finalize_job(job_id, "DONE", metadata)
-        
+        _render_video_clips(job, job_id, metadata, output_path, subtitle_path, is_cancelled, limit)
     except Exception as e:
         log_error(f"JOB {job_id}")
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", locals().get('metadata', {}))
+
+def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str, subtitle_path: str, is_cancelled: callable, limit: int = 0):
+    job["status"] = "CROPPING"
+    log_app(f"[{job_id}] " + str("CROPPING"))
+    
+    try:
+        from backend.crop_utils import to_seconds
+        highlights = metadata.get("highlights", [])
+        highlights.sort(key=lambda x: to_seconds(x.get("start_time", "00:00:00")))
+    except Exception:
+        pass
+        
+    highlights = metadata.get("highlights", [])
+    segments = highlights[:limit] if limit > 0 else highlights
+    metadata["highlights"] = segments
+
+    # Detect layout once for the whole video (gaming split-screen auto-detect).
+    job_layout = None
+    if job.get("aspect_ratio") == "9:16" and job.get("is_gaming_video"):
+        try:
+            from backend.crop_utils import detect_video_layout
+            job_layout = detect_video_layout(output_path)
+        except Exception as e:
+            log_error(f"Failed to detect video layout: {e}")
+            job_layout = None
+
+    for i, seg in enumerate(segments):
+        if is_cancelled():
+            _finalize_job(job_id, "CANCELLED")
+            return
+            
+        broll_path = None
+        if job.get("enable_broll") and job.get("pexels_api_key"):
+            job["progress"] = f"Mengunduh B-Roll untuk klip {i+1}..."
+            log_app(f"[{job_id}] " + str(f"Mengunduh B-Roll untuk klip {i+1}..."))
+            from backend.broll import download_pexels_broll
+            query = seg.get("broll_query_en") or seg.get("description_en")
+            if query:
+                broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
+                success = download_pexels_broll(query, job["pexels_api_key"], broll_out, is_cancelled=is_cancelled)
+                if success:
+                    broll_path = broll_out
+
+        job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
+        log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(segments)}..."))
+        
+        import re, shutil, os
+        safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
+        
+        clip_output = output_path.replace(".mp4", f"_crop_{safe_start_time}.mp4")
+        
+        if job.get("output_dir"):
+            out_dir = job["output_dir"]
+            safe_title = ""
+            if job.get("title"):
+                safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
+                if safe_title:
+                    out_dir = os.path.join(out_dir, safe_title)
+            os.makedirs(out_dir, exist_ok=True)
+            
+            filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
+            clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
+        
+        try:
+            from backend.crop_utils import crop_to_vertical
+            result_path = crop_to_vertical(
+                output_path, clip_output, seg["start_time"], seg["end_time"],
+                subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
+                aspect_ratio=job["aspect_ratio"],
+                register_proc=lambda p: _register_proc(job, p),
+                should_cancel=is_cancelled,
+                broll_path=broll_path,
+                layout=job_layout
+            )
+
+            # Append to clips
+            job["clips"].append({
+                "path": result_path,
+                "description": seg.get("description", f"Highlight {i+1}"),
+                "description_en": seg.get("description_en", seg.get("description", f"Highlight {i+1}")),
+                "description_id": seg.get("description_id", seg.get("description", f"Sorotan {i+1}")),
+                "start": seg["start_time"],
+                "end": seg["end_time"],
+                "subs": bool(subtitle_path),
+                "social": seg.get("social", {}),
+                "v": 0
+            })
+        except Exception as e:
+            log_error(f"JOB CROP {job_id}")
+            job["failed"] = job.get("failed", 0) + 1
+            log_error(f"Clip {i+1} failed", str(e))
+            
+    # Done
+    if not job["clips"]:
+         raise ValueError("Semua klip gagal dirender.")
+         
+    metadata["is_gaming_video"] = job.get("is_gaming_video", False)
+    _finalize_job(job_id, "DONE", metadata)
 
 def _run_manual_job(job_id: str):
     import time
@@ -775,12 +823,79 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
         if key in job:
             metadata[key] = job[key]
 
-    if status == "DONE" or status == "ERROR" or status == "CANCELLED":
+    if status in ["DONE", "ERROR", "CANCELLED", "AWAITING_MANUAL"]:
         try:
             from backend.db import save_history
             save_history(job_id, job["url"], status, job["clips"], metadata)
         except Exception:
             pass
+
+
+def resume_manual_job(history_id: str, json_payload: str) -> str:
+    from backend.db import get_history
+    hist = get_history(history_id)
+    if not hist or not hist.get("metadata"):
+        raise ValueError("Histori pekerjaan tidak valid.")
+        
+    hist_meta = hist["metadata"]
+    if not hist_meta.get("source_video") or not hist_meta.get("subtitle_path"):
+        raise ValueError("Video sumber atau subtitle tidak ditemukan.")
+
+    job_id = str(uuid.uuid4())
+    active_jobs[job_id] = {
+        "id": job_id,
+        "url": hist["url"],
+        "provider": "manual_ai",
+        "api_key": "",
+        "mode": hist_meta.get("mode", "ai"),
+        "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
+        "caption_style": hist_meta.get("caption_style", "standard"),
+        "burn_subs": hist_meta.get("burn_subs", True),
+        "output_dir": hist_meta.get("output_dir", ""),
+        "enable_broll": hist_meta.get("enable_broll", False),
+        "pexels_api_key": hist_meta.get("pexels_api_key", ""),
+        "max_clips": hist_meta.get("max_clips", 0),
+        "is_gaming_video": hist_meta.get("is_gaming_video", False),
+        "status": "PENDING",
+        "progress": "Melanjutkan perenderan...",
+        "cancelled": False,
+        "clips": [],
+        "failed": 0,
+        "error": None,
+        "source_path": hist_meta["source_video"]
+    }
+    
+    # Parse payload
+    from backend.ai_utils import _parse_highlights
+    parsed = _parse_highlights(json_payload)
+    if not parsed:
+        raise ValueError("Format JSON payload tidak valid atau kosong.")
+        
+    hist_meta["highlights"] = parsed
+    
+    import threading
+    threading.Thread(target=_run_manual_resume_job, args=(job_id, hist_meta), daemon=True).start()
+    return job_id
+
+def _run_manual_resume_job(job_id: str, metadata: dict):
+    import time
+    job = active_jobs[job_id]
+    job["start_time"] = time.time()
+    
+    try:
+        def is_cancelled():
+            return job.get("cancelled", False)
+            
+        output_path = metadata.get("source_video")
+        subtitle_path = metadata.get("subtitle_path")
+        
+        limit = _get_clip_limit(job.get("max_clips", 0), metadata.get("duration_seconds", 0))
+        
+        _render_video_clips(job, job_id, metadata, output_path, subtitle_path, is_cancelled, limit)
+    except Exception as e:
+        log_error(f"JOB RESUME {job_id}")
+        job["error"] = str(e)
+        _finalize_job(job_id, "ERROR", metadata)
 
 def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_provider: str = None, fallback_custom_base_url: str = None, fallback_custom_model_name: str = None) -> str:
     from backend.db import get_history

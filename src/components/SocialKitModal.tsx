@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Copy, Check, Clock, Music, Loader2, Sparkles } from "lucide-react";
 import { SocialData, Clip } from "./ClipCard";
-import { API_URL } from "../App";
+import { API_URL, AppContext } from "../App";
 
 export interface SocialKitModalProps {
   isOpen: boolean;
@@ -51,6 +51,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
   clipIndex,
   onUpdate,
 }) => {
+  const ctx = useContext(AppContext);
   const { t, i18n } = useTranslation();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,20 +62,10 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
     setIsGenerating(true);
     setError(null);
     try {
-      const provider = localStorage.getItem("ac_provider") || "openai";
-      // API keys are stored as a base64-encoded JSON object under "ac_api_keys"
-      // (see useUserSettings.ts). The legacy flat keys (ac_api_key, etc.) are
-      // no longer written, so reading them always yields "" and causes 401s.
-      let apiKeys: Record<string, string> = {};
-      try {
-        const raw = localStorage.getItem("ac_api_keys");
-        if (raw) apiKeys = JSON.parse(atob(raw));
-      } catch (e) {
-        console.error("Failed to decode stored API keys", e);
-      }
-      const api_key = apiKeys[provider] || "";
-      const custom_base_url = apiKeys["custom_base_url"] || "";
-      const custom_model_name = apiKeys["custom_model_name"] || "";
+      const provider = ctx.provider || "openai";
+      const api_key = ctx.apiKeys?.[provider] || "";
+      const custom_base_url = ctx.apiKeys?.["custom_base_url"] || "";
+      const custom_model_name = ctx.apiKeys?.["custom_model_name"] || "";
       const description =
         clip.description_en || clip.description_id || clip.description || "";
 

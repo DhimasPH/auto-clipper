@@ -9,6 +9,7 @@ import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Select } from "../components/ui/Select";
 import ClipCard from "../components/ClipCard";
+import { ManualResumeModal } from "../components/ManualResumeModal";
 
 export const HistoryPage: React.FC = () => {
   const { t } = useTranslation();
@@ -17,6 +18,7 @@ export const HistoryPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [activeRerenderId, setActiveRerenderId] = useState<string | null>(null);
   const [activeAiId, setActiveAiId] = useState<string | null>(null);
+  const [activeManualJob, setActiveManualJob] = useState<any | null>(null);
   const [extraPrompt, setExtraPrompt] = useState("");
 
   const [localAspectRatio, setLocalAspectRatio] = useState("9:16");
@@ -290,6 +292,15 @@ export const HistoryPage: React.FC = () => {
                     {t("history.ai_correct")}
                   </Button>
                 )}
+                {job.status === "AWAITING_MANUAL" && (
+                  <Button
+                    variant="primary"
+                    icon={Play}
+                    onClick={() => setActiveManualJob(job)}
+                  >
+                    {t("history.lanjut_manual")}
+                  </Button>
+                )}
                 {(job.status === "failed" || job.status === "ERROR") && canResumeJob(job) && (
                   <Button
                     variant="outline"
@@ -304,6 +315,17 @@ export const HistoryPage: React.FC = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {activeManualJob && (
+        <ManualResumeModal
+          job={activeManualJob}
+          onClose={() => setActiveManualJob(null)}
+          onSuccess={(jobId: string) => {
+            setActiveManualJob(null);
+            ctx.startManualResumePolling(jobId);
+          }}
+        />
       )}
     </div>
   );

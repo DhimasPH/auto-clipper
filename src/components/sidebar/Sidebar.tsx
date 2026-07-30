@@ -52,6 +52,20 @@ export const Sidebar: React.FC = () => {
           {t("sidebar.workspace", "Workspace")}
         </NavLink>
 
+        <NavLink
+          to="/manual-ai"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-body transition-colors ${
+              isActive
+                ? "bg-accent/10 text-accent font-medium border-l-2 border-accent"
+                : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated border-l-2 border-transparent"
+            }`
+          }
+        >
+          <Wand2 className="w-5 h-5" />
+          {t("sidebar.manual_ai", "Manual AI Editor")}
+        </NavLink>
+
         {SHOW_EXPERIMENTAL_FEATURES && (
           <NavLink
             to="/editor"

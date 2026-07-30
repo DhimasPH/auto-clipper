@@ -240,6 +240,18 @@ def api_resume_job(job_id: str, req: ResumeJobRequest):
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
+class ResumeManualJobRequest(BaseModel):
+    json_payload: str
+
+@app.post("/jobs/{job_id}/resume-manual")
+def api_resume_manual_job(job_id: str, req: ResumeManualJobRequest):
+    try:
+        from backend.jobs import resume_manual_job
+        new_job_id = resume_manual_job(job_id, req.json_payload)
+        return {"status": "success", "job_id": new_job_id}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
 SUPPORTED_URL_RE = re.compile(
     r'^(https?://)?(www\.|m\.)?'
     r'(youtube\.com|youtu\.be|tiktok\.com|vt\.tiktok\.com|instagram\.com|x\.com|twitter\.com)/.+',
