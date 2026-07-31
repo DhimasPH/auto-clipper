@@ -177,18 +177,55 @@ def _parse_highlights(content: str) -> list:
     
     try:
         parsed = json.loads(content)
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, dict):
+            if "highlights" in parsed:
+                return parsed["highlights"]
+            for value in parsed.values():
+                if isinstance(value, list):
+                    return value
     except Exception as e:
-        print(f"Failed to parse highlights: {e}")
-        return []
+        print(f"Failed to parse highlights as full JSON: {e}")
+        # Fallback: Extract just the highlights array by balancing brackets
+        idx = content.find('"highlights"')
+        if idx != -1:
+            start_idx = content.find('[', idx)
+            if start_idx != -1:
+                bracket_count = 0
+                end_idx = -1
+                in_string = False
+                escape = False
+                for i in range(start_idx, len(content)):
+                    char = content[i]
+                    if escape:
+                        escape = False
+                        continue
+                    if char == '\\':
+                        escape = True
+                        continue
+                    if char == '"':
+                        in_string = not in_string
+                        continue
+                    
+                    if not in_string:
+                        if char == '[':
+                            bracket_count += 1
+                        elif char == ']':
+                            bracket_count -= 1
+                            if bracket_count == 0:
+                                end_idx = i
+                                break
+                
+                if end_idx != -1:
+                    array_str = content[start_idx:end_idx+1]
+                    try:
+                        parsed_array = json.loads(array_str)
+                        if isinstance(parsed_array, list):
+                            return parsed_array
+                    except Exception as e2:
+                        print(f"Failed to parse extracted highlights array: {e2}")
 
-    if isinstance(parsed, list):
-        return parsed
-    if isinstance(parsed, dict):
-        if "highlights" in parsed:
-            return parsed["highlights"]
-        for value in parsed.values():
-            if isinstance(value, list):
-                return value
     return []
 
 

@@ -2,6 +2,9 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.6.11] - 2026-07-31
+### Fixed
+- Memperbaiki parser JSON untuk data hasil respon AI agar lebih tangguh (robust) ketika AI berhalusinasi atau memberikan format JSON yang tidak valid di bagian terbawah teks, sehingga klip tetap berhasil diproses tanpa terhenti karena *error*.
 ## [1.6.10] - 2026-07-30
 ### Fixed
 - Memperbaiki bug di mana video gagal dipotong (muncul pesan "Semua klip gagal dirender") karena sistem lupa meneruskan data *highlights* dari AI ke fungsi *cropping*.
