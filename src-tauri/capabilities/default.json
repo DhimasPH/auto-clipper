@@ -12,6 +12,7 @@
     "dialog:default",
     "stronghold:default",
     "updater:default",
+    "notification:default",
     "process:allow-restart",
     {
       "identifier": "shell:allow-execute",
