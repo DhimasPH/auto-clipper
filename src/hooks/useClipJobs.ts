@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { API_URL } from "../App";
 import { Clip } from "../components/ClipCard";
 import { ToastKind } from "./useToasts";
-import { shouldNotifyOS } from "../lib/notify";
+
 
 export interface ClipJobParams {
   inputType: "url" | "local";
@@ -49,12 +49,6 @@ export function useClipJobs(p: ClipJobParams) {
   const [jobOrigin, setJobOrigin] = useState<"workspace" | "history">("workspace");
   const [historyVersion, setHistoryVersion] = useState(0);
 
-  // Task 1.2: Request Notification permission once.
-  useEffect(() => {
-    if (window.Notification && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
 
   // Polling effect for async job status.
   useEffect(() => {
@@ -84,9 +78,7 @@ export function useClipJobs(p: ClipJobParams) {
               ? t('toast.done_partial', { count: job.clips.length, failed: failedN, defaultValue: `🎉 Selesai! ${job.clips.length} klip berhasil, ${failedN} gagal` })
               : t('toast.done_all', { count: job.clips.length, defaultValue: `🎉 Selesai! ${job.clips.length} clip berhasil dibuat` });
             notify(doneMsg, "success");
-            if (shouldNotifyOS()) {
-              new Notification(t('toast.os_notify_title', 'Auto Clipper Selesai'), { body: failedN > 0 ? t('toast.done_partial', { count: job.clips.length, failed: failedN, defaultValue: `${job.clips.length} berhasil, ${failedN} gagal` }) : t('toast.done_all', { count: job.clips.length, defaultValue: `${job.clips.length} clip berhasil dibuat!` }) });
-            }
+
           } else if (job.status === "ERROR") {
             setStatus("ERROR");
             setErrorMsg(job.error || "Unknown error occurred.");
