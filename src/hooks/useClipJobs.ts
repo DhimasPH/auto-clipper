@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { API_URL } from "../App";
 import { Clip } from "../components/ClipCard";
@@ -99,9 +100,10 @@ export function useClipJobs(p: ClipJobParams) {
             setProgress("");
           } else if (job.status === "AWAITING_MANUAL") {
             setStatus("IDLE");
-            notify("Prompt manual berhasil dibuat. Silakan buka menu History untuk melanjutkan!", "success");
+            notify(t("toast.manual_prompt_ready", "Prompt manual berhasil dibuat. Anda dialihkan ke menu History."), "success");
             if (jobOrigin === "workspace") {
                setHistoryVersion((v) => v + 1);
+               window.location.hash = "#/history";
             }
             setActiveJobId(null);
             setProgress("");
@@ -382,6 +384,14 @@ export function useClipJobs(p: ClipJobParams) {
           : status === "DONE"
             ? 100
             : 0;
+
+  useEffect(() => {
+    if (isRunning) {
+      invoke('prevent_sleep').catch(console.error);
+    } else {
+      invoke('allow_sleep').catch(console.error);
+    }
+  }, [isRunning]);
 
   return {
     status, progress, errorMsg, clips, failedCount,

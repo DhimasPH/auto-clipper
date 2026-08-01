@@ -134,7 +134,8 @@
     "rerender_fail": "Failed to start re-render.",
     "starting_ai_correct": "✨ Starting AI Correction from history...",
     "ai_correct_fail": "Failed to start AI Correction.",
-    "custom_config_req": "Custom Base URL and Model Name are not set! Please configure in Settings."
+    "custom_config_req": "Custom Base URL and Model Name are not set! Please configure in Settings.",
+    "manual_prompt_ready": "Manual prompt generated successfully. Redirecting to History."
   },
   "busy": {
     "processing": "Processing...",
@@ -143,8 +144,15 @@
     "elapsed": "⏳ Elapsed time:",
     "estimated": "Estimated remaining:",
     "calculating": "Calculating...",
-    "warning": "Please wait until the process completes. The app is temporarily locked so no other processes run concurrently — do not close the app.",
-    "cancel": "Cancel Process"
+    "warning": "Please wait until the process is complete. The app is temporarily locked to prevent multiple concurrent processes — please do not close it.",
+    "cancel": "Cancel Process",
+    "rotate_1": "Extracting video audio...",
+    "rotate_2": "AI is generating automated transcript...",
+    "rotate_3": "Analyzing the best moments...",
+    "rotate_4": "Compressing the final output...",
+    "wait_10m": "Hang in there, it's processing...",
+    "wait_20m": "Patience is key. Your video is almost ready!",
+    "wait_40m": "Please wait, it turns out this process is taking a bit longer than expected"
   },
   "sidebar": {
     "menu": "Menu",

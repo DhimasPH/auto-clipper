@@ -134,7 +134,8 @@
     "rerender_fail": "Gagal memulai re-render.",
     "starting_ai_correct": "✨ Memulai proses AI Koreksi dari history...",
     "ai_correct_fail": "Gagal memulai AI Koreksi.",
-    "custom_config_req": "Base URL dan Model Name custom belum diisi! Silakan atur di Settings."
+    "custom_config_req": "Base URL dan Model Name custom belum diisi! Silakan atur di Settings.",
+    "manual_prompt_ready": "Prompt manual berhasil dibuat. Anda dialihkan ke menu History."
   },
   "busy": {
     "processing": "Sedang memproses…",
@@ -144,7 +145,14 @@
     "estimated": "Estimasi sisa:",
     "calculating": "Menghitung...",
     "warning": "Mohon tunggu hingga proses selesai. Aplikasi terkunci sementara supaya tidak ada proses lain berjalan bersamaan — jangan tutup aplikasi.",
-    "cancel": "Batalkan Proses"
+    "cancel": "Batalkan Proses",
+    "rotate_1": "Mengekstrak audio video...",
+    "rotate_2": "AI sedang membuat transkrip otomatis...",
+    "rotate_3": "Menganalisis momen-momen terbaik...",
+    "rotate_4": "Mengompresi hasil akhir...",
+    "wait_10m": "Sabar yaa, lagi proses nih...",
+    "wait_20m": "Sabar adalah kunci. Video kamu hampir siap!",
+    "wait_40m": "Harap tunggu, ternyata agak lama ya proses nya"
   },
   "sidebar": {
     "menu": "Menu",
