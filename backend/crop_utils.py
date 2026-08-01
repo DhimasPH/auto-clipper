@@ -386,20 +386,29 @@ def srt_to_ass(srt_text: str, width: int, height: int) -> str:
     return header + "\n".join(events) + ("\n" if events else "")
 
 
-def chunk_words_smartly(clip_words, max_chars=25):
+def chunk_words_smartly(clip_words, max_words=5, max_chars=28):
+    """Chunks words into phrases based on word count, character count, or punctuation."""
     chunks = []
     current_chunk = []
     current_len = 0
     
     for w in clip_words:
-        word_len = len(w["word"])
-        if current_len + word_len > max_chars and current_chunk:
+        word_text = w["word"].strip()
+        word_len = len(word_text)
+        is_punct = word_text.endswith(('.', '?', '!', ',', ';'))
+        
+        if (len(current_chunk) >= max_words or (current_len + word_len > max_chars and current_chunk)):
             chunks.append(current_chunk)
             current_chunk = [w]
             current_len = word_len
         else:
             current_chunk.append(w)
-            current_len += word_len + 1 # +1 for space
+            current_len += word_len + 1
+            
+        if is_punct and len(current_chunk) >= 2:
+            chunks.append(current_chunk)
+            current_chunk = []
+            current_len = 0
             
     if current_chunk:
         chunks.append(current_chunk)
@@ -407,11 +416,13 @@ def chunk_words_smartly(clip_words, max_chars=25):
 
 
 def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float, clip_end: float) -> str:
-    """Convert word-level timestamps to Karaoke ASS format for a specific clip."""
+    """Convert word-level timestamps to cumulative word-by-word Karaoke ASS format."""
     width = int(width) or 1080
     height = int(height) or 1920
     
     font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height)
+    outline = max(2, outline)
+    shadow = max(2, shadow)
 
     header = (
         "[Script Info]\n"
@@ -431,42 +442,51 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
 
     events = []
     
-    # Filter words to only those within the clip window
+    # Filter and rebase words to clip window
     clip_words = []
     for w in words:
-        w_start = w.get("start", 0)
-        w_end = w.get("end", 0)
-        # Shift to clip timeline
-        s = max(0, w_start - clip_start)
-        e = min(clip_end - clip_start, w_end - clip_start)
-        if e > 0 and w_start < clip_end and w_end > clip_start:
-            clip_words.append({"word": w.get("word", "").strip(), "start": s, "end": e})
+        w_start = float(w.get("start", 0))
+        w_end = float(w.get("end", 0))
+        if w_start < clip_end and w_end > clip_start:
+            s = max(0.0, w_start - clip_start)
+            e = min(clip_end - clip_start, w_end - clip_start)
+            if e > s:
+                clip_words.append({"word": str(w.get("word", "")).strip(), "start": s, "end": e})
 
     if not clip_words:
         return header
 
-    # Chunk words into lines logically based on character limits
-    chunks = chunk_words_smartly(clip_words, max_chars=25)
+    chunks = chunk_words_smartly(clip_words)
 
     for chunk in chunks:
-        if not chunk: continue
-        line_start = chunk[0]["start"]
-        line_end = chunk[-1]["end"]
-        
-        # Create an event for each word being highlighted
-        for i, highlight_word in enumerate(chunk):
-            w_start = highlight_word["start"]
-            w_end = highlight_word["end"]
+        if not chunk:
+            continue
             
-            # If it's the last word in the chunk, extend its display until the line ends
-            # actually, each event spans the duration of that word
+        chunk_len = len(chunk)
+        for i in range(chunk_len):
+            curr_word = chunk[i]
+            w_start = curr_word["start"]
             
+            # Bridge to next word in the chunk if gap is small (< 0.5s) to avoid flickering
+            if i < chunk_len - 1:
+                next_start = chunk[i+1]["start"]
+                w_end = next_start if (next_start - curr_word["end"]) < 0.5 else curr_word["end"]
+            else:
+                # Last word in chunk stays on screen for a short hold period (350ms)
+                w_end = min(clip_end - clip_start, curr_word["end"] + 0.35)
+                
+            # Enforce minimum word highlight visibility (at least 180ms)
+            if w_end - w_start < 0.18:
+                w_end = w_start + 0.18
+                
+            # Build cumulative text: words 0..i-1 are white, word i is yellow
             parts = []
-            for j, w in enumerate(chunk):
+            for j in range(i + 1):
+                word_str = chunk[j]["word"]
                 if j == i:
-                    parts.append(f"{{\\c&H00FFFF&}}{w['word']}{{\\c}}") # Yellow highlight
+                    parts.append(f"{{\\c&H00FFFF&}}{word_str}{{\\c}}")
                 else:
-                    parts.append(w["word"])
+                    parts.append(word_str)
                     
             text = " ".join(parts)
             events.append(

@@ -44,9 +44,10 @@ def _fake_proc(returncode):
     return p
 
 
+@patch('backend.crop_utils.is_nvenc_available', return_value=False)
 @patch('backend.crop_utils.subprocess.Popen')
 @patch('backend.crop_utils.detect_primary_face_center')
-def test_crop_to_vertical(mock_detect, mock_popen):
+def test_crop_to_vertical(mock_detect, mock_popen, mock_nvenc):
     mock_detect.return_value = 0.5
     mock_popen.return_value = _fake_proc(0)
 
@@ -55,9 +56,10 @@ def test_crop_to_vertical(mock_detect, mock_popen):
     mock_popen.assert_called_once()
 
 
+@patch('backend.crop_utils.is_nvenc_available', return_value=False)
 @patch('backend.crop_utils.subprocess.Popen')
 @patch('backend.crop_utils.detect_primary_face_center')
-def test_crop_falls_back_when_subtitles_fail(mock_detect, mock_popen, tmp_path):
+def test_crop_falls_back_when_subtitles_fail(mock_detect, mock_popen, mock_nvenc, tmp_path):
     """If the subtitle burn fails, a plain crop should still be produced."""
     mock_detect.return_value = 0.5
     # First call (with subtitles) fails, second (plain crop) succeeds.
@@ -73,14 +75,18 @@ def test_crop_falls_back_when_subtitles_fail(mock_detect, mock_popen, tmp_path):
 def test_build_crop_filter_ratios():
     from backend.crop_utils import build_crop_filter
     # Existing vertical/square ratios keep full height and crop width (unchanged).
-    assert build_crop_filter("1:1", 0.5) == "crop=trunc(ih/2)*2:ih:iw*0.5-ih/2:0"
-    assert build_crop_filter("4:5", 0.5) == "crop=trunc(ih*4/5/2)*2:ih:iw*0.5-ih*4/10:0"
-    assert build_crop_filter("9:16", 0.5) == "crop=trunc(ih*9/16/2)*2:ih:iw*9/32:0".replace("iw*9/32", "iw*0.5-ih*9/32")
-    # Landscape keeps full width and crops height; no comma (feeds "crop,ass=").
-    lf = build_crop_filter("16:9", 0.5)
-    assert lf.startswith("crop=iw:"), lf
-    assert "9/16" in lf
-    assert "," not in lf
+    f916 = build_crop_filter("9:16", 0.5)
+    assert f916 == "crop=trunc(ih*9/16/2)*2:ih:iw*0.5-ih*9/32:0"
+
+    f11 = build_crop_filter("1:1", 0.5)
+    assert f11 == "crop=trunc(ih/2)*2:ih:iw*0.5-ih/2:0"
+
+    f45 = build_crop_filter("4:5", 0.5)
+    assert f45 == "crop=trunc(ih*4/5/2)*2:ih:iw*0.5-ih*4/10:0"
+
+    # 16:9 Landscape: crop height, keep full width, vertical center.
+    f169 = build_crop_filter("16:9", 0.5)
+    assert f169 == "crop=iw:trunc(iw*9/16/2)*2:0:(ih-trunc(iw*9/16/2)*2)/2"
 
 
 def test_output_width_ratios():
@@ -95,6 +101,7 @@ def test_output_width_ratios():
 # --- Gaming Split-Screen Auto-Detect --------------------------------------
 
 def _fake_layout_cap(fps=30.0, frame_count=30):
+    import numpy as np
     inst = MagicMock()
     inst.isOpened.return_value = True
 
@@ -106,8 +113,7 @@ def _fake_layout_cap(fps=30.0, frame_count=30):
             return frame_count
         return 0
     inst.get.side_effect = get
-    frame = MagicMock()
-    frame.shape = (1080, 1920, 3)
+    frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
     inst.read.return_value = (True, frame)
     return inst, frame
 
@@ -220,3 +226,29 @@ def test_crop_standard_layout_does_not_split(mock_dims, mock_popen):
                      aspect_ratio="9:16", layout=layout)
     cmd = mock_popen.call_args[0][0]
     assert not any("vstack" in str(a) for a in cmd)
+
+
+def test_words_to_karaoke_ass_cumulative_and_continuous():
+    from backend.crop_utils import words_to_karaoke_ass
+    words = [
+        {"word": "Halo", "start": 1.0, "end": 1.4},
+        {"word": "semua", "start": 1.5, "end": 2.0},
+        {"word": "selamat", "start": 2.2, "end": 2.6},
+        {"word": "datang", "start": 2.7, "end": 3.2},
+    ]
+    # Clip window from 0.0 to 4.0
+    ass = words_to_karaoke_ass(words, 1080, 1920, clip_start=0.0, clip_end=4.0)
+    assert "PlayResX: 1080" in ass
+    assert "PlayResY: 1920" in ass
+    assert "Dialogue:" in ass
+    
+    # 1. First dialogue must ONLY show the first word in yellow (no future words)
+    assert r"Dialogue: 0,0:00:01.00,0:00:01.50,Default,,0,0,0,,{\c&H00FFFF&}Halo{\c}" in ass
+    # 2. Second dialogue shows "Halo" in white and "semua" in yellow (no "selamat datang" yet)
+    assert r"Dialogue: 0,0:00:01.50,0:00:02.20,Default,,0,0,0,,Halo {\c&H00FFFF&}semua{\c}" in ass
+    # 3. Third dialogue
+    assert r"Dialogue: 0,0:00:02.20,0:00:02.70,Default,,0,0,0,,Halo semua {\c&H00FFFF&}selamat{\c}" in ass
+    # 4. Fourth dialogue shows all words with last word in yellow
+    assert r"Halo semua selamat {\c&H00FFFF&}datang{\c}" in ass
+
+
