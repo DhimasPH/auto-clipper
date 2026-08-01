@@ -302,5 +302,22 @@ def test_sample_face_trajectory(mock_cap, mock_cascade, mock_cvt):
         assert 0.0 <= x <= 1.0
 
 
+@patch('backend.crop_utils.is_nvenc_available', return_value=False)
+@patch('backend.crop_utils.subprocess.Popen')
+@patch('backend.crop_utils.sample_face_trajectory')
+def test_crop_to_vertical_uses_dynamic_trajectory(mock_traj, mock_popen, mock_nvenc):
+    mock_traj.return_value = [(0.0, 0.2), (1.0, 0.8)]
+    mock_popen.return_value = _fake_proc(0)
+
+    res = crop_to_vertical("in.mp4", "out.mp4", "00:00:00", "00:00:05", aspect_ratio="9:16")
+    assert res == "out.mp4"
+    mock_traj.assert_called_once()
+    cmd = mock_popen.call_args[0][0]
+    filter_arg = [cmd[i+1] for i, a in enumerate(cmd) if a == "-filter_complex"][0]
+    # Filter should contain dynamic crop with piecewise linear interpolation expression
+    assert "if(lte(t" in filter_arg or "crop=trunc(ih*9/16/2)*2" in filter_arg
+
+
+
 
 

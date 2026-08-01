@@ -772,7 +772,9 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     gaming = False
     face_box = None
     if layout is None:
-        center_pct = detect_primary_face_center(input_path, start_time=start_s, end_time=end_s)
+        raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5)
+        trajectory = smooth_trajectory(raw_traj, alpha=0.25)
+        crop_filter = build_dynamic_crop_filter(aspect_ratio, trajectory, clip_duration=duration)
     else:
         cx = (layout.get("face_center") or (0.5, 0.5))[0]
         _sw, _sh = _video_dims(input_path)
@@ -784,9 +786,7 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
         # Split-screen only makes sense for the 9:16 target (see design spec).
         gaming = aspect_ratio == "9:16" and layout.get("mode") == "gaming" and bool(layout.get("face_box"))
         face_box = layout.get("face_box")
-
-    # Calculate crop dimensions based on aspect ratio
-    crop_filter = build_crop_filter(aspect_ratio, center_pct)
+        crop_filter = build_crop_filter(aspect_ratio, center_pct)
 
     # Build an optional subtitle-burning variant. We generate an .ass sized to
     # the clip and reference it by basename while running ffmpeg from that

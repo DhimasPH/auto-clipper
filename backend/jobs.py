@@ -346,7 +346,6 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
             clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
         
         try:
-            from backend.crop_utils import crop_to_vertical
             result_path = crop_to_vertical(
                 output_path, clip_output, seg["start_time"], seg["end_time"],
                 subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
@@ -1084,7 +1083,6 @@ def _run_resume_job(job_id: str):
                 clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
 
             try:
-                from backend.crop_utils import crop_to_vertical
                 result_path = crop_to_vertical(
                     source_video, clip_output, seg["start_time"], seg["end_time"],
                     subtitle_path=subtitle_path if job.get("burn_subs", True) else None,

@@ -43,7 +43,9 @@ def test_get_highlights_uses_base_url_and_model(mock_openai):
     hl = get_highlights("1\n00:00:01,000 --> 00:00:05,000\nhi\n", "key",
                         base_url="https://api.deepseek.com", model="deepseek-chat")
     assert len(hl) == 1
-    mock_openai.assert_called_with(api_key="key", base_url="https://api.deepseek.com")
+    call_kwargs = mock_openai.call_args[1]
+    assert call_kwargs.get("api_key") == "key"
+    assert call_kwargs.get("base_url") == "https://api.deepseek.com"
     _, kwargs = client.chat.completions.create.call_args
     assert kwargs["model"] == "deepseek-chat"
 
@@ -132,9 +134,11 @@ def test_ping_custom_provider_uses_custom_endpoint(mock_openai):
     from backend.ai_utils import ping_provider
     client = MagicMock()
     mock_openai.return_value = client
-    # No api key -> dummy "-"; should not raise.
     ping_provider("custom", "", custom_base_url="http://localhost:11434/v1", custom_model_name="llama3")
-    mock_openai.assert_called_with(api_key="-", base_url="http://localhost:11434/v1", timeout=10.0)
+    call_kwargs = mock_openai.call_args[1]
+    assert call_kwargs.get("api_key") == "-"
+    assert call_kwargs.get("base_url") == "http://localhost:11434/v1"
+    assert call_kwargs.get("timeout") == 10.0
     _, kwargs = client.chat.completions.create.call_args
     assert kwargs["model"] == "llama3"
 

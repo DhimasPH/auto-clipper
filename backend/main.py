@@ -434,6 +434,8 @@ class ManualJobRequest(BaseModel):
 def api_create_manual_job(req: ManualJobRequest):
     if not req.url:
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL is required"})
+    if not req.clips:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Minimal satu klip diperlukan."})
     if not is_valid_source_url(req.url):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid untuk klip manual."})
 
