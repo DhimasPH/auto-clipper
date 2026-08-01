@@ -252,3 +252,55 @@ def test_words_to_karaoke_ass_cumulative_and_continuous():
     assert r"Halo semua selamat {\c&H00FFFF&}datang{\c}" in ass
 
 
+def test_smooth_trajectory_ema():
+    from backend.crop_utils import smooth_trajectory
+    # If all points are static, output remains static
+    raw = [(0.0, 0.5), (0.5, 0.5), (1.0, 0.5)]
+    smoothed = smooth_trajectory(raw, alpha=0.3)
+    assert len(smoothed) == 3
+    assert smoothed[0][1] == 0.5
+    assert smoothed[2][1] == 0.5
+
+    # Sudden jump gets smoothed out by EMA
+    jump_raw = [(0.0, 0.2), (0.5, 0.8), (1.0, 0.8)]
+    jump_smoothed = smooth_trajectory(jump_raw, alpha=0.3)
+    # At t=0.5, value should be 0.3 * 0.8 + 0.7 * 0.2 = 0.38
+    assert abs(jump_smoothed[1][1] - 0.38) < 1e-4
+
+
+def test_build_dynamic_crop_filter():
+    from backend.crop_utils import build_dynamic_crop_filter
+    trajectory = [(0.0, 0.3), (1.0, 0.7)]
+    
+    # 9:16 aspect ratio
+    filter_expr = build_dynamic_crop_filter("9:16", trajectory, clip_duration=1.0)
+    assert "crop=trunc(ih*9/16/2)*2:ih:" in filter_expr
+    # Check that linear interpolation expression is generated for dynamic panning
+    assert "if(lte(t" in filter_expr or "lerp" in filter_expr or "iw*" in filter_expr
+
+    # Single point or static fallback
+    static_filter = build_dynamic_crop_filter("9:16", [(0.0, 0.5)], clip_duration=1.0)
+    assert static_filter == "crop=trunc(ih*9/16/2)*2:ih:iw*0.5-ih*9/32:0"
+
+
+@patch('backend.crop_utils.cv2.cvtColor')
+@patch('backend.crop_utils.cv2.CascadeClassifier')
+@patch('backend.crop_utils.cv2.VideoCapture')
+def test_sample_face_trajectory(mock_cap, mock_cascade, mock_cvt):
+    from backend.crop_utils import sample_face_trajectory
+    cascade = mock_cascade.return_value
+    cascade.empty.return_value = False
+    cascade.detectMultiScale.return_value = [(960, 540, 200, 200)]
+    inst, frame = _fake_layout_cap()
+    mock_cap.return_value = inst
+    mock_cvt.return_value = frame
+
+    traj = sample_face_trajectory("dummy.mp4", start_time=0.0, end_time=2.0, interval=0.5)
+    assert len(traj) >= 4
+    for t, x in traj:
+        assert 0.0 <= t <= 2.0
+        assert 0.0 <= x <= 1.0
+
+
+
+
