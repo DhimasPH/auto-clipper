@@ -7,13 +7,21 @@ from backend.db import init_db, get_all_history, delete_history
 from backend.jobs import create_job, get_job, cancel_job
 from backend.ai_utils import ping_provider
 from backend.video_utils import probe_formats
-from backend.logger import log_error
+from backend.logger import log_error, get_log_content
 import os
 import sys
 import shutil
 import re
 import secrets
 from starlette.requests import Request
+
+def handle_uncaught_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    log_error("Global Uncaught Exception", f"{exc_type.__name__}: {exc_value}")
+
+sys.excepthook = handle_uncaught_exception
 
 API_SECRET_TOKEN = secrets.token_hex(32)
 
@@ -32,6 +40,14 @@ if getattr(sys, 'frozen', False):
 init_db()
 
 app = FastAPI(title="Auto Clipper API")
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    log_error(f"FastAPI Unhandled [{request.method} {request.url.path}]", exc)
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": f"Internal Server Error: {str(exc)}"}
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -103,6 +119,14 @@ class LogErrorPayload(BaseModel):
 def handle_log_error(payload: LogErrorPayload):
     log_error(payload.context, payload.error_msg)
     return {"status": "ok"}
+
+
+@app.get("/logs/{log_type}")
+def api_get_logs(log_type: str):
+    if log_type not in ("app", "error", "ai"):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Invalid log type"})
+    content = get_log_content(log_type)
+    return {"status": "success", "log_type": log_type, "content": content}
 
 
 class TestAiRequest(BaseModel):

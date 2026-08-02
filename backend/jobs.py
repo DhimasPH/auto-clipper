@@ -143,8 +143,8 @@ def cancel_job(job_id: str):
             try:
                 if proc.poll() is None:
                     proc.kill()
-            except Exception:
-                pass
+            except Exception as e:
+                log_error("jobs.cancel_job", e)
 
 def _run_job(job_id: str):
     import time
@@ -281,7 +281,7 @@ def _run_job(job_id: str):
             
         _render_video_clips(job, job_id, metadata, output_path, subtitle_path, is_cancelled, limit)
     except Exception as e:
-        log_error(f"JOB {job_id}")
+        log_error(f"JOB {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", locals().get('metadata', {}))
 
@@ -293,8 +293,8 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
         from backend.crop_utils import to_seconds
         highlights = metadata.get("highlights", [])
         highlights.sort(key=lambda x: to_seconds(x.get("start_time", "00:00:00")))
-    except Exception:
-        pass
+    except Exception as e:
+        log_error("jobs.sort_highlights", e)
         
     highlights = metadata.get("highlights", [])
     segments = highlights[:limit] if limit > 0 else highlights
@@ -512,7 +512,7 @@ def _run_manual_job(job_id: str):
         _finalize_job(job_id, "DONE", metadata)
 
     except Exception as e:
-        log_error(f"MANUAL JOB {job_id}")
+        log_error(f"MANUAL JOB {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
@@ -540,8 +540,8 @@ def _run_rerender_job(job_id: str):
         try:
             from backend.crop_utils import to_seconds
             highlights.sort(key=lambda x: to_seconds(x.get("start_time", "00:00:00")))
-        except Exception:
-            pass
+        except Exception as e:
+            log_error("jobs.rerender_sort_highlights", e)
             
         from backend.video_utils import get_video_duration
         dur_secs = get_video_duration(output_path)
@@ -628,7 +628,7 @@ def _run_rerender_job(job_id: str):
         _finalize_job(job_id, "DONE", metadata)
         
     except Exception as e:
-        log_error(f"JOB RERENDER {job_id}")
+        log_error(f"JOB RERENDER {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
@@ -720,8 +720,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         try:
             from backend.crop_utils import to_seconds
             highlights.sort(key=lambda x: to_seconds(x.get("start_time", "00:00:00")))
-        except Exception:
-            pass
+        except Exception as e:
+            log_error("jobs.rerun_sort_highlights", e)
             
         segments = highlights[:limit]
 
@@ -730,7 +730,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             try:
                 from backend.crop_utils import detect_video_layout
                 job_layout = detect_video_layout(source_video)
-            except Exception:
+            except Exception as e:
+                log_error("jobs.rerun_detect_layout", e)
                 job_layout = None
 
         for i, seg in enumerate(segments):
@@ -796,7 +797,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         _finalize_job(job_id, "DONE", metadata)
         
     except Exception as e:
-        log_error(f"JOB RERUN AI {job_id}")
+        log_error(f"JOB RERUN AI {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
@@ -831,8 +832,8 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
         try:
             from backend.db import save_history
             save_history(job_id, job["url"], status, job["clips"], metadata)
-        except Exception:
-            pass
+        except Exception as e:
+            log_error("jobs.save_history", e)
 
 
 def resume_manual_job(history_id: str, json_payload: str) -> str:
@@ -897,7 +898,7 @@ def _run_manual_resume_job(job_id: str, metadata: dict):
         
         _render_video_clips(job, job_id, metadata, output_path, subtitle_path, is_cancelled, limit)
     except Exception as e:
-        log_error(f"JOB RESUME {job_id}")
+        log_error(f"JOB RESUME {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
@@ -1047,8 +1048,8 @@ def _run_resume_job(job_id: str):
         try:
             from backend.crop_utils import to_seconds
             highlights.sort(key=lambda x: to_seconds(x.get("start_time", "00:00:00")))
-        except:
-            pass
+        except Exception as e:
+            log_error("jobs.resume_sort_highlights", e)
 
         segments = highlights[:limit]
         job_layout = None
@@ -1056,7 +1057,8 @@ def _run_resume_job(job_id: str):
             try:
                 from backend.crop_utils import detect_video_layout
                 job_layout = detect_video_layout(source_video)
-            except:
+            except Exception as e:
+                log_error("jobs.resume_detect_layout", e)
                 job_layout = None
 
         for i, seg in enumerate(segments):
@@ -1118,6 +1120,6 @@ def _run_resume_job(job_id: str):
         _finalize_job(job_id, "DONE", metadata)
 
     except Exception as e:
-        log_error(f"JOB RESUME {job_id}", str(e))
+        log_error(f"JOB RESUME MANUAL {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)

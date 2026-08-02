@@ -1,6 +1,7 @@
 import os
 import requests
 from backend.db import get_app_data_dir
+from backend.logger import log_error
 
 def download_pexels_broll(query: str, api_key: str, output_path: str, is_cancelled: callable = None) -> bool:
     """Download a portrait video from Pexels based on the query."""
@@ -57,7 +58,7 @@ def download_pexels_broll(query: str, api_key: str, output_path: str, is_cancell
                     
         return True
     except Exception as e:
-        print(f"Failed to fetch B-Roll for query '{query}': {e}")
+        log_error("broll.download_pexels_broll", f"Failed to fetch B-Roll for query '{query}': {e}")
         return False
 
 def ping_pexels(api_key: str) -> None:

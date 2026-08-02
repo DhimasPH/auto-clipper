@@ -14,6 +14,7 @@ import subprocess
 import math
 
 from backend.db import get_app_data_dir
+from backend.logger import log_error
 
 # job_id -> {status, progress, silence, peaks, sprite, error, ...}
 metadata_jobs = {}
@@ -234,6 +235,7 @@ def _run_metadata_job(job_id: str, video_path: str):
         try:
             job["silence"] = run_silencedetect(video_path)
         except Exception as e:
+            log_error("metadata.silence_detection", e)
             job["errors"]["silence"] = str(e)
             job["silence"] = []
 
@@ -244,6 +246,7 @@ def _run_metadata_job(job_id: str, video_path: str):
             target = min(16000, max(2000, int(duration * 8)))
             job["peaks"] = compute_peaks(video_path, target_peaks=target)
         except Exception as e:
+            log_error("metadata.compute_peaks", e)
             job["errors"]["peaks"] = str(e)
             job["peaks"] = []
 
@@ -252,6 +255,7 @@ def _run_metadata_job(job_id: str, video_path: str):
         try:
             job["thumbnails"] = generate_thumbnails(video_path, duration)
         except Exception as e:
+            log_error("metadata.generate_thumbnails", e)
             job["errors"]["thumbnails"] = str(e)
             job["thumbnails"] = []
 

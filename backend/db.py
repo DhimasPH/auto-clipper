@@ -2,8 +2,8 @@ import sqlite3
 import os
 import json
 from datetime import datetime
-
 import sys
+from backend.logger import log_error
 
 def get_app_data_dir():
     home = os.path.expanduser("~")
@@ -117,21 +117,21 @@ def delete_history(job_id: str):
                 if "path" in c and os.path.exists(c["path"]):
                     try:
                         os.remove(c["path"])
-                    except:
-                        pass
+                    except Exception as e:
+                        log_error("db.delete_history", f"Failed to delete clip file {c.get('path')}: {e}")
         # Hapus file source & subtitle dari metadata
         if row["metadata"]:
             meta = json.loads(row["metadata"])
             if meta.get("source_video") and os.path.exists(meta["source_video"]):
                 try:
                     os.remove(meta["source_video"])
-                except:
-                    pass
+                except Exception as e:
+                    log_error("db.delete_history", f"Failed to delete source video {meta.get('source_video')}: {e}")
             if meta.get("subtitle_path") and os.path.exists(meta["subtitle_path"]):
                 try:
                     os.remove(meta["subtitle_path"])
-                except:
-                    pass
+                except Exception as e:
+                    log_error("db.delete_history", f"Failed to delete subtitle file {meta.get('subtitle_path')}: {e}")
             
     cursor.execute("DELETE FROM history WHERE id=?", (job_id,))
     conn.commit()

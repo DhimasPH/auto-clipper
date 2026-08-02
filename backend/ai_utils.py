@@ -9,7 +9,7 @@ from datetime import datetime as _dt, timezone as _tz
 
 from backend.video_utils import extract_audio
 from backend.crop_utils import to_seconds, _fmt_srt_ts
-from backend.logger import log_ai
+from backend.logger import log_ai, log_error, log_app
 
 
 BROWSER_HEADERS = {
@@ -186,7 +186,7 @@ def _parse_highlights(content: str) -> list:
                 if isinstance(value, list):
                     return value
     except Exception as e:
-        print(f"Failed to parse highlights as full JSON: {e}")
+        log_error("ai_utils.parse_highlights", f"Failed to parse highlights as full JSON: {e}")
         # Fallback: Extract just the highlights array by balancing brackets
         idx = content.find('"highlights"')
         if idx != -1:
@@ -224,7 +224,7 @@ def _parse_highlights(content: str) -> list:
                         if isinstance(parsed_array, list):
                             return parsed_array
                     except Exception as e2:
-                        print(f"Failed to parse extracted highlights array: {e2}")
+                        log_error("ai_utils.parse_highlights", f"Failed to parse extracted highlights array: {e2}")
 
     return []
 
@@ -339,7 +339,7 @@ def generate_social_kit_only(description: str, api_key: str, provider: str = "op
         parsed = json.loads(response_text)
         return parsed
     except Exception as e:
-        print(f"Failed to parse social kit: {e}")
+        log_error("ai_utils.generate_social_kit", f"Failed to parse social kit: {e}")
         return {}
 
 def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
@@ -502,12 +502,12 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
                 raise Exception("Transcription cancelled by user")
             segments.append(segment)
     except Exception as e:
-        print(f"Warning: GPU Transcription failed ({e}). Falling back to CPU.")
+        log_error("ai_utils.transcribe_local_whisper", f"Warning: GPU Transcription failed ({e}). Falling back to CPU.")
         from faster_whisper import WhisperModel
         try:
             model = WhisperModel(selected_model, device="cpu", compute_type="default")
-        except Exception:
-            print(f"Warning: Failed to load {selected_model} on CPU. Falling back to default 'small' model.")
+        except Exception as e_cpu:
+            log_error("ai_utils.transcribe_local_whisper", f"Warning: Failed to load {selected_model} on CPU ({e_cpu}). Falling back to default 'small' model.")
             model = WhisperModel("small", device="cpu", compute_type="default")
         segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke, vad_filter=True)
         segments = []

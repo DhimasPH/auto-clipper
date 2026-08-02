@@ -2,6 +2,7 @@ import cv2
 import os
 import re
 import subprocess
+from backend.logger import log_error
 
 _NVENC_AVAILABLE = None
 
@@ -817,7 +818,7 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                 if clip_srt.strip():
                     ass_text = srt_to_ass(clip_srt, out_w, out_h)
         except Exception as e:
-            print(f"Failed to generate ASS: {e}")
+            log_error("crop_utils.generate_ass", f"Failed to generate ASS: {e}")
             ass_text = ""
             
         if ass_text:
@@ -898,7 +899,7 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     # Gaming split-screen is best-effort: if the complex filter fails, retry with
     # the plain centred crop so the job still produces a clip.
     if not ok and gaming:
-        print(f"split-screen ffmpeg failed, falling back to standard crop. Error: {err[-800:]}")
+        log_error("crop_utils.crop_to_vertical_split_fallback", f"split-screen ffmpeg failed, falling back to standard crop. Error: {err[-800:]}")
         ok, err = _run_ffmpeg(build_cmd(use_split=False), cwd=subtitle_cwd, register=register_proc)
 
     # If the user just cancelled, throw error.
@@ -908,7 +909,7 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     if not ok:
         # Fallback to plain crop if complex filter fails (e.g., subtitle issues)
         if subtitle_vf is not None:
-            print(f"ffmpeg complex failed, falling back to plain crop. Error: {err[-800:]}")
+            log_error("crop_utils.crop_to_vertical_complex_fallback", f"ffmpeg complex failed, falling back to plain crop. Error: {err[-800:]}")
             fallback_cmd = [
                 "ffmpeg", "-y",
                 "-ss", f"{start_s:.3f}",

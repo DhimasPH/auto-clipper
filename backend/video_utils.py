@@ -4,6 +4,7 @@ import io
 import subprocess
 import os
 from pathlib import Path
+from backend.logger import log_error
 
 
 class _SilentLogger:
@@ -184,6 +185,6 @@ def get_video_duration(video_path: str) -> float:
         if match:
             h, m, s = match.groups()
             return int(h) * 3600 + int(m) * 60 + float(s)
-    except Exception:
-        pass
+    except Exception as e:
+        log_error("video_utils.get_video_duration", e)
     return 0.0

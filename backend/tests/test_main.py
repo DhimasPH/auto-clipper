@@ -114,3 +114,16 @@ def test_download_whisper_model_endpoint(monkeypatch):
     assert r.status_code == 200
     assert r.json()["status"] == "success"
 
+
+def test_get_logs_endpoint():
+    for lt in ["app", "error", "ai"]:
+        res = client.get(f"/logs/{lt}")
+        assert res.status_code == 200
+        assert res.json()["status"] == "success"
+        assert res.json()["log_type"] == lt
+        assert "content" in res.json()
+        
+    res_inv = client.get("/logs/invalid_type")
+    assert res_inv.status_code == 400
+    assert res_inv.json()["status"] == "error"
+
