@@ -7,6 +7,7 @@ from backend.db import init_db, get_all_history, delete_history
 from backend.jobs import create_job, get_job, cancel_job
 from backend.ai_utils import ping_provider
 from backend.video_utils import probe_formats
+from backend.logger import log_error
 import os
 import sys
 import shutil
@@ -91,6 +92,16 @@ def api_probe(url: str):
 
 @app.get("/health")
 def health_check():
+    return {"status": "ok"}
+
+
+class LogErrorPayload(BaseModel):
+    context: str
+    error_msg: str
+
+@app.post("/log-error")
+def handle_log_error(payload: LogErrorPayload):
+    log_error(payload.context, payload.error_msg)
     return {"status": "ok"}
 
 

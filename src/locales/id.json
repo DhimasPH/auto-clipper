@@ -218,7 +218,8 @@
     "download_progress": "Mengunduh file pembaruan...",
     "warning": "Mohon tunggu hingga proses selesai. Aplikasi jangan ditutup selama proses pembaruan berlangsung.",
     "install_success": "Pembaruan berhasil dipasang. Memulai ulang...",
-    "install_failed": "Gagal memasang pembaruan: "
+    "install_failed": "Gagal memasang pembaruan: ",
+    "startup_update_available": "Versi baru ({{version}}) telah tersedia. Silakan perbarui aplikasi pada menu pengaturan."
   },
   "common": {
     "cancel": "Batal",

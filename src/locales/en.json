@@ -218,7 +218,8 @@
     "download_progress": "Downloading update file...",
     "warning": "Please wait until the process completes. Do not close the application during the update process.",
     "install_success": "Update installed successfully. Restarting...",
-    "install_failed": "Failed to install update: "
+    "install_failed": "Failed to install update: ",
+    "startup_update_available": "A new version ({{version}}) is available. Please update the application in the Settings menu."
   },
   "common": {
     "cancel": "Cancel",

@@ -30,3 +30,6 @@ docs/
 # Worktrees
 .worktrees/
 worktrees/
+
+# backend tests
+backend/tests/

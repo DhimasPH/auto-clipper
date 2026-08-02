@@ -15,6 +15,7 @@ import { useTheme } from "./hooks/useTheme";
 import { useToasts } from "./hooks/useToasts";
 import { useUserSettings } from "./hooks/useUserSettings";
 import { useClipJobs } from "./hooks/useClipJobs";
+import { useStartupUpdateCheck } from "./hooks/useStartupUpdateCheck";
 import { ProviderId, DEFAULT_PROVIDER } from "./lib/providers";
 import { SHOW_EXPERIMENTAL_FEATURES } from "./config/features";
 
@@ -37,6 +38,8 @@ export default function App() {
   } = useUserSettings();
   const { theme, setTheme } = useTheme();
   const { toasts, notify } = useToasts();
+
+  useStartupUpdateCheck({ notify });
 
   const [url, setUrl] = useState("");
   const [splashComplete, setSplashComplete] = useState(false);
