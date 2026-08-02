@@ -683,6 +683,18 @@ def build_dynamic_crop_filter(aspect_ratio: str, trajectory: list[tuple[float, f
     if max(xs) - min(xs) < 0.02:
         return build_crop_filter(aspect_ratio, trajectory[0][1])
 
+    # FFmpeg expression evaluator has a recursion limit (~60 depth).
+    # If the clip is long (e.g. 90 seconds) with points every 0.5s, 
+    # the nested if() string exceeds FFmpeg's limit and causes EINVAL (-22).
+    # We must downsample the trajectory to a maximum of 50 points.
+    MAX_POINTS = 50
+    if len(trajectory) > MAX_POINTS:
+        step = (len(trajectory) - 1) / (MAX_POINTS - 1)
+        downsampled = [trajectory[int(round(i * step))] for i in range(MAX_POINTS)]
+        # Ensure exact end point is preserved
+        downsampled[-1] = trajectory[-1]
+        trajectory = downsampled
+
     lerp_expr = _build_lerp_expr(trajectory)
 
     if aspect_ratio == "1:1":
