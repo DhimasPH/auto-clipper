@@ -5,9 +5,17 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = []
 binaries = []
-hiddenimports = []
+hiddenimports = [
+    'google',
+    'google.genai',
+    'google.genai.types',
+    'openai',
+    'httpx',
+    'pydantic',
+    'pydantic.deprecated.decorator',
+]
 
-for pkg in ['faster_whisper', 'ctranslate2', 'onnxruntime', 'cv2', 'google.genai', 'openai']:
+for pkg in ['faster_whisper', 'ctranslate2', 'onnxruntime', 'cv2', 'google.genai', 'openai', 'httpx', 'pydantic']:
     d, b, h = collect_all(pkg)
     datas.extend(d)
     binaries.extend(b)
