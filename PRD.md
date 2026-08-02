@@ -11,20 +11,21 @@ Menjadi asisten editing video pribadi bagi setiap kreator konten, yang secara ot
 
 ### 2.2 Smart Job Management & Pipelines
 - **Pipelines**: Menyediakan pipeline terintegrasi untuk otomatisasi penuh (Auto AI), penyesuaian durasi/batas klip secara manual, dan proses re-render secara efisien.
+- **Project Workspaces**: Mengisolasi semua aset hasil pemrosesan (video mentah, file subtitle `.ass`, dan potongan klip `.mp4`) ke dalam direktori khusus per *project/job* untuk mencegah tercampurnya file antar proyek.
 - **Sleep Prevention (BusyOverlay)**: Sistem mencegah OS untuk *sleep* atau *hibernate* secara agresif selama pemrosesan latar belakang, memastikan proses yang memakan waktu lama selesai tanpa gangguan.
 - **OS Notifications**: Memberikan notifikasi sistem (*native OS notifications*) kepada pengguna saat suatu job/tugas selesai, menggantikan notifikasi web konvensional.
 
 ### 2.3 AI Highlight Extraction & Metadata
-- **Proses**: Menganalisis transkripsi (menggunakan Whisper) dengan LLM untuk mendeteksi segmen video yang paling menarik, emosional, atau memiliki retensi tinggi. Dibangun dengan mekanisme *retry logic* agar pemrosesan tidak mudah gagal.
+- **Proses**: Menganalisis transkripsi (menggunakan Whisper) dengan LLM untuk mendeteksi segmen video yang paling menarik, emosional, atau memiliki retensi tinggi. Sistem menggunakan **AI Provider Registry** yang memungkinkan dynamic model fetching (Gemini, OpenAI, dll) berdasarkan preferensi/kunci API pengguna, dengan mekanisme *retry logic* agar pemrosesan tidak mudah gagal.
 - **Output**: Kandidat video pendek (15-60 detik) beserta transkripsi, serta Metadata Media Sosial (Judul viral, Deskripsi menarik, dan hashtag relevan).
 
-### 2.4 Smart Auto-Cropping (Face-Tracking)
-- **Input**: Klip video lanskap (16:9).
-- **Proses**: Menggunakan OpenCV untuk mendeteksi wajah pembicara di setiap frame dan mempertahankan wajah tersebut berada di tengah komposisi vertikal (9:16).
+### 2.4 Smart Auto-Cropping (Face-Tracking) & Layout Classification
+- **Input**: Klip video (Sistem akan secara otomatis melakukan deteksi *Landscape* vs *Portrait* sebelum pemrosesan).
+- **Proses**: Untuk video *Landscape*, sistem menggunakan OpenCV untuk mendeteksi wajah pembicara di setiap frame dan mempertahankan wajah tersebut berada di tengah komposisi vertikal (9:16) secara dinamis.
 - **Output**: Video vertikal yang dinamis (kamera mengikuti pergerakan subjek).
 
 ### 2.5 Auto-Subtitling & One-Click Export
-- **Proses**: Teks di-*burn-in* langsung ke video melalui FFmpeg dengan pengaturan rendering (*bitrate, framerate*) yang optimal.
+- **Proses**: Teks di-*burn-in* langsung ke video melalui FFmpeg dengan pengaturan rendering (*bitrate, framerate*) yang optimal. Sistem akan mencoba melakukan **Hardware Acceleration (NVENC)** terlebih dahulu, dan secara otomatis melakukan *safe fallback* ke CPU (`libx264`) jika proses *hardware encoding* gagal atau tidak didukung.
 - **Output**: File akhir `.mp4` siap unggah.
 
 ### 2.6 Internationalization (i18n)
@@ -33,14 +34,14 @@ Menjadi asisten editing video pribadi bagi setiap kreator konten, yang secara ot
 ## 3. User Flow
 1. **Launch**: Pengguna membuka aplikasi desktop Auto Clipper.
 2. **Input**: Pengguna menempelkan URL YouTube atau memilih file video lokal.
-3. **Processing (Background)**: 
-   - Sistem memulai Job (di-manage oleh Job Scheduler internal). *System Sleep Prevention* diaktifkan.
-   - Sistem melakukan ekstraksi audio dan terjemahan ke teks (Whisper).
-   - Sistem mendeteksi highlight momen dan mengkalkulasi Metadata Sosial (LLM).
-   - Sistem melakukan analisa *face-tracking*.
-4. **Intervention (Opsional)**: Pengguna dapat meninjau highlight yang ditemukan AI, menggeser batas durasi klip (*fine-tuning* manual), lalu meneruskan ke tahap *render*.
-5. **Rendering**: Teks subtitle di-*burn-in* dan video di-*crop*.
-6. **Result**: Pengguna mendapatkan **Native OS Notification** yang menandakan kesuksesan, dialihkan ke halaman History, dan dapat langsung membuka file hasil rilis `.mp4`.
+3. **Workflow Selection**: Pengguna dapat memilih mode otomatisasi (**AI-driven**) atau mode seleksi manual (**Manual Editor**).
+4. **Processing (Background)**: 
+   - Sistem memulai Job dan mengisolasi aset di dalam *Project Workspace* baru. *System Sleep Prevention* diaktifkan.
+   - Sistem melakukan deteksi layout video, ekstraksi audio, dan terjemahan ke teks (Whisper).
+   - *Hanya pada AI mode*: Sistem mendeteksi highlight momen dan mengkalkulasi Metadata Sosial (LLM).
+5. **Intervention (Opsional / Wajib untuk Manual Mode)**: Pengguna meninjau highlight yang ditemukan AI, atau membuat/mengedit klip secara manual. Pengguna juga dapat menyesuaikan durasi (*fine-tuning*) sebelum meneruskan ke tahap *render*.
+6. **Rendering**: Sistem melakukan *face-tracking*, *crop*, serta *burn-in* subtitle secara optimal (NVENC dengan fallback CPU).
+7. **Result**: Pengguna mendapatkan **Native OS Notification** yang menandakan kesuksesan, dialihkan ke halaman History, dan dapat langsung membuka file hasil rilis `.mp4`.
 
 ## 4. Technical Architecture Overview
 - **Frontend**: Tauri, React, Vite, Tailwind CSS. Berfungsi sebagai UI yang modern, interaktif (multi-bahasa), dan reaktif.

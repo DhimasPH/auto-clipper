@@ -23,8 +23,10 @@ Auto Clipper adalah aplikasi desktop yang dirancang untuk mengotomatisasi proses
 ## 5. Scope & Limitations
 - **In-Scope**: 
   - Unduhan otomatis dari YouTube atau input video lokal.
-  - Deteksi *highlight* via AI (LLM) dengan dukungan *retry logic* untuk akurasi optimal.
-  - Pemotongan video (*cropping*) 9:16 otomatis menggunakan algoritma Face-Tracking.
+  - Isolasi aset (**Project-Based Workspaces**) di mana video, subtitle, dan klip tersimpan rapi berdasarkan masing-masing proyek.
+  - **AI Provider Registry** (Bring Your Own Key) yang mendukung berbagai model LLM (Gemini, OpenAI, dll) untuk deteksi *highlight* dan penulisan metadata dengan *retry logic* yang tangguh.
+  - **Manual Editor Mode** bagi kreator yang tidak ingin menggunakan AI dan lebih suka memilih segmen klip secara manual.
+  - Pemotongan video (*cropping*) 9:16 otomatis menggunakan algoritma Face-Tracking dinamis.
   - Generasi subtitle presisi dengan teknologi Whisper (*burned-in*).
   - Penyesuaian batas klip secara manual bagi kreator yang membutuhkan penyesuaian akhir (*fine-tuning*).
   - Generasi metadata sosial (Title, Description, Tags).
