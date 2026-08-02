@@ -304,8 +304,7 @@ def _run_job(job_id: str):
                 _finalize_job(job_id, "AWAITING_MANUAL", metadata)
                 return
             elif job["provider"].startswith("gemini"):
-                model_name = job.get("model") or ("gemini-3.6-flash" if job["provider"].startswith("gemini") else None)
-                ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), whisper_model=job.get("whisper_model", "small"))
+                ai_result = process_with_gemini(output_path, job["api_key"], model_name=job.get("model"), limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), whisper_model=job.get("whisper_model", "small"))
             elif job["provider"] == "custom" or job["provider"] in OPENAI_COMPAT_PROVIDERS:
                 ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"), whisper_model=job.get("whisper_model", "small"))
             else:
@@ -723,8 +722,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
 
         from backend.ai_utils import process_with_gemini, process_with_openai, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
         if job["provider"].startswith("gemini"):
-            model_name = job.get("model") or ("gemini-3.6-flash" if job["provider"].startswith("gemini") else None)
-            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), whisper_model=job.get("whisper_model", "small"))
+            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=job.get("model"), limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), whisper_model=job.get("whisper_model", "small"))
         elif job["provider"] == "custom" or job["provider"] in OPENAI_COMPAT_PROVIDERS:
             ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"), whisper_model=job.get("whisper_model", "small"))
         else:
@@ -1002,7 +1000,7 @@ def _run_resume_job(job_id: str):
                 from google.genai import types
                 from backend.ai_utils import _with_retry, HIGHLIGHT_GUIDANCE, SOCIAL_PROMPT_TEMPLATE, _get_user_datetime_context, _parse_highlights
                 client = genai.Client(api_key=job["api_key"])
-                model_name = job.get("model") or ("gemini-3.6-flash" if job["provider"].startswith("gemini") else None)
+                model_name = job.get("model")
                 
                 video_file = _with_retry(lambda: client.files.upload(file=source_video), attempts=8)
                 while video_file.state.name == "PROCESSING":
@@ -1048,8 +1046,7 @@ def _run_resume_job(job_id: str):
             metadata["subtitle_path"] = predicted_subtitle_path
 
             if job["provider"].startswith("gemini"):
-                model_name = job.get("model") or ("gemini-3.6-flash" if job["provider"].startswith("gemini") else None)
-                ai_result = process_with_gemini(source_video, job["api_key"], model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), whisper_model=job.get("whisper_model", "small"))
+                ai_result = process_with_gemini(source_video, job["api_key"], model_name=job.get("model"), limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), whisper_model=job.get("whisper_model", "small"))
             elif job["provider"] == "custom" or job["provider"] in OPENAI_COMPAT_PROVIDERS:
                 ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"), whisper_model=job.get("whisper_model", "small"))
             else:

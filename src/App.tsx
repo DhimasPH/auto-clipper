@@ -16,7 +16,7 @@ import { useToasts } from "./hooks/useToasts";
 import { useUserSettings } from "./hooks/useUserSettings";
 import { useClipJobs } from "./hooks/useClipJobs";
 import { useStartupUpdateCheck } from "./hooks/useStartupUpdateCheck";
-import { ProviderId, DEFAULT_PROVIDER } from "./lib/providers";
+import { ProviderId, DEFAULT_PROVIDER, LEGACY_PROVIDER_MIGRATION } from "./lib/providers";
 import { SHOW_EXPERIMENTAL_FEATURES } from "./config/features";
 
 export let API_URL = "http://127.0.0.1:8000";
@@ -46,9 +46,19 @@ export default function App() {
   const [url, setUrl] = useState("");
   const [splashComplete, setSplashComplete] = useState(false);
   const [provider, setProvider] = useState<ProviderId>(() => {
-    return (
-      (localStorage.getItem("ac_provider") as ProviderId) || DEFAULT_PROVIDER
-    );
+    const saved = localStorage.getItem("ac_provider");
+    if (saved && LEGACY_PROVIDER_MIGRATION[saved]) {
+      return LEGACY_PROVIDER_MIGRATION[saved].provider;
+    }
+    return (saved as ProviderId) || DEFAULT_PROVIDER;
+  });
+
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    const savedProvider = localStorage.getItem("ac_provider");
+    if (savedProvider && LEGACY_PROVIDER_MIGRATION[savedProvider]) {
+      return LEGACY_PROVIDER_MIGRATION[savedProvider].model;
+    }
+    return localStorage.getItem("ac_model") || "";
   });
 
   const apiKey = apiKeys[provider] || "";
@@ -67,6 +77,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("ac_provider", provider);
   }, [provider]);
+
+  useEffect(() => {
+    localStorage.setItem("ac_model", selectedModel);
+  }, [selectedModel]);
 
   const [burnSubtitles, setBurnSubtitles] = useState(true);
   const [title, setTitle] = useState("");
@@ -108,6 +122,7 @@ export default function App() {
     apiKey,
     customBaseUrl,
     customModelName,
+    model: selectedModel,
     aspectRatio,
     captionStyle,
     burnSubtitles,
@@ -148,6 +163,8 @@ export default function App() {
     notify,
     provider,
     setProvider,
+    selectedModel,
+    setSelectedModel,
     apiKeys,
     setApiKey,
     outputFolder,

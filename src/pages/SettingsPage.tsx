@@ -24,6 +24,8 @@ export const SettingsPage: React.FC = () => {
         <ProviderSection 
           provider={ctx.provider} 
           setProvider={ctx.setProvider}
+          selectedModel={ctx.selectedModel}
+          setSelectedModel={ctx.setSelectedModel}
           apiKeys={ctx.apiKeys}
           setApiKey={ctx.setApiKey}
         />

@@ -84,8 +84,8 @@ export const DEFAULT_PROVIDER: ProviderId = "openai";
 /** Map of old model-level provider IDs to their new provider + model. */
 export const LEGACY_PROVIDER_MIGRATION: Record<string, { provider: ProviderId; model: string }> = {
   "gemini-2.0-flash-lite": { provider: "gemini", model: "gemini-2.0-flash-lite" },
-  "gemini-1.5-flash": { provider: "gemini", model: "gemini-1.5-flash" },
-  "gemini-1.5-pro": { provider: "gemini", model: "gemini-1.5-pro" },
+  "gemini-1.5-flash": { provider: "gemini", model: "gemini-3.6-flash" },
+  "gemini-1.5-pro": { provider: "gemini", model: "gemini-3.1-pro" },
   "gemini-3.5-flash-lite": { provider: "gemini", model: "gemini-3.5-flash-lite" },
   "gemini-3.1-pro": { provider: "gemini", model: "gemini-3.1-pro" },
 };

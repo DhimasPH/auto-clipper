@@ -300,9 +300,12 @@ def generate_social_kit_only(description: str, api_key: str, provider: str = "op
         from google import genai
         from google.genai import types
         client = genai.Client(api_key=api_key)
-        model_name = model or "gemini-3.6-flash"
+        gemini_model = model or "gemini-3.6-flash"
+        if gemini_model.startswith("models/"):
+            gemini_model = gemini_model[7:]
+        
         response = _with_retry(lambda: client.models.generate_content(
-            model=model_name,
+            model=gemini_model,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -566,6 +569,9 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
     import time
     from backend.video_utils import extract_audio
     
+    if model_name.startswith("models/"):
+        model_name = model_name[7:]
+    
     client = genai.Client(api_key=api_key)
 
     base, _ = os.path.splitext(file_path)
@@ -706,9 +712,11 @@ def fetch_provider_models(provider: str, api_key: str) -> list:
                 # Only include models that support content generation
                 methods = getattr(m, 'supported_generation_methods', None) or []
                 if 'generateContent' in methods:
+                    name = m.name.removeprefix("models/") if hasattr(m.name, "removeprefix") else m.name.replace("models/", "")
+                    label = getattr(m, 'display_name', None) or name
                     result.append({
-                        "id": m.name,
-                        "label": getattr(m, 'display_name', None) or m.name
+                        "id": name,
+                        "label": label
                     })
             return result
         elif provider in OPENAI_COMPAT_PROVIDERS or provider == "openai":
@@ -762,6 +770,8 @@ def ping_provider(provider: str, api_key: str, custom_base_url: str = None, cust
         if provider.startswith("gemini"):
             client = genai.Client(api_key=api_key)
             model_name = model or "gemini-3.6-flash"
+            if model_name.startswith("models/"):
+                model_name = model_name[7:]
             # We use genai's built-in timeout via http_options if available, or rely on normal timeout
             try:
                 client.models.generate_content(

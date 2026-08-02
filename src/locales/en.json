@@ -92,7 +92,13 @@
     "whisper_select": "Select",
     "whisper_info_title": "Accuracy & Performance Tips",
     "whisper_info_desc": "Small model is fast & accurate for most videos. If your video has technical jargon, background noise, or distinct accents, use Medium or Large-v3 for higher transcription precision.",
-    "whisper_vad_note": "Voice Activity Detection (VAD) is automatically enabled to filter silence and minimize repetitive AI hallucinations."
+    "whisper_vad_note": "Voice Activity Detection (VAD) is automatically enabled to filter silence and minimize repetitive AI hallucinations.",
+    "model_label": "AI Model",
+    "model_placeholder": "Select a model...",
+    "fetch_models": "Refresh Models",
+    "fetch_models_loading": "Fetching models...",
+    "fetch_models_error": "Failed to fetch models. Using defaults.",
+    "test_first": "Test your API Key first to see available models"
   },
   "faq": {
     "title": "How to Use",

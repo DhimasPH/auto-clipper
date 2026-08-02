@@ -15,6 +15,7 @@ export interface ClipJobParams {
   apiKey: string;
   customBaseUrl: string;
   customModelName: string;
+  model: string;
   aspectRatio: string;
   captionStyle: string;
   burnSubtitles: boolean;
@@ -187,7 +188,8 @@ export function useClipJobs(p: ClipJobParams) {
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,
         is_gaming_video: p.isGamingVideo,
-        whisper_model: p.whisperModel
+        whisper_model: p.whisperModel,
+        model: p.model
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -306,7 +308,8 @@ export function useClipJobs(p: ClipJobParams) {
         max_clips: p.maxClips,
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,
-        whisper_model: p.whisperModel
+        whisper_model: p.whisperModel,
+        model: p.model
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -336,7 +339,8 @@ export function useClipJobs(p: ClipJobParams) {
         provider: p.provider,
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,
-        whisper_model: p.whisperModel
+        whisper_model: p.whisperModel,
+        model: p.model
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);

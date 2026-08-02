@@ -78,6 +78,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
       const api_key = ctx.apiKeys?.[provider] || "";
       const custom_base_url = ctx.apiKeys?.["custom_base_url"] || "";
       const custom_model_name = ctx.apiKeys?.["custom_model_name"] || "";
+      const model = ctx.selectedModel || "";
       const description =
         clip.description_en || clip.description_id || clip.description || "";
 
@@ -89,6 +90,7 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
           api_key,
           custom_base_url,
           custom_model_name,
+          model,
         },
       );
       const data = res.data;

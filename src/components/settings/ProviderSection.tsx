@@ -11,12 +11,14 @@ import { PROVIDERS, ProviderId } from '../../lib/providers';
 interface ProviderSectionProps {
   provider: ProviderId;
   setProvider: (p: ProviderId) => void;
+  selectedModel: string;
+  setSelectedModel: (m: string) => void;
   apiKeys: Record<string, string>;
   setApiKey: (id: string, value: string) => void;
 }
 
 export const ProviderSection: React.FC<ProviderSectionProps> = ({
-  provider, setProvider, apiKeys, setApiKey,
+  provider, setProvider, selectedModel, setSelectedModel, apiKeys, setApiKey,
 }) => {
   const { t } = useTranslation();
   const [showKey, setShowKey] = useState(false);
@@ -33,6 +35,48 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
 
   const customBaseUrl = apiKeys['custom_base_url'] || '';
   const customModelName = apiKeys['custom_model_name'] || '';
+
+  const [availableModels, setAvailableModels] = useState<{id: string, label: string}[]>([]);
+  const [modelsFetched, setModelsFetched] = useState(false);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
+
+  React.useEffect(() => {
+    setTestAiStatus('idle');
+    setTestAiMessage('');
+    setModelsFetched(false);
+    setAvailableModels([]);
+    // Only reset model if changing to a provider and current selectedModel is not in its fallbacks?
+    // Let's just let it be, if it's invalid it will be updated later.
+  }, [provider]);
+
+  const fetchModels = async () => {
+    setIsFetchingModels(true);
+    try {
+      const res = await axios.post(`${API_URL}/api/providers/models`, {
+        provider,
+        api_key: keyVal
+      });
+      if (res.data?.status === 'success' && res.data.models) {
+        setAvailableModels(res.data.models);
+        setModelsFetched(true);
+        if (!selectedModel || !res.data.models.find((m: any) => m.id === selectedModel)) {
+          setSelectedModel(res.data.models[0]?.id || current?.defaultModel || "");
+        }
+      } else {
+        throw new Error("Failed to fetch models");
+      }
+    } catch (err) {
+      console.error(err);
+      const fallbacks = current?.fallbackModels?.map(m => ({ id: m, label: m })) || [];
+      setAvailableModels(fallbacks);
+      setModelsFetched(true);
+      if (!selectedModel || !fallbacks.find(m => m.id === selectedModel)) {
+        setSelectedModel(current?.defaultModel || "");
+      }
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
 
   const handleTestAi = async () => {
     if (!keyVal && !isCustom) {
@@ -55,6 +99,17 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
       if (res.data?.status === 'success') {
         setTestAiStatus('success');
         setTestAiMessage(t('settings.test_ai_success', 'API Key is valid!'));
+        
+        if (current?.supportsModelFetch) {
+          fetchModels();
+        } else {
+          const fallbacks = current?.fallbackModels?.map(m => ({ id: m, label: m })) || [];
+          setAvailableModels(fallbacks);
+          setModelsFetched(true);
+          if (!selectedModel || !fallbacks.find(m => m.id === selectedModel)) {
+            setSelectedModel(current?.defaultModel || "");
+          }
+        }
       } else {
         setTestAiStatus('error');
         setTestAiMessage(res.data?.message || t('settings.test_error', 'Error occurred'));
@@ -173,6 +228,42 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
             </p>
           )}
         </div>
+
+        {/* Model Selection Dropdown */}
+        {!isCustom && (
+          <div className="mt-4 p-4 border border-border rounded-lg bg-bg-surface">
+            <h3 className="text-body font-medium text-text-primary mb-3">
+              {t('settings.model_label', 'AI Model')}
+            </h3>
+            
+            {testAiStatus === 'success' ? (
+              isFetchingModels ? (
+                <div className="flex items-center gap-2 text-text-secondary">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">{t('settings.fetch_models_loading', 'Fetching models...')}</span>
+                </div>
+              ) : modelsFetched ? (
+                <div className="space-y-3">
+                  <Select
+                    label=""
+                    options={availableModels.map(m => ({ label: m.label, value: m.id }))}
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                  />
+                  {current?.supportsModelFetch && (
+                    <Button variant="ghost" size="sm" onClick={fetchModels}>
+                      {t('settings.fetch_models', 'Refresh Models')}
+                    </Button>
+                  )}
+                </div>
+              ) : null
+            ) : (
+              <p className="text-sm text-text-secondary">
+                {t('settings.test_first', 'Test your API Key first to see available models')}
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="relative pt-4 border-t border-border">
           <InputGroup

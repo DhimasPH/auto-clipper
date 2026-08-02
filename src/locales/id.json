@@ -92,7 +92,13 @@
     "whisper_select": "Pilih",
     "whisper_info_title": "Tips Akurasi & Performa",
     "whisper_info_desc": "Model Small cepat & cukup akurat untuk sebagian besar video. Jika video memiliki banyak istilah teknis, noise latar belakang, atau aksen khusus, gunakan Medium atau Large-v3 untuk hasil subtitle yang lebih presisi.",
-    "whisper_vad_note": "Fitur VAD (Voice Activity Detection) selalu aktif otomatis untuk memangkas jeda hening dan meminimalisir teks berulang (halusinasi AI)."
+    "whisper_vad_note": "Fitur VAD (Voice Activity Detection) selalu aktif otomatis untuk memangkas jeda hening dan meminimalisir teks berulang (halusinasi AI).",
+    "model_label": "Model AI",
+    "model_placeholder": "Pilih model...",
+    "fetch_models": "Muat Ulang Model",
+    "fetch_models_loading": "Memuat model...",
+    "fetch_models_error": "Gagal memuat model. Menggunakan default.",
+    "test_first": "Uji API Key terlebih dahulu untuk melihat model yang tersedia"
   },
   "faq": {
     "title": "Panduan Penggunaan",
