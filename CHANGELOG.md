@@ -2,6 +2,21 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.8.0] - 2026-08-02
+
+### Added
+
+- **AI Provider Registry**: Model LLM tidak lagi di-hardcode. Pengguna dapat mengonfigurasi API Key secara mandiri.
+- **Manual AI Editor**: Penambahan alur kerja untuk menentukan bagian video secara manual.
+- **Project Workspaces**: Manajemen aset diisolasi dalam direktori khusus per proyek.
+- **Video Layout Classification**: Deteksi otomatis tata letak video (Landscape vs Portrait).
+- **NVENC Fallback**: Dukungan *hardware encoding* otomatis dengan *fallback* aman ke CPU.
+
+### Changed
+
+- Mengembangkan *Job Pipeline* yang mendukung percabangan otomatis (AI-Driven) dan manual.
+- Pembaruan dokumen arsitektur dan persyaratan proyek.
+
 ## [1.7.0] - 2026-08-01
 
 ### Added
