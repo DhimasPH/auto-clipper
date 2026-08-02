@@ -28,8 +28,48 @@ def get_temp_dir():
     return os.path.join(get_app_data_dir(), "temp_downloads")
 
 
+def sanitize_title(title: str) -> str:
+    if not title:
+        return ""
+    # Remove illegal filesystem characters <>:"/\|?*
+    sanitized = re.sub(r'[<>:"/\\|?*]', '', title).strip()
+    return sanitized or "AutoClipper_Project"
+
+
+def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") -> dict:
+    safe_title = sanitize_title(title)
+    if not safe_title:
+        safe_title = f"Project_{job_id}" if job_id else "Project_Untitled"
+
+    if output_dir and output_dir.strip():
+        base_dir = output_dir.strip()
+    else:
+        base_dir = os.path.join(get_app_data_dir(), "projects")
+
+    project_dir = os.path.join(base_dir, safe_title)
+    source_dir = os.path.join(project_dir, "source")
+    subtitles_dir = os.path.join(project_dir, "subtitles")
+    clips_dir = os.path.join(project_dir, "clips")
+    broll_dir = os.path.join(project_dir, "broll")
+
+    os.makedirs(source_dir, exist_ok=True)
+    os.makedirs(subtitles_dir, exist_ok=True)
+    os.makedirs(clips_dir, exist_ok=True)
+    os.makedirs(broll_dir, exist_ok=True)
+
+    return {
+        "project_dir": project_dir,
+        "source_dir": source_dir,
+        "subtitles_dir": subtitles_dir,
+        "clips_dir": clips_dir,
+        "broll_dir": broll_dir,
+        "safe_title": safe_title,
+    }
+
 
 def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small") -> str:
+    if not title or not title.strip():
+        raise ValueError("Judul Proyek wajib diisi.")
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -68,6 +108,8 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
     LLM provider entirely (see the Smart Manual Clipper design spec).
     """
+    if not title or not title.strip():
+        raise ValueError("Judul Proyek wajib diisi.")
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -157,6 +199,7 @@ def _run_job(job_id: str):
             return
             
         metadata = {}
+        ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
         # 1. DOWNLOAD OR LOCAL FILE
         job["status"] = "DOWNLOADING"
         log_app(f"[{job_id}] " + str("DOWNLOADING"))
@@ -167,15 +210,17 @@ def _run_job(job_id: str):
         if job["url"].startswith("local:"):
             job["progress"] = "Mempersiapkan video lokal..."
             log_app(f"[{job_id}] " + str("Mempersiapkan video lokal..."))
-            # output_path is exactly the local file we saved in /upload
-            output_path = job["url"].split("local:")[1]
+            # output_path is copied into project workspace source folder
+            local_src = job["url"].split("local:")[1]
+            output_path = os.path.join(ws["source_dir"], "source_video.mp4")
+            if os.path.abspath(local_src) != os.path.abspath(output_path):
+                import shutil
+                shutil.copy2(local_src, output_path)
         else:
             job["progress"] = "Mengunduh video..."
             log_app(f"[{job_id}] " + str("Mengunduh video..."))
-            output_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            output_path = os.path.join(ws["source_dir"], "source_video.mp4")
             
-                
             try:
                 download_youtube_video(job["url"], output_path, job.get("quality", "best"), is_cancelled=is_cancelled)
             except Exception as e:
@@ -204,9 +249,8 @@ def _run_job(job_id: str):
 
         is_karaoke = (job["caption_style"] == "karaoke")
         
-        # Predict subtitle path early so it's saved in metadata even if the LLM call fails
-        base, _ = os.path.splitext(output_path)
-        predicted_subtitle_path = base + (".words.json" if is_karaoke else ".srt")
+        # Predict subtitle path early in subtitles folder so it's saved in metadata
+        predicted_subtitle_path = os.path.join(ws["subtitles_dir"], "subtitles.words.json" if is_karaoke else "subtitles.srt")
         metadata["subtitle_path"] = predicted_subtitle_path
 
         try:
@@ -227,7 +271,7 @@ def _run_job(job_id: str):
                             transcript_text = f.read()
                     subtitle_path = predicted_subtitle_path
                 else:
-                    audio_path = base + "_audio.mp3"
+                    audio_path = os.path.join(ws["source_dir"], "source_audio.mp3")
                     job["progress"] = "Mengekstrak audio..."
                     extract_audio(output_path, audio_path, register_proc=lambda p: _register_proc(job, p))
                     
@@ -235,13 +279,13 @@ def _run_job(job_id: str):
                     transcript = transcribe_with_faster_whisper(audio_path, karaoke=is_karaoke, is_cancelled=is_cancelled, model_size=job.get("whisper_model", "small"))
                     
                     if is_karaoke:
-                        subtitle_path = base + ".words.json"
+                        subtitle_path = predicted_subtitle_path
                         with open(subtitle_path, "w", encoding="utf-8") as f:
                             json.dump(transcript, f)
                         srt_segments = [{"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} for s in transcript.get("segments", [])]
                         transcript_text = build_srt_from_segments(srt_segments)
                     else:
-                        subtitle_path = base + ".srt"
+                        subtitle_path = predicted_subtitle_path
                         with open(subtitle_path, "w", encoding="utf-8") as f:
                             f.write(str(transcript))
                         transcript_text = str(transcript)
@@ -268,8 +312,14 @@ def _run_job(job_id: str):
 
         highlights = ai_result.get("highlights", [])
         subtitle_path = ai_result.get("subtitle_path")
+        if subtitle_path and os.path.exists(subtitle_path):
+            dest_sub = os.path.join(ws["subtitles_dir"], os.path.basename(subtitle_path))
+            if os.path.abspath(subtitle_path) != os.path.abspath(dest_sub):
+                import shutil
+                shutil.move(subtitle_path, dest_sub)
+                subtitle_path = dest_sub
 
-        metadata["subtitle_path"] = subtitle_path
+        metadata["subtitle_path"] = subtitle_path or predicted_subtitle_path
         metadata["highlights"] = highlights
 
         if not highlights:
@@ -289,6 +339,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
     job["status"] = "CROPPING"
     log_app(f"[{job_id}] " + str("CROPPING"))
     
+    ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
     try:
         from backend.crop_utils import to_seconds
         highlights = metadata.get("highlights", [])
@@ -322,7 +373,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
             from backend.broll import download_pexels_broll
             query = seg.get("broll_query_en") or seg.get("description_en")
             if query:
-                broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
+                broll_out = os.path.join(ws["broll_dir"], f"broll_{job_id}_{i}.mp4")
                 success = download_pexels_broll(query, job["pexels_api_key"], broll_out, is_cancelled=is_cancelled)
                 if success:
                     broll_path = broll_out
@@ -330,22 +381,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
         job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
         log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(segments)}..."))
         
-        import re, shutil, os
-        safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
-        
-        clip_output = output_path.replace(".mp4", f"_crop_{safe_start_time}.mp4")
-        
-        if job.get("output_dir"):
-            out_dir = job["output_dir"]
-            safe_title = ""
-            if job.get("title"):
-                safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
-                if safe_title:
-                    out_dir = os.path.join(out_dir, safe_title)
-            os.makedirs(out_dir, exist_ok=True)
-            
-            filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
-            clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
+        clip_output = os.path.join(ws["clips_dir"], f"{ws['safe_title']}_clip_{i+1}.mp4")
         
         try:
             result_path = crop_to_vertical(
@@ -395,18 +431,22 @@ def _run_manual_job(job_id: str):
             _finalize_job(job_id, "CANCELLED")
             return
 
+        ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
         # 1. Resolve source (local upload or download).
         job["status"] = "DOWNLOADING"
         log_app(f"[{job_id}] " + str("DOWNLOADING"))
         if job["url"].startswith("local:"):
             job["progress"] = "Mempersiapkan video lokal..."
             log_app(f"[{job_id}] " + str("Mempersiapkan video lokal..."))
-            source_path = job["url"].split("local:")[1]
+            local_src = job["url"].split("local:")[1]
+            source_path = os.path.join(ws["source_dir"], "source_video.mp4")
+            if os.path.abspath(local_src) != os.path.abspath(source_path):
+                import shutil
+                shutil.copy2(local_src, source_path)
         else:
             job["progress"] = "Mengunduh video..."
             log_app(f"[{job_id}] " + str("Mengunduh video..."))
-            source_path = os.path.join(get_temp_dir(), f"source_{job_id}.mp4")
-            os.makedirs(os.path.dirname(source_path), exist_ok=True)
+            source_path = os.path.join(ws["source_dir"], "source_video.mp4")
             download_youtube_video(job["url"], source_path, job.get("quality", "best"), is_cancelled=is_cancelled)
         if not os.path.exists(source_path):
             raise ValueError("Video sumber tidak ditemukan.")
@@ -434,16 +474,15 @@ def _run_manual_job(job_id: str):
             from backend.video_utils import extract_audio
             import json as _json
             is_karaoke = (job.get("caption_style") == "karaoke")
-            base, _ = os.path.splitext(source_path)
-            audio_path = base + "_audio.mp3"
+            audio_path = os.path.join(ws["source_dir"], "source_audio.mp3")
             extract_audio(source_path, audio_path, register_proc=lambda p: _register_proc(job, p))
             transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=is_karaoke, is_cancelled=is_cancelled, model_size=job.get("whisper_model", "small"))
             if is_karaoke:
-                subtitle_path = base + ".words.json"
+                subtitle_path = os.path.join(ws["subtitles_dir"], "subtitles.words.json")
                 with open(subtitle_path, "w", encoding="utf-8") as f:
                     _json.dump(transcript_data, f)
             else:
-                subtitle_path = base + ".srt"
+                subtitle_path = os.path.join(ws["subtitles_dir"], "subtitles.srt")
                 with open(subtitle_path, "w", encoding="utf-8") as f:
                     f.write(transcript_data)
 
@@ -469,17 +508,7 @@ def _run_manual_job(job_id: str):
             start_t = clip.get("start")
             end_t = clip.get("end")
 
-            clip_output = os.path.join(get_temp_dir(), f"{job_id}_manual_{i+1}.mp4")
-            if job.get("output_dir"):
-                out_dir = job["output_dir"]
-                safe_title = ""
-                if job.get("title"):
-                    safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
-                    if safe_title:
-                        out_dir = os.path.join(out_dir, safe_title)
-                os.makedirs(out_dir, exist_ok=True)
-                filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
-                clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
+            clip_output = os.path.join(ws["clips_dir"], f"{ws['safe_title']}_clip_{i+1}.mp4")
 
             try:
                 result_path = crop_to_vertical(
@@ -549,6 +578,8 @@ def _run_rerender_job(job_id: str):
             
         segments = highlights[:limit]
 
+        ws = get_project_workspace(job.get("title") or metadata.get("title", ""), job.get("output_dir") or metadata.get("output_dir", ""), job_id)
+
         job_layout = None
         if job.get("aspect_ratio") == "9:16":
             try:
@@ -570,7 +601,7 @@ def _run_rerender_job(job_id: str):
                 from backend.broll import download_pexels_broll
                 query = seg.get("broll_query_en") or seg.get("description_en")
                 if query:
-                    broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
+                    broll_out = os.path.join(ws["broll_dir"], f"broll_{job_id}_{i}.mp4")
                     success = download_pexels_broll(query, job["pexels_api_key"], broll_out, is_cancelled=lambda: job.get("cancelled", False))
                     if success:
                         broll_path = broll_out
@@ -578,22 +609,8 @@ def _run_rerender_job(job_id: str):
             job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
             log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(segments)}..."))
             
-            safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
-            import shutil
-            
-            clip_output = output_path.replace(".mp4", f"_crop_{job_id}_{safe_start_time}.mp4")
-            
-            if job.get("output_dir"):
-                out_dir = job["output_dir"]
-                safe_title = ""
-                if job.get("title"):
-                    safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
-                    if safe_title:
-                        out_dir = os.path.join(out_dir, safe_title)
-                os.makedirs(out_dir, exist_ok=True)
-                
-                filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
-                clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
+            aspect_tag = job.get("aspect_ratio", "9:16").replace(":", "x")
+            clip_output = os.path.join(ws["clips_dir"], f"{ws['safe_title']}_{aspect_tag}_clip_{i+1}.mp4")
             
             try:
                 result_path = crop_to_vertical(
@@ -658,6 +675,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "burn_subs": burn_subs,
         "output_dir": output_dir,
         "quality": "best",
+        "title": job_record.get("metadata", {}).get("title", ""),
         "max_clips": max_clips,
         "status": "QUEUED",
         "progress": "Menyiapkan AI Koreksi...",
@@ -681,6 +699,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
     metadata = dict(old_metadata) # clone
     try:
         if job["cancelled"]: return
+
+        ws = get_project_workspace(job.get("title") or old_metadata.get("title", ""), job.get("output_dir") or old_metadata.get("output_dir", ""), job_id)
 
         job["status"] = "TRANSCRIBING"
         log_app(f"[{job_id}] " + str("TRANSCRIBING"))
@@ -708,6 +728,13 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             
         highlights = ai_result.get("highlights", [])
         subtitle_path = ai_result.get("subtitle_path")
+        if subtitle_path and os.path.exists(subtitle_path):
+            dest_sub = os.path.join(ws["subtitles_dir"], os.path.basename(subtitle_path))
+            if os.path.abspath(subtitle_path) != os.path.abspath(dest_sub):
+                import shutil
+                shutil.move(subtitle_path, dest_sub)
+                subtitle_path = dest_sub
+
         metadata["subtitle_path"] = subtitle_path
         metadata["highlights"] = highlights
         
@@ -744,7 +771,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                 from backend.broll import download_pexels_broll
                 query = seg.get("broll_query_en") or seg.get("description_en")
                 if query:
-                    broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
+                    broll_out = os.path.join(ws["broll_dir"], f"broll_{job_id}_{i}.mp4")
                     success = download_pexels_broll(query, job["pexels_api_key"], broll_out, is_cancelled=is_cancelled)
                     if success:
                         broll_path = broll_out
@@ -752,18 +779,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             job["progress"] = f"Memotong klip {i+1} dari {len(segments)} (AI Koreksi)..."
             log_app(f"[{job_id}] " + str(f"Memotong klip {i+1} dari {len(segments)} (AI Koreksi)..."))
             try:
-                clip_output = os.path.join(get_temp_dir(), f"{job_id}_clip_{i+1}.mp4")
-                if job.get("output_dir"):
-                    out_dir = job["output_dir"]
-                    safe_title = ""
-                    if job.get("title"):
-                        safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
-                        if safe_title:
-                            out_dir = os.path.join(out_dir, safe_title)
-                    os.makedirs(out_dir, exist_ok=True)
-                    
-                    filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
-                    clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
+                clip_output = os.path.join(ws["clips_dir"], f"{ws['safe_title']}_clip_{i+1}.mp4")
 
                 result_path = crop_to_vertical(
                     source_video, clip_output, seg["start_time"], seg["end_time"],
