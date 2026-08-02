@@ -649,23 +649,31 @@ def build_crop_filter(aspect_ratio: str, center_pct: float) -> str:
 
 
 def _build_lerp_expr(trajectory: list[tuple[float, float]]) -> str:
-    """Build a piecewise linear interpolation expression for FFmpeg."""
+    """Build a piecewise linear interpolation expression for FFmpeg using a Binary Search Tree structure."""
     if not trajectory:
         return "0.5"
     if len(trajectory) == 1:
         return f"{trajectory[0][1]:.4f}"
 
-    expr = f"{trajectory[-1][1]:.4f}"
-    for i in range(len(trajectory) - 2, -1, -1):
-        t0, x0 = trajectory[i]
-        t1, x1 = trajectory[i + 1]
-        dt = t1 - t0
-        if dt <= 0:
-            continue
-        dx = x1 - x0
-        segment = f"({x0:.4f}+{dx:.4f}*(t-{t0:.2f})/{dt:.2f})"
-        expr = f"if(lte(t\\,{t1:.2f})\\,{segment}\\,{expr})"
-    return expr
+    def _build_bst(start_idx: int, end_idx: int) -> str:
+        if start_idx == end_idx - 1:
+            t0, x0 = trajectory[start_idx]
+            t1, x1 = trajectory[end_idx]
+            dt = t1 - t0
+            if dt <= 0:
+                return f"{x1:.4f}"
+            dx = x1 - x0
+            return f"({x0:.4f}+{dx:.4f}*(t-{t0:.2f})/{dt:.2f})"
+            
+        mid_idx = (start_idx + end_idx) // 2
+        t_mid = trajectory[mid_idx][0]
+        
+        left = _build_bst(start_idx, mid_idx)
+        right = _build_bst(mid_idx, end_idx)
+        
+        return f"if(lte(t\\,{t_mid:.2f})\\,{left}\\,{right})"
+
+    return _build_bst(0, len(trajectory) - 1)
 
 
 def build_dynamic_crop_filter(aspect_ratio: str, trajectory: list[tuple[float, float]], clip_duration: float = 0.0) -> str:
@@ -683,11 +691,10 @@ def build_dynamic_crop_filter(aspect_ratio: str, trajectory: list[tuple[float, f
     if max(xs) - min(xs) < 0.02:
         return build_crop_filter(aspect_ratio, trajectory[0][1])
 
-    # FFmpeg expression evaluator has a recursion limit (~60 depth).
-    # If the clip is long (e.g. 90 seconds) with points every 0.5s, 
-    # the nested if() string exceeds FFmpeg's limit and causes EINVAL (-22).
-    # We must downsample the trajectory to a maximum of 50 points.
-    MAX_POINTS = 50
+    # We use a Binary Search Tree (BST) for the lerp expression, which has an AST depth of log2(N).
+    # This avoids FFmpeg's recursion limit. We set a max of 400 points to prevent 
+    # exceeding the Windows command line max length limit (32,767 chars).
+    MAX_POINTS = 400
     if len(trajectory) > MAX_POINTS:
         step = (len(trajectory) - 1) / (MAX_POINTS - 1)
         downsampled = [trajectory[int(round(i * step))] for i in range(MAX_POINTS)]
