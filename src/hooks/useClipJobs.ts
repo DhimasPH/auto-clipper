@@ -207,6 +207,10 @@ export function useClipJobs(p: ClipJobParams) {
       notify(t('toast.clip_failed', { num: '', msg: t('smartEditor.noClips', 'Belum ada klip.') }), "error");
       return;
     }
+    if (!p.title || !p.title.trim()) {
+      notify(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
+      return;
+    }
     setErrorMsg("");
     setProgress("");
     setClips([]);

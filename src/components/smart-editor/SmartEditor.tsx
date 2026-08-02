@@ -1,10 +1,11 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Scissors, Gamepad2 } from 'lucide-react';
+import { Plus, Trash2, Scissors, Gamepad2, Folder } from 'lucide-react';
 import { API_URL, AppContext } from '../../App';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Button } from '../ui/Button';
+import { InputGroup } from '../ui/InputGroup';
 import { ZoomableTimeline } from './ZoomableTimeline';
 import { PlayReactButton } from './PlayReactButton';
 import { buildSnapBoundaries } from '../../lib/snap';
@@ -135,6 +136,10 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
   // global progress overlay (BusyOverlay) and Cancel button as auto-generate.
   const submit = () => {
     if (!localUrl || clips.length === 0) return;
+    if (!ctx.title || !ctx.title.trim()) {
+      ctx.notify?.(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), 'error');
+      return;
+    }
     ctx.handleManualGenerate?.(localUrl, clips.map((c) => ({ start: c.start, end: c.end })));
   };
 
@@ -239,7 +244,28 @@ export const SmartEditor: React.FC<{ file: File }> = ({ file }) => {
         </div>
       )}
 
-      <Button variant="primary" icon={ctx.isRunning ? undefined : Scissors} loading={ctx.isRunning} disabled={clips.length === 0 || ctx.isRunning || !localUrl} onClick={submit} fullWidth>
+      <div className="space-y-2 pt-2 border-t border-border">
+        <InputGroup
+          label={`${t("main.project_title_label", "Judul Proyek")} *`}
+          placeholder={t(
+            "main.project_title_placeholder",
+            "Misal: Podcast Radit",
+          )}
+          value={ctx.title || ""}
+          onChange={(e) => ctx.setTitle(e.target.value)}
+          icon={Folder}
+          required
+        />
+      </div>
+
+      <Button
+        variant="primary"
+        icon={ctx.isRunning ? undefined : Scissors}
+        loading={ctx.isRunning}
+        disabled={clips.length === 0 || ctx.isRunning || !localUrl || !ctx.title?.trim()}
+        onClick={submit}
+        fullWidth
+      >
         {ctx.isRunning ? t('smartEditor.processing', 'Memproses…') : t('smartEditor.generate', 'Buat Klip')}
       </Button>
     </div>

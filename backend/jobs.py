@@ -146,6 +146,7 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
     if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
         raise ValueError("History tidak valid atau metadata tidak lengkap.")
         
+    hist_meta = hist.get("metadata", {})
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -153,16 +154,17 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "mode": "rerender",
         "aspect_ratio": aspect_ratio,
         "burn_subs": burn_subs,
-        "output_dir": output_dir,
+        "output_dir": output_dir or hist_meta.get("output_dir", ""),
+        "title": hist_meta.get("title", ""),
         "max_clips": max_clips,
-        "is_gaming_video": hist.get("metadata", {}).get("is_gaming_video", False),
+        "is_gaming_video": hist_meta.get("is_gaming_video", False),
         "status": "PENDING",
         "progress": "",
         "cancelled": False,
         "clips": [],
         "failed": 0,
         "error": None,
-        "metadata": hist["metadata"]
+        "metadata": hist_meta
     }
     threading.Thread(target=_run_rerender_job, args=(job_id,), daemon=True).start()
     return job_id

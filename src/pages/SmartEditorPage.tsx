@@ -16,6 +16,9 @@ export const SmartEditorPage: React.FC = () => {
     ctx.setManualMeta(null);
     ctx.setManualClips([]);
     ctx.setManualFile(f);
+    if (f && (!ctx.title || !ctx.title.trim())) {
+      ctx.setTitle(f.name.replace(/\.[^/.]+$/, ""));
+    }
   };
 
   const resetVideo = () => {

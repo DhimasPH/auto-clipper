@@ -15,6 +15,10 @@ export const ManualDownloaderPage: React.FC = () => {
   const [downloadTitle, setDownloadTitle] = useState("");
 
   const handleDownload = () => {
+    if (!downloadTitle || !downloadTitle.trim()) {
+      ctx.notify?.(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
+      return;
+    }
     // Send an empty clips array to trigger the full video download fallback.
     ctx.setTitle(downloadTitle); // make sure context has the title
     ctx.handleManualGenerate(downloadUrl, []);
@@ -46,7 +50,7 @@ export const ManualDownloaderPage: React.FC = () => {
 
         <div className="space-y-2">
           <InputGroup
-            label={t("main.project_title_label", "Judul Proyek (Opsional)")}
+            label={`${t("main.project_title_label", "Judul Proyek")} *`}
             placeholder={t(
               "main.project_title_placeholder",
               "Misal: Podcast Radit Full",
@@ -54,6 +58,7 @@ export const ManualDownloaderPage: React.FC = () => {
             value={downloadTitle}
             onChange={(e) => setDownloadTitle(e.target.value)}
             icon={Folder}
+            required
           />
         </div>
 
@@ -166,7 +171,7 @@ export const ManualDownloaderPage: React.FC = () => {
             className="w-full h-14 text-lg font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-shadow"
             icon={Download}
             onClick={handleDownload}
-            disabled={ctx.isRunning || !downloadUrl}
+            disabled={ctx.isRunning || !downloadUrl || !downloadTitle.trim()}
           >
             {ctx.isRunning
               ? t("main.probing", "Memproses...")

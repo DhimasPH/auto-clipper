@@ -110,29 +110,59 @@ def delete_history(job_id: str):
     cursor.execute("SELECT result_clips, metadata FROM history WHERE id=?", (job_id,))
     row = cursor.fetchone()
     if row:
-        # Hapus file clips
+        # 1. Hapus file clips spesifik job ini
         if row["result_clips"]:
-            clips = json.loads(row["result_clips"])
-            for c in clips:
-                if "path" in c and os.path.exists(c["path"]):
-                    try:
-                        os.remove(c["path"])
-                    except Exception as e:
-                        log_error("db.delete_history", f"Failed to delete clip file {c.get('path')}: {e}")
-        # Hapus file source & subtitle dari metadata
+            try:
+                clips = json.loads(row["result_clips"])
+                for c in clips:
+                    if "path" in c and os.path.exists(c["path"]):
+                        try:
+                            os.remove(c["path"])
+                        except Exception as e:
+                            log_error("db.delete_history", f"Failed to delete clip file {c.get('path')}: {e}")
+            except Exception as e:
+                log_error("db.delete_history", f"Failed to parse result_clips: {e}")
+
+        # 2. Cek apakah file source & subtitle masih digunakan job lain
         if row["metadata"]:
-            meta = json.loads(row["metadata"])
-            if meta.get("source_video") and os.path.exists(meta["source_video"]):
-                try:
-                    os.remove(meta["source_video"])
-                except Exception as e:
-                    log_error("db.delete_history", f"Failed to delete source video {meta.get('source_video')}: {e}")
-            if meta.get("subtitle_path") and os.path.exists(meta["subtitle_path"]):
-                try:
-                    os.remove(meta["subtitle_path"])
-                except Exception as e:
-                    log_error("db.delete_history", f"Failed to delete subtitle file {meta.get('subtitle_path')}: {e}")
-            
+            try:
+                meta = json.loads(row["metadata"])
+                target_source = meta.get("source_video")
+                target_sub = meta.get("subtitle_path")
+
+                cursor.execute("SELECT id, metadata FROM history WHERE id != ?", (job_id,))
+                other_rows = cursor.fetchall()
+
+                source_in_use = False
+                sub_in_use = False
+
+                for o_row in other_rows:
+                    if o_row["metadata"]:
+                        try:
+                            o_meta = json.loads(o_row["metadata"])
+                            if target_source and o_meta.get("source_video") == target_source:
+                                source_in_use = True
+                            if target_sub and o_meta.get("subtitle_path") == target_sub:
+                                sub_in_use = True
+                        except Exception:
+                            pass
+
+                # Hanya hapus source_video fisik jika TIDAK ada job lain yang memakainya
+                if not source_in_use and target_source and os.path.exists(target_source):
+                    try:
+                        os.remove(target_source)
+                    except Exception as e:
+                        log_error("db.delete_history", f"Failed to delete source video {target_source}: {e}")
+
+                # Hanya hapus subtitle fisik jika TIDAK ada job lain yang memakainya
+                if not sub_in_use and target_sub and os.path.exists(target_sub):
+                    try:
+                        os.remove(target_sub)
+                    except Exception as e:
+                        log_error("db.delete_history", f"Failed to delete subtitle file {target_sub}: {e}")
+            except Exception as e:
+                log_error("db.delete_history", f"Failed to parse metadata: {e}")
+
     cursor.execute("DELETE FROM history WHERE id=?", (job_id,))
     conn.commit()
     conn.close()

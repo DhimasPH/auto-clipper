@@ -160,7 +160,7 @@ export default function GenerateForm({
       {/* Project Title */}
       <div className="space-y-2">
         <InputGroup
-          label={t("main.project_title_label", "Judul Proyek (Opsional)")}
+          label={`${t("main.project_title_label", "Judul Proyek")} *`}
           placeholder={t(
             "main.project_title_placeholder",
             "Misal: Podcast Radit",
@@ -168,6 +168,7 @@ export default function GenerateForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           icon={Folder}
+          required
         />
         <p className="text-caption text-text-secondary mt-1">
           {t(

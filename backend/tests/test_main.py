@@ -36,9 +36,38 @@ def test_create_job_accepts_valid_url(monkeypatch):
     # Avoid spawning a real download/render thread.
     monkeypatch.setattr("backend.main.create_job", lambda *a, **k: "fake-id")
     monkeypatch.setattr("backend.main.ping_provider", lambda *a, **k: None)
-    r = client.post("/jobs", json={"url": "https://youtube.com/watch?v=abc"})
+    r = client.post("/jobs", json={"url": "https://youtube.com/watch?v=abc", "title": "My Test Project"})
     assert r.status_code == 200
     assert r.json()["job_id"] == "fake-id"
+
+
+def test_create_job_rejects_missing_title(monkeypatch):
+    monkeypatch.setattr("backend.main.ping_provider", lambda *a, **k: None)
+    r = client.post("/jobs", json={"url": "https://youtube.com/watch?v=abc", "title": ""})
+    assert r.status_code == 400
+    assert "Judul Proyek wajib diisi" in r.json()["message"]
+
+    r_spaces = client.post("/jobs", json={"url": "https://youtube.com/watch?v=abc", "title": "   "})
+    assert r_spaces.status_code == 400
+    assert "Judul Proyek wajib diisi" in r_spaces.json()["message"]
+
+
+def test_create_manual_job_rejects_missing_title():
+    r = client.post("/jobs/manual", json={
+        "url": "https://youtube.com/watch?v=abc",
+        "clips": [{"start": 0, "end": 10}],
+        "title": ""
+    })
+    assert r.status_code == 400
+    assert "Judul Proyek wajib diisi" in r.json()["message"]
+
+    r_spaces = client.post("/jobs/manual", json={
+        "url": "https://youtube.com/watch?v=abc",
+        "clips": [{"start": 0, "end": 10}],
+        "title": "   "
+    })
+    assert r_spaces.status_code == 400
+    assert "Judul Proyek wajib diisi" in r_spaces.json()["message"]
 
 
 def test_get_unknown_job_404():
