@@ -593,11 +593,24 @@ def _run_ffmpeg(cmd, cwd=None, register=None):
     Uses Popen (not subprocess.run) so the caller can register the live process
     handle and kill it mid-render on cancel.
     """
+    # Diagnostic logging: capture the full command for debugging EINVAL etc.
+    try:
+        cmd_str = ' '.join(str(c) for c in cmd)
+        log_error("crop_utils._run_ffmpeg_cmd", f"CMD: {cmd_str}")
+    except Exception:
+        pass
     proc = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if register:
         register(proc)
     _, stderr = proc.communicate()
-    return proc.returncode == 0, (stderr or b"").decode("utf-8", "ignore")
+    ok = proc.returncode == 0
+    if not ok:
+        try:
+            stderr_text = (stderr or b"").decode("utf-8", "ignore")
+            log_error("crop_utils._run_ffmpeg_fail", f"RC={proc.returncode} CWD={cwd} STDERR(last 600): {stderr_text[-600:]}")
+        except Exception:
+            pass
+    return ok, (stderr or b"").decode("utf-8", "ignore")
 
 
 def _video_duration(path: str):
@@ -621,15 +634,18 @@ def build_crop_filter(aspect_ratio: str, center_pct: float) -> str:
     horizontally centred on the detected face. Landscape (16:9) instead keeps
     the full width and crops the height, centred vertically. The returned
     string must not contain a comma (it is concatenated with ",ass=...").
+
+    Crop width is clamped to ``min(..., iw)`` and X offset to ``max(0, ...)``
+    so FFmpeg never receives out-of-bounds values (which cause EINVAL -22).
     """
     if aspect_ratio == "1:1":
-        return f"crop=trunc(ih/2)*2:ih:iw*{center_pct}-ih/2:0"
+        return f"crop=min(trunc(ih/2)*2\\,iw):ih:max(0\\,iw*{center_pct}-ih/2):0"
     elif aspect_ratio == "4:5":
-        return f"crop=trunc(ih*4/5/2)*2:ih:iw*{center_pct}-ih*4/10:0"
+        return f"crop=min(trunc(ih*4/5/2)*2\\,iw):ih:max(0\\,iw*{center_pct}-ih*4/10):0"
     elif aspect_ratio == "16:9":
-        return "crop=iw:trunc(iw*9/16/2)*2:0:(ih-trunc(iw*9/16/2)*2)/2"
+        return "crop=iw:min(trunc(iw*9/16/2)*2\\,ih):0:max(0\\,(ih-trunc(iw*9/16/2)*2)/2)"
     else:  # 9:16 default
-        return f"crop=trunc(ih*9/16/2)*2:ih:iw*{center_pct}-ih*9/32:0"
+        return f"crop=min(trunc(ih*9/16/2)*2\\,iw):ih:max(0\\,iw*{center_pct}-ih*9/32):0"
 
 
 def _build_lerp_expr(trajectory: list[tuple[float, float]]) -> str:
@@ -670,11 +686,11 @@ def build_dynamic_crop_filter(aspect_ratio: str, trajectory: list[tuple[float, f
     lerp_expr = _build_lerp_expr(trajectory)
 
     if aspect_ratio == "1:1":
-        return f"crop=trunc(ih/2)*2:ih:iw*({lerp_expr})-ih/2:0"
+        return f"crop=min(trunc(ih/2)*2\\,iw):ih:max(0\\,iw*({lerp_expr})-ih/2):0"
     elif aspect_ratio == "4:5":
-        return f"crop=trunc(ih*4/5/2)*2:ih:iw*({lerp_expr})-ih*4/10:0"
+        return f"crop=min(trunc(ih*4/5/2)*2\\,iw):ih:max(0\\,iw*({lerp_expr})-ih*4/10):0"
     else:  # 9:16 default
-        return f"crop=trunc(ih*9/16/2)*2:ih:iw*({lerp_expr})-ih*9/32:0"
+        return f"crop=min(trunc(ih*9/16/2)*2\\,iw):ih:max(0\\,iw*({lerp_expr})-ih*9/32):0"
 
 
 def build_split_screen_filter(face_box, src_w: int, src_h: int, out_w: int, out_h: int,
@@ -726,6 +742,18 @@ def build_split_screen_filter(face_box, src_w: int, src_h: int, out_w: int, out_
     )
 
 
+def output_dimensions(aspect_ratio: str, src_w: int = 0, src_h: int = 0) -> tuple[int, int]:
+    """Target output resolution (width, height) for standard social media clips."""
+    if aspect_ratio == "1:1":
+        return 1080, 1080
+    elif aspect_ratio == "4:5":
+        return 1080, 1350
+    elif aspect_ratio == "16:9":
+        return 1920, 1080
+    else:  # 9:16 default
+        return 1080, 1920
+
+
 def output_width(aspect_ratio: str, src_w: int, src_h: int) -> int:
     """Rendered clip width (even) for subtitle sizing, per aspect ratio."""
     if aspect_ratio == "1:1":
@@ -742,9 +770,10 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                      end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16",
                      register_proc=None, should_cancel=None, broll_path: str = None,
                      layout: dict = None) -> str:
-    """Crop to 9:16, trim to [start, end], and optionally burn subtitles.
+    """Crop to 9:16 (or chosen ratio), trim to [start, end], scale to standard dimensions,
+    and optionally burn subtitles.
 
-    ``subtitle_path`` should point at a full-video .srt; a per-clip subtitle is
+    ``subtitle_path`` should point at a full-video .srt or .json; a per-clip subtitle is
     generated automatically so the captions line up with the trimmed clip.
     """
     start_s = to_seconds(start_time)
@@ -772,6 +801,17 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             f"Highlight window is invalid (start {start_s:.1f}s, end {end_s:.1f}s)."
         )
 
+    # Guard: source file must exist and be readable
+    if not os.path.isfile(input_path):
+        raise FileNotFoundError(f"Video sumber tidak ditemukan: {input_path}")
+
+    # Standard target dimensions for social media (ensures NVENC 16-pixel alignment & crisp 1080p)
+    src_w, src_h = _video_dims(input_path)
+    if src_w <= 0 or src_h <= 0:
+        log_error("crop_utils.crop_to_vertical", f"Cannot read video dimensions for {input_path}, got {src_w}x{src_h}")
+    out_w, out_h = output_dimensions(aspect_ratio, src_w, src_h)
+    scale_filter = f"scale={out_w}:{out_h},setsar=1"
+
     # Layout: when the caller supplies one (computed once per job) we reuse its
     # face position and gaming classification instead of re-detecting per clip.
     gaming = False
@@ -786,9 +826,8 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
         crop_filter = build_dynamic_crop_filter(aspect_ratio, trajectory, clip_duration=duration)
     else:
         cx = (layout.get("face_center") or (0.5, 0.5))[0]
-        _sw, _sh = _video_dims(input_path)
-        if _sw and _sh:
-            half_window = (_sh * 9 / 16) / _sw / 2
+        if src_w and src_h:
+            half_window = (src_h * 9 / 16) / src_w / 2
             lo, hi = half_window, 1 - half_window
             cx = max(lo, min(hi, cx)) if lo <= hi else cx
         center_pct = cx
@@ -806,10 +845,6 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     if subtitle_path and os.path.exists(subtitle_path):
         import json
         is_json = subtitle_path.endswith(".json")
-        src_w, src_h = _video_dims(input_path)
-        out_w = output_width(aspect_ratio, src_w, src_h)
-        # Landscape crops height from width, so subtitle canvas height differs.
-        out_h = int(src_w * 9 / 16) if aspect_ratio == "16:9" else src_h
             
         ass_text = ""
         
@@ -838,9 +873,9 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             ass_name = os.path.basename(clip_ass_path).replace('\\', '/')
             # Escape colons, brackets, and quotes in the path
             escaped_ass_name = ass_name.replace(":", "\\\\:").replace("'", "\\\\'")
-            subtitle_vf = f"{crop_filter},ass='{escaped_ass_name}'"
+            subtitle_vf = f"{crop_filter},{scale_filter},ass='{escaped_ass_name}'"
 
-    def build_cmd(use_split: bool = False):
+    def build_cmd(use_split: bool = False, force_cpu: bool = False):
         cmd = [
             "ffmpeg", "-y",
             "-ss", f"{start_s:.3f}",
@@ -853,15 +888,8 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
         cmd.extend(["-t", f"{duration:.3f}"])
 
         # Build filter_complex
-        src_w, src_h = _video_dims(input_path)
-        out_w = output_width(aspect_ratio, src_w, src_h)
-        out_h = int(src_w * 9 / 16) if aspect_ratio == "16:9" else src_h
-
-        if out_w == 0 or out_h == 0:
-            out_w, out_h = 1080, 1920 # fallback
-
         split_fc = build_split_screen_filter(face_box, src_w, src_h, out_w, out_h) if use_split else None
-        fc = split_fc if split_fc else f"[0:v]{crop_filter}[main];"
+        fc = split_fc if split_fc else f"[0:v]{crop_filter},{scale_filter}[main];"
         current_v = "[main]"
         
         audio_map = "0:a"
@@ -886,13 +914,14 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
         else:
             fc += f"{current_v}null[vout]"
             
+        use_nvenc = is_nvenc_available() and not force_cpu
         cmd.extend([
             "-filter_complex", fc,
             "-map", "[vout]",
             "-map", audio_map,
-            "-c:v", "h264_nvenc" if is_nvenc_available() else "libx264",
+            "-c:v", "h264_nvenc" if use_nvenc else "libx264",
             "-pix_fmt", "yuv420p",
-            "-preset", "p4" if is_nvenc_available() else "veryfast",
+            "-preset", "p4" if use_nvenc else "veryfast",
             "-c:a", "aac",
             "-movflags", "+faststart",
             output_path
@@ -917,6 +946,13 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
         raise RuntimeError("Dibatalkan oleh pengguna.")
         
     if not ok:
+        # If NVENC failed or complex filter encountered an error, retry with CPU libx264
+        if is_nvenc_available():
+            log_error("crop_utils.crop_to_vertical_nvenc_fallback", f"NVENC ffmpeg failed, falling back to CPU libx264. Error: {err[-800:]}")
+            ok, err = _run_ffmpeg(build_cmd(use_split=False, force_cpu=True), cwd=subtitle_cwd, register=register_proc)
+            if ok:
+                return output_path
+
         # Fallback to plain crop if complex filter fails (e.g., subtitle issues)
         if subtitle_vf is not None:
             if should_cancel and should_cancel():
@@ -927,10 +963,10 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                 "-ss", f"{start_s:.3f}",
                 "-i", input_path,
                 "-t", f"{duration:.3f}",
-                "-vf", subtitle_vf if subtitle_vf is not None else crop_filter,
-                "-c:v", "h264_nvenc" if is_nvenc_available() else "libx264",
+                "-vf", subtitle_vf,
+                "-c:v", "libx264",
                 "-pix_fmt", "yuv420p",
-                "-preset", "p4" if is_nvenc_available() else "veryfast",
+                "-preset", "veryfast",
                 "-c:a", "aac",
                 "-movflags", "+faststart",
                 output_path,
@@ -938,10 +974,33 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             ok2, err2 = _run_ffmpeg(fallback_cmd, cwd=subtitle_cwd, register=register_proc)
             if should_cancel and should_cancel():
                 raise RuntimeError("Dibatalkan oleh pengguna.")
-            if not ok2:
-                raise RuntimeError(f"ffmpeg fallback failed: {err2[-800:]}")
-            return output_path
-        else:
-            raise RuntimeError(f"ffmpeg failed: {err[-800:]}")
+            if ok2:
+                return output_path
+
+            # Final fallback: drop subtitles entirely and just crop+scale
+            log_error("crop_utils.crop_to_vertical_nosub_fallback", f"subtitle fallback also failed, trying without subtitles. Error: {err2[-800:]}")
+
+        # Last-resort: crop + scale only, no subtitles, CPU libx264
+        if should_cancel and should_cancel():
+            raise RuntimeError("Dibatalkan oleh pengguna.")
+        nosub_cmd = [
+            "ffmpeg", "-y",
+            "-ss", f"{start_s:.3f}",
+            "-i", input_path,
+            "-t", f"{duration:.3f}",
+            "-vf", f"{crop_filter},{scale_filter}",
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-preset", "veryfast",
+            "-c:a", "aac",
+            "-movflags", "+faststart",
+            output_path,
+        ]
+        ok3, err3 = _run_ffmpeg(nosub_cmd, register=register_proc)
+        if should_cancel and should_cancel():
+            raise RuntimeError("Dibatalkan oleh pengguna.")
+        if not ok3:
+            raise RuntimeError(f"ffmpeg final fallback failed: {err3[-800:]}")
+        return output_path
             
     return output_path
