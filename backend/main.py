@@ -558,10 +558,12 @@ def get_video(path: str):
     abs_path = os.path.abspath(path)
     if not os.path.exists(abs_path) or not abs_path.lower().endswith(".mp4"):
         return JSONResponse(status_code=404, content={"status": "error", "message": "File not found or invalid format"})
-    return FileResponse(abs_path, media_type="video/mp4", filename=os.path.basename(abs_path))
+    return FileResponse(abs_path, media_type="video/mp4")
 
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
     import uvicorn
     import socket
     import sys
