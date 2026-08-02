@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { check } from "@tauri-apps/plugin-updater";
+import axios from "axios";
 import { API_URL } from "../App";
 import { ToastKind } from "./useToasts";
 
@@ -44,13 +45,9 @@ export function useStartupUpdateCheck({ notify }: UseStartupUpdateCheckOptions) 
         const errorMsg = err?.toString() || "Unknown startup update check error";
         // Silent fail in UI: log error to backend_error.log via API
         try {
-          fetch(`${API_URL}/log-error`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              context: "StartupUpdaterCheck",
-              error_msg: errorMsg,
-            }),
+          axios.post(`${API_URL}/log-error`, {
+            context: "StartupUpdaterCheck",
+            error_msg: errorMsg,
           }).catch(() => {});
         } catch (_) {}
       }

@@ -171,6 +171,7 @@ def api_get_whisper_models():
         from backend.ai_utils import get_available_whisper_models
         return {"status": "success", "models": get_available_whisper_models()}
     except Exception as e:
+        log_error(e, context="api_get_whisper_models")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 
@@ -185,6 +186,7 @@ def api_download_whisper_model(req: DownloadWhisperModelRequest):
         res = download_whisper_model(req.model.strip())
         return res
     except Exception as e:
+        log_error(e, context="api_download_whisper_model")
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 

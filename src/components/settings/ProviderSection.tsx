@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { API_URL } from '../../App';
 import { useTranslation } from 'react-i18next';
 import { Brain, Eye, EyeOff, Lock, Settings2, Server, Box, Loader2 } from 'lucide-react';
@@ -44,34 +45,24 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
     setTestAiMessage('');
     
     try {
-      const TOKEN = (import.meta as any).env?.VITE_API_TOKEN || (window as any).apiToken || '';
-      
-      const res = await fetch(`${API_URL}/api/settings/test-ai`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${TOKEN}`
-        },
-        body: JSON.stringify({
-          provider: provider,
-          api_key: keyVal,
-          custom_base_url: customBaseUrl,
-          custom_model_name: customModelName
-        })
+      const res = await axios.post(`${API_URL}/api/settings/test-ai`, {
+        provider: provider,
+        api_key: keyVal,
+        custom_base_url: customBaseUrl,
+        custom_model_name: customModelName
       });
       
-      const data = await res.json();
-      if (res.ok) {
+      if (res.data?.status === 'success') {
         setTestAiStatus('success');
         setTestAiMessage(t('settings.test_ai_success', 'API Key is valid!'));
       } else {
         setTestAiStatus('error');
-        const errMsg = data.message || (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) || t('settings.test_error', 'Error occurred');
-        setTestAiMessage(errMsg === '"Not Found"' || errMsg === 'Not Found' ? 'Backend endpoint not found. Please restart the app.' : errMsg);
+        setTestAiMessage(res.data?.message || t('settings.test_error', 'Error occurred'));
       }
     } catch (err: any) {
       setTestAiStatus('error');
-      setTestAiMessage(err.message || t('settings.test_failed', 'Failed to connect to backend'));
+      const errMsg = err.response?.data?.message || err.response?.data?.detail || err.message || t('settings.test_failed', 'Failed to connect to backend');
+      setTestAiMessage(errMsg === '"Not Found"' || errMsg === 'Not Found' ? 'Backend endpoint not found. Please restart the app.' : errMsg);
     }
   };
 
@@ -87,31 +78,21 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
     setTestPexelsMessage('');
     
     try {
-      const TOKEN = (import.meta as any).env?.VITE_API_TOKEN || (window as any).apiToken || '';
-      
-      const res = await fetch(`${API_URL}/api/settings/test-pexels`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${TOKEN}`
-        },
-        body: JSON.stringify({
-          api_key: pexelsKey
-        })
+      const res = await axios.post(`${API_URL}/api/settings/test-pexels`, {
+        api_key: pexelsKey
       });
       
-      const data = await res.json();
-      if (res.ok) {
+      if (res.data?.status === 'success') {
         setTestPexelsStatus('success');
         setTestPexelsMessage(t('settings.test_pexels_success', 'Pexels API Key is valid!'));
       } else {
         setTestPexelsStatus('error');
-        const errMsg = data.message || (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) || t('settings.test_error', 'Error occurred');
-        setTestPexelsMessage(errMsg === '"Not Found"' || errMsg === 'Not Found' ? 'Backend endpoint not found. Please restart the app.' : errMsg);
+        setTestPexelsMessage(res.data?.message || t('settings.test_error', 'Error occurred'));
       }
     } catch (err: any) {
       setTestPexelsStatus('error');
-      setTestPexelsMessage(err.message || t('settings.test_failed', 'Failed to connect to backend'));
+      const errMsg = err.response?.data?.message || err.response?.data?.detail || err.message || t('settings.test_failed', 'Failed to connect to backend');
+      setTestPexelsMessage(errMsg);
     }
   };
 

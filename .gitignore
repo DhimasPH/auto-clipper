@@ -31,3 +31,6 @@ docs/
 .worktrees/
 worktrees/
 
+#prototype
+prototype/
+

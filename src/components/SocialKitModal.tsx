@@ -1,6 +1,7 @@
 import React, { useState, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Copy, Check, Clock, Music, Loader2, Sparkles } from "lucide-react";
+import axios from "axios";
 import { SocialData, Clip } from "./ClipCard";
 import { API_URL, AppContext } from "../App";
 
@@ -26,18 +27,27 @@ const CopyButton: React.FC<{ textToCopy: string; label?: string }> = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error("Failed to copy", err);
+      console.error("Failed to copy:", err);
     }
   };
 
   return (
     <button
       onClick={handleCopy}
-      title="Copy"
-      className="flex items-center gap-1 text-accent hover:text-accent/80 transition-colors shrink-0"
+      className="p-1.5 hover:bg-bg-tertiary text-text-secondary hover:text-text-primary rounded-button transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+      title="Copy to clipboard"
     >
-      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-      {label && <span className="text-caption font-medium">{label}</span>}
+      {copied ? (
+        <>
+          <Check className="w-3.5 h-3.5 text-emerald-400" />
+          {label && <span className="text-emerald-400">Copied</span>}
+        </>
+      ) : (
+        <>
+          <Copy className="w-3.5 h-3.5" />
+          {label && <span>{label}</span>}
+        </>
+      )}
     </button>
   );
 };
@@ -51,12 +61,14 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
   clipIndex,
   onUpdate,
 }) => {
-  const ctx = useContext(AppContext);
   const { t, i18n } = useTranslation();
+  const ctx = useContext(AppContext);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const isId = i18n.language === "id";
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -69,35 +81,30 @@ export const SocialKitModal: React.FC<SocialKitModalProps> = ({
       const description =
         clip.description_en || clip.description_id || clip.description || "";
 
-      const res = await fetch(
+      const res = await axios.post(
         `${API_URL}/jobs/${jobId}/clips/${clipIndex}/social`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            description,
-            provider,
-            api_key,
-            custom_base_url,
-            custom_model_name,
-          }),
+          description,
+          provider,
+          api_key,
+          custom_base_url,
+          custom_model_name,
         },
       );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to generate");
-      if (data.status === "success" && data.social) {
+      const data = res.data;
+      if (data?.status === "success" && data.social) {
         onUpdate(data.social);
       } else {
-        throw new Error(data.message || "Unknown error");
+        throw new Error(data?.message || "Unknown error");
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred");
+      setError(err.response?.data?.message || err.message || "An error occurred");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const titles = i18n.language === "id" ? social?.titles_id : social?.titles_en;
+  const titles = isId ? social?.titles_id : social?.titles_en;
   const description =
     i18n.language === "id" ? social?.description_id : social?.description_en;
   const hashtags =

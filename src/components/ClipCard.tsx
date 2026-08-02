@@ -3,6 +3,7 @@ import { Download, Folder, Sparkles } from "lucide-react";
 import { Button } from "./ui/Button";
 import { open } from "@tauri-apps/plugin-shell";
 import { save } from "@tauri-apps/plugin-dialog";
+import axios from "axios";
 import { API_URL } from "../App";
 import { SocialKitModal } from "./SocialKitModal";
 
@@ -99,11 +100,7 @@ export default function ClipCard({
                     filters: [{ name: 'Video', extensions: ['mp4'] }]
                   });
                   if (savePath) {
-                    await fetch(`${API_URL}/save_file`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ src: clip.path, dest: savePath })
-                    });
+                    await axios.post(`${API_URL}/save_file`, { src: clip.path, dest: savePath });
                   }
                 } catch (err) {
                   console.error("Save failed", err);
@@ -131,11 +128,7 @@ export default function ClipCard({
               
               if ('__TAURI_INTERNALS__' in window) {
                 try {
-                  await fetch(`${API_URL}/open_folder`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: dir })
-                  });
+                  await axios.post(`${API_URL}/open_folder`, { path: dir });
                 } catch (err) {
                   console.error("Open folder API failed", err);
                   // fallback to old tauri open
@@ -147,11 +140,7 @@ export default function ClipCard({
                 }
               } else {
                 // Not in Tauri (e.g. dev server), still try backend API
-                await fetch(`${API_URL}/open_folder`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ path: dir })
-                });
+                await axios.post(`${API_URL}/open_folder`, { path: dir });
               }
             }}
           />

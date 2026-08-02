@@ -434,18 +434,38 @@ SUPPORTED_WHISPER_MODELS = [
 ]
 
 
+def is_whisper_model_downloaded(model_id: str) -> bool:
+    """Fast, non-blocking check if a model repository is present in the local HuggingFace cache."""
+    try:
+        from faster_whisper.utils import _MODELS
+        repo_id = _MODELS.get(model_id, f"Systran/faster-whisper-{model_id}")
+        hub_dir = os.getenv("HF_HUB_CACHE")
+        if not hub_dir:
+            hf_home = os.getenv("HF_HOME", os.path.join(os.path.expanduser("~"), ".cache", "huggingface"))
+            hub_dir = os.path.join(hf_home, "hub")
+        
+        folder_name = "models--" + repo_id.replace("/", "--")
+        model_cache_dir = os.path.join(hub_dir, folder_name)
+        if os.path.isdir(model_cache_dir):
+            snapshots_dir = os.path.join(model_cache_dir, "snapshots")
+            if os.path.isdir(snapshots_dir) and len(os.listdir(snapshots_dir)) > 0:
+                return True
+            if os.path.exists(os.path.join(model_cache_dir, "model.bin")):
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def get_available_whisper_models() -> list:
     """Check local availability of all supported Faster-Whisper models."""
-    from faster_whisper import download_model
     results = []
     for item in SUPPORTED_WHISPER_MODELS:
         m_id = item["id"]
-        is_downloaded = False
-        try:
-            download_model(m_id, local_files_only=True)
+        # Default model is always considered available (or check local cache)
+        is_downloaded = is_whisper_model_downloaded(m_id)
+        if not is_downloaded and item.get("is_default"):
             is_downloaded = True
-        except Exception:
-            is_downloaded = False
         
         results.append({
             **item,

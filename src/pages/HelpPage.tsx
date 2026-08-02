@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/ui/PageHeader";
 import { HelpCircle, BookOpen, AlertTriangle, Terminal, RefreshCw, Copy, Check, AlertCircle } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
+import axios from "axios";
 import { API_URL } from "../App";
 
 type TabType = 'guide' | 'faq' | 'logs';
@@ -22,12 +23,8 @@ export const HelpPage = () => {
     setIsLoadingLogs(true);
     setLogError(null);
     try {
-      const res = await fetch(`${API_URL}/logs/${type}`);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      setLogContent(data.content || '');
+      const res = await axios.get(`${API_URL}/logs/${type}`);
+      setLogContent(res.data?.content || '');
     } catch (err: any) {
       setLogError(t('help.logs_fetch_error', 'Failed to load logs. Is the backend running?'));
       setLogContent('');

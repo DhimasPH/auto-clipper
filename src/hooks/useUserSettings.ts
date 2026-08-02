@@ -47,33 +47,44 @@ async function spawnBackend(): Promise<number | null> {
 
     try {
       const cmd = Command.sidecar("bin/backend");
-      cmd.stdout.on("data", (line) => {
-        console.log("Backend stdout:", line);
-        if (line.includes("TOKEN:")) {
-            const token = line.split("TOKEN:")[1].trim();
+      cmd.stdout.on("data", (data) => {
+        console.log("Backend stdout:", data);
+        const lines = data.split(/\r?\n/);
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (line.startsWith("TOKEN:")) {
+            const token = line.replace("TOKEN:", "").trim();
+            (window as any).apiToken = token;
             
             axios.interceptors.request.use(config => {
-                if (config.url && (config.url.includes('127.0.0.1') || config.url.includes('localhost'))) {
-                    config.headers['Authorization'] = `Bearer ${token}`;
-                }
-                return config;
+              if (config.url && (config.url.includes('127.0.0.1') || config.url.includes('localhost'))) {
+                config.headers['Authorization'] = `Bearer ${token}`;
+              }
+              return config;
             });
             
             const originalFetch = window.fetch;
             window.fetch = async (...args) => {
-                let [resource, config] = args;
-                const urlStr = typeof resource === 'string' ? resource : (resource as Request).url;
-                if (urlStr.includes('127.0.0.1') || urlStr.includes('localhost')) {
-                    config = config || {};
-                    config.headers = { ...config.headers, 'Authorization': `Bearer ${token}` };
+              let [resource, config] = args;
+              const urlStr = typeof resource === 'string' ? resource : (resource as Request).url;
+              if (urlStr.includes('127.0.0.1') || urlStr.includes('localhost')) {
+                config = config || {};
+                if (config.headers instanceof Headers) {
+                  config.headers.set('Authorization', `Bearer ${token}`);
+                } else {
+                  config.headers = { ...config.headers, 'Authorization': `Bearer ${token}` };
                 }
-                return originalFetch(resource, config);
+              }
+              return originalFetch(resource, config);
             };
-        }
-        if (line.includes("PORT:")) {
-          const p = parseInt(line.split("PORT:")[1].trim(), 10);
-          finish(p);
-          window.dispatchEvent(new CustomEvent("backend-port-found", { detail: p }));
+          }
+          if (line.startsWith("PORT:")) {
+            const p = parseInt(line.replace("PORT:", "").trim(), 10);
+            if (!isNaN(p)) {
+              finish(p);
+              window.dispatchEvent(new CustomEvent("backend-port-found", { detail: p }));
+            }
+          }
         }
       });
       cmd.stderr.on("data", (line) => console.error("Backend stderr:", line));
