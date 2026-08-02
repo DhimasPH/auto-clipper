@@ -2,7 +2,7 @@ import cv2
 import os
 import re
 import subprocess
-from backend.logger import log_error
+from backend.logger import log_error, log_app
 
 _NVENC_AVAILABLE = None
 
@@ -596,7 +596,7 @@ def _run_ffmpeg(cmd, cwd=None, register=None):
     # Diagnostic logging: capture the full command for debugging EINVAL etc.
     try:
         cmd_str = ' '.join(str(c) for c in cmd)
-        log_error("crop_utils._run_ffmpeg_cmd", f"CMD: {cmd_str}")
+        log_app(f"[ffmpeg] CMD: {cmd_str}")
     except Exception:
         pass
     proc = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
