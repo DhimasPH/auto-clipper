@@ -923,7 +923,7 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                 "-movflags", "+faststart",
                 output_path,
             ]
-            ok2, err2 = _run_ffmpeg(fallback_cmd, register=register_proc)
+            ok2, err2 = _run_ffmpeg(fallback_cmd, cwd=subtitle_cwd, register=register_proc)
             if not ok2:
                 raise RuntimeError(f"ffmpeg fallback failed: {err2[-800:]}")
             return output_path

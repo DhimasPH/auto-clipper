@@ -3,8 +3,41 @@ import contextlib
 import io
 import subprocess
 import os
+import sys
+import shutil
 from pathlib import Path
 from backend.logger import log_error
+
+
+def get_ffmpeg_path() -> str | None:
+    """Finds the absolute path to the ffmpeg executable."""
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    project_root = Path(__file__).resolve().parent.parent
+    candidates = [
+        project_root / "bin" / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
+        project_root / "src-tauri" / "bin" / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
+    ]
+    if getattr(sys, 'frozen', False):
+        bin_dir = Path(sys.executable).parent
+        candidates.extend([
+            bin_dir / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
+            bin_dir / "bin" / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
+            bin_dir.parent / "Resources" / "bin" / "ffmpeg",
+        ])
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return None
+
+
+# Ensure ffmpeg folder is prepended to system PATH
+_ffmpeg_exec = get_ffmpeg_path()
+if _ffmpeg_exec:
+    _ffmpeg_dir = os.path.dirname(_ffmpeg_exec)
+    if _ffmpeg_dir not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = _ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
 
 
 class _SilentLogger:
@@ -91,6 +124,10 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
         'updatetime': False,
         'logger': _SilentLogger(),
     }
+
+    ffmpeg_loc = get_ffmpeg_path()
+    if ffmpeg_loc:
+        base_ydl_opts['ffmpeg_location'] = ffmpeg_loc
     
     if is_cancelled:
         def hook(d):

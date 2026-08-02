@@ -226,3 +226,61 @@ def test_fetch_provider_models_openai():
         assert models[0]["id"] == "gpt-4o"
 
 
+def test_transcribe_with_faster_whisper_vad_success():
+    from backend.ai_utils import transcribe_with_faster_whisper
+    from unittest.mock import MagicMock, patch
+
+    mock_seg = MagicMock()
+    mock_seg.start = 0.0
+    mock_seg.end = 2.0
+    mock_seg.text = "Hello world"
+    mock_word = MagicMock()
+    mock_word.word = "Hello"
+    mock_word.start = 0.0
+    mock_word.end = 1.0
+    mock_seg.words = [mock_word]
+
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = ([mock_seg], MagicMock())
+
+    with patch("faster_whisper.WhisperModel", return_value=mock_model):
+        res = transcribe_with_faster_whisper("dummy.mp3", karaoke=False)
+        assert "Hello world" in res
+        mock_model.transcribe.assert_called_once_with("dummy.mp3", word_timestamps=False, vad_filter=True)
+
+        res_k = transcribe_with_faster_whisper("dummy.mp3", karaoke=True)
+        assert len(res_k["words"]) == 1
+        assert res_k["words"][0]["word"] == "Hello"
+
+
+def test_transcribe_with_faster_whisper_vad_fallback_on_error():
+    from backend.ai_utils import transcribe_with_faster_whisper
+    from unittest.mock import MagicMock, patch
+
+    mock_seg = MagicMock()
+    mock_seg.start = 0.0
+    mock_seg.end = 2.0
+    mock_seg.text = "Fallback text"
+    mock_seg.words = []
+
+    mock_model = MagicMock()
+    
+    # First call with vad_filter=True raises ONNXRuntimeError, second call with vad_filter=False succeeds
+    def side_effect(path, word_timestamps=False, vad_filter=True):
+        if vad_filter:
+            def err_gen():
+                raise RuntimeError("ONNXRuntimeError: Load model silero_vad_v6.onnx failed")
+                yield
+            return err_gen(), MagicMock()
+        else:
+            return [mock_seg], MagicMock()
+
+    mock_model.transcribe.side_effect = side_effect
+
+    with patch("faster_whisper.WhisperModel", return_value=mock_model):
+        res = transcribe_with_faster_whisper("dummy.mp3", karaoke=False)
+        assert "Fallback text" in res
+        assert mock_model.transcribe.call_count == 2
+
+
+

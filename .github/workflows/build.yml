@@ -59,7 +59,7 @@ jobs:
 
       - name: Build Python Backend
         run: |
-          pyinstaller --onefile backend/main.py --name backend
+          pyinstaller --clean backend.spec -y
 
       - name: Prepare bin directory with Backend and FFmpeg
         shell: bash

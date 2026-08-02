@@ -25,16 +25,23 @@ sys.excepthook = handle_uncaught_exception
 
 API_SECRET_TOKEN = os.environ.get("AUTO_CLIPPER_DEV_TOKEN", secrets.token_hex(32))
 
-# Jika dijalankan sebagai PyInstaller bundle, tambahkan folder executable ke PATH
-# agar FFmpeg dan dependensi lain yang dibundel bisa ditemukan.
+# Tambahkan folder bin ke PATH agar FFmpeg dan dependensi lain bisa ditemukan di dev mode maupun bundle mode.
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+bin_paths = [
+    os.path.join(project_root, "bin"),
+    os.path.join(project_root, "src-tauri", "bin"),
+]
 if getattr(sys, 'frozen', False):
     bin_dir = os.path.dirname(sys.executable)
-    paths = [
+    bin_paths.extend([
         bin_dir,
         os.path.join(bin_dir, "bin"), # Windows resource path
         os.path.join(os.path.dirname(bin_dir), "Resources", "bin") # macOS resource path
-    ]
-    os.environ["PATH"] = os.pathsep.join(paths) + os.pathsep + os.environ.get("PATH", "")
+    ])
+
+valid_paths = [p for p in bin_paths if os.path.isdir(p)]
+if valid_paths:
+    os.environ["PATH"] = os.pathsep.join(valid_paths) + os.pathsep + os.environ.get("PATH", "")
 
 # Initialize DB on startup
 init_db()

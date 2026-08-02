@@ -513,31 +513,46 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
             pass
 
     selected_model = model_size or "small"
+    from faster_whisper import WhisperModel
 
-    # Let faster-whisper automatically choose GPU if available, else fallback to CPU.
-    try:
-        from faster_whisper import WhisperModel
-        model = WhisperModel(selected_model, device="auto", compute_type="default")
-        segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke, vad_filter=True)
-        segments = []
+    def _run_transcription(target_model, vad: bool):
+        segments_gen, info = target_model.transcribe(audio_path, word_timestamps=karaoke, vad_filter=vad)
+        segs = []
         for segment in segments_gen:
             if is_cancelled and is_cancelled():
                 raise Exception("Transcription cancelled by user")
-            segments.append(segment)
+            segs.append(segment)
+        return segs
+
+    # Let faster-whisper automatically choose GPU if available, else fallback to CPU.
+    # Also gracefully fallback to vad_filter=False if ONNX VAD model fails to load.
+    segments = None
+    try:
+        model = WhisperModel(selected_model, device="auto", compute_type="default")
+        try:
+            segments = _run_transcription(model, vad=True)
+        except Exception as e_vad:
+            if is_cancelled and is_cancelled():
+                raise
+            log_error("ai_utils.transcribe_local_whisper", f"VAD transcription failed ({e_vad}). Retrying without VAD filter.")
+            segments = _run_transcription(model, vad=False)
     except Exception as e:
-        log_error("ai_utils.transcribe_local_whisper", f"Warning: GPU Transcription failed ({e}). Falling back to CPU.")
-        from faster_whisper import WhisperModel
+        if is_cancelled and is_cancelled():
+            raise
+        log_error("ai_utils.transcribe_local_whisper", f"Warning: GPU/Auto Transcription failed ({e}). Falling back to CPU.")
         try:
             model = WhisperModel(selected_model, device="cpu", compute_type="default")
         except Exception as e_cpu:
             log_error("ai_utils.transcribe_local_whisper", f"Warning: Failed to load {selected_model} on CPU ({e_cpu}). Falling back to default 'small' model.")
             model = WhisperModel("small", device="cpu", compute_type="default")
-        segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke, vad_filter=True)
-        segments = []
-        for segment in segments_gen:
+        
+        try:
+            segments = _run_transcription(model, vad=True)
+        except Exception as e_vad_cpu:
             if is_cancelled and is_cancelled():
-                raise Exception("Transcription cancelled by user")
-            segments.append(segment)
+                raise
+            log_error("ai_utils.transcribe_local_whisper", f"CPU VAD transcription failed ({e_vad_cpu}). Retrying without VAD filter.")
+            segments = _run_transcription(model, vad=False)
     
     if karaoke:
         words_data = []

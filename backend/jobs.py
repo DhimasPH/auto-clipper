@@ -583,7 +583,7 @@ def _run_rerender_job(job_id: str):
         ws = get_project_workspace(job.get("title") or metadata.get("title", ""), job.get("output_dir") or metadata.get("output_dir", ""), job_id)
 
         job_layout = None
-        if job.get("aspect_ratio") == "9:16":
+        if job.get("aspect_ratio") == "9:16" and job.get("is_gaming_video"):
             try:
                 from backend.crop_utils import detect_video_layout
                 job_layout = detect_video_layout(output_path)
@@ -755,7 +755,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         segments = highlights[:limit]
 
         job_layout = None
-        if job.get("aspect_ratio") == "9:16":
+        if job.get("aspect_ratio") == "9:16" and job.get("is_gaming_video"):
             try:
                 from backend.crop_utils import detect_video_layout
                 job_layout = detect_video_layout(source_video)
@@ -1071,7 +1071,7 @@ def _run_resume_job(job_id: str):
 
         segments = highlights[:limit]
         job_layout = None
-        if job.get("aspect_ratio") == "9:16":
+        if job.get("aspect_ratio") == "9:16" and job.get("is_gaming_video"):
             try:
                 from backend.crop_utils import detect_video_layout
                 job_layout = detect_video_layout(source_video)
