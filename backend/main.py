@@ -23,7 +23,7 @@ def handle_uncaught_exception(exc_type, exc_value, exc_traceback):
 
 sys.excepthook = handle_uncaught_exception
 
-API_SECRET_TOKEN = secrets.token_hex(32)
+API_SECRET_TOKEN = os.environ.get("AUTO_CLIPPER_DEV_TOKEN", secrets.token_hex(32))
 
 # Jika dijalankan sebagai PyInstaller bundle, tambahkan folder executable ke PATH
 # agar FFmpeg dan dependensi lain yang dibundel bisa ditemukan.

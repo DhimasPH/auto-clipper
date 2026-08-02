@@ -45,6 +45,27 @@ async function spawnBackend(): Promise<number | null> {
         }
     }, 45000);
 
+    // Bypass sidecar if VITE_DEV_BACKEND is true
+    if (import.meta.env.VITE_DEV_BACKEND === 'true') {
+        console.log("Bypassing sidecar, using dev backend at 127.0.0.1:8000");
+        const port = 8000;
+        const token = "dev-token";
+        (window as any).apiToken = token;
+        
+        axios.interceptors.request.use(config => {
+          if (config.url && (config.url.includes('127.0.0.1') || config.url.includes('localhost'))) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+          return config;
+        });
+
+        setApiUrl(`http://127.0.0.1:${port}`);
+        
+        resolved = true;
+        resolve(port);
+        return;
+    }
+
     try {
       const cmd = Command.sidecar("bin/backend");
       cmd.stdout.on("data", (data) => {

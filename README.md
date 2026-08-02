@@ -61,6 +61,19 @@ Jika Anda ingin ikut berkontribusi atau mengembangkan fitur baru:
    npm run tauri dev
    ```
 
+### Opsi 3: Menjalankan Mode Developer (Fast-Reload tanpa Sidecar)
+
+Jika Anda sedang mengubah kode backend Python (`backend/`) secara terus-menerus dan tidak ingin mem-*build* file `.exe` setiap kali ada perubahan, Anda bisa mem-bypass Sidecar:
+
+1. **Jalankan Backend Secara Manual:** Buka terminal pertama dan jalankan `uvicorn` dengan mode *auto-reload* aktif. Atur environment variable `AUTO_CLIPPER_DEV_TOKEN` dengan token rahasia lokal.
+   ```powershell
+   $env:AUTO_CLIPPER_DEV_TOKEN="dev-token"; uvicorn backend.main:app --port 8000 --reload
+   ```
+2. **Jalankan Frontend Tauri:** Buka terminal kedua, pastikan Anda memiliki file `.env.local` di folder root dengan isi `VITE_DEV_BACKEND=true`. Frontend akan langsung terkoneksi ke `localhost:8000` tanpa men-spawn `.exe`.
+   ```bash
+   npm run tauri dev
+   ```
+
 ---
 
 _Dibuat untuk para kreator yang lebih suka membuat konten daripada terjebak di ruang editing._
