@@ -118,7 +118,7 @@ def detect_primary_face_center(video_path: str, start_time=None, end_time=None) 
     return center
 
 
-def sample_face_trajectory(video_path: str, start_time: float, end_time: float, interval: float = 0.5) -> list[tuple[float, float]]:
+def sample_face_trajectory(video_path: str, start_time: float, end_time: float, interval: float = 0.5, should_cancel = None) -> list[tuple[float, float]]:
     """Sample face positions at periodic intervals across a clip window.
 
     Returns a list of (relative_time_s, x_center_ratio) tuples.
@@ -148,6 +148,8 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
     last_valid_x = 0.5
 
     for i in range(num_samples):
+        if should_cancel and should_cancel():
+            break
         rel_t = min(duration, i * interval)
         abs_t = start_time + rel_t
         cap.set(cv2.CAP_PROP_POS_MSEC, abs_t * 1000.0)
@@ -192,7 +194,7 @@ def smooth_trajectory(trajectory: list[tuple[float, float]], alpha: float = 0.25
     return smoothed
 
 
-def detect_video_layout(video_path: str, start_time=None, end_time=None, samples: int = 12) -> dict:
+def detect_video_layout(video_path: str, start_time=None, end_time=None, samples: int = 12, should_cancel=None) -> dict:
     """Classify a video as gaming split-screen vs. a standard centred crop.
 
     Samples a *fixed* number of frames spread across the window. Detects all faces,
@@ -239,6 +241,8 @@ def detect_video_layout(video_path: str, start_time=None, end_time=None, samples
     corner_faces = []
     
     for i in range(samples):
+        if should_cancel and should_cancel():
+            break
         t = s + (e - s) * (i / (samples - 1) if samples > 1 else 0.5)
         cap.set(cv2.CAP_PROP_POS_MSEC, t * 1000.0)
         ret, frame = cap.read()
@@ -644,7 +648,7 @@ def _build_lerp_expr(trajectory: list[tuple[float, float]]) -> str:
             continue
         dx = x1 - x0
         segment = f"({x0:.4f}+{dx:.4f}*(t-{t0:.2f})/{dt:.2f})"
-        expr = f"if(lte(t,{t1:.2f}),{segment},{expr})"
+        expr = f"if(lte(t\\,{t1:.2f})\\,{segment}\\,{expr})"
     return expr
 
 
@@ -773,7 +777,11 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     gaming = False
     face_box = None
     if layout is None:
-        raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5)
+        if should_cancel and should_cancel():
+            raise RuntimeError("Dibatalkan oleh pengguna.")
+        raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel)
+        if should_cancel and should_cancel():
+            raise RuntimeError("Dibatalkan oleh pengguna.")
         trajectory = smooth_trajectory(raw_traj, alpha=0.25)
         crop_filter = build_dynamic_crop_filter(aspect_ratio, trajectory, clip_duration=duration)
     else:
@@ -899,6 +907,8 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     # Gaming split-screen is best-effort: if the complex filter fails, retry with
     # the plain centred crop so the job still produces a clip.
     if not ok and gaming:
+        if should_cancel and should_cancel():
+            raise RuntimeError("Dibatalkan oleh pengguna.")
         log_error("crop_utils.crop_to_vertical_split_fallback", f"split-screen ffmpeg failed, falling back to standard crop. Error: {err[-800:]}")
         ok, err = _run_ffmpeg(build_cmd(use_split=False), cwd=subtitle_cwd, register=register_proc)
 
@@ -909,6 +919,8 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     if not ok:
         # Fallback to plain crop if complex filter fails (e.g., subtitle issues)
         if subtitle_vf is not None:
+            if should_cancel and should_cancel():
+                raise RuntimeError("Dibatalkan oleh pengguna.")
             log_error("crop_utils.crop_to_vertical_complex_fallback", f"ffmpeg complex failed, falling back to plain crop. Error: {err[-800:]}")
             fallback_cmd = [
                 "ffmpeg", "-y",
@@ -924,6 +936,8 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                 output_path,
             ]
             ok2, err2 = _run_ffmpeg(fallback_cmd, cwd=subtitle_cwd, register=register_proc)
+            if should_cancel and should_cancel():
+                raise RuntimeError("Dibatalkan oleh pengguna.")
             if not ok2:
                 raise RuntimeError(f"ffmpeg fallback failed: {err2[-800:]}")
             return output_path

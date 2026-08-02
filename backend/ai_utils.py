@@ -63,19 +63,27 @@ def _is_transient(err) -> bool:
     return any(marker in msg for marker in _TRANSIENT_MARKERS)
 
 
-def _with_retry(fn, attempts: int = 4, base_delay: float = 2.0):
+def _with_retry(fn, attempts: int = 4, base_delay: float = 2.0, is_cancelled = None):
     """Call ``fn`` with exponential backoff on transient API errors."""
     for i in range(attempts):
+        if is_cancelled and is_cancelled():
+            raise RuntimeError("Cancelled by user")
         try:
             return fn()
         except Exception as e:
+            if is_cancelled and is_cancelled():
+                raise RuntimeError("Cancelled by user")
             if not _is_transient(e) or i == attempts - 1:
                 raise
             delay = base_delay * (2 ** i) + random.uniform(0, 0.5)
             from backend.logger import log_app
             msg = getattr(e, "message", None) or str(e)
             log_app(f"AI API transient error: {msg}. Retrying in {delay:.2f}s (Attempt {i+1} of {attempts-1})")
-            time.sleep(delay)
+            end_t = time.time() + delay
+            while time.time() < end_t:
+                if is_cancelled and is_cancelled():
+                    raise RuntimeError("Cancelled by user")
+                time.sleep(min(0.2, max(0.0, end_t - time.time())))
 
 
 HIGHLIGHT_GUIDANCE = (
@@ -608,12 +616,14 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
             f.write(transcript_text)
 
     if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-    video_file = _with_retry(lambda: client.files.upload(file=file_path), attempts=8)
+    video_file = _with_retry(lambda: client.files.upload(file=file_path), attempts=8, is_cancelled=is_cancelled)
 
     while video_file.state.name == "PROCESSING":
+        for _ in range(10):
+            if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
+            time.sleep(0.2)
         if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-        time.sleep(2)
-        video_file = _with_retry(lambda: client.files.get(name=video_file.name), attempts=8)
+        video_file = _with_retry(lambda: client.files.get(name=video_file.name), attempts=8, is_cancelled=is_cancelled)
 
     if video_file.state.name == "FAILED":
         raise Exception("Gemini failed to process the video.")
@@ -635,7 +645,7 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
         ),
-    ))
+    ), is_cancelled=is_cancelled)
 
     response_text = response.text
     log_ai("gemini", model_name, prompt, response_text)

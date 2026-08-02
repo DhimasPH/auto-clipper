@@ -102,3 +102,91 @@ def test_create_job_requires_title():
     with pytest.raises(ValueError, match="Judul Proyek wajib diisi"):
         create_manual_job("https://youtu.be/x", [{"start": 0, "end": 5}], title="   ")
 
+
+def test_cancel_job_updates_status_and_calls_db(monkeypatch):
+    """cancel_job should immediately mark status as CANCELLED and call save_history."""
+    job_id = "test-cancel-db"
+    db_calls = []
+    monkeypatch.setattr("backend.db.save_history", lambda *a: db_calls.append(a))
+    jobs.active_jobs[job_id] = {
+        "id": job_id, "url": "https://youtu.be/abc", "status": "CROPPING", "progress": "Merender...",
+        "cancelled": False, "clips": [], "metadata": {"title": "Test"}
+    }
+    try:
+        jobs.cancel_job(job_id)
+        assert jobs.active_jobs[job_id]["cancelled"] is True
+        assert jobs.active_jobs[job_id]["status"] == "CANCELLED"
+        assert len(db_calls) == 1
+        assert db_calls[0][0] == job_id
+        assert db_calls[0][2] == "CANCELLED"
+    finally:
+        jobs.active_jobs.pop(job_id, None)
+
+
+def test_finalize_job_prioritizes_cancelled(monkeypatch):
+    """_finalize_job must never overwrite CANCELLED with ERROR if cancelled flag is true."""
+    job_id = "test-finalize-cancelled"
+    saved_status = []
+    monkeypatch.setattr("backend.db.save_history", lambda j_id, url, status, clips, meta: saved_status.append(status))
+    jobs.active_jobs[job_id] = {
+        "id": job_id, "url": "https://youtu.be/abc", "status": "CROPPING",
+        "cancelled": True, "clips": []
+    }
+    try:
+        jobs._finalize_job(job_id, "ERROR", {})
+        assert jobs.active_jobs[job_id]["status"] == "CANCELLED"
+        assert saved_status == ["CANCELLED"]
+    finally:
+        jobs.active_jobs.pop(job_id, None)
+
+
+def test_resume_job_reuses_highlights(tmp_path, monkeypatch):
+    """_run_resume_job should reuse metadata['highlights'] and NOT call any LLM API."""
+    src = tmp_path / "source.mp4"
+    src.write_bytes(b"x")
+    
+    seg = {"start_time": "00:00:00", "end_time": "00:00:05", "description": "Existing Highlight"}
+    metadata = {
+        "source_video": str(src),
+        "subtitle_path": None,
+        "highlights": [seg],
+        "title": "Test Resume",
+        "mode": "manual",
+        "aspect_ratio": "9:16",
+        "burn_subs": False,
+        "output_dir": str(tmp_path)
+    }
+    
+    job_id = "test-resume-reuse"
+    jobs.active_jobs[job_id] = {
+        "id": job_id,
+        "url": "local:test",
+        "provider": "manual_ai",
+        "api_key": "",
+        "status": "QUEUED",
+        "cancelled": False,
+        "clips": [],
+        "failed": 0,
+        "error": None,
+        "aspect_ratio": "9:16",
+        "burn_subs": False,
+        "output_dir": str(tmp_path),
+        "metadata": metadata
+    }
+    
+    # Fake crop_to_vertical
+    monkeypatch.setattr(jobs, "crop_to_vertical", lambda *a, **k: str(tmp_path / "clip.mp4"))
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: None)
+    
+    # LLM function should NOT be called; if called, raise error
+    monkeypatch.setattr("backend.ai_utils.get_highlights", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("Should not call LLM")))
+    
+    try:
+        jobs._run_resume_job(job_id)
+        job = jobs.active_jobs[job_id]
+        assert job["status"] == "DONE"
+        assert len(job["clips"]) == 1
+        assert job["clips"][0]["description"] == "Existing Highlight"
+    finally:
+        jobs.active_jobs.pop(job_id, None)
+

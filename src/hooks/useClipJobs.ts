@@ -118,9 +118,19 @@ export function useClipJobs(p: ClipJobParams) {
   }, [activeJobId, status, clips.length, jobOrigin]);
 
   const cancelJob = async () => {
-    if (activeJobId) {
-      await axios.post(`${API_URL}/jobs/${activeJobId}/cancel`);
-      // the polling will catch the CANCELLED status on the next tick
+    const jid = activeJobId;
+    setStatus("IDLE");
+    setActiveJobId(null);
+    setProgress("");
+    notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
+    setHistoryVersion((v) => v + 1);
+
+    if (jid) {
+      try {
+        await axios.post(`${API_URL}/jobs/${jid}/cancel`);
+      } catch (e) {
+        console.error("Cancel job request error", e);
+      }
     }
   };
 

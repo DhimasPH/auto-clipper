@@ -181,6 +181,8 @@ def cancel_job(job_id: str):
     if job_id in active_jobs:
         job = active_jobs[job_id]
         job["cancelled"] = True
+        job["status"] = "CANCELLED"
+        job["progress"] = "Proses dibatalkan oleh pengguna."
         # Actually terminate the ffmpeg render in progress, otherwise the
         # current clip keeps rendering to completion before the flag is seen.
         proc = job.get("_proc")
@@ -190,6 +192,12 @@ def cancel_job(job_id: str):
                     proc.kill()
             except Exception as e:
                 log_error("jobs.cancel_job", e)
+        # Immediately record CANCELLED in DB
+        try:
+            from backend.db import save_history
+            save_history(job_id, job.get("url", ""), "CANCELLED", job.get("clips", []), job.get("metadata"))
+        except Exception as e:
+            log_error("jobs.cancel_job_db", e)
 
 def _run_job(job_id: str):
     import time
@@ -333,6 +341,10 @@ def _run_job(job_id: str):
             
         _render_video_clips(job, job_id, metadata, output_path, subtitle_path, is_cancelled, limit)
     except Exception as e:
+        if job.get("cancelled", False):
+            log_app(f"[{job_id}] Job cancelled by user.")
+            _finalize_job(job_id, "CANCELLED", locals().get('metadata', {}))
+            return
         log_error(f"JOB {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", locals().get('metadata', {}))
@@ -358,14 +370,14 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
     if job.get("aspect_ratio") == "9:16" and job.get("is_gaming_video"):
         try:
             from backend.crop_utils import detect_video_layout
-            job_layout = detect_video_layout(output_path)
+            job_layout = detect_video_layout(output_path, should_cancel=is_cancelled)
         except Exception as e:
             log_error(f"Failed to detect video layout: {e}")
             job_layout = None
 
     for i, seg in enumerate(segments):
         if is_cancelled():
-            _finalize_job(job_id, "CANCELLED")
+            _finalize_job(job_id, "CANCELLED", metadata)
             return
             
         broll_path = None
@@ -409,10 +421,17 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                 "v": 0
             })
         except Exception as e:
+            if is_cancelled():
+                _finalize_job(job_id, "CANCELLED", metadata)
+                return
             log_error(f"JOB CROP {job_id}")
             job["failed"] = job.get("failed", 0) + 1
             log_error(f"Clip {i+1} failed", str(e))
             
+    if is_cancelled():
+        _finalize_job(job_id, "CANCELLED", metadata)
+        return
+
     # Done
     if not job["clips"]:
          raise ValueError("Semua klip gagal dirender.")
@@ -503,7 +522,7 @@ def _run_manual_job(job_id: str):
         log_app(f"[{job_id}] " + str("CROPPING"))
         for i, clip in enumerate(clips):
             if is_cancelled():
-                _finalize_job(job_id, "CANCELLED")
+                _finalize_job(job_id, "CANCELLED", metadata)
                 return
             job["progress"] = f"Merender klip {i+1} dari {len(clips)}..."
             log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(clips)}..."))
@@ -518,7 +537,7 @@ def _run_manual_job(job_id: str):
                     subtitle_path=subtitle_path,
                     aspect_ratio=job["aspect_ratio"],
                     register_proc=lambda p: _register_proc(job, p),
-                    should_cancel=lambda: job["cancelled"],
+                    should_cancel=is_cancelled,
                     layout=job_layout,
                 )
                 job["clips"].append({
@@ -532,9 +551,16 @@ def _run_manual_job(job_id: str):
                     "v": 0,
                 })
             except Exception as e:
+                if is_cancelled():
+                    _finalize_job(job_id, "CANCELLED", metadata)
+                    return
                 log_error(f"MANUAL JOB CROP {job_id}")
                 job["failed"] = job.get("failed", 0) + 1
                 log_error(f"Manual clip {i+1} failed", str(e))
+
+        if is_cancelled():
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
 
         if not job["clips"]:
             raise ValueError("Semua klip gagal dirender.")
@@ -543,6 +569,9 @@ def _run_manual_job(job_id: str):
         _finalize_job(job_id, "DONE", metadata)
 
     except Exception as e:
+        if job.get("cancelled", False):
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
         log_error(f"MANUAL JOB {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
@@ -592,7 +621,7 @@ def _run_rerender_job(job_id: str):
                 job_layout = None
 
         for i, seg in enumerate(segments):
-            if job["cancelled"]:
+            if job.get("cancelled", False):
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
                 
@@ -620,7 +649,7 @@ def _run_rerender_job(job_id: str):
                     subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
                     aspect_ratio=job["aspect_ratio"],
                     register_proc=lambda p: _register_proc(job, p),
-                    should_cancel=lambda: job["cancelled"],
+                    should_cancel=lambda: job.get("cancelled", False),
                     broll_path=broll_path,
                     layout=job_layout
                 )
@@ -637,16 +666,26 @@ def _run_rerender_job(job_id: str):
                     "v": 0
                 })
             except Exception as e:
+                if job.get("cancelled", False):
+                    _finalize_job(job_id, "CANCELLED", metadata)
+                    return
                 log_error(f"JOB RERENDER CROP {job_id}")
                 job["failed"] = job.get("failed", 0) + 1
                 log_error(f"Clip {i+1} failed", str(e))
                 
+        if job.get("cancelled", False):
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
+
         if not job["clips"]:
              raise ValueError("Semua klip gagal dirender.")
              
         _finalize_job(job_id, "DONE", metadata)
         
     except Exception as e:
+        if job.get("cancelled", False):
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
         log_error(f"JOB RERENDER {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
@@ -764,7 +803,9 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                 job_layout = None
 
         for i, seg in enumerate(segments):
-            if job["cancelled"]: break
+            if job.get("cancelled", False):
+                _finalize_job(job_id, "CANCELLED", metadata)
+                return
             
             broll_path = None
             if job.get("enable_broll") and job.get("pexels_api_key"):
@@ -788,7 +829,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
                     aspect_ratio=job["aspect_ratio"],
                     register_proc=lambda p: _register_proc(job, p),
-                    should_cancel=lambda: job["cancelled"],
+                    should_cancel=lambda: job.get("cancelled", False),
                     broll_path=broll_path,
                     layout=job_layout
                 )
@@ -805,23 +846,39 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     "v": 0
                 })
             except Exception as e:
+                if job.get("cancelled", False):
+                    _finalize_job(job_id, "CANCELLED", metadata)
+                    return
                 log_error(f"JOB RERUN AI CROP {job_id}")
                 job["failed"] = job.get("failed", 0) + 1
                 log_error(f"Clip {i+1} failed", str(e))
                 
+        if job.get("cancelled", False):
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
+
         if not job["clips"]:
              raise ValueError("Semua klip gagal dirender pada AI Koreksi.")
              
         _finalize_job(job_id, "DONE", metadata)
         
     except Exception as e:
+        if job.get("cancelled", False):
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
         log_error(f"JOB RERUN AI {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
 def _finalize_job(job_id: str, status: str, metadata: dict = None):
     import time
-    job = active_jobs[job_id]
+    job = active_jobs.get(job_id)
+    if not job:
+        return
+    # If the job was cancelled by user, always enforce CANCELLED status
+    if job.get("cancelled", False):
+        status = "CANCELLED"
+
     job["status"] = status
     log_app(f"[{job_id}] " + str(status))
 
@@ -916,6 +973,9 @@ def _run_manual_resume_job(job_id: str, metadata: dict):
         
         _render_video_clips(job, job_id, metadata, output_path, subtitle_path, is_cancelled, limit)
     except Exception as e:
+        if job.get("cancelled", False):
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
         log_error(f"JOB RESUME {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
@@ -928,10 +988,17 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
 
     job_id = str(uuid.uuid4())
     hist_meta = hist.get("metadata", {})
+    
+    hist_provider = hist_meta.get("provider")
+    if not hist_provider or hist_provider == "manual_ai":
+        provider = fallback_provider or "gemini"
+    else:
+        provider = hist_provider
+
     active_jobs[job_id] = {
         "id": job_id,
         "url": hist["url"],
-        "provider": hist_meta.get("provider") or fallback_provider or "openai",
+        "provider": provider,
         "api_key": hist_meta.get("api_key") or fallback_api_key or "",
         "custom_base_url": hist_meta.get("custom_base_url") or fallback_custom_base_url or "",
         "custom_model_name": hist_meta.get("custom_model_name") or fallback_custom_model_name or "",
@@ -949,7 +1016,7 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "max_clips": hist_meta.get("max_clips", 0),
         "is_gaming_video": hist_meta.get("is_gaming_video", False),
         "status": "QUEUED",
-        "progress": "Melanjutkan AI Processing...",
+        "progress": "Melanjutkan pemrosesan...",
         "cancelled": False,
         "clips": [],
         "failed": 0,
@@ -986,7 +1053,10 @@ def _run_resume_job(job_id: str):
 
         highlights = []
 
-        if has_subtitle:
+        if metadata.get("highlights"):
+            highlights = metadata["highlights"]
+            log_app(f"[{job_id}] Menggunakan highlight yang tersimpan ({len(highlights)} klip), melanjutkan perenderan...")
+        elif has_subtitle:
             job["status"] = "TRANSCRIBING"
             log_app(f"[{job_id}] TRANSCRIBING (Resuming)")
             job["progress"] = f"Menganalisis ulang dengan {job['provider']} (Resume)..."
@@ -1060,84 +1130,13 @@ def _run_resume_job(job_id: str):
             raise ValueError("Tidak ada highlight yang ditemukan oleh AI.")
 
         metadata["highlights"] = highlights
-        job["status"] = "CROPPING"
-        log_app(f"[{job_id}] CROPPING")
         
-        try:
-            from backend.crop_utils import to_seconds
-            highlights.sort(key=lambda x: to_seconds(x.get("start_time", "00:00:00")))
-        except Exception as e:
-            log_error("jobs.resume_sort_highlights", e)
-
-        segments = highlights[:limit]
-        job_layout = None
-        if job.get("aspect_ratio") == "9:16" and job.get("is_gaming_video"):
-            try:
-                from backend.crop_utils import detect_video_layout
-                job_layout = detect_video_layout(source_video)
-            except Exception as e:
-                log_error("jobs.resume_detect_layout", e)
-                job_layout = None
-
-        for i, seg in enumerate(segments):
-            if is_cancelled(): break
-            
-            broll_path = None
-            if job.get("enable_broll") and job.get("pexels_api_key"):
-                job["progress"] = f"Mengunduh B-Roll untuk klip {i+1}..."
-                from backend.broll import download_pexels_broll
-                query = seg.get("broll_query_en") or seg.get("description_en")
-                if query:
-                    broll_out = os.path.join(get_temp_dir(), f"broll_{job_id}_{i}.mp4")
-                    success = download_pexels_broll(query, job["pexels_api_key"], broll_out, is_cancelled=is_cancelled)
-                    if success: broll_path = broll_out
-
-            job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
-            safe_start_time = re.sub(r'[^0-9a-zA-Z]', '', seg.get("start_time", ""))
-            
-            clip_output = os.path.join(get_temp_dir(), f"{job_id}_clip_{safe_start_time}.mp4")
-            if job.get("output_dir"):
-                out_dir = job["output_dir"]
-                safe_title = ""
-                if job.get("title"):
-                    safe_title = re.sub(r'[^a-zA-Z0-9\s_-]', '', job["title"]).strip()
-                    if safe_title: out_dir = os.path.join(out_dir, safe_title)
-                os.makedirs(out_dir, exist_ok=True)
-                filename_base = safe_title if safe_title else f"AutoClipper_{job_id}"
-                clip_output = os.path.join(out_dir, f"{filename_base}_clip_{i+1}.mp4")
-
-            try:
-                result_path = crop_to_vertical(
-                    source_video, clip_output, seg["start_time"], seg["end_time"],
-                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
-                    aspect_ratio=job["aspect_ratio"],
-                    register_proc=lambda p: _register_proc(job, p),
-                    should_cancel=is_cancelled,
-                    broll_path=broll_path,
-                    layout=job_layout
-                )
-                job["clips"].append({
-                    "path": result_path,
-                    "description": seg.get("description", f"Highlight {i+1}"),
-                    "description_en": seg.get("description_en", seg.get("description", f"Highlight {i+1}")),
-                    "description_id": seg.get("description_id", seg.get("description", f"Sorotan {i+1}")),
-                    "start": seg["start_time"],
-                    "end": seg["end_time"],
-                    "subs": bool(subtitle_path),
-                    "social": seg.get("social", {}),
-                    "v": 0
-                })
-            except Exception as e:
-                log_error(f"JOB RESUME CROP {job_id}", str(e))
-                job["failed"] = job.get("failed", 0) + 1
-                log_error(f"Clip {i+1} failed", str(e))
-
-        if not job["clips"]:
-            raise ValueError("Semua klip gagal dirender pada saat resume.")
-
-        _finalize_job(job_id, "DONE", metadata)
+        _render_video_clips(job, job_id, metadata, source_video, subtitle_path, is_cancelled, limit)
 
     except Exception as e:
-        log_error(f"JOB RESUME MANUAL {job_id}", e)
+        if job.get("cancelled", False):
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
+        log_error(f"JOB RESUME {job_id}", e)
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)

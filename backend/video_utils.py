@@ -173,7 +173,12 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
                     
                 # Wait a bit before retrying, especially useful for 403 blocks
                 if attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)
+                    wait_secs = 2 ** attempt
+                    end_t = time.time() + wait_secs
+                    while time.time() < end_t:
+                        if is_cancelled and is_cancelled():
+                            raise DownloadCancelledError("Download cancelled by user")
+                        time.sleep(min(0.2, max(0.0, end_t - time.time())))
                     
         if success:
             break
