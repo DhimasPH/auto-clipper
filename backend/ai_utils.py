@@ -300,7 +300,7 @@ def generate_social_kit_only(description: str, api_key: str, provider: str = "op
         from google import genai
         from google.genai import types
         client = genai.Client(api_key=api_key)
-        model_name = provider if provider != "gemini" else "gemini-3.6-flash"
+        model_name = model or "gemini-3.6-flash"
         response = _with_retry(lambda: client.models.generate_content(
             model=model_name,
             contents=prompt,
@@ -696,7 +696,44 @@ def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, e
     """Back-compat wrapper -> process_with_openai_compatible(..., "deepseek")."""
     return process_with_openai_compatible(file_path, api_key, "deepseek", karaoke=karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=register_proc, whisper_model=whisper_model)
 
-def ping_provider(provider: str, api_key: str, custom_base_url: str = None, custom_model_name: str = None) -> None:
+def fetch_provider_models(provider: str, api_key: str) -> list:
+    """Query provider API for available models."""
+    try:
+        if provider == "gemini":
+            client = genai.Client(api_key=api_key)
+            result = []
+            for m in client.models.list():
+                # Only include models that support content generation
+                methods = getattr(m, 'supported_generation_methods', None) or []
+                if 'generateContent' in methods:
+                    result.append({
+                        "id": m.name,
+                        "label": getattr(m, 'display_name', None) or m.name
+                    })
+            return result
+        elif provider in OPENAI_COMPAT_PROVIDERS or provider == "openai":
+            cfg = OPENAI_COMPAT_PROVIDERS.get(provider)
+            base_url = cfg["base_url"] if cfg else None
+            client = OpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                timeout=15.0,
+                default_headers=BROWSER_HEADERS
+            ) if base_url else OpenAI(
+                api_key=api_key,
+                timeout=15.0,
+                default_headers=BROWSER_HEADERS
+            )
+            models_resp = client.models.list()
+            return [
+                {"id": m.id, "label": m.id}
+                for m in models_resp.data
+            ]
+    except Exception as e:
+        log_error("ai_utils.fetch_provider_models", f"Failed to fetch models for {provider}: {e}")
+    return []
+
+def ping_provider(provider: str, api_key: str, custom_base_url: str = None, custom_model_name: str = None, model: str = None) -> None:
     """Pre-flight check to fail-fast on invalid keys, bad URLs or exhausted quotas."""
     if provider == "manual_ai":
         return
@@ -724,7 +761,7 @@ def ping_provider(provider: str, api_key: str, custom_base_url: str = None, cust
     try:
         if provider.startswith("gemini"):
             client = genai.Client(api_key=api_key)
-            model_name = provider if provider != "gemini" else "gemini-3.6-flash"
+            model_name = model or "gemini-3.6-flash"
             # We use genai's built-in timeout via http_options if available, or rely on normal timeout
             try:
                 client.models.generate_content(
@@ -746,13 +783,13 @@ def ping_provider(provider: str, api_key: str, custom_base_url: str = None, cust
             cfg = OPENAI_COMPAT_PROVIDERS.get(provider)
             if cfg:
                 client = OpenAI(api_key=api_key, base_url=cfg["base_url"], timeout=10.0, default_headers=BROWSER_HEADERS)
-                model = cfg["model"]
+                effective_model = model or cfg["model"]
             else:
                 client = OpenAI(api_key=api_key, timeout=10.0, default_headers=BROWSER_HEADERS)
-                model = "gpt-4o-mini"
+                effective_model = model or "gpt-4o-mini"
             
             client.chat.completions.create(
-                model=model,
+                model=effective_model,
                 messages=[{"role": "user", "content": "ping"}],
                 max_tokens=1
             )

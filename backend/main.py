@@ -134,6 +134,11 @@ class TestAiRequest(BaseModel):
     api_key: str
     custom_base_url: str = ""
     custom_model_name: str = ""
+    model: str = ""
+
+class FetchModelsRequest(BaseModel):
+    provider: str
+    api_key: str
 
 class GenerateSocialKitRequest(BaseModel):
     description: str
@@ -141,13 +146,24 @@ class GenerateSocialKitRequest(BaseModel):
     api_key: str = ""
     custom_base_url: str = ""
     custom_model_name: str = ""
+    model: str = ""
 
 @app.post("/api/settings/test-ai")
 def api_test_ai(req: TestAiRequest):
     try:
         from backend.ai_utils import ping_provider
-        ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip())
+        ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip(), model=req.model.strip() if req.model else None)
         return {"status": "success", "message": "API Key is valid!"}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+@app.post("/api/providers/models")
+def api_fetch_models(req: FetchModelsRequest):
+    """Fetch available models from a provider's API."""
+    try:
+        from backend.ai_utils import fetch_provider_models
+        models = fetch_provider_models(req.provider, req.api_key.strip())
+        return {"status": "success", "models": models}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
@@ -208,6 +224,7 @@ class CreateJobRequest(BaseModel):
     custom_model_name: str = ""
     is_gaming_video: bool = False
     whisper_model: str = "small"
+    model: str = ""
 
 class SaveFileRequest(BaseModel):
     src: str
@@ -266,12 +283,13 @@ def api_rerender_job(job_id: str, req: CreateJobRequest):
 @app.post("/jobs/{job_id}/rerun_ai")
 def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
     try:
-        ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip())
+        ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip(), model=req.model.strip() if req.model else None)
         from backend.jobs import create_rerun_ai_job
         new_job_id = create_rerun_ai_job(
             job_id, req.provider, req.api_key.strip(),
             req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
-            req.custom_base_url.strip(), req.custom_model_name.strip(), req.whisper_model
+            req.custom_base_url.strip(), req.custom_model_name.strip(), req.whisper_model,
+            req.model
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
@@ -286,6 +304,7 @@ class ResumeJobRequest(BaseModel):
     custom_base_url: Optional[str] = None
     custom_model_name: Optional[str] = None
     whisper_model: Optional[str] = None
+    model: Optional[str] = None
 
 @app.post("/jobs/{job_id}/resume")
 def api_resume_job(job_id: str, req: ResumeJobRequest):
@@ -297,7 +316,8 @@ def api_resume_job(job_id: str, req: ResumeJobRequest):
             fallback_provider=req.provider,
             fallback_custom_base_url=req.custom_base_url,
             fallback_custom_model_name=req.custom_model_name,
-            fallback_whisper_model=req.whisper_model
+            fallback_whisper_model=req.whisper_model,
+            fallback_model=req.model
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
@@ -343,7 +363,7 @@ def api_create_job(req: CreateJobRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid. Didukung: YouTube, TikTok, Instagram, X/Twitter, atau upload file lokal."})
 
     try:
-        ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip())
+        ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip(), model=req.model.strip() if req.model else None)
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
@@ -352,7 +372,7 @@ def api_create_job(req: CreateJobRequest):
         req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
         req.title.strip(), req.enable_broll, req.pexels_api_key.strip(), req.max_clips,
         req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video,
-        req.whisper_model
+        req.whisper_model, req.model
     )
     return {"status": "success", "job_id": job_id}
 
@@ -397,7 +417,7 @@ def api_generate_social_kit(job_id: str, clip_index: int, req: GenerateSocialKit
             api_key=req.api_key.strip(),
             provider=req.provider,
             base_url=req.custom_base_url.strip(),
-            model=req.custom_model_name.strip()
+            model=req.model.strip() if req.model else req.custom_model_name.strip()
         )
         
         clips[clip_index]["social"] = social_kit
