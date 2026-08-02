@@ -7,7 +7,7 @@ datas = []
 binaries = []
 hiddenimports = []
 
-for pkg in ['faster_whisper', 'ctranslate2', 'onnxruntime', 'cv2']:
+for pkg in ['faster_whisper', 'ctranslate2', 'onnxruntime', 'cv2', 'google.genai', 'openai']:
     d, b, h = collect_all(pkg)
     datas.extend(d)
     binaries.extend(b)
