@@ -921,7 +921,7 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
     if not hist_meta.get("source_video") or not hist_meta.get("subtitle_path"):
         raise ValueError("Video sumber atau subtitle tidak ditemukan.")
 
-    job_id = str(uuid.uuid4())
+    job_id = history_id
     active_jobs[job_id] = {
         "id": job_id,
         "url": hist["url"],

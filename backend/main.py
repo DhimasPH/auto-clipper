@@ -552,13 +552,12 @@ def api_create_manual_job(req: ManualJobRequest):
 def get_video(path: str):
     """Serve a generated clip so the frontend can preview it inline.
 
-    Restricted to files inside the temp downloads directory. Starlette's
+    Restricted to existing .mp4 files. Starlette's
     FileResponse handles HTTP Range requests, so seeking works in the player.
     """
     abs_path = os.path.abspath(path)
-    temp_dir = os.path.abspath(os.path.join(get_app_data_dir(), "temp_downloads"))
-    if not abs_path.startswith(temp_dir) or not os.path.exists(abs_path):
-        return JSONResponse(status_code=404, content={"status": "error", "message": "File not found"})
+    if not os.path.exists(abs_path) or not abs_path.lower().endswith(".mp4"):
+        return JSONResponse(status_code=404, content={"status": "error", "message": "File not found or invalid format"})
     return FileResponse(abs_path, media_type="video/mp4", filename=os.path.basename(abs_path))
 
 
