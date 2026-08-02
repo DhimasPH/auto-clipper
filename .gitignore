@@ -18,6 +18,7 @@ src-tauri/Cargo.lock
 build/
 bin/
 *.spec
+!backend.spec
 
 # Local config/vaults
 ac_vault*
