@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "Building backend..."
-pyinstaller backend.spec -y
+pyinstaller --clean backend.spec -y
 
 if [ $? -ne 0 ]; then
     echo "Build failed!"
