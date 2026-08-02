@@ -11,10 +11,10 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - **Database**: SQLite lokal (`history.db`) via `backend/db.py` untuk mengelola riwayat job, metadata klip, dan status pemrosesan.
 - **AI & Processing Pipeline**:
   - **Speech-to-Text**: `faster-whisper` (didukung model: `small`, `medium`, `large-v3`) + Silero VAD filter (`min_silence_duration_ms=500`).
-  - **Highlight Extraction & Social Kit**: Google Gemini / OpenAI LLM dengan parser JSON tangguh (`clean_json_response`).
+  - **Highlight Extraction & Social Kit**: **AI Provider Registry** (Mendukung provider dinamis seperti OpenAI, Gemini, dll) dengan parser JSON tangguh (`clean_json_response`).
   - **Face Detection & Tracking**: OpenCV Haar Cascade + Exponential Moving Average (EMA, alpha ~0.25) + ekspresi interpolasi FFmpeg dinamis.
   - **Subtitles**: Generator ASS format cumulative word-by-word karaoke (`words_to_karaoke_ass`).
-  - **Video Rendering & Cropping**: FFmpeg via subproses Python.
+  - **Video Rendering & Cropping**: FFmpeg via subproses Python (menggunakan Hardware Acceleration `h264_nvenc` dengan mekanisme fallback otomatis ke `libx264`).
   - **Downloader**: `yt-dlp` dengan fallback cookie browser.
 
 ---
@@ -35,14 +35,19 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 1. Model Whisper default adalah `small`. Model yang lebih besar (`medium`, `large-v3`) diunduh secara eksplisit melalui endpoint `POST /api/settings/whisper-models/download`.
 2. Saat eksekusi job transkripsi, parameter `local_files_only=True` selalu diaktifkan untuk model non-default agar tidak pernah mencoba mengunduh diam-diam saat offline atau koneksi tidak stabil.
 3. Selalu sertakan `vad_filter=True` untuk memangkas jeda hening dan mencegah halusinasi teks berulang.
+4. **AI Provider Registry & Dynamic Models**: Sistem **tidak boleh** melakukan hardcode pada model LLM. Selalu gunakan sistem *AI Provider Registry* yang mengambil konfigurasi model secara dinamis dari frontend/backend settings.
 
 ### D. Video Cropping & Karaoke Subtitle Invariants (ADR-003)
 1. Pemotongan video portrait (9:16) harus menggunakan `sample_face_trajectory` + `smooth_trajectory` + `build_dynamic_crop_filter` agar kamera mengikuti pergerakan wajah pembicara secara halus.
 2. Subtitle karaoke harus menggunakan `words_to_karaoke_ass` dengan pola kemunculan kata bertahap (kata aktif berwarna kuning `{\c&H00FFFF&}`, kata sebelumnya putih), disertai hold time di akhir kalimat.
+3. Pipeline wajib mendeteksi layout video asli (Landscape/Portrait) secara otomatis sebelum pemrosesan klip.
+4. **NVENC Fallback**: Semua *command* FFmpeg untuk rendering video wajib mengimplementasikan percobaan hardware encoding dengan `h264_nvenc`. Jika terjadi error (misalnya karena driver tidak tersedia atau memori GPU penuh), command tersebut harus ditangkap dan fallback secara aman ke CPU encoding (`libx264`).
 
-### E. Multi-Stage Resume & Retry Cerdas
+### E. Multi-Stage Resume, Job Workspaces, & Mode (AI vs Manual)
 1. Fitur retry/resume di `backend/jobs.py` tidak boleh mengunduh ulang video jika file lokal sudah tersedia.
 2. Jika transkripsi atau highlight sudah ada, gunakan kembali data yang tersimpan di `history.db` tanpa memanggil ulang Whisper atau LLM secara sia-sia.
+3. **Project Workspace Isolation**: Semua artefak hasil pemrosesan (video mentah, file `.ass`, dan potongan `.mp4`) **HARUS** di-route dan disimpan di dalam sub-direktori *project workspace* yang terisolasi untuk masing-masing job/project (bukan di root atau shared flat directory).
+4. Backend dan frontend mendukung mode alur kerja **AI-driven** maupun **Manual Editor**; metadata klip tidak selalu dihasilkan otomatis oleh LLM.
 
 ### F. Frontend, i18n & OS Integration (ADR-004, v1.7.0)
 1. Seluruh teks antarmuka **HARUS** mendukung multi-bahasa melalui `src/locales/id.json` dan `src/locales/en.json` (menggunakan library i18n).
@@ -59,6 +64,9 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 ### H. Dokumentasi ADR & Testing
 1. Setiap perubahan arsitektur signifikan, penambahan library inti, atau perubahan alur data wajib dibuatkan dokumen ADR di `docs/decisions/` format `[nomor]-[nama-singkat].md`.
 2. Selalu jalankan unit test backend dengan `pytest` di folder `backend/tests/` dan validasi build frontend sebelum menyelesaikan task besar.
+
+### I. Developer Mode & Uvicorn Auto-Reload
+1. Saat menjalankan backend secara lokal untuk *development*, gunakan environment variable `AUTO_CLIPPER_DEV_TOKEN="dev-token"` dan jalankan `uvicorn` dengan mode auto-reload. Frontend akan menggunakan token statis ini untuk handshake (mem-bypass pembacaan `stdout` untuk `PORT`/`TOKEN`).
 
 ---
 
