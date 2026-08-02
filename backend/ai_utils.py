@@ -375,7 +375,103 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, ext
     }
 
 
-def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_cancelled: callable = None):
+SUPPORTED_WHISPER_MODELS = [
+    {
+        "id": "tiny",
+        "name": "Tiny",
+        "size_mb": 75,
+        "disk_size": "~75 MB",
+        "description_id": "Tercepat & paling ringan, cocok untuk tes cepat atau komputer low-end.",
+        "description_en": "Fastest & lightest, ideal for quick testing or low-end PCs.",
+        "vram": "1 GB VRAM / CPU",
+    },
+    {
+        "id": "base",
+        "name": "Base",
+        "size_mb": 145,
+        "disk_size": "~145 MB",
+        "description_id": "Cepat dan ringan dengan akurasi dasar yang baik.",
+        "description_en": "Fast and lightweight with good baseline accuracy.",
+        "vram": "1.5 GB VRAM / CPU",
+    },
+    {
+        "id": "small",
+        "name": "Small",
+        "size_mb": 480,
+        "disk_size": "~480 MB",
+        "description_id": "Default & rekomendasi seimbang untuk CPU & GPU entry-level.",
+        "description_en": "Default & recommended balance for CPU & entry-level GPU.",
+        "vram": "2 GB VRAM / CPU",
+        "is_default": True,
+    },
+    {
+        "id": "medium",
+        "name": "Medium",
+        "size_mb": 1500,
+        "disk_size": "~1.5 GB",
+        "description_id": "Akurasi tinggi, minim kata bolong/typo. Rekomendasi GPU 4GB-6GB+.",
+        "description_en": "High accuracy, minimal typos. Recommended for 4GB-6GB+ GPU.",
+        "vram": "5 GB VRAM",
+    },
+    {
+        "id": "turbo",
+        "name": "Turbo",
+        "size_mb": 1600,
+        "disk_size": "~1.6 GB",
+        "description_id": "Versi cepat dari Large-v3. Sangat akurat dan optimal untuk GPU modern.",
+        "description_en": "Fast variant of Large-v3. Highly accurate and optimized for modern GPUs.",
+        "vram": "6 GB VRAM",
+    },
+    {
+        "id": "large-v3",
+        "name": "Large-v3",
+        "size_mb": 3000,
+        "disk_size": "~3.0 GB",
+        "description_id": "Akurasi maksimal untuk audio kompleks, aksen, dan multibahasa. Butuh GPU 8GB+.",
+        "description_en": "Maximum accuracy for complex audio, accents, and multilingual. Requires 8GB+ GPU.",
+        "vram": "8 GB VRAM",
+    },
+]
+
+
+def get_available_whisper_models() -> list:
+    """Check local availability of all supported Faster-Whisper models."""
+    from faster_whisper import download_model
+    results = []
+    for item in SUPPORTED_WHISPER_MODELS:
+        m_id = item["id"]
+        is_downloaded = False
+        try:
+            download_model(m_id, local_files_only=True)
+            is_downloaded = True
+        except Exception:
+            is_downloaded = False
+        
+        results.append({
+            **item,
+            "downloaded": is_downloaded
+        })
+    return results
+
+
+def download_whisper_model(model_name: str) -> dict:
+    """Download a Faster-Whisper model into local HuggingFace cache."""
+    valid_ids = [m["id"] for m in SUPPORTED_WHISPER_MODELS]
+    if model_name not in valid_ids:
+        raise ValueError(f"Model Whisper tidak valid: {model_name}. Pilihan: {', '.join(valid_ids)}")
+    
+    from faster_whisper import download_model
+    try:
+        path = download_model(model_name)
+        return {"status": "success", "model": model_name, "path": path}
+    except Exception as e:
+        err_msg = str(e)
+        if any(w in err_msg.lower() for w in ["connect", "connection", "timeout", "offline", "resolve"]):
+            raise RuntimeError(f"Gagal mengunduh model Whisper '{model_name}'. Pastikan koneksi internet aktif dan stabil.")
+        raise RuntimeError(f"Gagal mengunduh model Whisper '{model_name}': {err_msg}")
+
+
+def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_cancelled: callable = None, model_size: str = "small"):
     import os
     
     # Suppress Windows DLL missing error popups (so it falls back to CPU gracefully)
@@ -393,11 +489,13 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
         except Exception:
             pass
 
+    selected_model = model_size or "small"
+
     # Let faster-whisper automatically choose GPU if available, else fallback to CPU.
     try:
         from faster_whisper import WhisperModel
-        model = WhisperModel("small", device="auto", compute_type="default")
-        segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke)
+        model = WhisperModel(selected_model, device="auto", compute_type="default")
+        segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke, vad_filter=True)
         segments = []
         for segment in segments_gen:
             if is_cancelled and is_cancelled():
@@ -406,8 +504,12 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
     except Exception as e:
         print(f"Warning: GPU Transcription failed ({e}). Falling back to CPU.")
         from faster_whisper import WhisperModel
-        model = WhisperModel("small", device="cpu", compute_type="default")
-        segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke)
+        try:
+            model = WhisperModel(selected_model, device="cpu", compute_type="default")
+        except Exception:
+            print(f"Warning: Failed to load {selected_model} on CPU. Falling back to default 'small' model.")
+            model = WhisperModel("small", device="cpu", compute_type="default")
+        segments_gen, info = model.transcribe(audio_path, word_timestamps=karaoke, vad_filter=True)
         segments = []
         for segment in segments_gen:
             if is_cancelled and is_cancelled():
@@ -438,7 +540,7 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
         return "\n\n".join(srt_lines) + "\n"
 
 
-def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-2.0-flash", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
+def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-2.0-flash", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None, whisper_model: str = "small") -> dict:
     import json
     import os
     import time
@@ -451,7 +553,7 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
     extract_audio(file_path, audio_path, register_proc=register_proc)
     
     if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke, is_cancelled=is_cancelled)
+    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke, is_cancelled=is_cancelled, model_size=whisper_model)
     
     if karaoke:
         subtitle_path = base + ".words.json"
@@ -519,7 +621,7 @@ OPENAI_COMPAT_PROVIDERS = {
 
 def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
                                    karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None,
-                                   custom_base_url: str = None, custom_model_name: str = None) -> dict:
+                                   custom_base_url: str = None, custom_model_name: str = None, whisper_model: str = "small") -> dict:
     """Local faster-whisper transcript -> an OpenAI-compatible LLM picks highlights.
 
     For ``provider == "custom"`` the caller supplies ``custom_base_url`` and
@@ -541,7 +643,7 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
     extract_audio(file_path, audio_path, register_proc=register_proc)
 
     if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke, is_cancelled=is_cancelled)
+    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke, is_cancelled=is_cancelled, model_size=whisper_model)
 
     if karaoke:
         subtitle_path = base + ".words.json"
@@ -570,9 +672,9 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
     }
 
 
-def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None) -> dict:
+def process_with_deepseek(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None, whisper_model: str = "small") -> dict:
     """Back-compat wrapper -> process_with_openai_compatible(..., "deepseek")."""
-    return process_with_openai_compatible(file_path, api_key, "deepseek", karaoke=karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=register_proc)
+    return process_with_openai_compatible(file_path, api_key, "deepseek", karaoke=karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=register_proc, whisper_model=whisper_model)
 
 def ping_provider(provider: str, api_key: str, custom_base_url: str = None, custom_model_name: str = None) -> None:
     """Pre-flight check to fail-fast on invalid keys, bad URLs or exhausted quotas."""

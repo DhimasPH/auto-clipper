@@ -97,3 +97,20 @@ def test_create_job_request_has_no_manual_fields():
     fields = CreateJobRequest.model_fields
     for gone in ("mode", "manual_start", "manual_end"):
         assert gone not in fields, f"{gone} should be removed from CreateJobRequest"
+
+
+def test_get_whisper_models_endpoint():
+    r = client.get("/api/settings/whisper-models")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "success"
+    assert "models" in data
+    assert any(m["id"] == "small" for m in data["models"])
+
+
+def test_download_whisper_model_endpoint(monkeypatch):
+    monkeypatch.setattr("backend.ai_utils.download_whisper_model", lambda m: {"status": "success", "model": m, "message": "ok"})
+    r = client.post("/api/settings/whisper-models/download", json={"model": "medium"})
+    assert r.status_code == 200
+    assert r.json()["status"] == "success"
+

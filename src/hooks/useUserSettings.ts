@@ -146,6 +146,7 @@ export function useUserSettings() {
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [outputFolder, setOutputFolder] = useState(() => localStorage.getItem("ac_output_folder") || "");
   const [quality, setQuality] = useState<Quality>(() => (localStorage.getItem("ac_quality") as Quality) || "best");
+  const [whisperModel, setWhisperModel] = useState(() => localStorage.getItem("ac_whisper_model") || "small");
 
   const setApiKey = (id: string, value: string) =>
     setApiKeys((prev) => ({ ...prev, [id]: value }));
@@ -206,10 +207,15 @@ export function useUserSettings() {
     localStorage.setItem("ac_quality", quality);
   }, [quality]);
 
+  useEffect(() => {
+    localStorage.setItem("ac_whisper_model", whisperModel);
+  }, [whisperModel]);
+
   return {
     isInitializing,
     apiKeys, setApiKey,
     outputFolder, setOutputFolder,
     quality, setQuality,
+    whisperModel, setWhisperModel,
   };
 }

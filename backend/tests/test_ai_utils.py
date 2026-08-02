@@ -148,3 +148,35 @@ def test_ping_custom_provider_requires_base_url_and_model():
     import pytest
     with pytest.raises(Exception):
         ping_provider("custom", "key", custom_base_url="", custom_model_name="")
+
+
+def test_get_available_whisper_models():
+    from backend.ai_utils import get_available_whisper_models
+    models = get_available_whisper_models()
+    assert len(models) >= 5
+    ids = [m["id"] for m in models]
+    assert "small" in ids
+    assert "medium" in ids
+    assert "large-v3" in ids
+    # Default model 'small' should be marked downloaded
+    small_info = next(m for m in models if m["id"] == "small")
+    assert small_info["downloaded"] is True
+
+
+@patch('faster_whisper.download_model')
+def test_download_whisper_model_success(mock_download_model):
+    from backend.ai_utils import download_whisper_model
+    mock_download_model.return_value = "C:/fake/path/medium"
+    res = download_whisper_model("medium")
+    assert res["status"] == "success"
+    assert res["model"] == "medium"
+    assert res["path"] == "C:/fake/path/medium"
+    mock_download_model.assert_called_once_with("medium")
+
+
+def test_download_whisper_model_invalid():
+    from backend.ai_utils import download_whisper_model
+    import pytest
+    with pytest.raises(ValueError):
+        download_whisper_model("nonexistent-model-xyz")
+

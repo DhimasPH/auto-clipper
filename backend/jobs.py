@@ -29,7 +29,7 @@ def get_temp_dir():
 
 
 
-def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False) -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small") -> str:
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -38,6 +38,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "api_key": api_key,
         "custom_base_url": custom_base_url,
         "custom_model_name": custom_model_name,
+        "whisper_model": whisper_model or "small",
         "mode": "ai",
         "aspect_ratio": aspect_ratio,
         "caption_style": caption_style,
@@ -61,7 +62,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
 
 
 def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption_style: str = "standard",
-                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False) -> str:
+                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small") -> str:
     """Manual clipper job: cut user-chosen ranges, no AI highlight selection.
 
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
@@ -73,6 +74,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         "url": url,
         "provider": "manual",
         "api_key": "",
+        "whisper_model": whisper_model or "small",
         "mode": "manual",
         "manual_clips": clips or [],
         "aspect_ratio": aspect_ratio,
@@ -230,7 +232,7 @@ def _run_job(job_id: str):
                     extract_audio(output_path, audio_path, register_proc=lambda p: _register_proc(job, p))
                     
                     job["progress"] = "Mentranskripsi audio (Lokal)..."
-                    transcript = transcribe_with_faster_whisper(audio_path, karaoke=is_karaoke, is_cancelled=is_cancelled)
+                    transcript = transcribe_with_faster_whisper(audio_path, karaoke=is_karaoke, is_cancelled=is_cancelled, model_size=job.get("whisper_model", "small"))
                     
                     if is_karaoke:
                         subtitle_path = base + ".words.json"
@@ -256,9 +258,9 @@ def _run_job(job_id: str):
                 return
             elif job["provider"].startswith("gemini"):
                 model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.0-flash"
-                ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
+                ai_result = process_with_gemini(output_path, job["api_key"], model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), whisper_model=job.get("whisper_model", "small"))
             elif job["provider"] == "custom" or job["provider"] in OPENAI_COMPAT_PROVIDERS:
-                ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"))
+                ai_result = process_with_openai_compatible(output_path, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"), whisper_model=job.get("whisper_model", "small"))
             else:
                 ai_result = process_with_openai(output_path, job["api_key"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
         except Exception as ai_e:
@@ -435,7 +437,7 @@ def _run_manual_job(job_id: str):
             base, _ = os.path.splitext(source_path)
             audio_path = base + "_audio.mp3"
             extract_audio(source_path, audio_path, register_proc=lambda p: _register_proc(job, p))
-            transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=is_karaoke, is_cancelled=is_cancelled)
+            transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=is_karaoke, is_cancelled=is_cancelled, model_size=job.get("whisper_model", "small"))
             if is_karaoke:
                 subtitle_path = base + ".words.json"
                 with open(subtitle_path, "w", encoding="utf-8") as f:
@@ -630,7 +632,7 @@ def _run_rerender_job(job_id: str):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = ""):
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small"):
     from backend.db import get_history
     job_record = get_history(history_job_id)
     if not job_record:
@@ -649,6 +651,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "api_key": api_key,
         "custom_base_url": custom_base_url,
         "custom_model_name": custom_model_name,
+        "whisper_model": whisper_model or metadata.get("whisper_model", "small"),
         "mode": "ai",
         "aspect_ratio": aspect_ratio,
         "caption_style": job_record.get("caption_style", "standard"),
@@ -697,9 +700,9 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         from backend.ai_utils import process_with_gemini, process_with_openai, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
         if job["provider"].startswith("gemini"):
             model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.0-flash"
-            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
+            ai_result = process_with_gemini(source_video, job["api_key"], extra_prompt=extra_prompt, model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), whisper_model=job.get("whisper_model", "small"))
         elif job["provider"] == "custom" or job["provider"] in OPENAI_COMPAT_PROVIDERS:
-            ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"))
+            ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"), whisper_model=job.get("whisper_model", "small"))
         else:
             ai_result = process_with_openai(source_video, job["api_key"], karaoke=is_karaoke, extra_prompt=extra_prompt, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
             
@@ -820,7 +823,7 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     if metadata.get("highlights") and job.get("mode") == "ai":
         metadata["ai_job"] = True
         
-    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "pexels_api_key", "max_clips", "is_gaming_video"]:
+    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model"]:
         if key in job:
             metadata[key] = job[key]
 
@@ -898,7 +901,7 @@ def _run_manual_resume_job(job_id: str, metadata: dict):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_provider: str = None, fallback_custom_base_url: str = None, fallback_custom_model_name: str = None) -> str:
+def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_provider: str = None, fallback_custom_base_url: str = None, fallback_custom_model_name: str = None, fallback_whisper_model: str = None) -> str:
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
@@ -913,6 +916,7 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "api_key": hist_meta.get("api_key") or fallback_api_key or "",
         "custom_base_url": hist_meta.get("custom_base_url") or fallback_custom_base_url or "",
         "custom_model_name": hist_meta.get("custom_model_name") or fallback_custom_model_name or "",
+        "whisper_model": hist_meta.get("whisper_model") or fallback_whisper_model or "small",
         "mode": hist_meta.get("mode", "ai"),
         "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
         "caption_style": hist_meta.get("caption_style", "standard"),
@@ -1023,9 +1027,9 @@ def _run_resume_job(job_id: str):
 
             if job["provider"].startswith("gemini"):
                 model_name = job["provider"] if job["provider"] != "gemini" else "gemini-2.0-flash"
-                ai_result = process_with_gemini(source_video, job["api_key"], model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
+                ai_result = process_with_gemini(source_video, job["api_key"], model_name=model_name, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), whisper_model=job.get("whisper_model", "small"))
             elif job["provider"] == "custom" or job["provider"] in OPENAI_COMPAT_PROVIDERS:
-                ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"))
+                ai_result = process_with_openai_compatible(source_video, job["api_key"], job["provider"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p), custom_base_url=job.get("custom_base_url"), custom_model_name=job.get("custom_model_name"), whisper_model=job.get("whisper_model", "small"))
             else:
                 ai_result = process_with_openai(source_video, job["api_key"], karaoke=is_karaoke, limit=limit, is_cancelled=is_cancelled, register_proc=lambda p: _register_proc(job, p))
             

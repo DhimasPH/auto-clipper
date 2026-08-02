@@ -35,6 +35,8 @@ export default function App() {
     setOutputFolder,
     quality,
     setQuality,
+    whisperModel,
+    setWhisperModel,
   } = useUserSettings();
   const { theme, setTheme } = useTheme();
   const { toasts, notify } = useToasts();
@@ -118,6 +120,7 @@ export default function App() {
     closeHistory: () => {},
     maxClips,
     isGamingVideo,
+    whisperModel,
   });
 
   const videoSrc = (p: string, v = 0) =>
@@ -151,6 +154,8 @@ export default function App() {
     setOutputFolder,
     quality,
     setQuality,
+    whisperModel,
+    setWhisperModel,
     inputType,
     setInputType,
     url,

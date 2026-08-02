@@ -3,6 +3,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { AppContext } from '../App';
 import { AppearanceSection } from '../components/settings/AppearanceSection';
 import { ProviderSection } from '../components/settings/ProviderSection';
+import { TranscriptionSection } from '../components/settings/TranscriptionSection';
 import { OutputSection } from '../components/settings/OutputSection';
 import { UpdaterSection } from '../components/settings/UpdaterSection';
 
@@ -25,6 +26,11 @@ export const SettingsPage: React.FC = () => {
           setProvider={ctx.setProvider}
           apiKeys={ctx.apiKeys}
           setApiKey={ctx.setApiKey}
+        />
+        <TranscriptionSection
+          whisperModel={ctx.whisperModel}
+          setWhisperModel={ctx.setWhisperModel}
+          notify={ctx.notify}
         />
         <OutputSection 
           outputFolder={ctx.outputFolder}

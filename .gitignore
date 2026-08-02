@@ -31,5 +31,3 @@ docs/
 .worktrees/
 worktrees/
 
-# backend tests
-backend/tests/

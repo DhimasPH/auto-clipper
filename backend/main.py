@@ -141,6 +141,29 @@ def api_test_pexels(req: TestPexelsRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 
+@app.get("/api/settings/whisper-models")
+def api_get_whisper_models():
+    try:
+        from backend.ai_utils import get_available_whisper_models
+        return {"status": "success", "models": get_available_whisper_models()}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+class DownloadWhisperModelRequest(BaseModel):
+    model: str
+
+
+@app.post("/api/settings/whisper-models/download")
+def api_download_whisper_model(req: DownloadWhisperModelRequest):
+    try:
+        from backend.ai_utils import download_whisper_model
+        res = download_whisper_model(req.model.strip())
+        return res
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
 class CreateJobRequest(BaseModel):
     url: str
     provider: str = "openai"
@@ -158,6 +181,7 @@ class CreateJobRequest(BaseModel):
     custom_base_url: str = ""
     custom_model_name: str = ""
     is_gaming_video: bool = False
+    whisper_model: str = "small"
 
 class SaveFileRequest(BaseModel):
     src: str
@@ -221,7 +245,7 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
         new_job_id = create_rerun_ai_job(
             job_id, req.provider, req.api_key.strip(),
             req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
-            req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video
+            req.custom_base_url.strip(), req.custom_model_name.strip(), req.whisper_model
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
@@ -235,6 +259,7 @@ class ResumeJobRequest(BaseModel):
     provider: Optional[str] = None
     custom_base_url: Optional[str] = None
     custom_model_name: Optional[str] = None
+    whisper_model: Optional[str] = None
 
 @app.post("/jobs/{job_id}/resume")
 def api_resume_job(job_id: str, req: ResumeJobRequest):
@@ -245,7 +270,8 @@ def api_resume_job(job_id: str, req: ResumeJobRequest):
             fallback_api_key=req.api_key,
             fallback_provider=req.provider,
             fallback_custom_base_url=req.custom_base_url,
-            fallback_custom_model_name=req.custom_model_name
+            fallback_custom_model_name=req.custom_model_name,
+            fallback_whisper_model=req.whisper_model
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
@@ -296,7 +322,8 @@ def api_create_job(req: CreateJobRequest):
         req.url.strip(), req.provider, req.api_key.strip(),
         req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
         req.title, req.enable_broll, req.pexels_api_key.strip(), req.max_clips,
-        req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video
+        req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video,
+        req.whisper_model
     )
     return {"status": "success", "job_id": job_id}
 
@@ -439,6 +466,7 @@ class ManualJobRequest(BaseModel):
     quality: str = "best"
     title: str = ""
     is_gaming_video: bool = False
+    whisper_model: str = "small"
 
 
 @app.post("/jobs/manual")
@@ -454,7 +482,8 @@ def api_create_manual_job(req: ManualJobRequest):
         from backend.jobs import create_manual_job
         job_id = create_manual_job(
             req.url.strip(), req.clips, req.aspect_ratio, req.caption_style,
-            req.burn_subs, req.output_dir, req.quality, req.title, req.is_gaming_video
+            req.burn_subs, req.output_dir, req.quality, req.title, req.is_gaming_video,
+            req.whisper_model
         )
         return {"status": "success", "job_id": job_id}
     except Exception as e:

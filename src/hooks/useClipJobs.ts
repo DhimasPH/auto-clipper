@@ -27,6 +27,7 @@ export interface ClipJobParams {
   closeHistory: () => void;
   maxClips: number;
   isGamingVideo: boolean;
+  whisperModel: string;
 }
 
 /**
@@ -185,7 +186,8 @@ export function useClipJobs(p: ClipJobParams) {
         max_clips: p.maxClips,
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,
-        is_gaming_video: p.isGamingVideo
+        is_gaming_video: p.isGamingVideo,
+        whisper_model: p.whisperModel
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -225,6 +227,7 @@ export function useClipJobs(p: ClipJobParams) {
         quality: p.quality,
         title: p.title,
         is_gaming_video: p.isGamingVideo,
+        whisper_model: p.whisperModel,
       });
       if (res.data.status === "error") throw new Error(res.data.message);
       setActiveJobId(res.data.job_id);
@@ -257,7 +260,8 @@ export function useClipJobs(p: ClipJobParams) {
         title: "", // re-render keeps the existing title in backend if not overridden
         enable_broll: p.enableBroll,
         pexels_api_key: p.pexelsApiKey,
-        max_clips: p.maxClips
+        max_clips: p.maxClips,
+        whisper_model: p.whisperModel
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -297,7 +301,8 @@ export function useClipJobs(p: ClipJobParams) {
         extra_prompt: extraPrompt,
         max_clips: p.maxClips,
         custom_base_url: p.customBaseUrl,
-        custom_model_name: p.customModelName
+        custom_model_name: p.customModelName,
+        whisper_model: p.whisperModel
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -326,7 +331,8 @@ export function useClipJobs(p: ClipJobParams) {
         api_key: p.apiKey,
         provider: p.provider,
         custom_base_url: p.customBaseUrl,
-        custom_model_name: p.customModelName
+        custom_model_name: p.customModelName,
+        whisper_model: p.whisperModel
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
