@@ -4,9 +4,8 @@
 export type ProviderId =
   | "openai"
   | "gemini"
-  | "gemini-2.0-flash-lite"
-  | "gemini-1.5-flash"
-  | "gemini-1.5-pro"
+  | "gemini-3.5-flash-lite"
+  | "gemini-3.1-pro"
   | "deepseek"
   | "groq"
   | "openrouter"
@@ -22,10 +21,9 @@ export interface ProviderInfo {
 
 export const PROVIDERS: ProviderInfo[] = [
   { id: "openai", label: "OpenAI (GPT-4o)" },
-  { id: "gemini", label: "Google Gemini (2.0 Flash)" },
-  { id: "gemini-2.0-flash-lite", label: "Google Gemini (2.0 Flash Lite)" },
-  { id: "gemini-1.5-flash", label: "Google Gemini (1.5 Flash)" },
-  { id: "gemini-1.5-pro", label: "Google Gemini (1.5 Pro)" },
+  { id: "gemini", label: "Google Gemini (3.6 Flash)" },
+  { id: "gemini-3.5-flash-lite", label: "Google Gemini (3.5 Flash Lite)" },
+  { id: "gemini-3.1-pro", label: "Google Gemini (3.1 Pro)" },
   { id: "deepseek", label: "DeepSeek" },
   { id: "groq", label: "Groq (Llama 3.3)" },
   { id: "openrouter", label: "OpenRouter" },

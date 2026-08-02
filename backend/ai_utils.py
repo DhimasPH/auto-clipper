@@ -300,7 +300,7 @@ def generate_social_kit_only(description: str, api_key: str, provider: str = "op
         from google import genai
         from google.genai import types
         client = genai.Client(api_key=api_key)
-        model_name = provider if provider != "gemini" else "gemini-2.0-flash"
+        model_name = provider if provider != "gemini" else "gemini-3.6-flash"
         response = _with_retry(lambda: client.models.generate_content(
             model=model_name,
             contents=prompt,
@@ -560,7 +560,7 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
         return "\n\n".join(srt_lines) + "\n"
 
 
-def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-2.0-flash", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None, whisper_model: str = "small") -> dict:
+def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, extra_prompt: str = "", model_name: str = "gemini-3.6-flash", limit: int = 3, is_cancelled: callable = None, register_proc: callable = None, whisper_model: str = "small") -> dict:
     import json
     import os
     import time
@@ -724,7 +724,7 @@ def ping_provider(provider: str, api_key: str, custom_base_url: str = None, cust
     try:
         if provider.startswith("gemini"):
             client = genai.Client(api_key=api_key)
-            model_name = provider if provider != "gemini" else "gemini-2.0-flash"
+            model_name = provider if provider != "gemini" else "gemini-3.6-flash"
             # We use genai's built-in timeout via http_options if available, or rely on normal timeout
             try:
                 client.models.generate_content(
@@ -733,10 +733,10 @@ def ping_provider(provider: str, api_key: str, custom_base_url: str = None, cust
                     config=types.GenerateContentConfig(max_output_tokens=1)
                 )
             except Exception as e:
-                # Fallback if the default 2.0 is not available in their region
-                if model_name == "gemini-2.0-flash":
+                # Fallback if the default 3.6 is not available in their region
+                if model_name == "gemini-3.6-flash":
                     client.models.generate_content(
-                        model="gemini-1.5-flash",
+                        model="gemini-3.5-flash-lite",
                         contents="ping",
                         config=types.GenerateContentConfig(max_output_tokens=1)
                     )
