@@ -180,3 +180,49 @@ def test_download_whisper_model_invalid():
     with pytest.raises(ValueError):
         download_whisper_model("nonexistent-model-xyz")
 
+
+def test_fetch_provider_models_gemini():
+    from backend.ai_utils import fetch_provider_models
+    from unittest.mock import MagicMock, patch
+
+    mock_model_1 = MagicMock()
+    mock_model_1.name = "models/gemini-2.5-flash"
+    mock_model_1.display_name = "Gemini 2.5 Flash"
+    mock_model_1.supported_actions = ["generateContent"]
+
+    mock_model_2 = MagicMock()
+    mock_model_2.name = "models/text-embedding-004"
+    mock_model_2.display_name = "Embedding 004"
+    mock_model_2.supported_actions = ["embedContent"]
+
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = [mock_model_1, mock_model_2]
+
+    with patch("google.genai.Client", return_value=mock_client):
+        models = fetch_provider_models("gemini", "fake-key")
+        assert len(models) == 1
+        assert models[0]["id"] == "gemini-2.5-flash"
+        assert "Gemini 2.5 Flash" in models[0]["label"]
+
+
+def test_fetch_provider_models_openai():
+    from backend.ai_utils import fetch_provider_models
+    from unittest.mock import MagicMock, patch
+
+    mock_model_1 = MagicMock()
+    mock_model_1.id = "gpt-4o"
+
+    mock_model_2 = MagicMock()
+    mock_model_2.id = "text-embedding-3-small"
+
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.data = [mock_model_1, mock_model_2]
+    mock_client.models.list.return_value = mock_resp
+
+    with patch("backend.ai_utils.OpenAI", return_value=mock_client):
+        models = fetch_provider_models("openai", "fake-key")
+        assert len(models) == 1
+        assert models[0]["id"] == "gpt-4o"
+
+

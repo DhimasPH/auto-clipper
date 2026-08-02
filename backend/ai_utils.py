@@ -706,17 +706,28 @@ def fetch_provider_models(provider: str, api_key: str) -> list:
     """Query provider API for available models."""
     try:
         if provider == "gemini":
+            from google import genai
             client = genai.Client(api_key=api_key)
             result = []
             for m in client.models.list():
-                # Only include models that support content generation
-                methods = getattr(m, 'supported_generation_methods', None) or []
-                if 'generateContent' in methods:
-                    name = m.name.removeprefix("models/") if hasattr(m.name, "removeprefix") else m.name.replace("models/", "")
-                    label = getattr(m, 'display_name', None) or name
+                name = getattr(m, "name", "") or ""
+                if not name:
+                    continue
+                clean_name = name.removeprefix("models/") if hasattr(name, "removeprefix") else name.replace("models/", "")
+                
+                # In google-genai SDK, field is supported_actions (e.g. ['generateContent'])
+                # In older google-generativeai, field was supported_generation_methods
+                actions = getattr(m, 'supported_actions', None) or getattr(m, 'supported_generation_methods', None) or []
+                actions_lower = [str(a).lower() for a in actions]
+                
+                is_content_gen = any("generatecontent" in a or "generate_content" in a for a in actions_lower)
+                is_gemini_chat = clean_name.startswith("gemini-") and not any(skip in clean_name for skip in ["embedding", "imagen", "aqa", "realtime", "live", "bidi"])
+                
+                if is_content_gen or (not actions and is_gemini_chat):
+                    display = getattr(m, 'display_name', None) or clean_name
                     result.append({
-                        "id": name,
-                        "label": label
+                        "id": clean_name,
+                        "label": f"{display} ({clean_name})" if display and display != clean_name else clean_name
                     })
             return result
         elif provider in OPENAI_COMPAT_PROVIDERS or provider == "openai":
@@ -733,10 +744,16 @@ def fetch_provider_models(provider: str, api_key: str) -> list:
                 default_headers=BROWSER_HEADERS
             )
             models_resp = client.models.list()
-            return [
-                {"id": m.id, "label": m.id}
-                for m in models_resp.data
-            ]
+            data = models_resp.data if hasattr(models_resp, "data") else models_resp
+            result = []
+            for m in data:
+                m_id = getattr(m, "id", None) or str(m)
+                if provider == "openai":
+                    # Filter out non-chat / audio / image / embedding models
+                    if any(skip in m_id for skip in ["whisper", "tts", "dall-e", "embedding", "moderation", "davinci", "babbage", "curie", "ada", "realtime"]):
+                        continue
+                result.append({"id": m_id, "label": m_id})
+            return result
     except Exception as e:
         log_error("ai_utils.fetch_provider_models", f"Failed to fetch models for {provider}: {e}")
     return []

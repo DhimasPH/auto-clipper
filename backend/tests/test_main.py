@@ -156,3 +156,17 @@ def test_get_logs_endpoint():
     assert res_inv.status_code == 400
     assert res_inv.json()["status"] == "error"
 
+
+def test_api_fetch_models_endpoint(monkeypatch):
+    monkeypatch.setattr(
+        "backend.ai_utils.fetch_provider_models",
+        lambda provider, api_key: [{"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash"}]
+    )
+    res = client.post("/api/providers/models", json={"provider": "gemini", "api_key": "valid-key"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    assert len(data["models"]) == 1
+    assert data["models"][0]["id"] == "gemini-2.5-flash"
+
+

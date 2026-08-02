@@ -43,30 +43,33 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
   React.useEffect(() => {
     setTestAiStatus('idle');
     setTestAiMessage('');
-    setModelsFetched(false);
-    setAvailableModels([]);
-    // Only reset model if changing to a provider and current selectedModel is not in its fallbacks?
-    // Let's just let it be, if it's invalid it will be updated later.
+    const fallbacks = current?.fallbackModels?.map(m => ({ id: m, label: m })) || [];
+    setAvailableModels(fallbacks);
+    setModelsFetched(fallbacks.length > 0);
+    if (!selectedModel || (fallbacks.length > 0 && !fallbacks.find(m => m.id === selectedModel))) {
+      setSelectedModel(current?.defaultModel || "");
+    }
   }, [provider]);
 
   const fetchModels = async () => {
+    if (!keyVal && !isCustom) return;
     setIsFetchingModels(true);
     try {
       const res = await axios.post(`${API_URL}/api/providers/models`, {
         provider,
         api_key: keyVal
       });
-      if (res.data?.status === 'success' && res.data.models) {
+      if (res.data?.status === 'success' && Array.isArray(res.data.models) && res.data.models.length > 0) {
         setAvailableModels(res.data.models);
         setModelsFetched(true);
         if (!selectedModel || !res.data.models.find((m: any) => m.id === selectedModel)) {
           setSelectedModel(res.data.models[0]?.id || current?.defaultModel || "");
         }
       } else {
-        throw new Error("Failed to fetch models");
+        throw new Error("No models returned from API");
       }
     } catch (err) {
-      console.error(err);
+      console.warn("Failed to fetch dynamic models, using fallback list:", err);
       const fallbacks = current?.fallbackModels?.map(m => ({ id: m, label: m })) || [];
       setAvailableModels(fallbacks);
       setModelsFetched(true);
@@ -93,7 +96,8 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
         provider: provider,
         api_key: keyVal,
         custom_base_url: customBaseUrl,
-        custom_model_name: customModelName
+        custom_model_name: customModelName,
+        model: selectedModel
       });
       
       if (res.data?.status === 'success') {
@@ -101,7 +105,7 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
         setTestAiMessage(t('settings.test_ai_success', 'API Key is valid!'));
         
         if (current?.supportsModelFetch) {
-          fetchModels();
+          await fetchModels();
         } else {
           const fallbacks = current?.fallbackModels?.map(m => ({ id: m, label: m })) || [];
           setAvailableModels(fallbacks);
@@ -236,13 +240,13 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
               {t('settings.model_label', 'AI Model')}
             </h3>
             
-            {testAiStatus === 'success' ? (
+            {testAiStatus === 'success' || (modelsFetched && availableModels.length > 0) ? (
               isFetchingModels ? (
                 <div className="flex items-center gap-2 text-text-secondary">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span className="text-sm">{t('settings.fetch_models_loading', 'Fetching models...')}</span>
                 </div>
-              ) : modelsFetched ? (
+              ) : availableModels.length > 0 ? (
                 <div className="space-y-3">
                   <Select
                     label=""
