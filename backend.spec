@@ -86,6 +86,9 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
+icon_path = os.path.join('src-tauri', 'icons', 'icon.ico') if os.path.exists(os.path.join('src-tauri', 'icons', 'icon.ico')) else None
+version_file = 'file_version_info.txt' if os.path.exists('file_version_info.txt') else None
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -105,5 +108,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=icon_path,
+    version=version_file,
 )
 
