@@ -10,6 +10,8 @@ import { Badge } from "../components/ui/Badge";
 import { Select } from "../components/ui/Select";
 import ClipCard from "../components/ClipCard";
 import { ManualResumeModal } from "../components/ManualResumeModal";
+import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
+import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
 
 export const HistoryPage: React.FC = () => {
   const { t } = useTranslation();
@@ -24,6 +26,7 @@ export const HistoryPage: React.FC = () => {
   const [localAspectRatio, setLocalAspectRatio] = useState("9:16");
   const [localCaptionStyle, setLocalCaptionStyle] = useState("standard");
   const [localBurnSubs, setLocalBurnSubs] = useState(true);
+  const [localCanvasConfig, setLocalCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
 
   useEffect(() => {
     fetchHistory();
@@ -207,6 +210,17 @@ export const HistoryPage: React.FC = () => {
                       />
                     )}
                   </div>
+
+                  {localAspectRatio === "16:9" && (
+                    <div className="mb-4 pt-2 border-t border-border">
+                      <CanvasConfigControls
+                        config={localCanvasConfig}
+                        onChange={setLocalCanvasConfig}
+                        showModeSwitch={true}
+                      />
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
                     <Button
                       onClick={() => {
@@ -215,6 +229,7 @@ export const HistoryPage: React.FC = () => {
                           localAspectRatio,
                           localCaptionStyle,
                           localBurnSubs,
+                          localCanvasConfig,
                         );
                         setActiveRerenderId(null);
                       }}

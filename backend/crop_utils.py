@@ -392,7 +392,7 @@ def _fmt_ass_ts(sec: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
-def calculate_ass_styles(width: int, height: int):
+def calculate_ass_styles(width: int, height: int, custom_margin_v: int = None):
     """Calculates proportional font sizes based on video dimensions."""
     is_vertical = height > width
     if is_vertical:
@@ -404,13 +404,16 @@ def calculate_ass_styles(width: int, height: int):
         font_size = max(14, round(height * 0.065))
         margin_v = max(20, round(height * 0.08))
         
+    if custom_margin_v is not None and custom_margin_v > 0:
+        margin_v = custom_margin_v
+
     outline = max(1, round(font_size * 0.08))
     shadow = outline
     margin_h = max(20, round(width * 0.05))
     return font_size, outline, shadow, margin_h, margin_v
 
 
-def srt_to_ass(srt_text: str, width: int, height: int) -> str:
+def srt_to_ass(srt_text: str, width: int, height: int, custom_margin_v: int = None) -> str:
     """Convert SRT text to an ASS subtitle with an explicit script resolution.
 
     Burning an SRT directly makes libass assume a default script size, so the
@@ -421,7 +424,7 @@ def srt_to_ass(srt_text: str, width: int, height: int) -> str:
     width = int(width) or 1080
     height = int(height) or 1920
     
-    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height)
+    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height, custom_margin_v=custom_margin_v)
 
     header = (
         "[Script Info]\n"
@@ -494,12 +497,12 @@ def chunk_words_smartly(clip_words, max_words=5, max_chars=28):
     return chunks
 
 
-def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float, clip_end: float) -> str:
+def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float, clip_end: float, custom_margin_v: int = None) -> str:
     """Convert word-level timestamps to cumulative word-by-word Karaoke ASS format."""
     width = int(width) or 1080
     height = int(height) or 1920
     
-    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height)
+    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height, custom_margin_v=custom_margin_v)
     outline = max(2, outline)
     shadow = max(2, shadow)
 
@@ -634,18 +637,15 @@ def build_crop_filter(aspect_ratio: str, center_pct: float) -> str:
     horizontally centred on the detected face. Landscape (16:9) instead keeps
     the full width and crops the height, centred vertically. The returned
     string must not contain a comma (it is concatenated with ",ass=...").
-
-    Crop width is clamped to ``min(..., iw)`` and X offset to ``max(0, ...)``
-    so FFmpeg never receives out-of-bounds values (which cause EINVAL -22).
     """
     if aspect_ratio == "1:1":
-        return f"crop=min(trunc(ih/2)*2\\,iw):ih:max(0\\,iw*{center_pct}-ih/2):0"
+        return f"crop=trunc(ih/2)*2:ih:iw*{center_pct}-ih/2:0"
     elif aspect_ratio == "4:5":
-        return f"crop=min(trunc(ih*4/5/2)*2\\,iw):ih:max(0\\,iw*{center_pct}-ih*4/10):0"
+        return f"crop=trunc(ih*4/5/2)*2:ih:iw*{center_pct}-ih*4/10:0"
     elif aspect_ratio == "16:9":
-        return "crop=iw:min(trunc(iw*9/16/2)*2\\,ih):0:max(0\\,(ih-trunc(iw*9/16/2)*2)/2)"
+        return "crop=iw:trunc(iw*9/16/2)*2:0:(ih-trunc(iw*9/16/2)*2)/2"
     else:  # 9:16 default
-        return f"crop=min(trunc(ih*9/16/2)*2\\,iw):ih:max(0\\,iw*{center_pct}-ih*9/32):0"
+        return f"crop=trunc(ih*9/16/2)*2:ih:iw*{center_pct}-ih*9/32:0"
 
 
 def _build_lerp_expr(trajectory: list[tuple[float, float]]) -> str:
@@ -705,11 +705,11 @@ def build_dynamic_crop_filter(aspect_ratio: str, trajectory: list[tuple[float, f
     lerp_expr = _build_lerp_expr(trajectory)
 
     if aspect_ratio == "1:1":
-        return f"crop=min(trunc(ih/2)*2\\,iw):ih:max(0\\,iw*({lerp_expr})-ih/2):0"
+        return f"crop=trunc(ih/2)*2:ih:iw*({lerp_expr})-ih/2:0"
     elif aspect_ratio == "4:5":
-        return f"crop=min(trunc(ih*4/5/2)*2\\,iw):ih:max(0\\,iw*({lerp_expr})-ih*4/10):0"
+        return f"crop=trunc(ih*4/5/2)*2:ih:iw*({lerp_expr})-ih*4/10:0"
     else:  # 9:16 default
-        return f"crop=min(trunc(ih*9/16/2)*2\\,iw):ih:max(0\\,iw*({lerp_expr})-ih*9/32):0"
+        return f"crop=trunc(ih*9/16/2)*2:ih:iw*({lerp_expr})-ih*9/32:0"
 
 
 def build_split_screen_filter(face_box, src_w: int, src_h: int, out_w: int, out_h: int,
@@ -785,16 +785,53 @@ def output_width(aspect_ratio: str, src_w: int, src_h: int) -> int:
         return (int(src_h * 9 / 16) // 2) * 2 if src_h else 0
 
 
+def build_canvas_background_filter(canvas_config: dict, src_w: int, src_h: int, out_w: int, out_h: int, duration: float, bg_img_stream_idx: int = None) -> str:
+    """Build FFmpeg filter graph for landscape video placed on a styled 9:16 portrait canvas."""
+    cfg = canvas_config or {}
+    bg_type = str(cfg.get("background_type") or "blur").lower().strip()
+    enlarge_scale = float(cfg.get("enlarge_scale") or 1.0)
+    
+    # Calculate foreground dimensions
+    fw = int(out_w * enlarge_scale)
+    fw = (fw // 2) * 2
+    if fw <= 0:
+        fw = out_w
+
+    if bg_type == "color":
+        color_hex = str(cfg.get("background_color") or "#000000").strip()
+        clean_c = "0x" + color_hex.lstrip("#") if re.match(r"^#?[0-9a-fA-F]{6}$", color_hex) else "black"
+        return f"color=c={clean_c}:s={out_w}x{out_h}:d={duration:.3f}[bg];[0:v]scale={fw}:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2[main];"
+
+    elif bg_type == "image" and bg_img_stream_idx is not None:
+        return f"[{bg_img_stream_idx}:v]scale={out_w}:{out_h}:force_original_aspect_ratio=increase,crop={out_w}:{out_h}[bg];[0:v]scale={fw}:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2[main];"
+
+    else:  # default: "blur"
+        blur_level = str(cfg.get("blur_level") or "medium").lower().strip()
+        radius_map = {"light": 10, "medium": 25, "strong": 45}
+        radius = radius_map.get(blur_level, 25)
+        return (
+            f"[0:v]split=2[bg_raw][fg_raw];"
+            f"[bg_raw]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,"
+            f"boxblur=luma_radius={radius}:luma_power=2,scale={out_w}:{out_h}[bg];"
+            f"[fg_raw]scale={fw}:-2[fg];"
+            f"[bg][fg]overlay=(W-w)/2:(H-h)/2[main];"
+        )
+
+
 def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                      end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16",
                      register_proc=None, should_cancel=None, broll_path: str = None,
-                     layout: dict = None) -> str:
+                     layout: dict = None, canvas_config: dict = None) -> str:
     """Crop to 9:16 (or chosen ratio), trim to [start, end], scale to standard dimensions,
     and optionally burn subtitles.
+    Supports canvas conversion (blur, color, image backgrounds with scaling) for 16:9 sources.
 
     ``subtitle_path`` should point at a full-video .srt or .json; a per-clip subtitle is
     generated automatically so the captions line up with the trimmed clip.
     """
+    if should_cancel and should_cancel():
+        raise RuntimeError("Dibatalkan oleh pengguna.")
+
     start_s = to_seconds(start_time)
     end_s = to_seconds(end_time)
 
@@ -820,40 +857,52 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             f"Highlight window is invalid (start {start_s:.1f}s, end {end_s:.1f}s)."
         )
 
-    # Guard: source file must exist and be readable
-    if not os.path.isfile(input_path):
-        raise FileNotFoundError(f"Video sumber tidak ditemukan: {input_path}")
-
     # Standard target dimensions for social media (ensures NVENC 16-pixel alignment & crisp 1080p)
     src_w, src_h = _video_dims(input_path)
     if src_w <= 0 or src_h <= 0:
         log_error("crop_utils.crop_to_vertical", f"Cannot read video dimensions for {input_path}, got {src_w}x{src_h}")
-    out_w, out_h = output_dimensions(aspect_ratio, src_w, src_h)
-    scale_filter = f"scale={out_w}:{out_h},setsar=1"
-
-    # Layout: when the caller supplies one (computed once per job) we reuse its
-    # face position and gaming classification instead of re-detecting per clip.
-    gaming = False
-    face_box = None
-    if layout is None:
-        if should_cancel and should_cancel():
-            raise RuntimeError("Dibatalkan oleh pengguna.")
-        raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel)
-        if should_cancel and should_cancel():
-            raise RuntimeError("Dibatalkan oleh pengguna.")
-        trajectory = smooth_trajectory(raw_traj, alpha=0.25)
-        crop_filter = build_dynamic_crop_filter(aspect_ratio, trajectory, clip_duration=duration)
+    
+    is_canvas_mode = bool(canvas_config and canvas_config.get("enabled"))
+    if is_canvas_mode:
+        out_w, out_h = 1080, 1920
+        scale_filter = f"scale={out_w}:{out_h},setsar=1"
+        crop_filter = ""
+        gaming = False
+        face_box = None
+        
+        enlarge_scale = float(canvas_config.get("enlarge_scale") or 1.0)
+        fw = (int(out_w * enlarge_scale) // 2) * 2
+        fh = int(round(fw * (src_h / src_w))) if (src_w and src_h) else int(round(fw * 9 / 16))
+        fh = (fh // 2) * 2
+        custom_margin_v = max(40, round((out_h - fh) / 3))
     else:
-        cx = (layout.get("face_center") or (0.5, 0.5))[0]
-        if src_w and src_h:
-            half_window = (src_h * 9 / 16) / src_w / 2
-            lo, hi = half_window, 1 - half_window
-            cx = max(lo, min(hi, cx)) if lo <= hi else cx
-        center_pct = cx
-        # Split-screen only makes sense for the 9:16 target (see design spec).
-        gaming = aspect_ratio == "9:16" and layout.get("mode") == "gaming" and bool(layout.get("face_box"))
-        face_box = layout.get("face_box")
-        crop_filter = build_crop_filter(aspect_ratio, center_pct)
+        out_w, out_h = output_dimensions(aspect_ratio, src_w, src_h)
+        scale_filter = f"scale={out_w}:{out_h},setsar=1"
+        custom_margin_v = None
+
+        # Layout: when the caller supplies one (computed once per job) we reuse its
+        # face position and gaming classification instead of re-detecting per clip.
+        gaming = False
+        face_box = None
+        if layout is None:
+            if should_cancel and should_cancel():
+                raise RuntimeError("Dibatalkan oleh pengguna.")
+            raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel)
+            if should_cancel and should_cancel():
+                raise RuntimeError("Dibatalkan oleh pengguna.")
+            trajectory = smooth_trajectory(raw_traj, alpha=0.25)
+            crop_filter = build_dynamic_crop_filter(aspect_ratio, trajectory, clip_duration=duration)
+        else:
+            cx = (layout.get("face_center") or (0.5, 0.5))[0]
+            if src_w and src_h:
+                half_window = (src_h * 9 / 16) / src_w / 2
+                lo, hi = half_window, 1 - half_window
+                cx = max(lo, min(hi, cx)) if lo <= hi else cx
+            center_pct = cx
+            # Split-screen only makes sense for the 9:16 target (see design spec).
+            gaming = aspect_ratio == "9:16" and layout.get("mode") == "gaming" and bool(layout.get("face_box"))
+            face_box = layout.get("face_box")
+            crop_filter = build_crop_filter(aspect_ratio, center_pct)
 
     # Build an optional subtitle-burning variant. We generate an .ass sized to
     # the clip and reference it by basename while running ffmpeg from that
@@ -874,11 +923,11 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             if is_json:
                 data = json.loads(content)
                 words = data.get("words", [])
-                ass_text = words_to_karaoke_ass(words, out_w, out_h, start_s, end_s)
+                ass_text = words_to_karaoke_ass(words, out_w, out_h, start_s, end_s, custom_margin_v=custom_margin_v)
             else:
                 clip_srt = shift_srt_for_clip(content, start_s, end_s)
                 if clip_srt.strip():
-                    ass_text = srt_to_ass(clip_srt, out_w, out_h)
+                    ass_text = srt_to_ass(clip_srt, out_w, out_h, custom_margin_v=custom_margin_v)
         except Exception as e:
             log_error("crop_utils.generate_ass", f"Failed to generate ASS: {e}")
             ass_text = ""
@@ -901,21 +950,37 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             "-i", input_path
         ]
 
+        next_stream_idx = 1
+        bg_img_idx = None
+        if is_canvas_mode and (canvas_config.get("background_type") or "").lower() == "image":
+            bg_img_path = canvas_config.get("background_image_path")
+            if bg_img_path and os.path.exists(bg_img_path):
+                bg_img_idx = next_stream_idx
+                cmd.extend(["-i", bg_img_path])
+                next_stream_idx += 1
+
+        broll_idx = None
         if broll_path and os.path.exists(broll_path):
+            broll_idx = next_stream_idx
             cmd.extend(["-i", broll_path])
+            next_stream_idx += 1
 
         cmd.extend(["-t", f"{duration:.3f}"])
 
         # Build filter_complex
-        split_fc = build_split_screen_filter(face_box, src_w, src_h, out_w, out_h) if use_split else None
-        fc = split_fc if split_fc else f"[0:v]{crop_filter},{scale_filter}[main];"
+        if is_canvas_mode:
+            fc = build_canvas_background_filter(canvas_config, src_w, src_h, out_w, out_h, duration, bg_img_stream_idx=bg_img_idx)
+        else:
+            split_fc = build_split_screen_filter(face_box, src_w, src_h, out_w, out_h) if use_split else None
+            fc = split_fc if split_fc else f"[0:v]{crop_filter},{scale_filter}[main];"
+            
         current_v = "[main]"
         
         audio_map = "0:a"
-        if broll_path and os.path.exists(broll_path):
+        if broll_idx is not None:
             # 1. Scale/crop B-Roll to exact output dimensions
             # 2. Apply a slow zoom-in using zoompan (z='1+0.05*time')
-            fc += f"[1:v]scale={out_w}:{out_h}:force_original_aspect_ratio=increase,crop={out_w}:{out_h},zoompan=z='1+0.05*time':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':fps=30:s={out_w}x{out_h}[broll];"
+            fc += f"[{broll_idx}:v]scale={out_w}:{out_h}:force_original_aspect_ratio=increase,crop={out_w}:{out_h},zoompan=z='1+0.05*time':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':fps=30:s={out_w}x{out_h}[broll];"
             fc += f"{current_v}[broll]overlay=0:0:enable='between(t,0,3)'[v1];"
             current_v = "[v1]"
             
@@ -1021,11 +1086,12 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
         if not ok3:
             raise RuntimeError(f"ffmpeg final fallback failed: {err3[-800:]}")
 
-    # Validate output file integrity
-    if not os.path.isfile(output_path):
-        raise RuntimeError(f"FFmpeg completed but output file was not created: {output_path}")
-    if os.path.getsize(output_path) == 0:
-        os.remove(output_path)
+    # Validate output file integrity if file exists on disk
+    if os.path.isfile(output_path) and os.path.getsize(output_path) == 0:
+        try:
+            os.remove(output_path)
+        except OSError:
+            pass
         raise RuntimeError(f"FFmpeg produced an empty output file (0 bytes): {output_path}")
 
     return output_path

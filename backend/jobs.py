@@ -67,7 +67,7 @@ def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") ->
     }
 
 
-def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "") -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None) -> str:
     if not title or not title.strip():
         raise ValueError("Judul Proyek wajib diisi.")
     job_id = str(uuid.uuid4())
@@ -82,6 +82,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "model": model,
         "mode": "ai",
         "aspect_ratio": aspect_ratio,
+        "canvas_config": canvas_config,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -103,7 +104,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
 
 
 def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption_style: str = "standard",
-                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small") -> str:
+                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None) -> str:
     """Manual clipper job: cut user-chosen ranges, no AI highlight selection.
 
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
@@ -121,6 +122,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         "mode": "manual",
         "manual_clips": clips or [],
         "aspect_ratio": aspect_ratio,
+        "canvas_config": canvas_config,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -141,7 +143,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
     return job_id
 
 
-def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0) -> str:
+def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None) -> str:
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
@@ -154,6 +156,7 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "url": hist["url"],
         "mode": "rerender",
         "aspect_ratio": aspect_ratio,
+        "canvas_config": canvas_config if canvas_config is not None else hist_meta.get("canvas_config"),
         "burn_subs": burn_subs,
         "output_dir": output_dir or hist_meta.get("output_dir", ""),
         "title": hist_meta.get("title", ""),
@@ -405,7 +408,8 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                 register_proc=lambda p: _register_proc(job, p),
                 should_cancel=is_cancelled,
                 broll_path=broll_path,
-                layout=job_layout
+                layout=job_layout,
+                canvas_config=job.get("canvas_config")
             )
 
             # Append to clips
@@ -539,6 +543,7 @@ def _run_manual_job(job_id: str):
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=is_cancelled,
                     layout=job_layout,
+                    canvas_config=job.get("canvas_config")
                 )
                 job["clips"].append({
                     "path": result_path,
@@ -651,7 +656,8 @@ def _run_rerender_job(job_id: str):
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=lambda: job.get("cancelled", False),
                     broll_path=broll_path,
-                    layout=job_layout
+                    layout=job_layout,
+                    canvas_config=job.get("canvas_config")
                 )
 
                 job["clips"].append({
@@ -690,7 +696,7 @@ def _run_rerender_job(job_id: str):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = ""):
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None):
     from backend.db import get_history
     job_record = get_history(history_job_id)
     if not job_record:
@@ -713,6 +719,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "model": model,
         "mode": "ai",
         "aspect_ratio": aspect_ratio,
+        "canvas_config": canvas_config if canvas_config is not None else metadata.get("canvas_config"),
         "caption_style": job_record.get("caption_style", "standard"),
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -831,7 +838,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=lambda: job.get("cancelled", False),
                     broll_path=broll_path,
-                    layout=job_layout
+                    layout=job_layout,
+                    canvas_config=job.get("canvas_config")
                 )
                 
                 job["clips"].append({
@@ -899,7 +907,7 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     if metadata.get("highlights") and job.get("mode") == "ai":
         metadata["ai_job"] = True
         
-    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model"]:
+    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model", "canvas_config"]:
         if key in job:
             metadata[key] = job[key]
 
@@ -929,9 +937,13 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
         "api_key": "",
         "mode": hist_meta.get("mode", "ai"),
         "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
+        "canvas_config": hist_meta.get("canvas_config"),
         "caption_style": hist_meta.get("caption_style", "standard"),
         "burn_subs": hist_meta.get("burn_subs", True),
         "output_dir": hist_meta.get("output_dir", ""),
+        "title": hist_meta.get("title", ""),
+        "quality": hist_meta.get("quality", "best"),
+        "whisper_model": hist_meta.get("whisper_model", "small"),
         "enable_broll": hist_meta.get("enable_broll", False),
         "pexels_api_key": hist_meta.get("pexels_api_key", ""),
         "max_clips": hist_meta.get("max_clips", 0),
@@ -1006,6 +1018,7 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "model": hist_meta.get("model") or fallback_model or "",
         "mode": hist_meta.get("mode", "ai"),
         "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
+        "canvas_config": hist_meta.get("canvas_config"),
         "caption_style": hist_meta.get("caption_style", "standard"),
         "burn_subs": hist_meta.get("burn_subs", True),
         "output_dir": hist_meta.get("output_dir", ""),

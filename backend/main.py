@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from backend.db import init_db, get_all_history, delete_history, get_app_data_dir
 from backend.logger import log_error, get_log_content
 import os
@@ -223,6 +223,14 @@ def api_download_whisper_model(req: DownloadWhisperModelRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 
+class CanvasConfig(BaseModel):
+    enabled: bool = False
+    background_type: str = "blur"      # "blur" | "color" | "image"
+    blur_level: str = "medium"         # "light" | "medium" | "strong"
+    background_color: str = "#000000"
+    background_image_path: str = ""
+    enlarge_scale: float = 1.0         # 1.0, 1.2, 1.5, 1.8, 2.0
+
 class CreateJobRequest(BaseModel):
     url: str
     provider: str = "openai"
@@ -242,6 +250,7 @@ class CreateJobRequest(BaseModel):
     is_gaming_video: bool = False
     whisper_model: str = "small"
     model: str = ""
+    canvas_config: Optional[CanvasConfig] = None
 
 class SaveFileRequest(BaseModel):
     src: str
@@ -292,7 +301,8 @@ def api_open_folder(req: OpenFolderRequest):
 def api_rerender_job(job_id: str, req: CreateJobRequest):
     try:
         from backend.jobs import create_rerender_job
-        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips)
+        canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
+        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips, canvas_config=canvas_cfg)
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -303,11 +313,12 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
         from backend.ai_utils import ping_provider
         ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip(), model=req.model.strip() if req.model else None)
         from backend.jobs import create_rerun_ai_job
+        canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
         new_job_id = create_rerun_ai_job(
             job_id, req.provider, req.api_key.strip(),
             req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
             req.custom_base_url.strip(), req.custom_model_name.strip(), req.whisper_model,
-            req.model
+            req.model, canvas_config=canvas_cfg
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
@@ -387,12 +398,13 @@ def api_create_job(req: CreateJobRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
     from backend.jobs import create_job
+    canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
     job_id = create_job(
         req.url.strip(), req.provider, req.api_key.strip(),
         req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
         req.title.strip(), req.enable_broll, req.pexels_api_key.strip(), req.max_clips,
         req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video,
-        req.whisper_model, req.model
+        req.whisper_model, req.model, canvas_config=canvas_cfg
     )
     return {"status": "success", "job_id": job_id}
 
@@ -538,6 +550,7 @@ class ManualJobRequest(BaseModel):
     title: str = ""
     is_gaming_video: bool = False
     whisper_model: str = "small"
+    canvas_config: Optional[CanvasConfig] = None
 
 
 @app.post("/jobs/manual")
@@ -553,10 +566,11 @@ def api_create_manual_job(req: ManualJobRequest):
 
     try:
         from backend.jobs import create_manual_job
+        canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
         job_id = create_manual_job(
             req.url.strip(), req.clips, req.aspect_ratio, req.caption_style,
             req.burn_subs, req.output_dir, req.quality, req.title.strip(), req.is_gaming_video,
-            req.whisper_model
+            req.whisper_model, canvas_config=canvas_cfg
         )
         return {"status": "success", "job_id": job_id}
     except Exception as e:

@@ -8,6 +8,7 @@ import { InputGroup } from "./ui/InputGroup";
 import { Select } from "./ui/Select";
 import { ToggleSwitch } from "./ui/ToggleSwitch";
 import { Button } from "./ui/Button";
+import { CanvasConfigControls } from "./ui/CanvasConfigControls";
 
 type Quality = "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p";
 
@@ -227,6 +228,17 @@ export default function GenerateForm({
             </button>
           ))}
         </div>
+
+        {/* Canvas Options for Landscape 16:9 */}
+        {aspectRatio === "16:9" && ctx?.canvasConfig && (
+          <div className="pt-3">
+            <CanvasConfigControls
+              config={ctx.canvasConfig}
+              onChange={ctx.setCanvasConfig}
+              showModeSwitch={true}
+            />
+          </div>
+        )}
       </div>
 
       {/* Subtitle + Quality */}

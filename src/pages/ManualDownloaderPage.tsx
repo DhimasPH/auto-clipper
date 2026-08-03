@@ -7,6 +7,7 @@ import { AppContext } from "../App";
 import { InputGroup } from "../components/ui/InputGroup";
 import { ToggleSwitch } from "../components/ui/ToggleSwitch";
 import { Button } from "../components/ui/Button";
+import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
 
 export const ManualDownloaderPage: React.FC = () => {
   const { t } = useTranslation();
@@ -83,6 +84,16 @@ export const ManualDownloaderPage: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {ctx.aspectRatio === "16:9" && ctx?.canvasConfig && (
+            <div className="pt-3">
+              <CanvasConfigControls
+                config={ctx.canvasConfig}
+                onChange={ctx.setCanvasConfig}
+                showModeSwitch={true}
+              />
+            </div>
+          )}
         </div>
 
         <div className="p-4 bg-bg-surface rounded-xl border border-border space-y-4">

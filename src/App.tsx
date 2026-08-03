@@ -18,6 +18,7 @@ import { useClipJobs } from "./hooks/useClipJobs";
 import { useStartupUpdateCheck } from "./hooks/useStartupUpdateCheck";
 import { ProviderId, DEFAULT_PROVIDER, LEGACY_PROVIDER_MIGRATION } from "./lib/providers";
 import { SHOW_EXPERIMENTAL_FEATURES } from "./config/features";
+import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "./types/canvas";
 
 export let API_URL = "http://127.0.0.1:8000";
 export function setApiUrl(url: string) {
@@ -73,6 +74,7 @@ export default function App() {
   const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke">(
     "standard",
   );
+  const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
 
   useEffect(() => {
     localStorage.setItem("ac_provider", provider);
@@ -126,6 +128,7 @@ export default function App() {
     aspectRatio,
     captionStyle,
     burnSubtitles,
+    canvasConfig,
     outputFolder,
     quality,
     title,
@@ -145,6 +148,7 @@ export default function App() {
     setUrl("");
     setTitle("");
     setLocalFile(null);
+    setCanvasConfig(DEFAULT_CANVAS_CONFIG);
     resetJobState();
   };
 
@@ -184,6 +188,8 @@ export default function App() {
     setCaptionStyle,
     burnSubtitles,
     setBurnSubtitles,
+    canvasConfig,
+    setCanvasConfig,
     title,
     setTitle,
     enableBroll,

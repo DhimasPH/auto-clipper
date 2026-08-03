@@ -190,3 +190,67 @@ def test_resume_job_reuses_highlights(tmp_path, monkeypatch):
     finally:
         jobs.active_jobs.pop(job_id, None)
 
+
+def test_resume_manual_job_preserves_canvas_config(tmp_path, monkeypatch):
+    """resume_manual_job should carry over canvas_config from history metadata into active_jobs and crop_to_vertical."""
+    src = tmp_path / "source.mp4"
+    src.write_bytes(b"x")
+    sub = tmp_path / "subs.srt"
+    sub.write_text("1\n00:00:00,000 --> 00:00:05,000\nHello world\n", encoding="utf-8")
+
+    canvas_cfg = {
+        "enabled": True,
+        "background_type": "blur",
+        "blur_level": "medium",
+        "enlarge_scale": 1.2
+    }
+
+    metadata = {
+        "source_video": str(src),
+        "subtitle_path": str(sub),
+        "title": "Manual AI Project",
+        "mode": "ai",
+        "aspect_ratio": "16:9",
+        "canvas_config": canvas_cfg,
+        "burn_subs": True,
+        "output_dir": str(tmp_path)
+    }
+
+    history_record = {
+        "id": "test-hist-manual",
+        "url": f"local:{src}",
+        "status": "AWAITING_MANUAL",
+        "clips": [],
+        "metadata": metadata
+    }
+
+    monkeypatch.setattr("backend.db.get_history", lambda j_id: history_record if j_id == "test-hist-manual" else None)
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: None)
+
+    crop_calls = []
+    def fake_crop(in_path, out_path, start, end, **kwargs):
+        crop_calls.append(kwargs)
+        return out_path
+
+    monkeypatch.setattr(jobs, "crop_to_vertical", fake_crop)
+
+    # Payload returned by user after manual prompt
+    payload = '[{"start_time": "00:00:00", "end_time": "00:00:04", "description": "Manual Highlight 1"}]'
+    job_id = jobs.resume_manual_job("test-hist-manual", payload)
+
+    try:
+        assert job_id == "test-hist-manual"
+        active = jobs.active_jobs.get(job_id)
+        assert active is not None
+        assert active["canvas_config"] == canvas_cfg
+        assert active["title"] == "Manual AI Project"
+
+        # Wait briefly for thread execution if needed or run synchronously
+        time.sleep(0.5)
+        assert len(crop_calls) == 1
+        assert crop_calls[0].get("canvas_config") == canvas_cfg
+        assert crop_calls[0].get("aspect_ratio") == "16:9"
+    finally:
+        jobs.active_jobs.pop(job_id, None)
+
+
