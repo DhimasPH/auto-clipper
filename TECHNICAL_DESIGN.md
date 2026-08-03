@@ -67,10 +67,14 @@ sequenceDiagram
         Frontend->>API: 3. User provides Highlight Timestamps
     end
     
-    JobMgr->>AI: 4. Face Tracking (OpenCV - for Landscape)
-    AI-->>JobMgr: Crop Coordinates
-    
-    JobMgr->>FFmpeg: 5. Render Video (Crop & Subtitle)
+    alt Canvas Background Mode (16:9 to 9:16 Canvas)
+        JobMgr->>FFmpeg: 5a. Render Video via Canvas Background Filtergraph
+        Note right of FFmpeg: Uses split streams, boxblur/color/image background, foreground zoom, and elevated subtitle margin
+    else Dynamic Face-Tracking Mode (9:16 Crop)
+        JobMgr->>AI: 4. Face Tracking (OpenCV - for Landscape)
+        AI-->>JobMgr: Crop Coordinates
+        JobMgr->>FFmpeg: 5b. Render Video via Dynamic Pan/Crop Filtergraph
+    end
     Note right of FFmpeg: Tries h264_nvenc, fallback to libx264
     FFmpeg-->>JobMgr: Final MP4 output
     
@@ -80,15 +84,32 @@ sequenceDiagram
     Frontend->>User: Native OS Notification (Tauri plugin) & Redirect to History
 ```
 
-## 3. Struktur Direktori Utama
+## 3. Video Rendering & Filtergraph Pipelines
 
-- `src/`: Berisi kode sumber Frontend (React, Vite, Tailwind). Komponen UI, state management, dan modul i18n (Internationalization) ada di sini.
+Sistem mendukung dua strategi perenderan video lanskap ke format vertikal 9:16:
+
+### 3.1 Dynamic Face Tracking Pipeline (Standard Crop)
+- **Face Trajectory Sampling**: OpenCV mendeteksi koordinat wajah pembicara (`sample_face_trajectory`) secara berkala.
+- **Smoothing**: Menggunakan Exponential Moving Average (EMA, alpha = 0.25) untuk menghilangkan pergerakan kamera yang patah-patah (`smooth_trajectory`).
+- **Dynamic Crop Filter**: FFmpeg mengeksekusi ekspresi `crop=w=ih*(9/16):h=ih:x=...` dinamis.
+
+### 3.2 Canvas Background Styling & Zoom Pipeline
+- **Split Stream Filtergraph**:
+  - *Stream 1 (Background)*: Di-scale dan di-crop ke 1080x1920, kemudian diberi filter `boxblur=10:5` (light), `boxblur=25:10` (medium), atau `boxblur=50:20` (heavy). Alternatifnya menggunakan background warna solid (`color=c=0x...:s=1080x1920`) atau background gambar lokal (`movie=...`).
+  - *Stream 2 (Foreground Video)*: Di-scale sesuai parameter `enlarge_scale` (1.0x - 2.0x, default 1080:608) tanpa merusak aspect ratio asli.
+  - *Overlay*: Stream foreground ditumpuk di tengah stream background (`overlay=(W-w)/2:(H-h)/2`).
+- **Adaptive Subtitle Margin**:
+  - Penempatan teks subtitle karaoke (.ass) disesuaikan secara dinamis dengan menaikkan `MarginV` (atau `Alignment=2` pada area bawah frame video foreground) agar teks berada tepat di area kanvas kosong di bawah video.
+
+## 4. Struktur Direktori Utama
+
+- `src/`: Berisi kode sumber Frontend (React, Vite, Tailwind). Komponen UI (`CanvasConfigControls.tsx`), state management, dan modul i18n (Internationalization) ada di sini.
 - `src-tauri/`: Kode Rust yang membungkus aplikasi web menjadi *desktop app*. Mendefinisikan kapabilitas *Native Notifications*, konfigurasi *sleep prevention*, dan eksekusi *sidecar* (`tauri.conf.json`).
 - `backend/`: Kode Python (FastAPI). 
-  - `main.py`: Entry point server web lokal.
-  - `jobs.py`: Scheduler dan handler pemrosesan dengan manajemen *Project Workspace*.
+  - `main.py`: Entry point server web lokal & API schema `CanvasConfig`.
+  - `jobs.py`: Scheduler dan handler pemrosesan dengan manajemen *Project Workspace* dan persistensi metadata.
   - `ai_utils.py`: Logika interaksi AI (Whisper, AI Provider Registry) yang dilengkapi metode fallback/retry.
-  - `crop_utils.py`: Utilitas deteksi wajah (OpenCV), klasifikasi layout, pembuat subtitle karaoke, dan filter *panning* FFmpeg dinamis.
+  - `crop_utils.py`: Utilitas deteksi wajah (OpenCV), klasifikasi layout, generator kanvas background FFmpeg (`build_canvas_background_filter`), dan pembuat subtitle karaoke.
   - `db.py`: Koneksi dan model SQLite untuk manajemen riwayat.
 - `bin/`: Direktori tempat executable *sidecar* dari PyInstaller disimpan (`backend-x86_64-pc-windows-msvc.exe`) sebelum dipanggil oleh Tauri.
 

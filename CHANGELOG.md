@@ -2,6 +2,22 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.9.0] - 2026-08-03
+
+### Added
+
+- **Landscape-to-Portrait Canvas Background Styling**: Memungkinkan konversi video landscape (16:9) ke format kanvas vertikal (9:16) tanpa memotong sisi video, dengan 3 mode latar belakang:
+  - *Blurred Background*: Efek Gaussian blur pada latar belakang dengan 3 pilihan intensitas (*Light*, *Medium*, *Heavy*).
+  - *Solid Color Background*: Latar belakang warna solid elegan dengan preset tema dan kustomisasi hex code.
+  - *Custom Image Background*: Pemilihan berkas gambar lokal (.jpg, .png, .webp) sebagai latar kanvas 9:16.
+- **Foreground Zoom / Enlarge Control**: Pengaturan pembesaran skala video di tengah kanvas (1.0x, 1.2x, 1.5x, 1.8x, 2.0x) secara proporsional.
+- **Adaptive Subtitle Positioning**: Penyesuaian margin vertikal subtitle karaoke secara otomatis agar teks muncul di ruang kosong bawah video tanpa menutupi visual utama saat mode kanvas aktif.
+- **Canvas Config Controls Component**: Komponen UI modular terintegrasi pada form Generate, Manual Downloader, dan Re-render di halaman History.
+
+### Fixed
+
+- **Manual AI Resume Metadata Persistence**: Memperbaiki bug di mana konfigurasi kanvas (`canvas_config`), judul (`title`), dan kualitas (`quality`) tidak termuat saat melanjutkan perenderan klip manual dari histori (`resume_manual_job`).
+
 ## [1.8.0] - 2026-08-02
 
 ### Added

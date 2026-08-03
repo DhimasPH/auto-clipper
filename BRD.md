@@ -27,7 +27,8 @@ Auto Clipper adalah aplikasi desktop yang dirancang untuk mengotomatisasi proses
   - **AI Provider Registry** (Bring Your Own Key) yang mendukung berbagai model LLM (Gemini, OpenAI, dll) untuk deteksi *highlight* dan penulisan metadata dengan *retry logic* yang tangguh.
   - **Manual Editor Mode** bagi kreator yang tidak ingin menggunakan AI dan lebih suka memilih segmen klip secara manual.
   - Pemotongan video (*cropping*) 9:16 otomatis menggunakan algoritma Face-Tracking dinamis.
-  - Generasi subtitle presisi dengan teknologi Whisper (*burned-in*).
+  - **Landscape-to-Portrait Canvas Background Styling**: Mempertahankan visual konten landscape 16:9 secara penuh dalam kanvas vertikal 9:16 dengan latar belakang kustom (*Blurred Gaussian*, *Solid Color*, atau *Custom Local Image*) dan kontrol *Foreground Zoom/Enlarge* (1.0x - 2.0x).
+  - Generasi subtitle presisi dengan teknologi Whisper (*burned-in*) dengan penyesuaian posisi vertikal adaptif (*adaptive subtitle margin*).
   - Penyesuaian batas klip secara manual bagi kreator yang membutuhkan penyesuaian akhir (*fine-tuning*).
   - Generasi metadata sosial (Title, Description, Tags).
   - Berjalan secara lokal (*on-premise*) sebagai desktop app.

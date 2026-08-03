@@ -37,11 +37,14 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 3. Selalu sertakan `vad_filter=True` untuk memangkas jeda hening dan mencegah halusinasi teks berulang.
 4. **AI Provider Registry & Dynamic Models**: Sistem **tidak boleh** melakukan hardcode pada model LLM. Selalu gunakan sistem *AI Provider Registry* yang mengambil konfigurasi model secara dinamis dari frontend/backend settings.
 
-### D. Video Cropping & Karaoke Subtitle Invariants (ADR-003)
-1. Pemotongan video portrait (9:16) harus menggunakan `sample_face_trajectory` + `smooth_trajectory` + `build_dynamic_crop_filter` agar kamera mengikuti pergerakan wajah pembicara secara halus.
-2. Subtitle karaoke harus menggunakan `words_to_karaoke_ass` dengan pola kemunculan kata bertahap (kata aktif berwarna kuning `{\c&H00FFFF&}`, kata sebelumnya putih), disertai hold time di akhir kalimat.
-3. Pipeline wajib mendeteksi layout video asli (Landscape/Portrait) secara otomatis sebelum pemrosesan klip.
-4. **NVENC Fallback**: Semua *command* FFmpeg untuk rendering video wajib mengimplementasikan percobaan hardware encoding dengan `h264_nvenc`. Jika terjadi error (misalnya karena driver tidak tersedia atau memori GPU penuh), command tersebut harus ditangkap dan fallback secara aman ke CPU encoding (`libx264`).
+### D. Video Cropping, Canvas Styling & Karaoke Subtitle Invariants (ADR-003, ADR-008)
+1. **Face Tracking Crop**: Pemotongan video portrait (9:16) standard harus menggunakan `sample_face_trajectory` + `smooth_trajectory` + `build_dynamic_crop_filter` agar kamera mengikuti pergerakan wajah pembicara secara halus.
+2. **Canvas Background Styling & Zoom (ADR-008)**: Saat opsi Canvas Styling aktif pada video landscape (16:9), pipeline merender video di atas kanvas 9:16 dengan opsi latar (`blur` [light, medium, heavy], `color` solid, atau `image` kustom) serta pembesaran `enlarge_scale` (1.0x - 2.0x) secara proporsional tanpa memotong sisi video.
+3. **Adaptive Subtitle Margin**: Pada mode kanvas, posisi vertikal subtitle karaoke ASS disesuaikan secara otomatis (`MarginV` dinaikkan) agar teks berada tepat di area kosong bawah video tanpa menutupi visual utama.
+4. **Subtitle Karaoke**: Subtitle karaoke harus menggunakan `words_to_karaoke_ass` dengan pola kemunculan kata bertahap (kata aktif berwarna kuning `{\c&H00FFFF&}`, kata sebelumnya putih), disertai hold time di akhir kalimat.
+5. **Pipeline Metadata Invariant**: Properti `canvas_config` **HARUS** dipropagasikan dan dipertahankan di seluruh alur pembuatan job (`create_job`, `create_manual_job`, `create_rerender_job`, `create_rerun_ai_job`) serta alur resume (`create_resume_job`, `resume_manual_job`).
+6. Pipeline wajib mendeteksi layout video asli (Landscape/Portrait) secara otomatis sebelum pemrosesan klip.
+7. **NVENC Fallback**: Semua *command* FFmpeg untuk rendering video wajib mengimplementasikan percobaan hardware encoding dengan `h264_nvenc`. Jika terjadi error (misalnya karena driver tidak tersedia atau memori GPU penuh), command tersebut harus ditangkap dan fallback secara aman ke CPU encoding (`libx264`).
 
 ### E. Multi-Stage Resume, Job Workspaces, & Mode (AI vs Manual)
 1. Fitur retry/resume di `backend/jobs.py` tidak boleh mengunduh ulang video jika file lokal sudah tersedia.
@@ -74,10 +77,12 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `backend/main.py`: Entry point FastAPI, exception handler, port/token emitter.
 - `backend/jobs.py`: Worker queue, pipeline eksekusi klip, resume/retry logic.
 - `backend/ai_utils.py`: Integrasi Whisper, model registry, prompt LLM & JSON sanitizer.
-- `backend/crop_utils.py`: Face tracking (OpenCV), crop filter generator, subtitle ASS parser.
+- `backend/crop_utils.py`: Face tracking (OpenCV), generator kanvas background (`build_canvas_background_filter`), subtitle ASS parser.
 - `backend/logger.py`: Fail-safe error logger (`backend_error.log`).
 - `backend/db.py`: SQLite database schema & repository functions.
 - `src/App.tsx`: Routing, splash screen, startup update check.
+- `src/components/ui/CanvasConfigControls.tsx`: UI selector mode canvas, color picker, blur level, image picker, & zoom slider.
+- `src/types/canvas.ts`: Interface TypeScript `CanvasConfig` dan default state.
 - `src/locales/`: File terjemahan bilingual (`id.json`, `en.json`).
 - `src-tauri/`: Tauri Rust backend & configuration.
-- `docs/decisions/`: Architecture Decision Records (ADR-001 s/d ADR-006).
+- `docs/decisions/`: Architecture Decision Records (ADR-001 s/d ADR-008).
