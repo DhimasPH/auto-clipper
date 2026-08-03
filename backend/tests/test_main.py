@@ -34,15 +34,15 @@ def test_create_job_rejects_invalid_url():
 
 def test_create_job_accepts_valid_url(monkeypatch):
     # Avoid spawning a real download/render thread.
-    monkeypatch.setattr("backend.main.create_job", lambda *a, **k: "fake-id")
-    monkeypatch.setattr("backend.main.ping_provider", lambda *a, **k: None)
+    monkeypatch.setattr("backend.jobs.create_job", lambda *a, **k: "fake-id")
+    monkeypatch.setattr("backend.ai_utils.ping_provider", lambda *a, **k: None)
     r = client.post("/jobs", json={"url": "https://youtube.com/watch?v=abc", "title": "My Test Project"})
     assert r.status_code == 200
     assert r.json()["job_id"] == "fake-id"
 
 
 def test_create_job_rejects_missing_title(monkeypatch):
-    monkeypatch.setattr("backend.main.ping_provider", lambda *a, **k: None)
+    monkeypatch.setattr("backend.ai_utils.ping_provider", lambda *a, **k: None)
     r = client.post("/jobs", json={"url": "https://youtube.com/watch?v=abc", "title": ""})
     assert r.status_code == 400
     assert "Judul Proyek wajib diisi" in r.json()["message"]
@@ -110,7 +110,7 @@ def test_get_job_exposes_success_and_failed_counts():
 
 
 def test_probe_endpoint_ok(monkeypatch):
-    monkeypatch.setattr("backend.main.probe_formats", lambda url: [1080, 720])
+    monkeypatch.setattr("backend.video_utils.probe_formats", lambda url: [1080, 720])
     r = client.get("/probe", params={"url": "https://youtube.com/watch?v=x"})
     assert r.status_code == 200
     assert r.json()["heights"] == [1080, 720]

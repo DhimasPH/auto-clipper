@@ -3,10 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from typing import List
-from backend.db import init_db, get_all_history, delete_history
-from backend.jobs import create_job, get_job, cancel_job
-from backend.ai_utils import ping_provider
-from backend.video_utils import probe_formats
+from backend.db import init_db, get_all_history, delete_history, get_app_data_dir
 from backend.logger import log_error, get_log_content
 import os
 import sys
@@ -14,6 +11,20 @@ import shutil
 import re
 import secrets
 from starlette.requests import Request
+
+# --- Frozen-mode stdout guard ---
+# In PyInstaller bundles, some libraries (ctranslate2, onnxruntime, etc.)
+# may print to stdout on first import, breaking the PORT:/TOKEN: handshake.
+# We capture stdout until we're ready to emit the handshake lines.
+_original_stdout = None
+_original_stderr = None
+
+if getattr(sys, 'frozen', False):
+    import io
+    _original_stdout = sys.stdout
+    _original_stderr = sys.stderr
+    sys.stdout = io.StringIO()
+    sys.stderr = io.StringIO()
 
 def handle_uncaught_exception(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
@@ -90,8 +101,6 @@ async def verify_token(request: Request, call_next):
         
     return await call_next(request)
 
-from backend.db import init_db, get_all_history, delete_history, get_app_data_dir
-
 @app.post("/upload")
 def api_upload_video(file: UploadFile = File(...)):
     temp_dir = os.path.abspath(os.path.join(get_app_data_dir(), "temp_downloads"))
@@ -108,6 +117,7 @@ def api_probe(url: str):
     if not url or url.startswith("local:") or not is_valid_source_url(url):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid untuk probing."})
     try:
+        from backend.video_utils import probe_formats
         return {"status": "success", "heights": probe_formats(url.strip())}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -290,6 +300,7 @@ def api_rerender_job(job_id: str, req: CreateJobRequest):
 @app.post("/jobs/{job_id}/rerun_ai")
 def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
     try:
+        from backend.ai_utils import ping_provider
         ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip(), model=req.model.strip() if req.model else None)
         from backend.jobs import create_rerun_ai_job
         new_job_id = create_rerun_ai_job(
@@ -370,10 +381,12 @@ def api_create_job(req: CreateJobRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid. Didukung: YouTube, TikTok, Instagram, X/Twitter, atau upload file lokal."})
 
     try:
+        from backend.ai_utils import ping_provider
         ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip(), model=req.model.strip() if req.model else None)
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
+    from backend.jobs import create_job
     job_id = create_job(
         req.url.strip(), req.provider, req.api_key.strip(),
         req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
@@ -385,6 +398,7 @@ def api_create_job(req: CreateJobRequest):
 
 @app.get("/jobs/{job_id}")
 def api_get_job(job_id: str):
+    from backend.jobs import get_job
     job = get_job(job_id)
     if not job:
         return JSONResponse(status_code=404, content={"status": "error", "message": "Job not found"})
@@ -439,6 +453,7 @@ def api_generate_social_kit(job_id: str, clip_index: int, req: GenerateSocialKit
 
 @app.post("/jobs/{job_id}/cancel")
 def api_cancel_job(job_id: str):
+    from backend.jobs import get_job, cancel_job
     job = get_job(job_id)
     if not job:
         return JSONResponse(status_code=404, content={"status": "error", "message": "Job not found"})
@@ -555,10 +570,16 @@ def get_video(path: str):
     Restricted to existing .mp4 files. Starlette's
     FileResponse handles HTTP Range requests, so seeking works in the player.
     """
-    abs_path = os.path.abspath(path)
+    from backend.logger import log_app
+    abs_path = os.path.normpath(os.path.abspath(path))
+    log_app(f"[video] Requested: {path} → Resolved: {abs_path} → Exists: {os.path.exists(abs_path)}")
     if not os.path.exists(abs_path) or not abs_path.lower().endswith(".mp4"):
-        return JSONResponse(status_code=404, content={"status": "error", "message": "File not found or invalid format"})
-    return FileResponse(abs_path, media_type="video/mp4")
+        return JSONResponse(status_code=404, content={"status": "error", "message": f"File not found or invalid format: {abs_path}"})
+    return FileResponse(
+        abs_path,
+        media_type="video/mp4",
+        headers={"Content-Disposition": f'inline; filename="{os.path.basename(abs_path)}"'},
+    )
 
 
 if __name__ == "__main__":
@@ -598,6 +619,12 @@ if __name__ == "__main__":
 
     port = get_free_port()
     
+    # Restore stdout/stderr for handshake output
+    if _original_stdout is not None:
+        sys.stdout = _original_stdout
+    if _original_stderr is not None:
+        sys.stderr = _original_stderr
+
     # Cetak port ke stdout agar ditangkap oleh frontend
     print(f"AUTO_CLIPPER_BACKEND_PORT={port}")
     print(f"PORT:{port}")

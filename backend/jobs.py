@@ -395,7 +395,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
         job["progress"] = f"Merender klip {i+1} dari {len(segments)}..."
         log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(segments)}..."))
         
-        clip_output = os.path.join(ws["clips_dir"], f"{ws['safe_title']}_clip_{i+1}.mp4")
+        clip_output = os.path.normpath(os.path.join(ws["clips_dir"], f"{ws['safe_title']}_clip_{i+1}.mp4"))
         
         try:
             result_path = crop_to_vertical(
@@ -529,7 +529,7 @@ def _run_manual_job(job_id: str):
             start_t = clip.get("start")
             end_t = clip.get("end")
 
-            clip_output = os.path.join(ws["clips_dir"], f"{ws['safe_title']}_clip_{i+1}.mp4")
+            clip_output = os.path.normpath(os.path.join(ws["clips_dir"], f"{ws['safe_title']}_clip_{i+1}.mp4"))
 
             try:
                 result_path = crop_to_vertical(
@@ -641,7 +641,7 @@ def _run_rerender_job(job_id: str):
             log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(segments)}..."))
             
             aspect_tag = job.get("aspect_ratio", "9:16").replace(":", "x")
-            clip_output = os.path.join(ws["clips_dir"], f"{ws['safe_title']}_{aspect_tag}_clip_{i+1}.mp4")
+            clip_output = os.path.normpath(os.path.join(ws["clips_dir"], f"{ws['safe_title']}_{aspect_tag}_clip_{i+1}.mp4"))
             
             try:
                 result_path = crop_to_vertical(
@@ -822,7 +822,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             job["progress"] = f"Memotong klip {i+1} dari {len(segments)} (AI Koreksi)..."
             log_app(f"[{job_id}] " + str(f"Memotong klip {i+1} dari {len(segments)} (AI Koreksi)..."))
             try:
-                clip_output = os.path.join(ws["clips_dir"], f"{ws['safe_title']}_clip_{i+1}.mp4")
+                clip_output = os.path.normpath(os.path.join(ws["clips_dir"], f"{ws['safe_title']}_clip_{i+1}.mp4"))
 
                 result_path = crop_to_vertical(
                     source_video, clip_output, seg["start_time"], seg["end_time"],

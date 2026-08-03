@@ -1020,6 +1020,12 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             raise RuntimeError("Dibatalkan oleh pengguna.")
         if not ok3:
             raise RuntimeError(f"ffmpeg final fallback failed: {err3[-800:]}")
-        return output_path
-            
+
+    # Validate output file integrity
+    if not os.path.isfile(output_path):
+        raise RuntimeError(f"FFmpeg completed but output file was not created: {output_path}")
+    if os.path.getsize(output_path) == 0:
+        os.remove(output_path)
+        raise RuntimeError(f"FFmpeg produced an empty output file (0 bytes): {output_path}")
+
     return output_path
