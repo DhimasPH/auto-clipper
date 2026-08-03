@@ -80,3 +80,39 @@ def test_delete_history_shared_source_preserves_file(monkeypatch, tmp_path):
     assert not sub_file.exists()
     assert db.get_history("job-parent") is None
 
+
+def test_safe_remove_file_and_dir(tmp_path):
+    f = tmp_path / "test.txt"
+    f.write_text("hello")
+    assert f.exists()
+    assert db.safe_remove_file(str(f)) is True
+    assert not f.exists()
+    assert db.safe_remove_file(str(f)) is True  # non-existent is safe
+
+    d = tmp_path / "subdir"
+    d.mkdir()
+    (d / "inner.txt").write_text("inner")
+    assert d.exists()
+    assert db.safe_remove_dir(str(d)) is True
+    assert not d.exists()
+
+
+def test_delete_history_cleans_project_workspace(monkeypatch, tmp_path):
+    _use_tmp_db(monkeypatch, tmp_path)
+    monkeypatch.setattr(db, "get_app_data_dir", lambda: str(tmp_path))
+
+    ws_dir = tmp_path / "projects" / "Project_job-clean"
+    ws_clips = ws_dir / "clips"
+    ws_clips.mkdir(parents=True)
+    clip_file = ws_clips / "clip_1.mp4"
+    clip_file.write_bytes(b"clip data")
+
+    db.save_history("job-clean", "https://youtu.be/clean", "DONE", [{"path": str(clip_file)}], {})
+    assert ws_dir.exists()
+
+    db.delete_history("job-clean")
+    assert not clip_file.exists()
+    assert not ws_dir.exists()
+    assert db.get_history("job-clean") is None
+
+

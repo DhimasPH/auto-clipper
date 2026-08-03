@@ -28,6 +28,8 @@ export const HistoryPage: React.FC = () => {
   const [localBurnSubs, setLocalBurnSubs] = useState(true);
   const [localCanvasConfig, setLocalCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchHistory();
   }, [ctx.historyVersion]);
@@ -47,10 +49,15 @@ export const HistoryPage: React.FC = () => {
   const deleteHistory = async (jobId: string) => {
     if (window.confirm(t("history.delete_confirm"))) {
       try {
+        setDeletingId(jobId);
+        // Short pause to allow DOM to unmount video elements and release file handles
+        await new Promise((r) => setTimeout(r, 60));
         await axios.delete(`${API_URL}/history/${jobId}`);
         fetchHistory();
       } catch (err) {
         console.error(err);
+      } finally {
+        setDeletingId(null);
       }
     }
   };
@@ -136,11 +143,12 @@ export const HistoryPage: React.FC = () => {
                   variant="ghost"
                   className="text-danger"
                   icon={Trash2}
+                  disabled={deletingId === job.id}
                   onClick={() => deleteHistory(job.id)}
                 />
               </div>
 
-              {job.result_clips && job.result_clips.length > 0 && (
+              {deletingId !== job.id && job.result_clips && job.result_clips.length > 0 && (
                 <div className="flex gap-6 overflow-x-auto py-4">
                   {job.result_clips.map((clip: any, idx: number) => (
                     <ClipCard

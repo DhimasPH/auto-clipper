@@ -613,7 +613,11 @@ def get_video(path: str):
     return FileResponse(
         abs_path,
         media_type="video/mp4",
-        headers={"Content-Disposition": f'inline; filename="{os.path.basename(abs_path)}"'},
+        headers={
+            "Content-Disposition": f'inline; filename="{os.path.basename(abs_path)}"',
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "no-cache",
+        },
     )
 
 

@@ -103,6 +103,56 @@ def get_history(job_id: str) -> dict:
         "metadata": json.loads(row["metadata"]) if row["metadata"] else {}
     }
 
+def safe_remove_file(file_path: str, retries: int = 4, delay: float = 0.15) -> bool:
+    """Safely remove a file with garbage collection and retry backoff on Windows."""
+    if not file_path or not os.path.exists(file_path):
+        return True
+
+    import gc
+    import time
+
+    for attempt in range(retries):
+        try:
+            gc.collect()
+            os.remove(file_path)
+            return True
+        except PermissionError as e:
+            if attempt < retries - 1:
+                time.sleep(delay * (attempt + 1))
+            else:
+                log_error("db.safe_remove_file", f"PermissionError deleting file {file_path} after {retries} retries: {e}")
+                return False
+        except Exception as e:
+            log_error("db.safe_remove_file", f"Failed to delete file {file_path}: {e}")
+            return False
+    return False
+
+
+def safe_remove_dir(dir_path: str, retries: int = 3, delay: float = 0.15) -> bool:
+    """Safely remove an entire directory if empty or unused."""
+    if not dir_path or not os.path.isdir(dir_path):
+        return True
+    import gc
+    import time
+    import shutil
+
+    for attempt in range(retries):
+        try:
+            gc.collect()
+            shutil.rmtree(dir_path, ignore_errors=False)
+            return True
+        except Exception:
+            if attempt < retries - 1:
+                time.sleep(delay * (attempt + 1))
+            else:
+                try:
+                    shutil.rmtree(dir_path, ignore_errors=True)
+                except Exception:
+                    pass
+                return False
+    return False
+
+
 def delete_history(job_id: str):
     conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
@@ -115,11 +165,8 @@ def delete_history(job_id: str):
             try:
                 clips = json.loads(row["result_clips"])
                 for c in clips:
-                    if "path" in c and os.path.exists(c["path"]):
-                        try:
-                            os.remove(c["path"])
-                        except Exception as e:
-                            log_error("db.delete_history", f"Failed to delete clip file {c.get('path')}: {e}")
+                    if "path" in c and c["path"]:
+                        safe_remove_file(c["path"])
             except Exception as e:
                 log_error("db.delete_history", f"Failed to parse result_clips: {e}")
 
@@ -148,21 +195,21 @@ def delete_history(job_id: str):
                             pass
 
                 # Hanya hapus source_video fisik jika TIDAK ada job lain yang memakainya
-                if not source_in_use and target_source and os.path.exists(target_source):
-                    try:
-                        os.remove(target_source)
-                    except Exception as e:
-                        log_error("db.delete_history", f"Failed to delete source video {target_source}: {e}")
+                if not source_in_use and target_source:
+                    safe_remove_file(target_source)
 
                 # Hanya hapus subtitle fisik jika TIDAK ada job lain yang memakainya
-                if not sub_in_use and target_sub and os.path.exists(target_sub):
-                    try:
-                        os.remove(target_sub)
-                    except Exception as e:
-                        log_error("db.delete_history", f"Failed to delete subtitle file {target_sub}: {e}")
+                if not sub_in_use and target_sub:
+                    safe_remove_file(target_sub)
             except Exception as e:
                 log_error("db.delete_history", f"Failed to parse metadata: {e}")
+
+        # 3. Bersihkan direktori project workspace jika ada
+        project_ws = os.path.join(get_app_data_dir(), "projects", f"Project_{job_id}")
+        if os.path.isdir(project_ws):
+            safe_remove_dir(project_ws)
 
     cursor.execute("DELETE FROM history WHERE id=?", (job_id,))
     conn.commit()
     conn.close()
+

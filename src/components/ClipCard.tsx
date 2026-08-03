@@ -65,6 +65,7 @@ export default function ClipCard({
           src={videoSrc(clip.path, clip.v)}
           controls
           playsInline
+          preload="metadata"
           className="w-full h-full object-contain bg-black"
         />
       </div>
