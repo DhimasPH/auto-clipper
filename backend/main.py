@@ -12,7 +12,7 @@ import re
 import secrets
 from starlette.requests import Request
 
-# --- Frozen-mode stdout guard ---
+# --- Frozen-mode stdout guard & SSL Cert Setup ---
 # In PyInstaller bundles, some libraries (ctranslate2, onnxruntime, etc.)
 # may print to stdout on first import, breaking the PORT:/TOKEN: handshake.
 # We capture stdout until we're ready to emit the handshake lines.
@@ -26,13 +26,34 @@ if getattr(sys, 'frozen', False):
     sys.stdout = io.StringIO()
     sys.stderr = io.StringIO()
 
+    # Configure SSL certificates for requests / httpx in frozen bundle
+    try:
+        import certifi
+        cert_path = certifi.where()
+        if os.path.exists(cert_path):
+            os.environ.setdefault("SSL_CERT_FILE", cert_path)
+            os.environ.setdefault("REQUESTS_CA_BUNDLE", cert_path)
+    except Exception:
+        pass
+
 def handle_uncaught_exception(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
+        if _original_stdout is not None:
+            sys.stdout = _original_stdout
+        if _original_stderr is not None:
+            sys.stderr = _original_stderr
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
     log_error("Global Uncaught Exception", f"{exc_type.__name__}: {exc_value}")
+    if _original_stderr is not None:
+        try:
+            _original_stderr.write(f"[FATAL] {exc_type.__name__}: {exc_value}\n")
+            _original_stderr.flush()
+        except Exception:
+            pass
 
 sys.excepthook = handle_uncaught_exception
+
 
 API_SECRET_TOKEN = os.environ.get("AUTO_CLIPPER_DEV_TOKEN", secrets.token_hex(32))
 
@@ -599,52 +620,64 @@ def get_video(path: str):
 if __name__ == "__main__":
     import multiprocessing
     multiprocessing.freeze_support()
-    import uvicorn
-    import socket
-    import sys
-    import threading
-    import os
 
-    import time
+    try:
+        import uvicorn
+        import socket
+        import sys
+        import threading
+        import os
+        import time
 
-    # Watchdog thread: kills backend if no heartbeat received from frontend in 30 seconds
-    last_heartbeat = time.time()
-
-    @app.post("/heartbeat")
-    def api_heartbeat():
-        global last_heartbeat
+        # Watchdog thread: kills backend if no heartbeat received from frontend in 30 seconds
         last_heartbeat = time.time()
-        return {"status": "ok"}
 
-    def watchdog():
-        while True:
-            time.sleep(5)
-            if time.time() - last_heartbeat > 30:
-                os._exit(0)
+        @app.post("/heartbeat")
+        def api_heartbeat():
+            global last_heartbeat
+            last_heartbeat = time.time()
+            return {"status": "ok"}
 
-    # Start the watchdog as a daemon thread
-    threading.Thread(target=watchdog, daemon=True).start()
+        def watchdog():
+            while True:
+                time.sleep(5)
+                if time.time() - last_heartbeat > 30:
+                    os._exit(0)
 
-    # Find a free port dynamically
-    def get_free_port():
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("", 0))
-            return s.getsockname()[1]
+        # Start the watchdog as a daemon thread
+        threading.Thread(target=watchdog, daemon=True).start()
 
-    port = get_free_port()
-    
-    # Restore stdout/stderr for handshake output
-    if _original_stdout is not None:
-        sys.stdout = _original_stdout
-    if _original_stderr is not None:
-        sys.stderr = _original_stderr
+        # Find a free port dynamically and reliably
+        def get_free_port():
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind(("127.0.0.1", 0))
+                return s.getsockname()[1]
 
-    # Cetak port ke stdout agar ditangkap oleh frontend
-    print(f"AUTO_CLIPPER_BACKEND_PORT={port}")
-    print(f"PORT:{port}")
-    print(f"TOKEN:{API_SECRET_TOKEN}")
-    sys.stdout.flush()
+        port = get_free_port()
 
-    # reload=False: the reloader spawns an extra child process that Electron/Tauri
-    # can't reliably kill on Windows, leaving a zombie backend.
-    uvicorn.run(app, host="127.0.0.1", port=port, reload=False)
+        # Restore stdout/stderr for handshake output
+        if _original_stdout is not None:
+            sys.stdout = _original_stdout
+        if _original_stderr is not None:
+            sys.stderr = _original_stderr
+
+        # Cetak port ke stdout agar ditangkap oleh frontend
+        print(f"AUTO_CLIPPER_BACKEND_PORT={port}")
+        print(f"PORT:{port}")
+        print(f"TOKEN:{API_SECRET_TOKEN}")
+        sys.stdout.flush()
+
+        # reload=False: the reloader spawns an extra child process that Electron/Tauri
+        # can't reliably kill on Windows, leaving a zombie backend.
+        uvicorn.run(app, host="127.0.0.1", port=port, reload=False, log_level="info")
+    except Exception as e:
+        if _original_stdout is not None:
+            sys.stdout = _original_stdout
+        if _original_stderr is not None:
+            sys.stderr = _original_stderr
+        log_error("Backend Main Startup", e)
+        sys.stderr.write(f"Backend fatal startup error: {e}\n")
+        sys.stderr.flush()
+        sys.exit(1)
+

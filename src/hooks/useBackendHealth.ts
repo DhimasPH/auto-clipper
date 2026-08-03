@@ -8,19 +8,40 @@ export function useBackendHealth() {
 
   useEffect(() => {
     let active = true;
-    const check = () => {
+
+    const check = (overrideUrl?: string) => {
+      const url = overrideUrl || API_URL;
       axios
-        .get(`${API_URL}/health`, { timeout: 2500 })
-        .then(() => active && setBackendStatus("Connected"))
-        .catch(() => active && setBackendStatus("Disconnected"));
+        .get(`${url}/health`, { timeout: 2500 })
+        .then(() => {
+          if (active) setBackendStatus("Connected");
+        })
+        .catch(() => {
+          if (active) setBackendStatus("Disconnected");
+        });
     };
+
     check();
-    const id = setInterval(check, 3000);
+
+    const handlePortFound = (e: any) => {
+      const port = e?.detail;
+      if (port) {
+        check(`http://127.0.0.1:${port}`);
+      } else {
+        check();
+      }
+    };
+
+    window.addEventListener("backend-port-found", handlePortFound as EventListener);
+    const id = setInterval(() => check(), 3000);
+
     return () => {
       active = false;
+      window.removeEventListener("backend-port-found", handlePortFound as EventListener);
       clearInterval(id);
     };
   }, []);
 
   return backendStatus;
 }
+
