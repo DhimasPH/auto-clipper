@@ -789,20 +789,36 @@ def build_split_screen_filter(face_box, src_w: int, src_h: int, out_w: int, out_
         return None
 
     fx, fy, fw, fh = face_box
-    PAD = 1.6
-    bw = min(1.0, max(0.0, fw) * PAD)
-    bh = min(1.0, max(0.0, fh) * PAD)
-    if bw <= 0 or bh <= 0:
+    if fw <= 0 or fh <= 0:
         return None
+
+    # Size the facecam crop from a TARGET face-fill instead of a tight padded
+    # box. The old approach cropped ~1.6x the detected face and then scaled that
+    # to fill the whole bottom panel, so a small facecam got zoomed ~4x and the
+    # face looked huge. Here we pick a crop region big enough that the face only
+    # occupies ~FACE_FILL of the panel height (leaving headroom + shoulders),
+    # and match the crop's aspect ratio to the panel so nothing gets over-cropped.
+    FACE_FILL = 0.45          # face ≈ 45% of the panel height
+    panel_ar = cw / half      # target width/height of the bottom panel
+
+    # crop_h / crop_w are normalised (fractions of src_h / src_w).
+    crop_h = min(1.0, fh / FACE_FILL)
+    # width chosen so crop_w_px / crop_h_px == panel_ar
+    crop_w = min(1.0, crop_h * panel_ar * (src_h / src_w)) if src_w else min(1.0, fw)
+    if crop_h <= 0 or crop_w <= 0:
+        return None
+
+    # Centre on the face, biased slightly downward so we keep a little headroom
+    # above and show the shoulders below (more natural than a centred head).
     bcx = fx + fw / 2
-    bcy = fy + fh / 2
-    bx = min(max(0.0, bcx - bw / 2), 1.0 - bw)
-    by = min(max(0.0, bcy - bh / 2), 1.0 - bh)
+    bcy = fy + fh / 2 + 0.12 * crop_h
+    bx = min(max(0.0, bcx - crop_w / 2), max(0.0, 1.0 - crop_w))
+    by = min(max(0.0, bcy - crop_h / 2), max(0.0, 1.0 - crop_h))
 
     px = (int(bx * src_w) // 2) * 2
     py = (int(by * src_h) // 2) * 2
-    pw = max(2, (int(bw * src_w) // 2) * 2)
-    ph = max(2, (int(bh * src_h) // 2) * 2)
+    pw = max(2, (int(crop_w * src_w) // 2) * 2)
+    ph = max(2, (int(crop_h * src_h) // 2) * 2)
     if px + pw > src_w:
         pw = (int(src_w - px) // 2) * 2
     if py + ph > src_h:
