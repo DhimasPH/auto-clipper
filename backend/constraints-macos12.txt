@@ -1,0 +1,14 @@
+# macOS 12 (Monterey) compatibility constraints — APPLIED ON macOS BUILDS ONLY.
+#
+# Why: newer wheels dropped macOS 12 support and would make the app fail to
+# launch on Monterey (library load error, not Killed:9):
+#   - onnxruntime >= 1.20 requires macOS 13/14 (last macOS-11 wheel is 1.19.2)
+#   - opencv-python-headless >= 4.11 requires macOS 13 (last is 4.10.0.84)
+# onnxruntime is pulled in by faster-whisper (VAD only); ctranslate2 does the
+# heavy Whisper inference and its latest still supports macOS 11.
+#
+# This file is passed via `pip install -r requirements.txt -c constraints-macos12.txt`
+# in the macOS CI jobs only. The Windows/Linux install command is unchanged, so
+# those platforms keep the latest versions.
+onnxruntime<1.20
+opencv-python-headless<4.11

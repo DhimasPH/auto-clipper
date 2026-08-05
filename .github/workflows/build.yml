@@ -19,7 +19,21 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            python-arch: x64
+            pip-constraints: ""
+          - os: macos-14
+            target: aarch64-apple-darwin
+            python-arch: arm64
+            pip-constraints: "-c backend/constraints-macos12.txt"
+          - os: macos-13
+            target: x86_64-apple-darwin
+            python-arch: x64
+            pip-constraints: "-c backend/constraints-macos12.txt"
     runs-on: ${{ matrix.os }}
+
+    env:
+      # Only affects the macOS/native build; harmless (unused) on Windows.
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
 
     steps:
       - name: Checkout code
@@ -35,7 +49,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          architecture: 'x64'
+          architecture: ${{ matrix.python-arch }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -48,32 +62,34 @@ jobs:
           workspaces: |
             src-tauri
 
-      - name: Setup FFmpeg
+      - name: Setup FFmpeg (Windows)
+        if: matrix.os == 'windows-latest'
         run: npm install @ffmpeg-installer/ffmpeg
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install -r backend/requirements.txt ${{ matrix.pip-constraints }}
           pip install pyinstaller
 
       - name: Build Python Backend
         run: |
           pyinstaller --clean backend.spec -y
 
-      - name: Prepare bin directory with Backend and FFmpeg
+      - name: Prepare bin directory with Backend and FFmpeg (Windows)
+        if: matrix.os == 'windows-latest'
         shell: bash
         run: |
           cat << 'EOF' > copy_bin.py
           import os, sys, shutil, subprocess
           os.makedirs('src-tauri/bin', exist_ok=True)
           exe_ext = '.exe' if sys.platform == 'win32' else ''
-          
+
           target = '${{ matrix.target }}'
-          
+
           # Copy backend executable with target triplet (for Tauri externalBin)
           shutil.copy(os.path.join('dist', f'backend{exe_ext}'), os.path.join('src-tauri', 'bin', f'backend-{target}{exe_ext}'))
-          
+
           # Copy ffmpeg executable
           try:
               ffmpeg_path = subprocess.check_output(['node', '-e', "console.log(require('@ffmpeg-installer/ffmpeg').path)"]).decode('utf-8').strip()
@@ -84,18 +100,33 @@ jobs:
           EOF
           python copy_bin.py
 
-      - name: Ad-hoc codesign macOS binaries
-        if: matrix.os == 'macos-latest'
+      - name: Prepare bin directory with Backend and native FFmpeg (macOS)
+        if: startsWith(matrix.os, 'macos')
         shell: bash
         run: |
-          # Ensure the executable bit survived the copy, then apply an ad-hoc
-          # signature. Unsigned PyInstaller binaries are frequently "Killed: 9"
-          # by macOS on launch; an ad-hoc signature lets them run once the user
-          # has cleared the download quarantine (see README macOS notes).
+          mkdir -p src-tauri/bin
+          # Backend: copy PyInstaller output to Tauri externalBin naming convention.
+          cp "dist/backend" "src-tauri/bin/backend-${{ matrix.target }}"
+          # FFmpeg: fetch a NATIVE static build for this runner's arch
+          # (ffmpeg-static ships darwin-arm64 and darwin-x64 — no Rosetta needed).
+          npm install ffmpeg-static@5
+          cp "$(node -e "console.log(require('ffmpeg-static'))")" src-tauri/bin/ffmpeg
+          chmod +x src-tauri/bin/ffmpeg "src-tauri/bin/backend-${{ matrix.target }}"
+          # Fail fast if the wrong architecture slipped in.
+          echo "--- arch check ---"
+          file "src-tauri/bin/ffmpeg" "src-tauri/bin/backend-${{ matrix.target }}"
+
+      - name: Ad-hoc codesign macOS binaries
+        if: startsWith(matrix.os, 'macos')
+        shell: bash
+        run: |
+          # Unsigned PyInstaller/FFmpeg Mach-O binaries are frequently "Killed: 9"
+          # by macOS on launch. An ad-hoc signature lets them run once quarantine
+          # is cleared (via `brew --no-quarantine` or `xattr -cr`).
           chmod +x "src-tauri/bin/backend-${{ matrix.target }}" "src-tauri/bin/ffmpeg" || true
           codesign --force --deep --sign - "src-tauri/bin/backend-${{ matrix.target }}"
           codesign --force --sign - "src-tauri/bin/ffmpeg" || true
-          codesign --verify --verbose "src-tauri/bin/backend-${{ matrix.target }}" || true
+          codesign --verify --verbose "src-tauri/bin/backend-${{ matrix.target }}"
 
       - name: Install Node.js dependencies
         run: npm install

@@ -24,7 +24,7 @@ Jika Anda adalah kreator konten, podcaster, atau streamer, Anda tahu betapa mele
 
 Karena aplikasi ini melakukan pemrosesan video dan pelacakan wajah secara lokal, pastikan perangkat Anda memenuhi spesifikasi berikut:
 
-- **Sistem Operasi:** Windows 10/11 (64-bit)
+- **Sistem Operasi:** Windows 10/11 (64-bit), atau macOS 12 (Monterey) ke atas — Apple Silicon (M1/M2/M3…) maupun Intel
 - **Prosesor (CPU):** Intel Core i5 (Generasi ke-8) atau AMD Ryzen 5 (Multicore sangat disarankan untuk kecepatan _render_ video)
 - **RAM:** Minimal 8 GB (Direkomendasikan 16 GB untuk pemrosesan video HD)
 - **Penyimpanan:** Minimal 2 GB ruang kosong (siapkan ruang tambahan untuk menyimpan file video asli yang diunduh)
@@ -41,6 +41,26 @@ Anda tidak perlu repot dengan terminal. Semua komponen yang dibutuhkan sudah kam
 1. Buka halaman **[Releases](../../releases)** kami.
 2. Unduh file installer `.exe` versi terbaru.
 3. Klik ganda (Double-click) file yang sudah diunduh dan instal seperti biasa. Aplikasi siap digunakan!
+
+#### 🍎 macOS (Homebrew)
+
+Untuk pengguna Mac (Apple Silicon maupun Intel), Auto Clipper tersedia lewat Homebrew Tap dan berjalan di **macOS 12 (Monterey) ke atas**. Cukup satu baris di Terminal:
+
+```bash
+brew install --cask --no-quarantine DhimasPH/tap/auto-clipper
+```
+
+Flag `--no-quarantine` membuat aplikasi langsung bisa dibuka tanpa peringatan _"app is damaged"_ / _"unidentified developer"_. Aplikasi ini di-sign secara _ad-hoc_ (tanpa akun Apple Developer berbayar), sehingga karantina perlu dibersihkan — flag tersebut melakukannya otomatis saat instalasi.
+
+Jika Anda mengunduh file `.dmg` langsung dari halaman Releases (bukan lewat Homebrew), pindahkan aplikasi ke `/Applications`, lalu jalankan sekali di Terminal untuk membersihkan karantina:
+
+```bash
+xattr -cr "/Applications/Auto Clipper.app"
+```
+
+**Cara update:** lewat tombol _"Update"_ di dalam aplikasi (terverifikasi secara kriptografis dengan Minisign), atau jalankan `brew upgrade auto-clipper`.
+
+> Catatan: aplikasi membundel backend Python (transkripsi Whisper, OpenCV, FFmpeg), jadi ukuran unduhan cukup besar (ratusan MB). Unduhan pertama akan memakan waktu.
 
 ### Opsi 2: Menjalankan Mode Developer (Build Source)
 

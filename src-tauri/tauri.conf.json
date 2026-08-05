@@ -27,7 +27,9 @@
     "active": true,
     "createUpdaterArtifacts": "v1Compatible",
     "targets": [
-      "nsis"
+      "nsis",
+      "dmg",
+      "app"
     ],
     "windows": {
       "nsis": {
@@ -51,7 +53,8 @@
       "debugApplicationIdSuffix": ".debug"
     },
     "macOS": {
-      "minimumSystemVersion": "10.13"
+      "minimumSystemVersion": "11.0",
+      "frameworks": []
     }
   },
   "plugins": {
