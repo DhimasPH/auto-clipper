@@ -94,6 +94,23 @@ Jika Anda sedang mengubah kode backend Python (`backend/`) secara terus-menerus 
    npm run tauri dev
    ```
 
+
+### Opsi 4: Build DMG macOS Sendiri (Lokal, untuk macOS 12+)
+
+Jika Anda pengembang di Mac dan ingin mem-build aplikasi macOS sendiri (misalnya untuk menguji di macOS 12 Intel), tersedia script otomatis **`build-mac-local.sh`** di root proyek yang merangkum semua langkah: memeriksa/menginstal tool yang belum ada, build backend Python, staging + _ad-hoc codesign_, hingga menghasilkan `.app`/`.dmg`.
+
+1. **Clone repo & jalankan script** dari root proyek di Mac Anda:
+   ```bash
+   git clone https://github.com/DhimasPH/auto-clipper.git
+   cd auto-clipper
+   chmod +x build-mac-local.sh
+   ./build-mac-local.sh
+   ```
+2. Rust, Node, dan Python akan dipasang otomatis jika belum ada. Untuk **Xcode Command Line Tools** (`xcode-select --install`) dan **Homebrew** yang butuh interaksi/kata sandi, script berhenti dan memberi instruksi — pasang lalu jalankan ulang.
+3. Hasil build (`.app` + `.dmg`) muncul di `src-tauri/target/x86_64-apple-darwin/release/bundle/` dan disalin ke `./dist-macos/`. Buka DMG-nya, drag **Auto Clipper** ke `/Applications`, lalu jalankan.
+
+> **Catatan:** Ini _build pengujian_ (artifact auto-updater dimatikan, jadi tidak perlu signing key). Script menyasar target **Intel (x86_64)**; jika Anda di Apple Silicon, ubah variabel `TARGET` di dalam script menjadi `aarch64-apple-darwin`. Untuk menghemat ruang setelah selesai, jalankan `CLEAN=1 ./build-mac-local.sh` (sisa build dihapus, DMG tetap disimpan). Jika Gatekeeper memblokir: `xattr -cr "/Applications/Auto Clipper.app"`.
+
 ---
 
 _Dibuat untuk para kreator yang lebih suka membuat konten daripada terjebak di ruang editing._
