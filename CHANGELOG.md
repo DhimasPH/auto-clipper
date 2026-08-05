@@ -2,6 +2,14 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.10.0] - 2026-08-05
+
+### Added
+
+- **macOS Build Script**: Menambahkan skrip `build-mac-local.sh` untuk otomasi *build* di lingkungan macOS beserta dokumentasinya.
+- **Intelligent Face-Tracking & Video Layout Analysis**: Menambahkan modul `crop_utils.py` untuk mendeteksi wajah dan melacak tata letak video secara pintar.
+- **Backend Auto-Recovery**: Mengimplementasikan sistem pemulihan otomatis (auto-recovery) pada sisi *frontend* dengan mekanisme *health polling* reguler, opsi *manual reconnection*, dan manajemen siklus hidup *sidecar* yang tangguh tanpa harus me-restart seluruh aplikasi.
+
 ## [1.9.0] - 2026-08-03
 
 ### Added

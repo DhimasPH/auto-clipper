@@ -24,6 +24,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 ### A. Handshake Sidecar & Larangan Print Stdout (Kritis)
 1. Backend berkomunikasi dengan frontend melalui REST API lokal dengan port dinamis dan token autentikasi (`API_SECRET_TOKEN`).
 2. **JANGAN PERNAH** menuliskan `print()` sembarangan ke `stdout` di modul backend manapun. Handshake Tauri bergantung pada format stdout ketat dari `backend/main.py` (`PORT:<port>` dan `TOKEN:<token>`). Output liar di stdout akan menggagalkan inisialisasi aplikasi.
+3. **Sidecar Auto-Recovery & Health Polling**: Frontend memantau status backend melalui endpoint `POST /heartbeat` dan `GET /health`. Jika koneksi terputus, frontend dapat me-restart sidecar (`resetAndRespawnBackend`). Interceptor HTTP dan fetch di sisi frontend harus diatur ulang (re-wire) dengan token yang baru saat sidecar di-restart.
 
 ### B. Standarisasi Error Logging & Exception (ADR-006)
 1. Semua error, peringatan, dan exception di backend **HARUS** dicatat menggunakan `log_error(err, context="...")` dari `backend.logger`.
@@ -60,8 +61,8 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 5. Desain UI wajib modern, responsif, mengutamakan Dark Mode, dan menggunakan ikon dari `lucide-react`.
 
 ### G. PyInstaller & Tauri Build Invariants
-1. Executable backend Python dibangun dengan target triplet di folder `bin/` (contoh: `bin/backend-x86_64-pc-windows-msvc.exe`).
-2. Script build: jalankan `build-be.ps1` atau `build-be.bat` (selalu gunakan flag `--clean`).
+1. Executable backend Python dibangun dengan target triplet di folder `bin/` (contoh: `bin/backend-x86_64-pc-windows-msvc.exe` atau `bin/backend-aarch64-apple-darwin`).
+2. Script build: jalankan `build-be.ps1` atau `build-be.bat` untuk Windows (selalu gunakan flag `--clean`), atau `build-mac-local.sh` untuk environment macOS.
 3. Konfigurasi perizinan Tauri ada di `src-tauri/tauri.conf.json` dan `src-tauri/capabilities/default.json`.
 
 ### H. Dokumentasi ADR & Testing
