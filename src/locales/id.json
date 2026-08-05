@@ -185,7 +185,13 @@
     "settings": "Pengaturan",
     "help": "Bantuan / FAQ",
     "smart_editor": "Manual Clipper",
-    "manual_ai": "Manual AI Editor"
+    "manual_ai": "Manual AI Editor",
+    "status_connecting": "Menghubungkan...",
+    "status_connected": "Terhubung",
+    "status_disconnected": "Terputus",
+    "status_reconnecting": "Menghubungkan ulang...",
+    "reconnect": "Hubungkan Ulang",
+    "reconnecting_btn": "Menghubungkan ulang..."
   },
   "help": {
     "title": "Bantuan & Panduan",

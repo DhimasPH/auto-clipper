@@ -401,6 +401,85 @@ def is_valid_source_url(url: str) -> bool:
     return bool(SUPPORTED_URL_RE.match(url.strip()))
 
 
+# --- Sleep-safe lifecycle helpers -------------------------------------------
+# Kept at module level (not nested inside __main__) so they can be unit-tested
+# without spinning up the whole server.
+
+WATCHDOG_INTERVAL = 5      # seconds between watchdog checks
+HEARTBEAT_GRACE = 30       # seconds without a heartbeat before it counts as stale
+WAKE_LOOP_THRESHOLD = 15   # a watchdog loop slower than this means the OS slept
+
+
+def is_parent_alive(pid) -> bool:
+    """Return True if the parent process (the Tauri shell) is still running.
+
+    The backend must only self-terminate when the app that spawned it is
+    actually gone — not merely because heartbeats paused (e.g. the OS slept and
+    the webview froze). This check fails *safe*: if the state cannot be
+    determined, we assume the parent is alive so a healthy backend is never
+    killed by mistake.
+    """
+    if not pid or pid <= 0:
+        return True
+    # Prefer psutil when available (cross-platform, reliable).
+    try:
+        import psutil
+        return psutil.pid_exists(int(pid))
+    except Exception:
+        pass
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            STILL_ACTIVE = 259
+            kernel32 = ctypes.windll.kernel32
+            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+            if not handle:
+                return False
+            exit_code = ctypes.c_ulong()
+            ok = kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+            kernel32.CloseHandle(handle)
+            if not ok:
+                return True  # couldn't read exit code -> fail safe
+            return exit_code.value == STILL_ACTIVE
+        except Exception:
+            return True
+    # POSIX fallback.
+    try:
+        os.kill(int(pid), 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # exists but we can't signal it
+    except Exception:
+        return True
+
+
+def check_watchdog_condition(now_monotonic, last_heartbeat_monotonic, loop_delta,
+                             parent_pid=None,
+                             grace=HEARTBEAT_GRACE,
+                             wake_threshold=WAKE_LOOP_THRESHOLD):
+    """Decide what the watchdog should do on a single tick.
+
+    All times are on a *monotonic* clock so OS sleep cannot make the heartbeat
+    look ancient. Returns one of:
+
+      "wake"  -> the watchdog loop itself took far longer than its interval,
+                 meaning the machine just resumed from sleep. Reset the
+                 heartbeat baseline and do NOT kill.
+      "kill"  -> heartbeats are stale AND the parent app is gone: safe to exit.
+      "stale" -> heartbeats are stale but the parent app is still alive: keep
+                 running and let the frontend reconnect.
+      "ok"    -> healthy, keep running.
+    """
+    if loop_delta > wake_threshold:
+        return "wake"
+    if (now_monotonic - last_heartbeat_monotonic) > grace:
+        return "stale" if is_parent_alive(parent_pid) else "kill"
+    return "ok"
+
+
 @app.post("/jobs")
 def api_create_job(req: CreateJobRequest):
     if not req.url:
@@ -633,20 +712,37 @@ if __name__ == "__main__":
         import os
         import time
 
-        # Watchdog thread: kills backend if no heartbeat received from frontend in 30 seconds
-        last_heartbeat = time.time()
+        # Watchdog thread: only kills the backend when the frontend has gone
+        # quiet AND the Tauri parent process is actually gone. Heartbeat is
+        # tracked on a MONOTONIC clock, and a suspiciously long watchdog loop is
+        # treated as "the machine just woke from sleep" (reset, don't kill) so
+        # the app no longer shows "Disconnected" after the device sleeps.
+        last_heartbeat = time.monotonic()
+        parent_pid = os.getppid()
 
         @app.post("/heartbeat")
         def api_heartbeat():
             global last_heartbeat
-            last_heartbeat = time.time()
+            last_heartbeat = time.monotonic()
             return {"status": "ok"}
 
         def watchdog():
+            global last_heartbeat
+            last_loop = time.monotonic()
             while True:
-                time.sleep(5)
-                if time.time() - last_heartbeat > 30:
+                time.sleep(WATCHDOG_INTERVAL)
+                now = time.monotonic()
+                loop_delta = now - last_loop
+                last_loop = now
+                action = check_watchdog_condition(now, last_heartbeat, loop_delta, parent_pid)
+                if action == "wake":
+                    # Resumed from sleep: give the frontend time to reconnect
+                    # instead of killing a perfectly healthy backend.
+                    last_heartbeat = now
+                    continue
+                if action == "kill":
                     os._exit(0)
+                # "ok" / "stale": keep running.
 
         # Start the watchdog as a daemon thread
         threading.Thread(target=watchdog, daemon=True).start()

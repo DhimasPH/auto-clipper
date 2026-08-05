@@ -21,6 +21,83 @@ function decodeLegacy(): Record<string, string> {
 }
 
 let backendPortPromise: Promise<number | null> | null = null;
+// Tracked at module scope so the sidebar Reconnect button and the sleep/wake
+// auto-heal can respawn the backend and re-wire auth without a full app reload.
+let currentPort: number | null = null;
+let currentToken: string | null = null;
+let authWired = false;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+/** Register the axios interceptor + fetch wrapper exactly once. They read the
+ *  latest token from `currentToken`, so respawning the backend (which mints a
+ *  fresh token each launch) doesn't stack duplicate interceptors. */
+function wireAuthOnce() {
+  if (authWired) return;
+  authWired = true;
+
+  axios.interceptors.request.use((config) => {
+    if (currentToken && config.url && (config.url.includes('127.0.0.1') || config.url.includes('localhost'))) {
+      config.headers = config.headers || {};
+      (config.headers as any)['Authorization'] = `Bearer ${currentToken}`;
+    }
+    return config;
+  });
+
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    let [resource, config] = args as [any, any];
+    const urlStr = typeof resource === 'string' ? resource : (resource as Request).url;
+    if (currentToken && (urlStr.includes('127.0.0.1') || urlStr.includes('localhost'))) {
+      config = config || {};
+      if (config.headers instanceof Headers) {
+        config.headers.set('Authorization', `Bearer ${currentToken}`);
+      } else {
+        config.headers = { ...config.headers, 'Authorization': `Bearer ${currentToken}` };
+      }
+    }
+    return originalFetch(resource, config);
+  };
+}
+
+/** (Re)start the heartbeat loop against a given port, clearing any prior one. */
+function startHeartbeat(port: number) {
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(() => {
+    fetch(`http://127.0.0.1:${port}/heartbeat`, { method: "POST" }).catch(() => {});
+  }, 5000);
+}
+
+/**
+ * Recover the backend connection without restarting the whole app.
+ *
+ * Used by the sidebar's Reconnect button and by the sleep/wake auto-heal. If a
+ * backend is already alive we simply re-point at it and make sure the heartbeat
+ * is running (no duplicate process). Otherwise we clear the memoised spawn
+ * promise and launch a fresh sidecar.
+ */
+export async function resetAndRespawnBackend(): Promise<number | null> {
+  if (currentPort) {
+    try {
+      await axios.get(`http://127.0.0.1:${currentPort}/health`, { timeout: 2000 });
+      setApiUrl(`http://127.0.0.1:${currentPort}`);
+      startHeartbeat(currentPort);
+      window.dispatchEvent(new CustomEvent("backend-reconnected", { detail: currentPort }));
+      return currentPort;
+    } catch {
+      // Current backend is genuinely gone — fall through to respawn.
+    }
+  }
+
+  backendPortPromise = null;
+  const port = await spawnBackend();
+  if (port) {
+    setApiUrl(`http://127.0.0.1:${port}`);
+    startHeartbeat(port);
+    window.dispatchEvent(new CustomEvent("backend-reconnected", { detail: port }));
+  }
+  return port;
+}
+
 async function spawnBackend(): Promise<number | null> {
   if (backendPortPromise) return backendPortPromise;
   backendPortPromise = new Promise((resolve) => {
@@ -51,16 +128,12 @@ async function spawnBackend(): Promise<number | null> {
         const port = 8000;
         const token = "dev-token";
         (window as any).apiToken = token;
-        
-        axios.interceptors.request.use(config => {
-          if (config.url && (config.url.includes('127.0.0.1') || config.url.includes('localhost'))) {
-            config.headers.Authorization = `Bearer ${token}`;
-          }
-          return config;
-        });
+        currentToken = token;
+        wireAuthOnce();
 
         setApiUrl(`http://127.0.0.1:${port}`);
-        
+        currentPort = port;
+
         resolved = true;
         resolve(port);
         return;
@@ -76,32 +149,13 @@ async function spawnBackend(): Promise<number | null> {
           if (line.startsWith("TOKEN:")) {
             const token = line.replace("TOKEN:", "").trim();
             (window as any).apiToken = token;
-            
-            axios.interceptors.request.use(config => {
-              if (config.url && (config.url.includes('127.0.0.1') || config.url.includes('localhost'))) {
-                config.headers['Authorization'] = `Bearer ${token}`;
-              }
-              return config;
-            });
-            
-            const originalFetch = window.fetch;
-            window.fetch = async (...args) => {
-              let [resource, config] = args;
-              const urlStr = typeof resource === 'string' ? resource : (resource as Request).url;
-              if (urlStr.includes('127.0.0.1') || urlStr.includes('localhost')) {
-                config = config || {};
-                if (config.headers instanceof Headers) {
-                  config.headers.set('Authorization', `Bearer ${token}`);
-                } else {
-                  config.headers = { ...config.headers, 'Authorization': `Bearer ${token}` };
-                }
-              }
-              return originalFetch(resource, config);
-            };
+            currentToken = token;
+            wireAuthOnce();
           }
           if (line.startsWith("PORT:")) {
             const p = parseInt(line.replace("PORT:", "").trim(), 10);
             if (!isNaN(p)) {
+              currentPort = p;
               finish(p);
               window.dispatchEvent(new CustomEvent("backend-port-found", { detail: p }));
             }
@@ -189,25 +243,22 @@ export function useUserSettings() {
         window.addEventListener("backend-port-found", ((e: CustomEvent) => {
             console.log("Late backend connection established!");
             const port = e.detail;
+            currentPort = port;
             setApiUrl(`http://127.0.0.1:${port}`);
-            
+
             // Start heartbeat
-            setInterval(() => {
-                fetch(`http://127.0.0.1:${port}/heartbeat`, { method: "POST" }).catch(() => {});
-            }, 5000);
+            startHeartbeat(port);
 
             // trigger a re-render or state update if needed
-            setApiKey("dummy", "trigger-re-render"); 
+            setApiKey("dummy", "trigger-re-render");
         }) as EventListener);
 
         const port = await spawnBackend();
         if (port) {
           setApiUrl(`http://127.0.0.1:${port}`);
-          
+
           // Start heartbeat
-          setInterval(() => {
-              fetch(`http://127.0.0.1:${port}/heartbeat`, { method: "POST" }).catch(() => {});
-          }, 5000);
+          startHeartbeat(port);
         }
       }
 

@@ -122,10 +122,27 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
     """Sample face positions at periodic intervals across a clip window.
 
     Returns a list of (relative_time_s, x_center_ratio) tuples.
+
+    Robustness measures against shaky / imperfect detection:
+      * Multi-cascade fallback — when the frontal detector misses a frame we
+        retry with the alt2 and profile cascades before giving up, so a head
+        turn or slight angle doesn't drop the face entirely.
+      * Outlier rejection — a single-frame detection that jumps far from the
+        median position (a false positive) is discarded and forward-filled, so
+        one bad frame can't yank the crop across the screen.
     Missing detections are forward-filled or default to 0.5.
     """
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    if face_cascade.empty():
+    cascade_files = [
+        'haarcascade_frontalface_default.xml',
+        'haarcascade_frontalface_alt2.xml',
+        'haarcascade_profileface.xml',
+    ]
+    cascades = []
+    for name in cascade_files:
+        c = cv2.CascadeClassifier(cv2.data.haarcascades + name)
+        if not c.empty():
+            cascades.append(c)
+    if not cascades:
         return [(0.0, 0.5)]
 
     cap = cv2.VideoCapture(video_path)
@@ -133,20 +150,17 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
         cap.release()
         return [(0.0, 0.5)]
 
-    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
     frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
     frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
 
     duration = max(0.1, end_time - start_time)
     num_samples = max(2, int(duration / interval) + 1)
-    
+
     half_window = (frame_h * 9 / 16) / frame_w / 2 if (frame_w and frame_h) else 0.28
     lo, hi = half_window, 1.0 - half_window
 
-    trajectory = []
-    last_valid_x = 0.5
-
+    # Pass 1: collect raw detections (x_center or None when nothing was found).
+    raw: list[tuple[float, float | None]] = []
     for i in range(num_samples):
         if should_cancel and should_cancel():
             break
@@ -155,24 +169,42 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
         cap.set(cv2.CAP_PROP_POS_MSEC, abs_t * 1000.0)
         ret, frame = cap.read()
         if not ret:
-            trajectory.append((rel_t, last_valid_x))
+            raw.append((rel_t, None))
             continue
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
-        if len(faces) > 0:
-            x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
-            raw_center = (x + w / 2) / frame.shape[1]
-            if lo <= hi:
-                clamped_center = max(lo, min(hi, raw_center))
-            else:
-                clamped_center = raw_center
+        detected_x = None
+        for cascade in cascades:
+            faces = cascade.detectMultiScale(gray, 1.1, 4)
+            if len(faces) > 0:
+                x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
+                detected_x = (x + w / 2) / frame.shape[1]
+                break
+        raw.append((rel_t, detected_x))
+
+    cap.release()
+
+    # Pass 2: reject outliers that sit far from the median of valid detections.
+    OUTLIER_THRESHOLD = 0.30
+    valid_xs = sorted(x for _, x in raw if x is not None)
+    if valid_xs:
+        median_x = valid_xs[len(valid_xs) // 2]
+        raw = [
+            (t, x if (x is not None and abs(x - median_x) <= OUTLIER_THRESHOLD) else None)
+            for t, x in raw
+        ]
+
+    # Pass 3: clamp in-frame and forward-fill any gaps.
+    trajectory = []
+    last_valid_x = 0.5
+    for rel_t, x in raw:
+        if x is not None:
+            clamped_center = max(lo, min(hi, x)) if lo <= hi else x
             last_valid_x = clamped_center
             trajectory.append((rel_t, clamped_center))
         else:
             trajectory.append((rel_t, last_valid_x))
 
-    cap.release()
     return trajectory if trajectory else [(0.0, 0.5)]
 
 
@@ -192,6 +224,27 @@ def smooth_trajectory(trajectory: list[tuple[float, float]], alpha: float = 0.25
         smoothed.append((t, current_val))
 
     return smoothed
+
+
+def apply_deadband_filter(raw_trajectory: list[tuple[float, float]], deadband: float = 0.08) -> list[tuple[float, float]]:
+    """Lock the crop position until the subject moves beyond ``deadband``.
+
+    Small, jittery face movements (breathing, micro-shifts while a speaker sits
+    still) would otherwise make the crop window wobble frame to frame. We hold
+    an anchor position and only let it follow the face once the face has moved
+    further than ``deadband`` (as a fraction of frame width) from that anchor —
+    then the anchor snaps to the new spot. Downstream EMA smoothing turns each
+    snap into a gentle pan rather than a hard jump.
+    """
+    if not raw_trajectory:
+        return [(0.0, 0.5)]
+    result = []
+    anchor = raw_trajectory[0][1]
+    for t, x in raw_trajectory:
+        if abs(x - anchor) >= deadband:
+            anchor = x
+        result.append((t, anchor))
+    return result
 
 
 def detect_video_layout(video_path: str, start_time=None, end_time=None, samples: int = 12, should_cancel=None) -> dict:
@@ -687,9 +740,13 @@ def build_dynamic_crop_filter(aspect_ratio: str, trajectory: list[tuple[float, f
     if len(trajectory) == 1:
         return build_crop_filter(aspect_ratio, trajectory[0][1])
 
+    # If the subject barely moves across the whole clip (< 3% of frame width),
+    # a static crop is steadier than a dynamic one that chases sub-pixel noise.
     xs = [x for _, x in trajectory]
-    if max(xs) - min(xs) < 0.02:
-        return build_crop_filter(aspect_ratio, trajectory[0][1])
+    if max(xs) - min(xs) < 0.03:
+        # Anchor on the median so a stray endpoint doesn't bias the static frame.
+        mid = sorted(xs)[len(xs) // 2]
+        return build_crop_filter(aspect_ratio, mid)
 
     # We use a Binary Search Tree (BST) for the lerp expression, which has an AST depth of log2(N).
     # This avoids FFmpeg's recursion limit. We set a max of 400 points to prevent 
@@ -890,7 +947,10 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel)
             if should_cancel and should_cancel():
                 raise RuntimeError("Dibatalkan oleh pengguna.")
-            trajectory = smooth_trajectory(raw_traj, alpha=0.25)
+            # Deadband first (lock out micro-jitter), then EMA smoothing turns any
+            # larger repositioning into a gentle pan.
+            stabilized = apply_deadband_filter(raw_traj, deadband=0.08)
+            trajectory = smooth_trajectory(stabilized, alpha=0.25)
             crop_filter = build_dynamic_crop_filter(aspect_ratio, trajectory, clip_duration=duration)
         else:
             cx = (layout.get("face_center") or (0.5, 0.5))[0]

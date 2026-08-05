@@ -321,3 +321,59 @@ def test_crop_to_vertical_uses_dynamic_trajectory(mock_traj, mock_popen, mock_nv
 
 
 
+
+
+# --- Sleep/crop stabilization additions ------------------------------------
+
+def test_apply_deadband_filter_locks_and_follows():
+    from backend.crop_utils import apply_deadband_filter
+    traj = [(0, 0.50), (1, 0.52), (2, 0.49), (3, 0.70), (4, 0.71)]
+    out = apply_deadband_filter(traj, deadband=0.08)
+    xs = [round(x, 2) for _, x in out]
+    # Micro-jitter within the deadband stays locked on the first anchor.
+    assert xs[:3] == [0.5, 0.5, 0.5]
+    # A move beyond the deadband makes the anchor follow, and stays there.
+    assert xs[3] == 0.70 and xs[4] == 0.70
+
+
+def test_apply_deadband_filter_empty_default():
+    from backend.crop_utils import apply_deadband_filter
+    assert apply_deadband_filter([]) == [(0.0, 0.5)]
+
+
+def test_build_dynamic_crop_filter_static_when_under_3pct():
+    from backend.crop_utils import build_dynamic_crop_filter
+    # Variation < 3% of frame width -> steady static crop (no lerp expression).
+    traj = [(0.0, 0.50), (0.5, 0.515), (1.0, 0.505)]
+    f = build_dynamic_crop_filter("9:16", traj, clip_duration=1.0)
+    assert "if(lte(t" not in f
+    assert f.startswith("crop=trunc(ih*9/16/2)*2:ih:iw*0.5")
+
+
+@patch('backend.crop_utils.cv2.cvtColor')
+@patch('backend.crop_utils.cv2.CascadeClassifier')
+@patch('backend.crop_utils.cv2.VideoCapture')
+def test_sample_face_trajectory_rejects_outlier(mock_cap, mock_cascade, mock_cvt):
+    from backend.crop_utils import sample_face_trajectory
+    cascade = mock_cascade.return_value
+    cascade.empty.return_value = False
+
+    calls = {"n": 0}
+
+    def detect(gray, a, b):
+        calls["n"] += 1
+        # Third detection is a false positive parked at the far right edge.
+        if calls["n"] == 3:
+            return [(1850, 500, 40, 40)]   # x-center ~ 0.974
+        return [(860, 500, 200, 200)]      # x-center = 0.5
+
+    cascade.detectMultiScale.side_effect = detect
+    inst, frame = _fake_layout_cap()
+    mock_cap.return_value = inst
+    mock_cvt.return_value = frame
+
+    traj = sample_face_trajectory("dummy.mp4", start_time=0.0, end_time=3.0, interval=0.5)
+    xs = [x for _, x in traj]
+    # The stray right-edge detection must be rejected, not tracked.
+    assert max(xs) < 0.75
+    assert all(0.0 <= x <= 1.0 for x in xs)

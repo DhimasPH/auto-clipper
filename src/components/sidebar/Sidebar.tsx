@@ -6,6 +6,7 @@ import {
   HelpCircle,
   Wand2,
   Download,
+  RefreshCw,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useBackendHealth } from "../../hooks/useBackendHealth";
@@ -16,8 +17,15 @@ import { SHOW_EXPERIMENTAL_FEATURES } from "../../config/features";
 
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation();
-  const backendStatus = useBackendHealth();
-  const isConnected = backendStatus === "Connected";
+  const { status, reconnect } = useBackendHealth();
+  const isConnected = status === "connected";
+  const isReconnecting = status === "reconnecting";
+  const statusLabel = t(`sidebar.status_${status}`, {
+    connecting: "Connecting...",
+    connected: "Connected",
+    disconnected: "Disconnected",
+    reconnecting: "Reconnecting...",
+  }[status]);
   const currentYear = new Date().getFullYear();
 
   return (
@@ -140,18 +148,42 @@ export const Sidebar: React.FC = () => {
           {t("sidebar.help", "Help / FAQ")}
         </NavLink>
 
-        <div className="mt-4 px-3 py-2 flex items-center gap-2">
-          <div className="relative flex h-2.5 w-2.5">
-            {isConnected && (
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-            )}
-            <span
-              className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isConnected ? "bg-success" : "bg-error"}`}
-            ></span>
+        <div className="mt-4 px-3 py-2 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="relative flex h-2.5 w-2.5">
+              {isConnected && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+              )}
+              <span
+                className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                  isConnected
+                    ? "bg-success"
+                    : isReconnecting
+                      ? "bg-accent animate-pulse"
+                      : "bg-error"
+                }`}
+              ></span>
+            </div>
+            <span className="text-caption text-text-secondary">
+              {statusLabel}
+            </span>
           </div>
-          <span className="text-caption text-text-secondary">
-            {backendStatus}
-          </span>
+
+          {(status === "disconnected" || isReconnecting) && (
+            <button
+              type="button"
+              onClick={() => reconnect()}
+              disabled={isReconnecting}
+              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-caption font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${isReconnecting ? "animate-spin" : ""}`}
+              />
+              {isReconnecting
+                ? t("sidebar.reconnecting_btn", "Reconnecting...")
+                : t("sidebar.reconnect", "Reconnect")}
+            </button>
+          )}
         </div>
 
         <div className="mt-4 pt-4 border-t border-border/30 flex flex-col items-center gap-1 text-caption text-text-tertiary">

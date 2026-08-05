@@ -185,7 +185,13 @@
     "settings": "Settings",
     "help": "Help / FAQ",
     "smart_editor": "Manual Clipper",
-    "manual_ai": "Manual AI Editor"
+    "manual_ai": "Manual AI Editor",
+    "status_connecting": "Connecting...",
+    "status_connected": "Connected",
+    "status_disconnected": "Disconnected",
+    "status_reconnecting": "Reconnecting...",
+    "reconnect": "Reconnect",
+    "reconnecting_btn": "Reconnecting..."
   },
   "help": {
     "title": "Help & Guide",
