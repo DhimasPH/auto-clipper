@@ -1,3 +1,7 @@
+import multiprocessing
+if __name__ == "__main__":
+    multiprocessing.freeze_support()
+
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -90,15 +94,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.add_middleware(
     CORSMiddleware,
-    # Batasi ke asal Electron atau Vite dev server
-    allow_origins=[
-        "http://localhost:5173", 
-        "http://127.0.0.1:5173",
-        "app://.",
-        "file://",
-        "http://tauri.localhost",
-        "https://tauri.localhost"
-    ],
+    # Allow local dev and all variations of Tauri custom protocols
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?|tauri://.*|app://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -145,7 +142,7 @@ def api_probe(url: str):
 
 
 @app.get("/health")
-def health_check():
+async def health_check():
     return {"status": "ok"}
 
 
@@ -701,8 +698,8 @@ def get_video(path: str):
 
 
 if __name__ == "__main__":
-    import multiprocessing
-    multiprocessing.freeze_support()
+    # Setup logger and cleanup old temp files
+    # freeze_support already called at the top of the file
 
     try:
         import uvicorn
@@ -721,7 +718,7 @@ if __name__ == "__main__":
         parent_pid = os.getppid()
 
         @app.post("/heartbeat")
-        def api_heartbeat():
+        async def api_heartbeat():
             global last_heartbeat
             last_heartbeat = time.monotonic()
             return {"status": "ok"}
@@ -763,10 +760,13 @@ if __name__ == "__main__":
             sys.stderr = _original_stderr
 
         # Cetak port ke stdout agar ditangkap oleh frontend
-        print(f"AUTO_CLIPPER_BACKEND_PORT={port}")
-        print(f"PORT:{port}")
-        print(f"TOKEN:{API_SECRET_TOKEN}")
-        sys.stdout.flush()
+        try:
+            print(f"AUTO_CLIPPER_BACKEND_PORT={port}")
+            print(f"PORT:{port}")
+            print(f"TOKEN:{API_SECRET_TOKEN}")
+            sys.stdout.flush()
+        except BrokenPipeError:
+            pass
 
         # reload=False: the reloader spawns an extra child process that Electron/Tauri
         # can't reliably kill on Windows, leaving a zombie backend.

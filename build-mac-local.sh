@@ -104,17 +104,44 @@ pyinstaller --clean backend.spec -y
 
 echo "==> [2/4] Staging backend + native FFmpeg into src-tauri/bin ..."
 mkdir -p src-tauri/bin
-cp dist/backend "src-tauri/bin/backend-${TARGET}"
+rm -rf src-tauri/bin/backend_app
+cp -r dist/backend_app src-tauri/bin/
+
+# Create bash wrapper for Tauri sidecar
+cat << 'EOF' > "src-tauri/bin/backend-${TARGET}"
+#!/usr/bin/env bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+LOG="/tmp/autoclipper_sidecar.log"
+echo "Sidecar started at $(date). DIR: $DIR" > "$LOG"
+
+if [ -f "$DIR/../Resources/bin/backend_app/backend" ]; then
+  echo "Found backend in Resources/bin" >> "$LOG"
+  "$DIR/../Resources/bin/backend_app/backend" "$@" 2>&1 | tee -a "$LOG"
+elif [ -f "$DIR/../Resources/backend_app/backend" ]; then
+  echo "Found backend in Resources" >> "$LOG"
+  "$DIR/../Resources/backend_app/backend" "$@" 2>&1 | tee -a "$LOG"
+elif [ -f "$DIR/backend_app/backend" ]; then
+  echo "Found backend in local DIR" >> "$LOG"
+  "$DIR/backend_app/backend" "$@" 2>&1 | tee -a "$LOG"
+else
+  echo "ERROR: Could not find backend executable!" >> "$LOG"
+  echo "Contents of Resources/bin:" >> "$LOG"
+  ls -la "$DIR/../Resources/bin" >> "$LOG" 2>&1
+  exit 1
+fi
+EOF
+
 npm install ffmpeg-static@5
 cp "$(node -e "console.log(require('ffmpeg-static'))")" src-tauri/bin/ffmpeg
 chmod +x src-tauri/bin/ffmpeg "src-tauri/bin/backend-${TARGET}"
 echo "--- arch check (both should say x86_64) ---"
-file "src-tauri/bin/ffmpeg" "src-tauri/bin/backend-${TARGET}"
+file "src-tauri/bin/ffmpeg" "src-tauri/bin/backend_app/backend"
 
 echo "==> [3/4] Ad-hoc codesigning binaries (prevents 'Killed: 9') ..."
-codesign --force --deep --sign - "src-tauri/bin/backend-${TARGET}"
+find "src-tauri/bin/backend_app" -type f \( -name "*.dylib" -o -name "*.so" -o -perm +111 \) -exec codesign --force --sign - {} \;
+codesign --force --sign - "src-tauri/bin/backend-${TARGET}"
 codesign --force --sign - src-tauri/bin/ffmpeg
-codesign --verify --verbose "src-tauri/bin/backend-${TARGET}"
+codesign --verify --verbose "src-tauri/bin/backend_app/backend"
 
 echo "==> [4/4] Building the Tauri app (test build, updater artifacts disabled) ..."
 npm install

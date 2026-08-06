@@ -78,7 +78,7 @@ function startHeartbeat(port: number) {
 export async function resetAndRespawnBackend(): Promise<number | null> {
   if (currentPort) {
     try {
-      await axios.get(`http://127.0.0.1:${currentPort}/health`, { timeout: 2000 });
+      await axios.get(`http://127.0.0.1:${currentPort}/health`, { timeout: 15000 });
       setApiUrl(`http://127.0.0.1:${currentPort}`);
       startHeartbeat(currentPort);
       window.dispatchEvent(new CustomEvent("backend-reconnected", { detail: currentPort }));
@@ -141,9 +141,12 @@ async function spawnBackend(): Promise<number | null> {
 
     try {
       const cmd = Command.sidecar("bin/backend");
+      let outBuffer = "";
       cmd.stdout.on("data", (data) => {
-        console.log("Backend stdout:", data);
-        const lines = data.split(/\r?\n/);
+        console.log("Backend stdout chunk:", data);
+        outBuffer += data;
+        const lines = outBuffer.split(/\r?\n/);
+        outBuffer = lines.pop() || "";
         for (const rawLine of lines) {
           const line = rawLine.trim();
           if (line.startsWith("TOKEN:")) {
