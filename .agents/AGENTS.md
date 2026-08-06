@@ -25,6 +25,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 1. Backend berkomunikasi dengan frontend melalui REST API lokal dengan port dinamis dan token autentikasi (`API_SECRET_TOKEN`).
 2. **JANGAN PERNAH** menuliskan `print()` sembarangan ke `stdout` di modul backend manapun. Handshake Tauri bergantung pada format stdout ketat dari `backend/main.py` (`PORT:<port>` dan `TOKEN:<token>`). Output liar di stdout akan menggagalkan inisialisasi aplikasi.
 3. **Sidecar Auto-Recovery & Health Polling**: Frontend memantau status backend melalui endpoint `POST /heartbeat` dan `GET /health`. Jika koneksi terputus, frontend dapat me-restart sidecar (`resetAndRespawnBackend`). Interceptor HTTP dan fetch di sisi frontend harus diatur ulang (re-wire) dengan token yang baru saat sidecar di-restart.
+4. **Cross-Platform CORS Invariant (ADR-011)**: Backend FastAPI **WAJIB** mengizinkan origin dari semua platform desktop webview (Windows WebView2: `http://tauri.localhost` / `https://tauri.localhost`, macOS WKWebView: `tauri://localhost` / `tauri://*`, dan local dev server) menggunakan format regex komprehensif: `r"https?://([a-zA-Z0-9_.-]+\.)?localhost(:\d+)?|https?://127\.0\.0\.1(:\d+)?|tauri://.*|app://.*"`. Dilarang menggunakan regex sempit yang mengecualikan subdomain localhost.
 
 ### B. Standarisasi Error Logging & Exception (ADR-006)
 1. Semua error, peringatan, dan exception di backend **HARUS** dicatat menggunakan `log_error(err, context="...")` dari `backend.logger`.
@@ -47,6 +48,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 6. **Pipeline Metadata Invariant**: Properti `canvas_config` dan `subtitle_config` **HARUS** dipropagasikan dan dipertahankan di seluruh alur pembuatan job (`create_job`, `create_manual_job`, `create_rerender_job`, `create_rerun_ai_job`) serta alur resume (`create_resume_job`, `resume_manual_job`).
 7. Pipeline wajib mendeteksi layout video asli (Landscape/Portrait) secara otomatis sebelum pemrosesan klip.
 8. **NVENC Fallback**: Semua *command* FFmpeg untuk rendering video wajib mengimplementasikan percobaan hardware encoding dengan `h264_nvenc`. Jika terjadi error (misalnya karena driver tidak tersedia atau memori GPU penuh), command tersebut harus ditangkap dan fallback secara aman ke CPU encoding (`libx264`).
+9. **FFmpeg Path Discovery Hierarchy**: Resolusi path binary FFmpeg wajib memeriksa hirarki `bin_dir`, `bin_dir.parent`, `os.path.dirname(bin_dir)`, dan fallback `PATH` sistem agar konsisten di environment dev, PyInstaller onefile, maupun macOS app bundle.
 
 ### E. Multi-Stage Resume, Job Workspaces, & Mode (AI vs Manual)
 1. Fitur retry/resume di `backend/jobs.py` tidak boleh mengunduh ulang video jika file lokal sudah tersedia.
@@ -61,13 +63,15 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 4. Startup version check dijalankan secara non-blocking via hook `useStartupUpdateCheck` saat splash screen.
 5. Desain UI wajib modern, responsif, mengutamakan Dark Mode, dan menggunakan ikon dari `lucide-react`.
 
-### G. PyInstaller & Tauri Build Invariants (ADR-010)
+### G. PyInstaller & Tauri Build Invariants (ADR-010, ADR-011)
 1. **Platform Packaging Split**:
    - **Windows**: Menggunakan PyInstaller `--onefile` (`bin/backend-x86_64-pc-windows-msvc.exe`).
    - **macOS**: Menggunakan PyInstaller `--onedir` (`bin/backend-x86_64-apple-darwin/` atau `bin/backend-aarch64-apple-darwin/`) yang dikonfigurasi via `src-tauri/tauri.macos.conf.json`.
 2. Script build: jalankan `build-be.ps1` atau `build-be.bat` untuk Windows (selalu gunakan flag `--clean`), atau `build-mac-local.sh` untuk environment macOS.
 3. Release manual macOS Intel x86_64 dengan bundel updater artifact dijalankan menggunakan `release-mac-intel.sh` (panduan di `docs/release-macos-intel.md`).
 4. Konfigurasi perizinan Tauri ada di `src-tauri/tauri.conf.json` dan `src-tauri/capabilities/default.json`.
+5. **NSIS Preinstall File-Lock Prevention (`hooks.nsh`)**: Installer Windows wajib mengeksekusi `taskkill` untuk semua kemungkinan proses backend dan aplikasi (`backend.exe`, `backend-x86_64-pc-windows-msvc.exe`, `Auto Clipper.exe`, `app.exe`) sebelum instalasi dimulai guna menghindari `WinError 32` file lock.
+6. **PyInstaller Dependency Collection**: Konfigurasi `backend.spec` wajib mendaftarkan `backend.metadata` pada `hiddenimports` dan mengumpulkan paket runtime penting seperti `numpy` via `collect_all('numpy')`.
 
 ### H. Dokumentasi ADR & Testing
 1. Setiap perubahan arsitektur signifikan, penambahan library inti, atau perubahan alur data wajib dibuatkan dokumen ADR di `docs/decisions/` format `[nomor]-[nama-singkat].md`.
@@ -92,5 +96,6 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `src/types/canvas.ts` & `src/types/subtitle.ts`: Interface TypeScript `CanvasConfig` dan `SubtitleConfig`.
 - `src/locales/`: File terjemahan bilingual (`id.json`, `en.json`).
 - `src-tauri/`: Tauri Rust backend & configuration (`tauri.conf.json`, `tauri.macos.conf.json`).
+- `src-tauri/hooks.nsh`: NSIS preinstall script untuk kill zombie backend/app processes di Windows.
 - `release-mac-intel.sh` & `docs/release-macos-intel.md`: Script dan panduan build rilis macOS Intel dengan updater artifacts.
-- `docs/decisions/`: Architecture Decision Records (ADR-001 s/d ADR-010).
+- `docs/decisions/`: Architecture Decision Records (ADR-001 s/d ADR-011).
