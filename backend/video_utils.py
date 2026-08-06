@@ -24,6 +24,7 @@ def get_ffmpeg_path() -> str | None:
         candidates.extend([
             bin_dir / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
             bin_dir / "bin" / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
+            bin_dir.parent / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
             bin_dir.parent / "Resources" / "bin" / "ffmpeg",
         ])
     for c in candidates:
