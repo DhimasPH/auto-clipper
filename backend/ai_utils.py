@@ -602,16 +602,16 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
     extract_audio(file_path, audio_path, register_proc=register_proc)
     
     if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke, is_cancelled=is_cancelled, model_size=whisper_model)
+    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=True, is_cancelled=is_cancelled, model_size=whisper_model)
     
-    if karaoke:
+    if isinstance(transcript_data, dict):
         subtitle_path = base + ".words.json"
         with open(subtitle_path, "w", encoding="utf-8") as f:
             json.dump(transcript_data, f)
         transcript_text = build_srt_from_segments(transcript_data.get("segments", []))
     else:
         subtitle_path = base + ".srt"
-        transcript_text = transcript_data
+        transcript_text = str(transcript_data)
         with open(subtitle_path, "w", encoding="utf-8") as f:
             f.write(transcript_text)
 
@@ -694,16 +694,16 @@ def process_with_openai_compatible(file_path: str, api_key: str, provider: str,
     extract_audio(file_path, audio_path, register_proc=register_proc)
 
     if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=karaoke, is_cancelled=is_cancelled, model_size=whisper_model)
+    transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=True, is_cancelled=is_cancelled, model_size=whisper_model)
 
-    if karaoke:
+    if isinstance(transcript_data, dict):
         subtitle_path = base + ".words.json"
         with open(subtitle_path, "w", encoding="utf-8") as f:
             json.dump(transcript_data, f)
         transcript_text = build_srt_from_segments(transcript_data.get("segments", []))
     else:
         subtitle_path = base + ".srt"
-        transcript_text = transcript_data
+        transcript_text = str(transcript_data)
         with open(subtitle_path, "w", encoding="utf-8") as f:
             f.write(transcript_text)
 

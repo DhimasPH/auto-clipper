@@ -12,6 +12,8 @@ import ClipCard from "../components/ClipCard";
 import { ManualResumeModal } from "../components/ManualResumeModal";
 import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
+import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "../types/subtitle";
+import { SubtitleConfigControls } from "../components/ui/SubtitleConfigControls";
 
 export const HistoryPage: React.FC = () => {
   const { t } = useTranslation();
@@ -24,9 +26,9 @@ export const HistoryPage: React.FC = () => {
   const [extraPrompt, setExtraPrompt] = useState("");
 
   const [localAspectRatio, setLocalAspectRatio] = useState("9:16");
-  const [localCaptionStyle, setLocalCaptionStyle] = useState("standard");
   const [localBurnSubs, setLocalBurnSubs] = useState(true);
   const [localCanvasConfig, setLocalCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
+  const [localSubtitleConfig, setLocalSubtitleConfig] = useState<SubtitleConfig>(DEFAULT_SUBTITLE_CONFIG);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -200,24 +202,17 @@ export const HistoryPage: React.FC = () => {
                         { label: t("history.sub_no"), value: "no" },
                       ]}
                     />
-                    {localBurnSubs && (
-                      <Select
-                        label={t("history.caption_style")}
-                        value={localCaptionStyle}
-                        onChange={(e) => setLocalCaptionStyle(e.target.value)}
-                        options={[
-                          {
-                            label: t("history.style_standard"),
-                            value: "standard",
-                          },
-                          {
-                            label: t("history.style_karaoke"),
-                            value: "karaoke",
-                          },
-                        ]}
-                      />
-                    )}
                   </div>
+
+                  {localBurnSubs && (
+                    <div className="mb-4 pt-2 border-t border-border">
+                      <SubtitleConfigControls
+                        config={localSubtitleConfig}
+                        onChange={setLocalSubtitleConfig}
+                        showModeSwitch={true}
+                      />
+                    </div>
+                  )}
 
                   {localAspectRatio === "16:9" && (
                     <div className="mb-4 pt-2 border-t border-border">
@@ -235,9 +230,10 @@ export const HistoryPage: React.FC = () => {
                         ctx.handleRerender(
                           job.id,
                           localAspectRatio,
-                          localCaptionStyle,
+                          localSubtitleConfig.style,
                           localBurnSubs,
                           localCanvasConfig,
+                          localSubtitleConfig,
                         );
                         setActiveRerenderId(null);
                       }}
@@ -295,11 +291,24 @@ export const HistoryPage: React.FC = () => {
                       activeRerenderId === job.id ? "primary" : "outline"
                     }
                     icon={RefreshCw}
-                    onClick={() =>
-                      setActiveRerenderId(
-                        activeRerenderId === job.id ? null : job.id,
-                      )
-                    }
+                    onClick={() => {
+                      if (activeRerenderId === job.id) {
+                        setActiveRerenderId(null);
+                      } else {
+                        setActiveRerenderId(job.id);
+                        setLocalAspectRatio(job.aspect_ratio || "9:16");
+                        setLocalBurnSubs(job.burn_subs ?? true);
+                        setLocalCanvasConfig(job.canvas_config || DEFAULT_CANVAS_CONFIG);
+                        if (job.subtitle_config) {
+                          setLocalSubtitleConfig(job.subtitle_config);
+                        } else {
+                          setLocalSubtitleConfig({
+                            ...DEFAULT_SUBTITLE_CONFIG,
+                            style: job.caption_style === "karaoke" ? "karaoke" : "standard",
+                          });
+                        }
+                      }
+                    }}
                   >
                     {t("history.rerender_btn")}
                   </Button>

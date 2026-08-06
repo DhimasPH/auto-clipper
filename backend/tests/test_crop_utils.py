@@ -242,14 +242,11 @@ def test_words_to_karaoke_ass_cumulative_and_continuous():
     assert "PlayResY: 1920" in ass
     assert "Dialogue:" in ass
     
-    # 1. First dialogue must ONLY show the first word in yellow (no future words)
-    assert r"Dialogue: 0,0:00:01.00,0:00:01.50,Default,,0,0,0,,{\c&H00FFFF&}Halo{\c}" in ass
-    # 2. Second dialogue shows "Halo" in white and "semua" in yellow (no "selamat datang" yet)
-    assert r"Dialogue: 0,0:00:01.50,0:00:02.20,Default,,0,0,0,,Halo {\c&H00FFFF&}semua{\c}" in ass
-    # 3. Third dialogue
-    assert r"Dialogue: 0,0:00:02.20,0:00:02.70,Default,,0,0,0,,Halo semua {\c&H00FFFF&}selamat{\c}" in ass
-    # 4. Fourth dialogue shows all words with last word in yellow
-    assert r"Halo semua selamat {\c&H00FFFF&}datang{\c}" in ass
+    # Each word pops as a single non-overlapping event
+    assert r"Dialogue: 0,0:00:01.00,0:00:01.50,Default,,0,0,0,,HALO" in ass
+    assert r"Dialogue: 0,0:00:01.50,0:00:02.00,Default,,0,0,0,,SEMUA" in ass
+    assert r"Dialogue: 0,0:00:02.20,0:00:02.70,Default,,0,0,0,,SELAMAT" in ass
+    assert r"Dialogue: 0,0:00:02.70,0:00:03.55,Default,,0,0,0,,DATANG" in ass
 
 
 def test_smooth_trajectory_ema():

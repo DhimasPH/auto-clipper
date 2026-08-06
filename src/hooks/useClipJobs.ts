@@ -6,6 +6,7 @@ import { API_URL } from "../App";
 import { Clip } from "../components/ClipCard";
 import { ToastKind } from "./useToasts";
 import { CanvasConfig } from "../types/canvas";
+import { SubtitleConfig } from "../types/subtitle";
 
 export interface ClipJobParams {
   inputType: "url" | "local";
@@ -20,6 +21,7 @@ export interface ClipJobParams {
   captionStyle: string;
   burnSubtitles: boolean;
   canvasConfig?: CanvasConfig;
+  subtitleConfig?: SubtitleConfig;
   outputFolder: string;
   quality: string;
   title: string;
@@ -191,6 +193,7 @@ export function useClipJobs(p: ClipJobParams) {
         caption_style: p.captionStyle,
         burn_subs: p.burnSubtitles,
         canvas_config: p.canvasConfig,
+        subtitle_config: p.subtitleConfig,
         output_dir: p.outputFolder,
         quality: p.quality,
         title: p.title,
@@ -242,6 +245,7 @@ export function useClipJobs(p: ClipJobParams) {
         caption_style: p.captionStyle,
         burn_subs: p.burnSubtitles,
         canvas_config: p.canvasConfig,
+        subtitle_config: p.subtitleConfig,
         output_dir: p.outputFolder,
         quality: p.quality,
         title: p.title,
@@ -265,7 +269,8 @@ export function useClipJobs(p: ClipJobParams) {
     customAspectRatio: string,
     customCaptionStyle: string,
     customBurnSubs: boolean,
-    customCanvasConfig?: CanvasConfig
+    customCanvasConfig?: CanvasConfig,
+    customSubtitleConfig?: SubtitleConfig
   ) => {
     setJobOrigin("history");
     setStatus("TRANSCRIBING");
@@ -281,6 +286,7 @@ export function useClipJobs(p: ClipJobParams) {
         caption_style: customCaptionStyle,
         burn_subs: customBurnSubs,
         canvas_config: customCanvasConfig,
+        subtitle_config: customSubtitleConfig || p.subtitleConfig,
         output_dir: p.outputFolder,
         quality: p.quality,
         title: "", // re-render keeps the existing title in backend if not overridden
@@ -320,6 +326,7 @@ export function useClipJobs(p: ClipJobParams) {
         caption_style: p.captionStyle,
         burn_subs: p.burnSubtitles,
         canvas_config: p.canvasConfig,
+        subtitle_config: p.subtitleConfig,
         output_dir: p.outputFolder,
         quality: p.quality,
         title: "", // re-run AI keeps the existing title in backend

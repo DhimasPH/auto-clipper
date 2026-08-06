@@ -19,6 +19,7 @@ import { useStartupUpdateCheck } from "./hooks/useStartupUpdateCheck";
 import { ProviderId, DEFAULT_PROVIDER, LEGACY_PROVIDER_MIGRATION } from "./lib/providers";
 import { SHOW_EXPERIMENTAL_FEATURES } from "./config/features";
 import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "./types/canvas";
+import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "./types/subtitle";
 
 export let API_URL = "http://127.0.0.1:8000";
 export function setApiUrl(url: string) {
@@ -72,9 +73,10 @@ export default function App() {
     "1:1" | "4:5" | "9:16" | "16:9"
   >("9:16");
   const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke">(
-    "standard",
+    "karaoke",
   );
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
+  const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(DEFAULT_SUBTITLE_CONFIG);
 
   useEffect(() => {
     localStorage.setItem("ac_provider", provider);
@@ -126,9 +128,10 @@ export default function App() {
     customModelName,
     model: selectedModel,
     aspectRatio,
-    captionStyle,
+    captionStyle: subtitleConfig.style,
     burnSubtitles,
     canvasConfig,
+    subtitleConfig,
     outputFolder,
     quality,
     title,
@@ -149,6 +152,7 @@ export default function App() {
     setTitle("");
     setLocalFile(null);
     setCanvasConfig(DEFAULT_CANVAS_CONFIG);
+    setSubtitleConfig(DEFAULT_SUBTITLE_CONFIG);
     resetJobState();
   };
 
@@ -184,12 +188,25 @@ export default function App() {
     setLocalFile,
     aspectRatio,
     setAspectRatio,
-    captionStyle,
-    setCaptionStyle,
+    captionStyle: subtitleConfig.style,
+    setCaptionStyle: (style: "standard" | "karaoke") => {
+      setCaptionStyle(style);
+      setSubtitleConfig((prev) => ({ ...prev, style }));
+    },
     burnSubtitles,
     setBurnSubtitles,
     canvasConfig,
     setCanvasConfig,
+    subtitleConfig,
+    setSubtitleConfig: (cfgOrFn: any) => {
+      setSubtitleConfig((prev) => {
+        const next = typeof cfgOrFn === "function" ? cfgOrFn(prev) : cfgOrFn;
+        if (next.style && next.style !== captionStyle) {
+          setCaptionStyle(next.style);
+        }
+        return next;
+      });
+    },
     title,
     setTitle,
     enableBroll,

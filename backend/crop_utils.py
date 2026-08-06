@@ -445,16 +445,53 @@ def _fmt_ass_ts(sec: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
-def calculate_ass_styles(width: int, height: int, custom_margin_v: int = None):
-    """Calculates proportional font sizes based on video dimensions."""
+def hex_to_ass_style_color(hex_str: str, default: str = "&H0000E6FF") -> str:
+    """Konversi '#RRGGBB' ke format PrimaryColour ASS: '&H00BBGGRR'."""
+    if not hex_str or not isinstance(hex_str, str):
+        return default
+    clean = hex_str.strip().lstrip('#')
+    if len(clean) == 6:
+        try:
+            int(clean, 16)
+            r, g, b = clean[0:2], clean[2:4], clean[4:6]
+            return f"&H00{b.upper()}{g.upper()}{r.upper()}"
+        except ValueError:
+            return default
+    return default
+
+
+def normalize_subtitle_config(raw_config: dict = None, legacy_style: str = "standard") -> dict:
+    """Menjamin konfigurasi subtitle selalu lengkap dengan fallback yang aman."""
+    default_style = legacy_style if legacy_style in ("standard", "karaoke") else "karaoke"
+    if not isinstance(raw_config, dict):
+        raw_config = {}
+    style = raw_config.get("style", default_style)
+    if style not in ("standard", "karaoke"):
+        style = default_style
+    return {
+        "style": style,
+        "highlight_color": str(raw_config.get("highlight_color", "#FFE600")),
+        "font_family": str(raw_config.get("font_family", "Arial")),
+        "font_size_scale": float(raw_config.get("font_size_scale", 1.0)),
+        "font_weight": str(raw_config.get("font_weight", "bold")),
+        "italic": bool(raw_config.get("italic", False)),
+        "uppercase": bool(raw_config.get("uppercase", (style == "karaoke"))),
+    }
+
+
+def calculate_ass_styles(width: int, height: int, custom_margin_v: int = None, subtitle_config: dict = None):
+    """Calculates proportional font sizes based on video dimensions and custom scale."""
+    cfg = normalize_subtitle_config(subtitle_config)
+    scale = max(0.5, min(2.0, cfg.get("font_size_scale", 1.0)))
+
     is_vertical = height > width
     if is_vertical:
         # For vertical videos (9:16), font size should relate to width, but bounded
-        font_size = max(14, round(width * 0.055))
+        font_size = max(14, round(width * 0.055 * scale))
         margin_v = max(20, round(height * 0.15))
     else:
         # For landscape (16:9), width is huge, so font size should relate to height
-        font_size = max(14, round(height * 0.065))
+        font_size = max(14, round(height * 0.065 * scale))
         margin_v = max(20, round(height * 0.08))
         
     if custom_margin_v is not None and custom_margin_v > 0:
@@ -466,18 +503,18 @@ def calculate_ass_styles(width: int, height: int, custom_margin_v: int = None):
     return font_size, outline, shadow, margin_h, margin_v
 
 
-def srt_to_ass(srt_text: str, width: int, height: int, custom_margin_v: int = None) -> str:
-    """Convert SRT text to an ASS subtitle with an explicit script resolution.
-
-    Burning an SRT directly makes libass assume a default script size, so the
-    same FontSize renders wildly different (often huge) depending on the build.
-    Pinning PlayResX/Y to the actual clip and sizing the font as a fraction of
-    clip height keeps captions a sensible, consistent size.
-    """
+def srt_to_ass(srt_text: str, width: int, height: int, custom_margin_v: int = None, subtitle_config: dict = None) -> str:
+    """Convert SRT text to an ASS subtitle with an explicit script resolution and custom typography."""
     width = int(width) or 1080
     height = int(height) or 1920
+    cfg = normalize_subtitle_config(subtitle_config, legacy_style="standard")
     
-    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height, custom_margin_v=custom_margin_v)
+    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height, custom_margin_v=custom_margin_v, subtitle_config=cfg)
+
+    font_name = cfg.get("font_family", "Arial")
+    bold_val = -1 if cfg.get("font_weight") == "bold" else 0
+    italic_val = -1 if cfg.get("italic") else 0
+    is_uppercase = cfg.get("uppercase", False)
 
     header = (
         "[Script Info]\n"
@@ -489,8 +526,8 @@ def srt_to_ass(srt_text: str, width: int, height: int, custom_margin_v: int = No
         "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
         "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Default,Arial,{font_size},&H00FFFFFF,&H00000000,&H80000000,"
-        f"-1,0,0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n\n"
+        f"Style: Default,{font_name},{font_size},&H00FFFFFF,&H00000000,&H80000000,"
+        f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n\n"
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
@@ -512,9 +549,10 @@ def srt_to_ass(srt_text: str, width: int, height: int, custom_margin_v: int = No
             et = _parse_srt_ts(z)
         except Exception:
             continue
-        text = '\\N'.join(ln.strip() for ln in lines[ti + 1:] if ln.strip())
-        if not text:
+        raw_text = '\\N'.join(ln.strip() for ln in lines[ti + 1:] if ln.strip())
+        if not raw_text:
             continue
+        text = raw_text.upper() if is_uppercase else raw_text
         events.append(
             f"Dialogue: 0,{_fmt_ass_ts(st)},{_fmt_ass_ts(et)},Default,,0,0,0,,{text}"
         )
@@ -550,14 +588,21 @@ def chunk_words_smartly(clip_words, max_words=5, max_chars=28):
     return chunks
 
 
-def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float, clip_end: float, custom_margin_v: int = None) -> str:
-    """Convert word-level timestamps to cumulative word-by-word Karaoke ASS format."""
+def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float, clip_end: float, custom_margin_v: int = None, subtitle_config: dict = None) -> str:
+    """Convert word-level timestamps to single-word pop ASS subtitles with strict zero-overlap."""
     width = int(width) or 1080
     height = int(height) or 1920
+    cfg = normalize_subtitle_config(subtitle_config, legacy_style="karaoke")
     
-    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height, custom_margin_v=custom_margin_v)
+    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height, custom_margin_v=custom_margin_v, subtitle_config=cfg)
     outline = max(2, outline)
     shadow = max(2, shadow)
+
+    font_name = cfg.get("font_family", "Arial")
+    bold_val = -1 if cfg.get("font_weight") == "bold" else 0
+    italic_val = -1 if cfg.get("italic") else 0
+    ass_primary_color = hex_to_ass_style_color(cfg.get("highlight_color", "#FFE600"))
+    is_uppercase = cfg.get("uppercase", True)
 
     header = (
         "[Script Info]\n"
@@ -569,15 +614,12 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
         "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
         "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Default,Arial,{font_size},&H00FFFFFF,&H00000000,&H80000000,"
-        f"-1,0,0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n\n"
+        f"Style: Default,{font_name},{font_size},{ass_primary_color},&H00000000,&H80000000,"
+        f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n\n"
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
 
-    events = []
-    
-    # Filter and rebase words to clip window
     clip_words = []
     for w in words:
         w_start = float(w.get("start", 0))
@@ -586,48 +628,116 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
             s = max(0.0, w_start - clip_start)
             e = min(clip_end - clip_start, w_end - clip_start)
             if e > s:
-                clip_words.append({"word": str(w.get("word", "")).strip(), "start": s, "end": e})
+                raw_w = str(w.get("word", "")).strip()
+                if raw_w:
+                    clip_words.append({"word": raw_w, "start": s, "end": e})
 
     if not clip_words:
         return header
 
-    chunks = chunk_words_smartly(clip_words)
-
-    for chunk in chunks:
-        if not chunk:
-            continue
-            
-        chunk_len = len(chunk)
-        for i in range(chunk_len):
-            curr_word = chunk[i]
-            w_start = curr_word["start"]
-            
-            # Bridge to next word in the chunk if gap is small (< 0.5s) to avoid flickering
-            if i < chunk_len - 1:
-                next_start = chunk[i+1]["start"]
-                w_end = next_start if (next_start - curr_word["end"]) < 0.5 else curr_word["end"]
+    events = []
+    num_words = len(clip_words)
+    
+    for i in range(num_words):
+        curr_word = clip_words[i]
+        w_start = curr_word["start"]
+        raw_end = curr_word["end"]
+        
+        if i < num_words - 1:
+            next_start = clip_words[i+1]["start"]
+            gap = next_start - raw_end
+            if 0 <= gap < 0.2:
+                w_end = next_start
             else:
-                # Last word in chunk stays on screen for a short hold period (350ms)
-                w_end = min(clip_end - clip_start, curr_word["end"] + 0.35)
-                
-            # Enforce minimum word highlight visibility (at least 180ms)
-            if w_end - w_start < 0.18:
-                w_end = w_start + 0.18
-                
-            # Build cumulative text: words 0..i-1 are white, word i is yellow
-            parts = []
-            for j in range(i + 1):
-                word_str = chunk[j]["word"]
-                if j == i:
-                    parts.append(f"{{\\c&H00FFFF&}}{word_str}{{\\c}}")
-                else:
-                    parts.append(word_str)
-                    
-            text = " ".join(parts)
-            events.append(
-                f"Dialogue: 0,{_fmt_ass_ts(w_start)},{_fmt_ass_ts(w_end)},Default,,0,0,0,,{text}"
-            )
+                w_end = raw_end
+            w_end = min(w_end, next_start)
+        else:
+            w_end = min(clip_end - clip_start, raw_end + 0.35)
             
+        if i < num_words - 1:
+            w_end = min(max(w_end, w_start + 0.08), clip_words[i+1]["start"])
+        else:
+            w_end = max(w_end, w_start + 0.08)
+            
+        # Jika timestamp anomali w_end <= w_start, lewati untuk mencegah glitch render
+        if w_end <= w_start:
+            continue
+
+        text = curr_word["word"].upper() if is_uppercase else curr_word["word"]
+        events.append(
+            f"Dialogue: 0,{_fmt_ass_ts(w_start)},{_fmt_ass_ts(w_end)},Default,,0,0,0,,{text}"
+        )
+
+    return header + "\n".join(events) + ("\n" if events else "")
+
+
+def words_to_standard_ass(words: list, width: int, height: int, clip_start: float, clip_end: float, custom_margin_v: int = None, subtitle_config: dict = None) -> str:
+    """Mengonversi word timestamps menjadi subtitle baris kalimat standar yang rapi."""
+    width = int(width) or 1080
+    height = int(height) or 1920
+    cfg = normalize_subtitle_config(subtitle_config, legacy_style="standard")
+    
+    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height, custom_margin_v=custom_margin_v, subtitle_config=cfg)
+    font_name = cfg.get("font_family", "Arial")
+    bold_val = -1 if cfg.get("font_weight") == "bold" else 0
+    italic_val = -1 if cfg.get("italic") else 0
+    is_uppercase = cfg.get("uppercase", False)
+
+    header = (
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        "WrapStyle: 1\n"
+        f"PlayResX: {width}\n"
+        f"PlayResY: {height}\n\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, "
+        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
+        "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        f"Style: Default,{font_name},{font_size},&H00FFFFFF,&H00000000,&H80000000,"
+        f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n\n"
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+
+    clip_words = []
+    for w in words:
+        w_start = float(w.get("start", 0))
+        w_end = float(w.get("end", 0))
+        if w_start < clip_end and w_end > clip_start:
+            s = max(0.0, w_start - clip_start)
+            e = min(clip_end - clip_start, w_end - clip_start)
+            if e > s:
+                raw_w = str(w.get("word", "")).strip()
+                if raw_w:
+                    clip_words.append({"word": raw_w, "start": s, "end": e})
+
+    if not clip_words:
+        return header
+
+    # Kelompokkan kata menjadi kalimat berdasarkan jeda > 0.4s atau max 7 kata
+    chunks = []
+    current_chunk = [clip_words[0]]
+    for w in clip_words[1:]:
+        prev_w = current_chunk[-1]
+        gap = w["start"] - prev_w["end"]
+        if gap > 0.4 or len(current_chunk) >= 7 or prev_w["word"].endswith(('.', '!', '?')):
+            chunks.append(current_chunk)
+            current_chunk = [w]
+        else:
+            current_chunk.append(w)
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    events = []
+    for chunk in chunks:
+        c_start = chunk[0]["start"]
+        c_end = chunk[-1]["end"]
+        sentence = " ".join(w["word"] for w in chunk)
+        text = sentence.upper() if is_uppercase else sentence
+        events.append(
+            f"Dialogue: 0,{_fmt_ass_ts(c_start)},{_fmt_ass_ts(c_end)},Default,,0,0,0,,{text}"
+        )
+
     return header + "\n".join(events) + ("\n" if events else "")
 
 
@@ -894,9 +1004,10 @@ def build_canvas_background_filter(canvas_config: dict, src_w: int, src_h: int, 
 def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                      end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16",
                      register_proc=None, should_cancel=None, broll_path: str = None,
-                     layout: dict = None, canvas_config: dict = None) -> str:
+                     layout: dict = None, canvas_config: dict = None,
+                     subtitle_config: dict = None) -> str:
     """Crop to 9:16 (or chosen ratio), trim to [start, end], scale to standard dimensions,
-    and optionally burn subtitles.
+    and optionally burn subtitles with custom typography and zero-overlap single-word pop.
     Supports canvas conversion (blur, color, image backgrounds with scaling) for 16:9 sources.
 
     ``subtitle_path`` should point at a full-video .srt or .json; a per-clip subtitle is
@@ -989,6 +1100,8 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     if subtitle_path and os.path.exists(subtitle_path):
         import json
         is_json = subtitle_path.endswith(".json")
+        cfg = normalize_subtitle_config(subtitle_config, legacy_style="karaoke" if is_json else "standard")
+        desired_style = cfg.get("style", "karaoke" if is_json else "standard")
             
         ass_text = ""
         
@@ -999,11 +1112,15 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             if is_json:
                 data = json.loads(content)
                 words = data.get("words", [])
-                ass_text = words_to_karaoke_ass(words, out_w, out_h, start_s, end_s, custom_margin_v=custom_margin_v)
+                if desired_style == "standard":
+                    ass_text = words_to_standard_ass(words, out_w, out_h, start_s, end_s, custom_margin_v=custom_margin_v, subtitle_config=cfg)
+                else:
+                    ass_text = words_to_karaoke_ass(words, out_w, out_h, start_s, end_s, custom_margin_v=custom_margin_v, subtitle_config=cfg)
             else:
+                # File .srt legacy (hanya bisa mode standard)
                 clip_srt = shift_srt_for_clip(content, start_s, end_s)
                 if clip_srt.strip():
-                    ass_text = srt_to_ass(clip_srt, out_w, out_h, custom_margin_v=custom_margin_v)
+                    ass_text = srt_to_ass(clip_srt, out_w, out_h, custom_margin_v=custom_margin_v, subtitle_config=cfg)
         except Exception as e:
             log_error("crop_utils.generate_ass", f"Failed to generate ASS: {e}")
             ass_text = ""

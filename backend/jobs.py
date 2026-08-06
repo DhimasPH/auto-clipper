@@ -67,7 +67,7 @@ def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") ->
     }
 
 
-def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None) -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None) -> str:
     if not title or not title.strip():
         raise ValueError("Judul Proyek wajib diisi.")
     job_id = str(uuid.uuid4())
@@ -83,6 +83,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "mode": "ai",
         "aspect_ratio": aspect_ratio,
         "canvas_config": canvas_config,
+        "subtitle_config": subtitle_config,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -104,7 +105,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
 
 
 def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption_style: str = "standard",
-                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None) -> str:
+                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None, subtitle_config: dict = None) -> str:
     """Manual clipper job: cut user-chosen ranges, no AI highlight selection.
 
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
@@ -123,6 +124,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         "manual_clips": clips or [],
         "aspect_ratio": aspect_ratio,
         "canvas_config": canvas_config,
+        "subtitle_config": subtitle_config,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -143,7 +145,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
     return job_id
 
 
-def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None) -> str:
+def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None) -> str:
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
@@ -157,6 +159,7 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "mode": "rerender",
         "aspect_ratio": aspect_ratio,
         "canvas_config": canvas_config if canvas_config is not None else hist_meta.get("canvas_config"),
+        "subtitle_config": subtitle_config if subtitle_config is not None else hist_meta.get("subtitle_config"),
         "burn_subs": burn_subs,
         "output_dir": output_dir or hist_meta.get("output_dir", ""),
         "title": hist_meta.get("title", ""),
@@ -275,7 +278,7 @@ def _run_job(job_id: str):
                 if os.path.exists(predicted_subtitle_path) and os.path.getsize(predicted_subtitle_path) > 0:
                     job["progress"] = "Membaca subtitle yang sudah ada..."
                     log_app(f"[{job_id}] Membaca subtitle yang sudah ada: {predicted_subtitle_path}")
-                    if is_karaoke:
+                    if predicted_subtitle_path.endswith(".json"):
                         with open(predicted_subtitle_path, "r", encoding="utf-8") as f:
                             transcript_data = json.load(f)
                         srt_segments = [{"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} for s in transcript_data.get("segments", [])]
@@ -290,19 +293,13 @@ def _run_job(job_id: str):
                     extract_audio(output_path, audio_path, register_proc=lambda p: _register_proc(job, p))
                     
                     job["progress"] = "Mentranskripsi audio (Lokal)..."
-                    transcript = transcribe_with_faster_whisper(audio_path, karaoke=is_karaoke, is_cancelled=is_cancelled, model_size=job.get("whisper_model", "small"))
+                    transcript = transcribe_with_faster_whisper(audio_path, karaoke=True, is_cancelled=is_cancelled, model_size=job.get("whisper_model", "small"))
                     
-                    if is_karaoke:
-                        subtitle_path = predicted_subtitle_path
-                        with open(subtitle_path, "w", encoding="utf-8") as f:
-                            json.dump(transcript, f)
-                        srt_segments = [{"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} for s in transcript.get("segments", [])]
-                        transcript_text = build_srt_from_segments(srt_segments)
-                    else:
-                        subtitle_path = predicted_subtitle_path
-                        with open(subtitle_path, "w", encoding="utf-8") as f:
-                            f.write(str(transcript))
-                        transcript_text = str(transcript)
+                    subtitle_path = os.path.join(ws["subtitles_dir"], "subtitles.words.json")
+                    with open(subtitle_path, "w", encoding="utf-8") as f:
+                        json.dump(transcript, f)
+                    srt_segments = [{"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} for s in transcript.get("segments", [])]
+                    transcript_text = build_srt_from_segments(srt_segments)
                     
                 from backend.ai_utils import generate_manual_prompt
                 job["progress"] = "Membuat prompt manual..."
@@ -409,7 +406,8 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                 should_cancel=is_cancelled,
                 broll_path=broll_path,
                 layout=job_layout,
-                canvas_config=job.get("canvas_config")
+                canvas_config=job.get("canvas_config"),
+                subtitle_config=job.get("subtitle_config")
             )
 
             # Append to clips
@@ -498,18 +496,12 @@ def _run_manual_job(job_id: str):
             from backend.ai_utils import transcribe_with_faster_whisper
             from backend.video_utils import extract_audio
             import json as _json
-            is_karaoke = (job.get("caption_style") == "karaoke")
             audio_path = os.path.join(ws["source_dir"], "source_audio.mp3")
             extract_audio(source_path, audio_path, register_proc=lambda p: _register_proc(job, p))
-            transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=is_karaoke, is_cancelled=is_cancelled, model_size=job.get("whisper_model", "small"))
-            if is_karaoke:
-                subtitle_path = os.path.join(ws["subtitles_dir"], "subtitles.words.json")
-                with open(subtitle_path, "w", encoding="utf-8") as f:
-                    _json.dump(transcript_data, f)
-            else:
-                subtitle_path = os.path.join(ws["subtitles_dir"], "subtitles.srt")
-                with open(subtitle_path, "w", encoding="utf-8") as f:
-                    f.write(transcript_data)
+            transcript_data = transcribe_with_faster_whisper(audio_path, karaoke=True, is_cancelled=is_cancelled, model_size=job.get("whisper_model", "small"))
+            subtitle_path = os.path.join(ws["subtitles_dir"], "subtitles.words.json")
+            with open(subtitle_path, "w", encoding="utf-8") as f:
+                _json.dump(transcript_data, f)
 
         # 3. Detect layout once (gaming split-screen auto-detect, 9:16 only).
         job_layout = None
@@ -543,7 +535,8 @@ def _run_manual_job(job_id: str):
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=is_cancelled,
                     layout=job_layout,
-                    canvas_config=job.get("canvas_config")
+                    canvas_config=job.get("canvas_config"),
+                    subtitle_config=job.get("subtitle_config")
                 )
                 job["clips"].append({
                     "path": result_path,
@@ -657,7 +650,8 @@ def _run_rerender_job(job_id: str):
                     should_cancel=lambda: job.get("cancelled", False),
                     broll_path=broll_path,
                     layout=job_layout,
-                    canvas_config=job.get("canvas_config")
+                    canvas_config=job.get("canvas_config"),
+                    subtitle_config=job.get("subtitle_config")
                 )
 
                 job["clips"].append({
@@ -696,7 +690,7 @@ def _run_rerender_job(job_id: str):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None):
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None):
     from backend.db import get_history
     job_record = get_history(history_job_id)
     if not job_record:
@@ -720,6 +714,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "mode": "ai",
         "aspect_ratio": aspect_ratio,
         "canvas_config": canvas_config if canvas_config is not None else metadata.get("canvas_config"),
+        "subtitle_config": subtitle_config if subtitle_config is not None else metadata.get("subtitle_config"),
         "caption_style": job_record.get("caption_style", "standard"),
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -839,7 +834,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     should_cancel=lambda: job.get("cancelled", False),
                     broll_path=broll_path,
                     layout=job_layout,
-                    canvas_config=job.get("canvas_config")
+                    canvas_config=job.get("canvas_config"),
+                    subtitle_config=job.get("subtitle_config")
                 )
                 
                 job["clips"].append({
@@ -907,7 +903,7 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     if metadata.get("highlights") and job.get("mode") == "ai":
         metadata["ai_job"] = True
         
-    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model", "canvas_config"]:
+    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model", "canvas_config", "subtitle_config"]:
         if key in job:
             metadata[key] = job[key]
 
@@ -938,6 +934,7 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
         "mode": hist_meta.get("mode", "ai"),
         "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
         "canvas_config": hist_meta.get("canvas_config"),
+        "subtitle_config": hist_meta.get("subtitle_config"),
         "caption_style": hist_meta.get("caption_style", "standard"),
         "burn_subs": hist_meta.get("burn_subs", True),
         "output_dir": hist_meta.get("output_dir", ""),
@@ -1019,6 +1016,7 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "mode": hist_meta.get("mode", "ai"),
         "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
         "canvas_config": hist_meta.get("canvas_config"),
+        "subtitle_config": hist_meta.get("subtitle_config"),
         "caption_style": hist_meta.get("caption_style", "standard"),
         "burn_subs": hist_meta.get("burn_subs", True),
         "output_dir": hist_meta.get("output_dir", ""),

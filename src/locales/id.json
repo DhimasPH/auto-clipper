@@ -342,5 +342,33 @@
     "enlarge_1_8": "1.8x",
     "enlarge_2_0": "2.0x",
     "preview_hint": "Tip: Subtitle akan otomatis diposisikan tepat di bawah video utama secara rapi."
+  },
+  "subtitle_custom": {
+    "title": "Kustomisasi Tampilan Subtitle",
+    "style_mode": "Mode Tampilan Subtitle",
+    "style_karaoke": "Karaoke (Word-by-word)",
+    "style_karaoke_desc": "Setiap kata yang diucapkan akan menyala terang satu per satu, sangat cocok untuk video Shorts/TikTok.",
+    "style_standard": "Standar (Kalimat Penuh)",
+    "style_standard_desc": "Menampilkan satu baris kalimat lengkap secara statis.",
+    "font_family_label": "Jenis Huruf (Font Family)",
+    "font_size_label": "Ukuran Huruf (Font Size)",
+    "font_size_small": "Kecil (0.8x)",
+    "font_size_normal": "Normal (1.0x)",
+    "font_size_large": "Besar (1.2x)",
+    "font_size_xl": "Ekstra Besar (1.5x)",
+    "font_weight_label": "Ketebalan Huruf (Font Weight)",
+    "weight_normal": "Normal",
+    "weight_bold": "Tebal (Bold)",
+    "highlight_color_label": "Warna Sorotan Kata (Highlight Color)",
+    "options_label": "Gaya Tambahan (Text Styling)",
+    "uppercase_toggle": "HURUF BESAR SEMUA (UPPERCASE)",
+    "uppercase_desc": "Ubah semua teks subtitle menjadi huruf kapital agar lebih mencolok",
+    "italic_toggle": "Huruf Miring (Italic)",
+    "italic_desc": "Memberi aksen miring pada teks subtitle",
+    "preview_title": "Pratinjau Langsung Subtitle (Live Preview)",
+    "preview_karaoke_text_before": "BUAT KONTEN JADI LEBIH",
+    "preview_karaoke_highlight": "VIRAL",
+    "preview_karaoke_text_after": "SEKARANG",
+    "preview_standard_text": "Buat konten video Anda menjadi lebih menarik dan viral!"
   }
 }

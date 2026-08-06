@@ -9,6 +9,7 @@ import { Select } from "./ui/Select";
 import { ToggleSwitch } from "./ui/ToggleSwitch";
 import { Button } from "./ui/Button";
 import { CanvasConfigControls } from "./ui/CanvasConfigControls";
+import { SubtitleConfigControls } from "./ui/SubtitleConfigControls";
 
 type Quality = "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p";
 
@@ -20,8 +21,6 @@ interface GenerateFormProps {
   setLocalFile: Dispatch<SetStateAction<File | null>>;
   aspectRatio: "1:1" | "4:5" | "9:16" | "16:9";
   setAspectRatio: Dispatch<SetStateAction<"1:1" | "4:5" | "9:16" | "16:9">>;
-  captionStyle: "standard" | "karaoke";
-  setCaptionStyle: Dispatch<SetStateAction<"standard" | "karaoke">>;
   burnSubtitles: boolean;
   setBurnSubtitles: Dispatch<SetStateAction<boolean>>;
   quality: Quality;
@@ -47,8 +46,6 @@ export default function GenerateForm({
   setLocalFile,
   aspectRatio,
   setAspectRatio,
-  captionStyle,
-  setCaptionStyle,
   burnSubtitles,
   setBurnSubtitles,
   quality,
@@ -264,28 +261,13 @@ export default function GenerateForm({
             <ToggleSwitch checked={burnSubtitles} onChange={setBurnSubtitles} />
           </div>
 
-          {burnSubtitles && (
+          {burnSubtitles && ctx?.subtitleConfig && (
             <div className="pt-4 border-t border-border">
-              <label className="text-label text-text-secondary block mb-2">
-                {t("main.subtitle_style_label", "Subtitle Style")}
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {(["standard", "karaoke"] as const).map((style) => (
-                  <button
-                    key={style}
-                    onClick={() => setCaptionStyle(style)}
-                    className={`py-2 px-3 rounded-lg border font-medium transition-colors ${
-                      captionStyle === style
-                        ? "border-accent bg-accent/10 text-accent"
-                        : "border-border bg-bg-surface text-text-secondary hover:border-border-active"
-                    }`}
-                  >
-                    {style === "standard"
-                      ? "Standard (Baris)"
-                      : "Karaoke (Word-by-word)"}
-                  </button>
-                ))}
-              </div>
+              <SubtitleConfigControls
+                config={ctx.subtitleConfig}
+                onChange={ctx.setSubtitleConfig}
+                showModeSwitch={true}
+              />
             </div>
           )}
 

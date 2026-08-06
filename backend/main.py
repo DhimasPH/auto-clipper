@@ -269,6 +269,7 @@ class CreateJobRequest(BaseModel):
     whisper_model: str = "small"
     model: str = ""
     canvas_config: Optional[CanvasConfig] = None
+    subtitle_config: Optional[dict] = None
 
 class SaveFileRequest(BaseModel):
     src: str
@@ -320,7 +321,7 @@ def api_rerender_job(job_id: str, req: CreateJobRequest):
     try:
         from backend.jobs import create_rerender_job
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
-        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips, canvas_config=canvas_cfg)
+        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config)
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -336,7 +337,7 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
             job_id, req.provider, req.api_key.strip(),
             req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
             req.custom_base_url.strip(), req.custom_model_name.strip(), req.whisper_model,
-            req.model, canvas_config=canvas_cfg
+            req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
@@ -501,7 +502,7 @@ def api_create_job(req: CreateJobRequest):
         req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
         req.title.strip(), req.enable_broll, req.pexels_api_key.strip(), req.max_clips,
         req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video,
-        req.whisper_model, req.model, canvas_config=canvas_cfg
+        req.whisper_model, req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config
     )
     return {"status": "success", "job_id": job_id}
 
@@ -648,6 +649,7 @@ class ManualJobRequest(BaseModel):
     is_gaming_video: bool = False
     whisper_model: str = "small"
     canvas_config: Optional[CanvasConfig] = None
+    subtitle_config: Optional[dict] = None
 
 
 @app.post("/jobs/manual")
@@ -667,7 +669,7 @@ def api_create_manual_job(req: ManualJobRequest):
         job_id = create_manual_job(
             req.url.strip(), req.clips, req.aspect_ratio, req.caption_style,
             req.burn_subs, req.output_dir, req.quality, req.title.strip(), req.is_gaming_video,
-            req.whisper_model, canvas_config=canvas_cfg
+            req.whisper_model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config
         )
         return {"status": "success", "job_id": job_id}
     except Exception as e:

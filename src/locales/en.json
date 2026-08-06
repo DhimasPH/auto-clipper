@@ -342,5 +342,33 @@
     "enlarge_1_8": "1.8x",
     "enlarge_2_0": "2.0x",
     "preview_hint": "Tip: Subtitles will automatically be positioned neatly below the foreground video."
+  },
+  "subtitle_custom": {
+    "title": "Subtitle Appearance & Typography",
+    "style_mode": "Subtitle Display Mode",
+    "style_karaoke": "Karaoke (Word-by-word)",
+    "style_karaoke_desc": "Each spoken word lights up one by one, perfect for TikTok & YouTube Shorts.",
+    "style_standard": "Standard (Full Line)",
+    "style_standard_desc": "Displays full static lines of text smoothly.",
+    "font_family_label": "Font Family",
+    "font_size_label": "Font Size",
+    "font_size_small": "Small (0.8x)",
+    "font_size_normal": "Normal (1.0x)",
+    "font_size_large": "Large (1.2x)",
+    "font_size_xl": "Extra Large (1.5x)",
+    "font_weight_label": "Font Weight",
+    "weight_normal": "Normal",
+    "weight_bold": "Bold",
+    "highlight_color_label": "Word Highlight Color",
+    "options_label": "Text Styling",
+    "uppercase_toggle": "ALL CAPS (UPPERCASE)",
+    "uppercase_desc": "Convert all subtitle text to uppercase for higher engagement",
+    "italic_toggle": "Italic",
+    "italic_desc": "Slant the subtitle text for styling",
+    "preview_title": "Live Subtitle Preview",
+    "preview_karaoke_text_before": "MAKE YOUR CONTENT GO",
+    "preview_karaoke_highlight": "VIRAL",
+    "preview_karaoke_text_after": "TODAY",
+    "preview_standard_text": "Make your videos more engaging and accessible for everyone!"
   }
 }
