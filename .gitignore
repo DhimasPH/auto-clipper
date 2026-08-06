@@ -35,3 +35,11 @@ worktrees/
 #prototype
 prototype/
 
+# OS
+.DS_Store
+
+# Python
+.venv/
+
+# Build
+dist-macos/
