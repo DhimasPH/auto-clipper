@@ -25,10 +25,6 @@ jobs:
             target: aarch64-apple-darwin
             python-arch: arm64
             pip-constraints: "-c backend/constraints-macos12.txt"
-          - os: macos-13
-            target: x86_64-apple-darwin
-            python-arch: x64
-            pip-constraints: "-c backend/constraints-macos12.txt"
     runs-on: ${{ matrix.os }}
 
     env:

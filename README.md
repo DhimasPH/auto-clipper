@@ -42,23 +42,22 @@ Anda tidak perlu repot dengan terminal. Semua komponen yang dibutuhkan sudah kam
 2. Unduh file installer `.exe` versi terbaru.
 3. Klik ganda (Double-click) file yang sudah diunduh dan instal seperti biasa. Aplikasi siap digunakan!
 
-#### 🍎 macOS (Homebrew)
+#### 🍎 macOS (Apple Silicon & Intel)
 
-Untuk pengguna Mac (Apple Silicon maupun Intel), Auto Clipper tersedia lewat Homebrew Tap dan berjalan di **macOS 12 (Monterey) ke atas**. Cukup satu baris di Terminal:
+Untuk pengguna Mac, unduh file `.dmg` yang sesuai chip Anda dari halaman **[Releases](../../releases)**:
 
-```bash
-brew install --cask --no-quarantine DhimasPH/tap/auto-clipper
-```
+- **Apple Silicon (M1/M2/M3…):** `Auto.Clipper_<versi>_aarch64.dmg`
+- **Intel:** `Auto.Clipper_<versi>_x64.dmg`
 
-Flag `--no-quarantine` membuat aplikasi langsung bisa dibuka tanpa peringatan _"app is damaged"_ / _"unidentified developer"_. Aplikasi ini di-sign secara _ad-hoc_ (tanpa akun Apple Developer berbayar), sehingga karantina perlu dibersihkan — flag tersebut melakukannya otomatis saat instalasi.
-
-Jika Anda mengunduh file `.dmg` langsung dari halaman Releases (bukan lewat Homebrew), pindahkan aplikasi ke `/Applications`, lalu jalankan sekali di Terminal untuk membersihkan karantina:
+Buka DMG-nya, lalu seret **Auto Clipper** ke folder `/Applications`. Karena aplikasi ini di-sign secara _ad-hoc_ (tanpa akun Apple Developer berbayar), macOS Gatekeeper akan menahannya saat pertama kali dibuka. Jalankan perintah ini **sekali** di Terminal untuk mengizinkannya:
 
 ```bash
 xattr -cr "/Applications/Auto Clipper.app"
 ```
 
-**Cara update:** lewat tombol _"Update"_ di dalam aplikasi (terverifikasi secara kriptografis dengan Minisign), atau jalankan `brew upgrade auto-clipper`.
+Setelah itu aplikasi bisa dibuka normal dari Launchpad atau folder Applications.
+
+**Cara update:** gunakan updater bawaan aplikasi — klik tombol _"Update"_ di dalam aplikasi saat tersedia (terverifikasi secara kriptografis dengan Minisign). Anda juga selalu bisa mengunduh DMG versi terbaru dari halaman Releases.
 
 > Catatan: aplikasi membundel backend Python (transkripsi Whisper, OpenCV, FFmpeg), jadi ukuran unduhan cukup besar (ratusan MB). Unduhan pertama akan memakan waktu.
 
