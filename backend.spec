@@ -92,16 +92,13 @@ version_file = 'file_version_info.txt' if os.path.exists('file_version_info.txt'
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='backend',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -112,3 +109,12 @@ exe = EXE(
     version=version_file,
 )
 
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    name='backend_app'
+)

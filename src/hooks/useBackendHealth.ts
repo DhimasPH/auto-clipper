@@ -29,7 +29,7 @@ export function useBackendHealth() {
     const ping = async (overrideUrl?: string): Promise<boolean> => {
       const url = overrideUrl || API_URL;
       try {
-        await axios.get(`${url}/health`, { timeout: 2500 });
+        await axios.get(`${url}/health`, { timeout: 15000 });
         return true;
       } catch {
         return false;
@@ -110,7 +110,7 @@ export function useBackendHealth() {
     } finally {
       let okay = false;
       try {
-        await axios.get(`${API_URL}/health`, { timeout: 2500 });
+        await axios.get(`${API_URL}/health`, { timeout: 15000 });
         okay = true;
       } catch {
         okay = false;
