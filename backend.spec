@@ -42,6 +42,7 @@ hiddenimports = [
     'backend.logger',
     'backend.video_utils',
     'backend.broll',
+    'backend.metadata',
 ]
 
 for pkg in [
@@ -49,6 +50,7 @@ for pkg in [
     'ctranslate2',
     'onnxruntime',
     'cv2',
+    'numpy',
     'google.genai',
     'openai',
     'httpx',

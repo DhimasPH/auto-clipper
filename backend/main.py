@@ -71,6 +71,7 @@ if getattr(sys, 'frozen', False):
     bin_dir = os.path.dirname(sys.executable)
     bin_paths.extend([
         bin_dir,
+        os.path.dirname(bin_dir),
         os.path.join(bin_dir, "bin"), # Windows resource path
         os.path.join(os.path.dirname(bin_dir), "Resources", "bin") # macOS resource path
     ])
@@ -94,8 +95,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.add_middleware(
     CORSMiddleware,
-    # Allow local dev and all variations of Tauri custom protocols
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?|tauri://.*|app://.*",
+    # Allow local dev and all variations of Tauri custom protocols (including tauri.localhost on Windows)
+    allow_origin_regex=r"https?://([a-zA-Z0-9_.-]+\.)?localhost(:\d+)?|https?://127\.0\.0\.1(:\d+)?|tauri://.*|app://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

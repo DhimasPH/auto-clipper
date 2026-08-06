@@ -10,6 +10,25 @@ def test_health_check():
     assert r.json() == {"status": "ok"}
 
 
+def test_cors_headers():
+    allowed_origins = [
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+        "tauri://localhost",
+        "http://localhost:5173",
+        "http://127.0.0.1:8000",
+        "app://localhost",
+    ]
+    for origin in allowed_origins:
+        r = client.get("/health", headers={"Origin": origin})
+        assert r.status_code == 200
+        assert r.headers.get("access-control-allow-origin") == origin, f"Origin {origin} was not allowed by CORS"
+
+    # Unauthorized external web origin should NOT receive allow-origin header
+    r_unauthorized = client.get("/health", headers={"Origin": "https://malicious-website.com"})
+    assert r_unauthorized.headers.get("access-control-allow-origin") is None
+
+
 def test_is_valid_source_url_accepts_supported_platforms():
     assert is_valid_source_url("https://www.youtube.com/watch?v=abc")
     assert is_valid_source_url("https://youtu.be/abc")

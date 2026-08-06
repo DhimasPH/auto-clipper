@@ -110,6 +110,18 @@ OUT="src-tauri/target/${TARGET}/release/bundle"
 mkdir -p dist-macos
 find "$OUT" \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.app.tar.gz.sig' \) -exec cp {} dist-macos/ \; 2>/dev/null || true
 
+# Rename Tauri's unversioned updater artifacts to match the DMG's naming scheme
+DMG_FILE=$(ls dist-macos/*.dmg 2>/dev/null | head -1 || true)
+if [ -n "$DMG_FILE" ]; then
+  BASE_NAME=$(basename "$DMG_FILE" .dmg)
+  if [ -f "dist-macos/Auto Clipper.app.tar.gz" ]; then
+    mv "dist-macos/Auto Clipper.app.tar.gz" "dist-macos/${BASE_NAME}.app.tar.gz"
+  fi
+  if [ -f "dist-macos/Auto Clipper.app.tar.gz.sig" ]; then
+    mv "dist-macos/Auto Clipper.app.tar.gz.sig" "dist-macos/${BASE_NAME}.app.tar.gz.sig"
+  fi
+fi
+
 echo
 echo "==================== DONE ===================="
 echo "Artifacts:"
