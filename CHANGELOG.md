@@ -2,6 +2,25 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.11.0] - 2026-08-06
+
+### Added
+
+- **Subtitle Word-by-Word Anti-Overlap Engine**:
+  - Implementasi algoritma *flat-list anti-overlap* (`end_i <= start_{i+1}`) pada `words_to_karaoke_ass` untuk mengeliminasi flicker dan glitch tumpang tindih waktu antar kata/chunk pada subtitle karaoke vertikal (single-word pop).
+  - Penambahan fungsi `words_to_standard_ass` untuk rekonstruksi kalimat penuh secara natural dari daftar kata ber-timestamp.
+- **Custom Subtitle Typography & Interactive Live Preview**:
+  - Kustomisasi tipografi subtitle: pemilihan *font family* (Montserrat, Impact, Arial, Roboto, Oswald, Arial Black), skala *font size*, *font weight* (`normal` / `bold`), huruf kapital (*uppercase*), palet warna preset + hex code kustom, dan penyesuaian posisi vertikal (*top*, *middle*, *bottom*).
+  - Komponen antarmuka `SubtitleConfigControls` dilengkapi kotak simulator *Live Preview* interaktif dan dukungan multibahasa (Bahasa Indonesia & Inggris).
+- **Universal Word-Level Transcription & Mode Dispatch**:
+  - Whisper selalu mengekstrak *word-level timestamps* (`words.json`) di semua alur transkripsi.
+  - Mode subtitle (`karaoke` vs `standard`) dikontrol langsung via preferensi pengguna (`subtitle_config`), bukan oleh ekstensi file input.
+  - Propagasi dan persistensi `subtitle_config` di seluruh alur pembuatan job (`create_job`, `create_manual_job`, `create_rerender_job`, `create_rerun_ai_job`, `resume`).
+- **Cross-Platform Packaging & Auto-Updater Support**:
+  - Pemisahan arsitektur packaging: Windows menggunakan PyInstaller `--onefile`, sedangkan macOS menggunakan `--onedir` via `src-tauri/tauri.macos.conf.json` untuk menghilangkan *cold-start delay* dan memfasilitasi *codesigning*.
+  - Menambahkan skrip rilis manual `release-mac-intel.sh` dan panduan `docs/release-macos-intel.md` untuk meng-generate bundel installer DMG beserta artifact in-app updater (`.tar.gz.sig`, `updater.json`).
+  - Penambahan workflow CI/CD GitHub Actions untuk otomasi build lintas platform.
+
 ## [1.10.0] - 2026-08-05
 
 ### Added
