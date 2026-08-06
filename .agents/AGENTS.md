@@ -13,7 +13,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
   - **Speech-to-Text**: `faster-whisper` (didukung model: `small`, `medium`, `large-v3`) + Silero VAD filter (`min_silence_duration_ms=500`).
   - **Highlight Extraction & Social Kit**: **AI Provider Registry** (Mendukung provider dinamis seperti OpenAI, Gemini, dll) dengan parser JSON tangguh (`clean_json_response`).
   - **Face Detection & Tracking**: OpenCV Haar Cascade + Exponential Moving Average (EMA, alpha ~0.25) + ekspresi interpolasi FFmpeg dinamis.
-  - **Subtitles**: Generator ASS format cumulative word-by-word karaoke (`words_to_karaoke_ass`).
+  - **Subtitles**: Engine ASS single-word pop karaoke non-overlapping (`words_to_karaoke_ass`) & sentence reconstruction (`words_to_standard_ass`) dengan tipografi kustom (ADR-009).
   - **Video Rendering & Cropping**: FFmpeg via subproses Python (menggunakan Hardware Acceleration `h264_nvenc` dengan mekanisme fallback otomatis ke `libx264`).
   - **Downloader**: `yt-dlp` dengan fallback cookie browser.
 
@@ -38,14 +38,15 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 3. Selalu sertakan `vad_filter=True` untuk memangkas jeda hening dan mencegah halusinasi teks berulang.
 4. **AI Provider Registry & Dynamic Models**: Sistem **tidak boleh** melakukan hardcode pada model LLM. Selalu gunakan sistem *AI Provider Registry* yang mengambil konfigurasi model secara dinamis dari frontend/backend settings.
 
-### D. Video Cropping, Canvas Styling & Karaoke Subtitle Invariants (ADR-003, ADR-008)
+### D. Video Cropping, Canvas Styling & Karaoke Subtitle Invariants (ADR-003, ADR-008, ADR-009)
 1. **Face Tracking Crop**: Pemotongan video portrait (9:16) standard harus menggunakan `sample_face_trajectory` + `smooth_trajectory` + `build_dynamic_crop_filter` agar kamera mengikuti pergerakan wajah pembicara secara halus.
 2. **Canvas Background Styling & Zoom (ADR-008)**: Saat opsi Canvas Styling aktif pada video landscape (16:9), pipeline merender video di atas kanvas 9:16 dengan opsi latar (`blur` [light, medium, heavy], `color` solid, atau `image` kustom) serta pembesaran `enlarge_scale` (1.0x - 2.0x) secara proporsional tanpa memotong sisi video.
-3. **Adaptive Subtitle Margin**: Pada mode kanvas, posisi vertikal subtitle karaoke ASS disesuaikan secara otomatis (`MarginV` dinaikkan) agar teks berada tepat di area kosong bawah video tanpa menutupi visual utama.
-4. **Subtitle Karaoke**: Subtitle karaoke harus menggunakan `words_to_karaoke_ass` dengan pola kemunculan kata bertahap (kata aktif berwarna kuning `{\c&H00FFFF&}`, kata sebelumnya putih), disertai hold time di akhir kalimat.
-5. **Pipeline Metadata Invariant**: Properti `canvas_config` **HARUS** dipropagasikan dan dipertahankan di seluruh alur pembuatan job (`create_job`, `create_manual_job`, `create_rerender_job`, `create_rerun_ai_job`) serta alur resume (`create_resume_job`, `resume_manual_job`).
-6. Pipeline wajib mendeteksi layout video asli (Landscape/Portrait) secara otomatis sebelum pemrosesan klip.
-7. **NVENC Fallback**: Semua *command* FFmpeg untuk rendering video wajib mengimplementasikan percobaan hardware encoding dengan `h264_nvenc`. Jika terjadi error (misalnya karena driver tidak tersedia atau memori GPU penuh), command tersebut harus ditangkap dan fallback secara aman ke CPU encoding (`libx264`).
+3. **Adaptive Subtitle Margin**: Pada mode kanvas, posisi vertikal subtitle ASS disesuaikan secara otomatis (`MarginV` dinaikkan) agar teks berada tepat di area kosong bawah video tanpa menutupi visual utama.
+4. **Subtitle Zero-Overlap Invariant (ADR-009)**: Subtitle karaoke wajib menggaransi `end_i <= start_{i+1}` pada flat-word list sehingga kata aktif tampil tunggal (single-word pop) tanpa tumpang tindih waktu antar kata. Format warna primer ASS adalah `&H00BBGGRR` (8-digit hex) dan font weight mendukung `bold` (`Bold=-1`) serta `normal` (`Bold=0`).
+5. **Universal Word-Level Transcription & Mode Dispatch**: Whisper wajib selalu mengekstrak word timestamps (`words.json`). Mode subtitle (`standard` vs `karaoke`) dikontrol oleh `subtitle_config.style`, bukan oleh ekstensi file input.
+6. **Pipeline Metadata Invariant**: Properti `canvas_config` dan `subtitle_config` **HARUS** dipropagasikan dan dipertahankan di seluruh alur pembuatan job (`create_job`, `create_manual_job`, `create_rerender_job`, `create_rerun_ai_job`) serta alur resume (`create_resume_job`, `resume_manual_job`).
+7. Pipeline wajib mendeteksi layout video asli (Landscape/Portrait) secara otomatis sebelum pemrosesan klip.
+8. **NVENC Fallback**: Semua *command* FFmpeg untuk rendering video wajib mengimplementasikan percobaan hardware encoding dengan `h264_nvenc`. Jika terjadi error (misalnya karena driver tidak tersedia atau memori GPU penuh), command tersebut harus ditangkap dan fallback secara aman ke CPU encoding (`libx264`).
 
 ### E. Multi-Stage Resume, Job Workspaces, & Mode (AI vs Manual)
 1. Fitur retry/resume di `backend/jobs.py` tidak boleh mengunduh ulang video jika file lokal sudah tersedia.
@@ -60,10 +61,13 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 4. Startup version check dijalankan secara non-blocking via hook `useStartupUpdateCheck` saat splash screen.
 5. Desain UI wajib modern, responsif, mengutamakan Dark Mode, dan menggunakan ikon dari `lucide-react`.
 
-### G. PyInstaller & Tauri Build Invariants
-1. Executable backend Python dibangun dengan target triplet di folder `bin/` (contoh: `bin/backend-x86_64-pc-windows-msvc.exe` atau `bin/backend-aarch64-apple-darwin`).
+### G. PyInstaller & Tauri Build Invariants (ADR-010)
+1. **Platform Packaging Split**:
+   - **Windows**: Menggunakan PyInstaller `--onefile` (`bin/backend-x86_64-pc-windows-msvc.exe`).
+   - **macOS**: Menggunakan PyInstaller `--onedir` (`bin/backend-x86_64-apple-darwin/` atau `bin/backend-aarch64-apple-darwin/`) yang dikonfigurasi via `src-tauri/tauri.macos.conf.json`.
 2. Script build: jalankan `build-be.ps1` atau `build-be.bat` untuk Windows (selalu gunakan flag `--clean`), atau `build-mac-local.sh` untuk environment macOS.
-3. Konfigurasi perizinan Tauri ada di `src-tauri/tauri.conf.json` dan `src-tauri/capabilities/default.json`.
+3. Release manual macOS Intel x86_64 dengan bundel updater artifact dijalankan menggunakan `release-mac-intel.sh` (panduan di `docs/release-macos-intel.md`).
+4. Konfigurasi perizinan Tauri ada di `src-tauri/tauri.conf.json` dan `src-tauri/capabilities/default.json`.
 
 ### H. Dokumentasi ADR & Testing
 1. Setiap perubahan arsitektur signifikan, penambahan library inti, atau perubahan alur data wajib dibuatkan dokumen ADR di `docs/decisions/` format `[nomor]-[nama-singkat].md`.
@@ -78,12 +82,15 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `backend/main.py`: Entry point FastAPI, exception handler, port/token emitter.
 - `backend/jobs.py`: Worker queue, pipeline eksekusi klip, resume/retry logic.
 - `backend/ai_utils.py`: Integrasi Whisper, model registry, prompt LLM & JSON sanitizer.
-- `backend/crop_utils.py`: Face tracking (OpenCV), generator kanvas background (`build_canvas_background_filter`), subtitle ASS parser.
+- `backend/crop_utils.py`: Face tracking (OpenCV), generator kanvas background (`build_canvas_background_filter`), subtitle ASS anti-overlap & typography parser.
 - `backend/logger.py`: Fail-safe error logger (`backend_error.log`).
 - `backend/db.py`: SQLite database schema & repository functions.
+- `backend/tests/test_subtitle_render.py` & `backend/tests/test_jobs_subtitle.py`: Pengujian render subtitle ASS, anti-overlap, dan jobs threading.
 - `src/App.tsx`: Routing, splash screen, startup update check.
 - `src/components/ui/CanvasConfigControls.tsx`: UI selector mode canvas, color picker, blur level, image picker, & zoom slider.
-- `src/types/canvas.ts`: Interface TypeScript `CanvasConfig` dan default state.
+- `src/components/ui/SubtitleConfigControls.tsx`: UI kontrol tipografi subtitle, preset warna, position selector, dan Live Preview simulator.
+- `src/types/canvas.ts` & `src/types/subtitle.ts`: Interface TypeScript `CanvasConfig` dan `SubtitleConfig`.
 - `src/locales/`: File terjemahan bilingual (`id.json`, `en.json`).
-- `src-tauri/`: Tauri Rust backend & configuration.
-- `docs/decisions/`: Architecture Decision Records (ADR-001 s/d ADR-008).
+- `src-tauri/`: Tauri Rust backend & configuration (`tauri.conf.json`, `tauri.macos.conf.json`).
+- `release-mac-intel.sh` & `docs/release-macos-intel.md`: Script dan panduan build rilis macOS Intel dengan updater artifacts.
+- `docs/decisions/`: Architecture Decision Records (ADR-001 s/d ADR-010).
