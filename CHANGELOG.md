@@ -2,6 +2,19 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.11.1] - 2026-08-07
+
+### Fixed
+
+- **Cross-Platform CORS Webview & Handshake Connectivity**:
+  - Memperbaiki kegagalan koneksi sidecar (*backend disconnected*) pada Windows desktop dengan memperluas regex CORS FastAPI agar mengenali seluruh subdomain `localhost` (termasuk `http://tauri.localhost` dan `https://tauri.localhost` bawaan WebView2) serta scheme `tauri://*` / `app://*` macOS WKWebView.
+- **Windows Installer File-Lock Prevention**:
+  - Menambahkan script preinstall NSIS (`src-tauri/hooks.nsh`) untuk mematikan semua proses backend dan aplikasi (`backend.exe`, `backend-x86_64-pc-windows-msvc.exe`, `Auto Clipper.exe`, `app.exe`) sebelum instalasi, mencegah galat `WinError 32` saat memperbarui atau menurunkan versi.
+- **FFmpeg Binary Path Discovery**:
+  - Menambahkan kandidat pencarian path FFmpeg di direktori induk (`bin_dir.parent`) untuk menjamin binary FFmpeg terdeteksi dengan tepat di semua variasi struktur folder paket aplikasi.
+- **PyInstaller Metadata & Dependency Bundling**:
+  - Memperbaiki registrasi modul `backend.metadata` pada `hiddenimports` dan mengumpulkan paket runtime `numpy` secara komprehensif pada konfigurasi build `backend.spec`.
+
 ## [1.11.0] - 2026-08-06
 
 ### Added
