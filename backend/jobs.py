@@ -171,7 +171,8 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "clips": [],
         "failed": 0,
         "error": None,
-        "metadata": hist_meta
+        "metadata": hist_meta,
+        "original_clips": hist.get("result_clips", [])
     }
     threading.Thread(target=_run_rerender_job, args=(job_id,), daemon=True).start()
     return job_id
@@ -641,10 +642,18 @@ def _run_rerender_job(job_id: str):
             aspect_tag = job.get("aspect_ratio", "9:16").replace(":", "x")
             clip_output = os.path.normpath(os.path.join(ws["clips_dir"], f"{ws['safe_title']}_{aspect_tag}_clip_{i+1}.mp4"))
             
+            # Use custom subtitle if available from a previous per-clip rerender
+            clip_subtitle = subtitle_path
+            original_clips = job.get("original_clips", [])
+            if i < len(original_clips):
+                custom_sub = original_clips[i].get("custom_subtitle_path")
+                if custom_sub and os.path.exists(custom_sub):
+                    clip_subtitle = custom_sub
+
             try:
                 result_path = crop_to_vertical(
                     output_path, clip_output, seg["start_time"], seg["end_time"],
-                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
+                    subtitle_path=clip_subtitle if job.get("burn_subs", True) else None,
                     aspect_ratio=job["aspect_ratio"],
                     register_proc=lambda p: _register_proc(job, p),
                     should_cancel=lambda: job.get("cancelled", False),
