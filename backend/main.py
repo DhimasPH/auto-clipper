@@ -358,7 +358,9 @@ async def get_clip_words(job_id: str, clip_index: int):
 
     clip = clips[clip_index]
     metadata = history.get("metadata", {})
-    subtitle_path = metadata.get("subtitle_path")
+    
+    # Priority to custom edited words
+    subtitle_path = clip.get("custom_subtitle_path") or metadata.get("subtitle_path")
 
     if not subtitle_path or not os.path.exists(subtitle_path):
         return {"words": [], "reason": "no_subtitle_file"}

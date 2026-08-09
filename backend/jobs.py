@@ -996,7 +996,15 @@ def _run_rerender_clip_job(new_job_id: str):
                 fresh_clips[clip_index]["path"] = result_path
                 fresh_clips[clip_index]["v"] = int(time.time())
                 fresh_clips[clip_index]["subs"] = job["burn_subs"]
+                if custom_subtitle_path:
+                    fresh_clips[clip_index]["custom_subtitle_path"] = custom_subtitle_path
                 save_history(parent_job_id, fresh_history["url"], fresh_history["status"], fresh_clips, fresh_metadata)
+                job["clips"].append(fresh_clips[clip_index])
+        else:
+            target_clip["path"] = result_path
+            if custom_subtitle_path:
+                target_clip["custom_subtitle_path"] = custom_subtitle_path
+            job["clips"].append(target_clip)
 
         job["status"] = "DONE"
         job["progress"] = "Done"
