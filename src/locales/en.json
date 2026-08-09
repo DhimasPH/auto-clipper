@@ -5,6 +5,24 @@
     "backend_status": "Backend",
     "lang_toggle": "ID"
   },
+  "clip_rerender": {
+    "title": "Correct & Rerender",
+    "word_grid": "Word Grid",
+    "search_placeholder": "Search for typos...",
+    "words_count": "Words",
+    "loading": "Loading...",
+    "no_words": "No word data available.",
+    "no_subtitle_file": "No subtitle file found for this clip. The original job may not have had subtitles enabled.",
+    "no_words_in_file": "Subtitle file exists but contains no word-level data. Try re-processing with Karaoke mode.",
+    "read_error": "Failed to read subtitle file.",
+    "fetch_error": "Failed to fetch word data from server.",
+    "visual_settings": "Visual Settings for This Clip",
+    "reset": "Reset",
+    "saving": "Saving...",
+    "save_rerender": "Save & Rerender",
+    "save_failed": "Failed to start rerender.",
+    "edit_btn_title": "Correct Subtitle & Rerender"
+  },
   "main": {
     "btn_new_clip": "Create New Clip",
     "ai_mode": "✨ AI Auto Clip",

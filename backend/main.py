@@ -344,6 +344,75 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
+@app.get("/jobs/{job_id}/clips/{clip_index}/words")
+async def get_clip_words(job_id: str, clip_index: int):
+    from fastapi import HTTPException
+    from backend.db import get_history
+    history = get_history(job_id)
+    if not history:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    clips = history.get("result_clips", [])
+    if clip_index < 0 or clip_index >= len(clips):
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    clip = clips[clip_index]
+    metadata = history.get("metadata", {})
+    subtitle_path = metadata.get("subtitle_path")
+
+    if not subtitle_path or not os.path.exists(subtitle_path):
+        return {"words": [], "reason": "no_subtitle_file"}
+
+    import json
+    try:
+        with open(subtitle_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        all_words = data.get("words", []) if isinstance(data, dict) else []
+        if not all_words:
+            return {"words": [], "reason": "no_words_in_file"}
+
+        from backend.crop_utils import to_seconds
+        start_s = to_seconds(clip.get("start"))
+        end_s = to_seconds(clip.get("end"))
+
+        # Filter words within clip bounds with 0.5s padding (matches crop_to_vertical PAD)
+        pad = 0.5
+        clip_words = []
+        for w in all_words:
+            w_start = w.get("start", 0)
+            if w_start >= (start_s - pad) and w_start <= (end_s + pad):
+                clip_words.append(w)
+
+        return {"words": clip_words, "reason": None}
+    except Exception as e:
+        from backend.logger import log_error
+        log_error("get_clip_words", e)
+        return {"words": [], "reason": "read_error"}
+
+class RerenderClipRequest(BaseModel):
+    words: list
+    aspect_ratio: str
+    caption_style: str
+    burn_subs: bool
+    canvas_config: dict = None
+    subtitle_config: dict = None
+
+@app.post("/jobs/{job_id}/clips/{clip_index}/rerender")
+async def api_rerender_clip(job_id: str, clip_index: int, req: RerenderClipRequest):
+    from backend.jobs import create_rerender_clip_job
+    new_job_id = create_rerender_clip_job(
+        job_id=job_id,
+        clip_index=clip_index,
+        custom_words=req.words,
+        aspect_ratio=req.aspect_ratio,
+        caption_style=req.caption_style,
+        burn_subs=req.burn_subs,
+        canvas_config=req.canvas_config,
+        subtitle_config=req.subtitle_config
+    )
+    return {"status": "success", "job_id": new_job_id}
+
 from pydantic import BaseModel
 from typing import Optional
 

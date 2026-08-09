@@ -874,6 +874,142 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
+def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, aspect_ratio: str, caption_style: str, burn_subs: bool, canvas_config: dict = None, subtitle_config: dict = None):
+    import time
+    new_job_id = f"rerender_clip_{job_id}_{clip_index}_{int(time.time())}"
+    active_jobs[new_job_id] = {
+        "id": new_job_id,
+        "type": "rerender_clip",
+        "url": f"clip-rerender:{job_id}",  # Required by _finalize_job / save_history
+        "parent_job_id": job_id,
+        "clip_index": clip_index,
+        "custom_words": custom_words,
+        "aspect_ratio": aspect_ratio,
+        "caption_style": caption_style,
+        "burn_subs": burn_subs,
+        "canvas_config": canvas_config,
+        "subtitle_config": subtitle_config,
+        "status": "QUEUED",
+        "progress": "Queued...",
+        "clips": [],
+        "cancelled": False
+    }
+    thread = threading.Thread(target=_run_rerender_clip_job, args=(new_job_id,), daemon=True)
+    thread.start()
+    return new_job_id
+
+def _run_rerender_clip_job(new_job_id: str):
+    import time
+    import json
+
+    job = active_jobs[new_job_id]
+    job["start_time"] = time.time()
+    parent_job_id = job["parent_job_id"]
+    clip_index = job["clip_index"]
+
+    try:
+        job["status"] = "CROPPING"
+        job["progress"] = "Preparing custom subtitle..."
+
+        # Inline import — consistent with resume_manual_job pattern
+        from backend.db import get_history
+
+        history_data = get_history(parent_job_id)
+        if not history_data:
+            raise ValueError(f"Parent job {parent_job_id} not found in history.")
+
+        clips = history_data.get("result_clips", [])
+        if clip_index < 0 or clip_index >= len(clips):
+            raise ValueError(f"Clip index {clip_index} out of range (0-{len(clips)-1}).")
+
+        target_clip = clips[clip_index]
+        start_t = target_clip.get("start")
+        end_t = target_clip.get("end")
+        original_path = target_clip.get("path")
+
+        metadata = history_data.get("metadata", {})
+        source_path = metadata.get("source_video")
+
+        if not source_path or not os.path.exists(source_path):
+            raise ValueError(f"Source video not found: {source_path}")
+
+        # Write custom words to a temporary json in proper workspace
+        custom_subtitle_path = None
+        if job["burn_subs"] and job["custom_words"]:
+            ws = get_project_workspace(
+                metadata.get("title", parent_job_id),
+                output_dir=metadata.get("output_dir", ""),  # FIX: use metadata output_dir
+                job_id=parent_job_id
+            )
+            os.makedirs(ws["subtitles_dir"], exist_ok=True)
+            custom_subtitle_path = os.path.join(ws["subtitles_dir"], f"clip_{clip_index}_custom.words.json")
+            with open(custom_subtitle_path, "w", encoding="utf-8") as f:
+                json.dump({"words": job["custom_words"]}, f)
+
+        # Layout detection (9:16 gaming split-screen)
+        job_layout = None
+        if job["aspect_ratio"] == "9:16" and metadata.get("is_gaming_video"):
+            try:
+                from backend.crop_utils import detect_video_layout
+                job_layout = detect_video_layout(source_path)
+            except Exception:
+                job_layout = None
+
+        # Render to TEMP file first, then atomic replace
+        job["progress"] = "Re-rendering clip..."
+
+        if original_path:
+            temp_output = original_path + ".tmp.mp4"
+        else:
+            ws = get_project_workspace(
+                metadata.get("title", parent_job_id),
+                output_dir=metadata.get("output_dir", ""),
+                job_id=parent_job_id
+            )
+            temp_output = os.path.join(ws["clips_dir"], f"clip_{clip_index}_{uuid.uuid4().hex[:6]}.mp4")
+
+        result_path = crop_to_vertical(
+            source_path, temp_output, start_t, end_t,
+            subtitle_path=custom_subtitle_path,
+            aspect_ratio=job["aspect_ratio"],
+            should_cancel=lambda: job.get("cancelled", False),
+            layout=job_layout,
+            canvas_config=job.get("canvas_config"),
+            subtitle_config=job.get("subtitle_config")
+        )
+
+        # Atomic replace: move temp to final path
+        final_path = original_path or result_path
+        if result_path != final_path:
+            os.replace(result_path, final_path)
+            result_path = final_path
+
+        # FIX: Re-read history from DB to avoid race condition
+        # (another rerender_clip thread might have saved in between)
+        fresh_history = get_history(parent_job_id)
+        if fresh_history:
+            fresh_clips = fresh_history.get("result_clips", [])
+            fresh_metadata = fresh_history.get("metadata", {})
+            if clip_index < len(fresh_clips):
+                fresh_clips[clip_index]["path"] = result_path
+                fresh_clips[clip_index]["v"] = int(time.time())
+                fresh_clips[clip_index]["subs"] = job["burn_subs"]
+                save_history(parent_job_id, fresh_history["url"], fresh_history["status"], fresh_clips, fresh_metadata)
+
+        job["status"] = "DONE"
+        job["progress"] = "Done"
+
+    except Exception as e:
+        log_error(f"RERENDER CLIP JOB {new_job_id}", e)
+        job["error"] = str(e)
+        job["status"] = "ERROR"
+        # Clean up temp file on error
+        try:
+            if 'temp_output' in dir() and temp_output and os.path.exists(temp_output) and temp_output.endswith(".tmp.mp4"):
+                os.remove(temp_output)
+        except Exception:
+            pass
+
 def _finalize_job(job_id: str, status: str, metadata: dict = None):
     import time
     job = active_jobs.get(job_id)

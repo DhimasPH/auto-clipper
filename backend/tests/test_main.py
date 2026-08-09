@@ -189,3 +189,51 @@ def test_api_fetch_models_endpoint(monkeypatch):
     assert data["models"][0]["id"] == "gemini-2.5-flash"
 
 
+def test_get_words_endpoint(tmp_path, monkeypatch):
+    """Test getting words from a subtitle file."""
+    src = tmp_path / "source.mp4"
+    src.write_bytes(b"x")
+    sub = tmp_path / "subs.words.json"
+    sub.write_text('{"words": [{"word": "Hello", "start": 0.0, "end": 1.0}, {"word": "world", "start": 1.0, "end": 2.0}]}')
+    
+    metadata = {
+        "source_video": str(src),
+        "subtitle_path": str(sub),
+        "title": "Orig"
+    }
+    history_record = {
+        "id": "hist-abc",
+        "url": f"local:{src}",
+        "metadata": metadata,
+        "result_clips": [{"path": "clip1.mp4", "start": "00:00:00", "end": "00:00:05", "description": "Desc"}]
+    }
+    
+    monkeypatch.setattr("backend.db.get_history", lambda j_id: history_record if j_id == "hist-abc" else None)
+    
+    res = client.get("/jobs/hist-abc/clips/0/words")
+    assert res.status_code == 200
+    assert len(res.json()["words"]) == 2
+    assert res.json()["words"][0]["word"] == "Hello"
+
+
+def test_post_rerender_clip_endpoint(monkeypatch):
+    """Test starting a rerender job."""
+    history_record = {
+        "id": "hist-abc",
+        "url": f"local:video.mp4",
+        "metadata": {"title": "Test"},
+        "result_clips": [{"start": "0", "end": "5"}]
+    }
+    monkeypatch.setattr("backend.db.get_history", lambda j_id: history_record if j_id == "hist-abc" else None)
+    monkeypatch.setattr("backend.jobs.create_rerender_clip_job", lambda *a, **k: "new-job-123")
+    
+    res = client.post("/jobs/hist-abc/clips/0/rerender", json={
+        "words": [{"word": "Hi", "start": 0, "end": 1}],
+        "aspect_ratio": "16:9",
+        "caption_style": "standard",
+        "burn_subs": True
+    })
+    
+    assert res.status_code == 200
+    assert res.json()["status"] == "success"
+    assert res.json()["job_id"] == "new-job-123"

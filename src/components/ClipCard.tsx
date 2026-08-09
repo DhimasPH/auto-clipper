@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Download, Folder, Sparkles } from "lucide-react";
+import { Download, Folder, Sparkles, Pencil } from "lucide-react";
 import { Button } from "./ui/Button";
 import { open } from "@tauri-apps/plugin-shell";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -38,6 +38,7 @@ interface ClipCardProps {
   index: number;
   jobId: string;
   videoSrc: (path: string, v: number) => string;
+  onEdit?: () => void;
 }
 
 import { useState } from "react";
@@ -46,7 +47,8 @@ export default function ClipCard({
   clip,
   index,
   jobId,
-  videoSrc
+  videoSrc,
+  onEdit
 }: ClipCardProps) {
   const { t, i18n } = useTranslation();
   const [showModal, setShowModal] = useState(false);
@@ -90,6 +92,15 @@ export default function ClipCard({
         )}
 
         <div className="flex gap-2 mt-auto">
+          {onEdit && (
+            <Button
+              variant="outline"
+              className="!px-3"
+              icon={Pencil}
+              title={t("clip_rerender.edit_btn_title", "Correct Subtitle & Rerender")}
+              onClick={onEdit}
+            />
+          )}
           <button
             onClick={async (e) => {
               if ('__TAURI_INTERNALS__' in window) {

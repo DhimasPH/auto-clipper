@@ -115,6 +115,7 @@ export default function App() {
     handleRerender,
     handleRerunAI,
     handleResumeJob,
+    handleRerenderClip,
     startManualResumePolling,
     cancelJob,
     resetJobState,
@@ -236,6 +237,7 @@ export default function App() {
     handleRerender,
     handleRerunAI,
     handleResumeJob,
+    handleRerenderClip,
     handleResetWorkspace,
   };
 

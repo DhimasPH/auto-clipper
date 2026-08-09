@@ -386,6 +386,15 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
+  const handleRerenderClip = (newJobId: string) => {
+    setJobOrigin("history");
+    setStatus("CROPPING");
+    setProgress("");
+    setErrorMsg("");
+    setActiveJobId(newJobId);
+    // Polling loop in useEffect will pick up the new job automatically
+  };
+
   const resetJobState = () => {
     setStatus("IDLE");
     setClips([]);
@@ -430,6 +439,6 @@ export function useClipJobs(p: ClipJobParams) {
   return {
     status, progress, errorMsg, clips, failedCount,
     isRunning, progressPct, historyVersion, activeJobId,
-    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, startManualResumePolling, cancelJob, resetJobState,
+    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, startManualResumePolling, cancelJob, resetJobState,
   };
 }

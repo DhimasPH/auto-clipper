@@ -5,6 +5,24 @@
     "backend_status": "Backend",
     "lang_toggle": "EN"
   },
+  "clip_rerender": {
+    "title": "Koreksi & Rerender",
+    "word_grid": "Grid Kata",
+    "search_placeholder": "Cari typo...",
+    "words_count": "Kata",
+    "loading": "Memuat...",
+    "no_words": "Data kata tidak tersedia.",
+    "no_subtitle_file": "File subtitle tidak ditemukan untuk klip ini. Job asal mungkin tidak mengaktifkan subtitle.",
+    "no_words_in_file": "File subtitle ada tapi tidak berisi data kata. Coba proses ulang dengan mode Karaoke.",
+    "read_error": "Gagal membaca file subtitle.",
+    "fetch_error": "Gagal mengambil data kata dari server.",
+    "visual_settings": "Pengaturan Visual Khusus Klip Ini",
+    "reset": "Reset",
+    "saving": "Menyimpan...",
+    "save_rerender": "Simpan & Rerender",
+    "save_failed": "Gagal memulai rerender.",
+    "edit_btn_title": "Koreksi Subtitle & Rerender"
+  },
   "main": {
     "btn_new_clip": "Buat Klip Baru",
     "ai_mode": "✨ AI Auto Clip",

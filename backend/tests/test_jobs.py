@@ -253,4 +253,44 @@ def test_resume_manual_job_preserves_canvas_config(tmp_path, monkeypatch):
     finally:
         jobs.active_jobs.pop(job_id, None)
 
-
+def test_create_rerender_clip_job(tmp_path, monkeypatch):
+    """Test create_rerender_clip_job correctly constructs active_jobs entry."""
+    src = tmp_path / "source.mp4"
+    src.write_bytes(b"x")
+    sub = tmp_path / "subs.srt"
+    sub.write_text("1\n00:00:00,000 --> 00:00:05,000\nHello\n", encoding="utf-8")
+    
+    metadata = {
+        "source_video": str(src),
+        "subtitle_path": str(sub),
+        "title": "Orig",
+        "output_dir": str(tmp_path)
+    }
+    history_record = {
+        "id": "hist-abc",
+        "url": f"local:{src}",
+        "status": "DONE",
+        "metadata": metadata,
+        "result_clips": [{"path": str(tmp_path / "clip.mp4"), "start": "00:00:00", "end": "00:00:05", "description": "Desc", "description_en": "", "description_id": ""}]
+    }
+    
+    monkeypatch.setattr("backend.db.get_history", lambda j_id: history_record if j_id == "hist-abc" else None)
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: None)
+    monkeypatch.setattr("threading.Thread.start", lambda self: None) # Prevent actual run
+    
+    words = [{"word": "Hello", "start": 0.0, "end": 5.0}]
+    job_id = jobs.create_rerender_clip_job(
+        "hist-abc", 0, words, "9:16", "karaoke", True, None, None
+    )
+    
+    try:
+        active = jobs.active_jobs.get(job_id)
+        assert active is not None
+        assert active["parent_job_id"] == "hist-abc"
+        assert active["clip_index"] == 0
+        assert active["custom_words"] == words
+        assert active["aspect_ratio"] == "9:16"
+        assert active["caption_style"] == "karaoke"
+        assert active["burn_subs"] is True
+    finally:
+        jobs.active_jobs.pop(job_id, None)

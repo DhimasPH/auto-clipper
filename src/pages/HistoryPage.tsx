@@ -10,6 +10,7 @@ import { Badge } from "../components/ui/Badge";
 import { Select } from "../components/ui/Select";
 import ClipCard from "../components/ClipCard";
 import { ManualResumeModal } from "../components/ManualResumeModal";
+import { ClipRerenderModal } from "../components/ClipRerenderModal";
 import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
 import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "../types/subtitle";
@@ -23,6 +24,7 @@ export const HistoryPage: React.FC = () => {
   const [activeRerenderId, setActiveRerenderId] = useState<string | null>(null);
   const [activeAiId, setActiveAiId] = useState<string | null>(null);
   const [activeManualJob, setActiveManualJob] = useState<any | null>(null);
+  const [activeEditClip, setActiveEditClip] = useState<{job: any, index: number} | null>(null);
   const [extraPrompt, setExtraPrompt] = useState("");
 
   const [localAspectRatio, setLocalAspectRatio] = useState("9:16");
@@ -168,6 +170,7 @@ export const HistoryPage: React.FC = () => {
                       videoSrc={(path, v) =>
                         `${API_URL}/video?path=${encodeURIComponent(path)}&v=${v || 0}`
                       }
+                      onEdit={() => setActiveEditClip({job, index: idx})}
                     />
                   ))}
                 </div>
@@ -356,6 +359,23 @@ export const HistoryPage: React.FC = () => {
           onSuccess={(jobId: string) => {
             setActiveManualJob(null);
             ctx.startManualResumePolling(jobId);
+          }}
+        />
+      )}
+
+      {activeEditClip && (
+        <ClipRerenderModal
+          jobId={activeEditClip.job.id}
+          clipIndex={activeEditClip.index}
+          clipTitle={`${t("clip.title_ai", { num: activeEditClip.index + 1 })}`}
+          initialAspectRatio={activeEditClip.job.metadata?.aspect_ratio || "9:16"}
+          initialBurnSubs={activeEditClip.job.metadata?.burn_subs ?? true}
+          initialCanvasConfig={activeEditClip.job.metadata?.canvas_config}
+          initialSubtitleConfig={activeEditClip.job.metadata?.subtitle_config}
+          onClose={() => setActiveEditClip(null)}
+          onRerenderStart={(newJobId) => {
+            setActiveEditClip(null);
+            ctx.handleRerenderClip(newJobId);
           }}
         />
       )}
