@@ -1134,7 +1134,8 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             ass_name = os.path.basename(clip_ass_path).replace('\\', '/')
             # Escape colons, brackets, and quotes in the path
             escaped_ass_name = ass_name.replace(":", "\\\\:").replace("'", "\\\\'")
-            subtitle_vf = f"{crop_filter},{scale_filter},ass='{escaped_ass_name}'"
+            base_vf = f"{crop_filter},{scale_filter}" if crop_filter else scale_filter
+            subtitle_vf = f"{base_vf},ass='{escaped_ass_name}'"
 
     def build_cmd(use_split: bool = False, force_cpu: bool = False):
         cmd = [
@@ -1265,7 +1266,7 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             "-ss", f"{start_s:.3f}",
             "-i", input_path,
             "-t", f"{duration:.3f}",
-            "-vf", f"{crop_filter},{scale_filter}",
+            "-vf", f"{crop_filter},{scale_filter}" if crop_filter else scale_filter,
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",
             "-preset", "veryfast",

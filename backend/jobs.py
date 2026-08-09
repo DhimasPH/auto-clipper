@@ -31,8 +31,8 @@ def get_temp_dir():
 def sanitize_title(title: str) -> str:
     if not title:
         return ""
-    # Remove illegal filesystem characters <>:"/\|?*
-    sanitized = re.sub(r'[<>:"/\\|?*]', '', title).strip()
+    # Remove illegal filesystem characters and emojis (keep only word chars, spaces, and basic punctuation)
+    sanitized = re.sub(r'[^\w\s\-\.,()[\]]', '', title).strip()
     return sanitized or "AutoClipper_Project"
 
 
