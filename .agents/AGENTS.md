@@ -49,6 +49,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 7. Pipeline wajib mendeteksi layout video asli (Landscape/Portrait) secara otomatis sebelum pemrosesan klip.
 8. **NVENC Fallback**: Semua *command* FFmpeg untuk rendering video wajib mengimplementasikan percobaan hardware encoding dengan `h264_nvenc`. Jika terjadi error (misalnya karena driver tidak tersedia atau memori GPU penuh), command tersebut harus ditangkap dan fallback secara aman ke CPU encoding (`libx264`).
 9. **FFmpeg Path Discovery Hierarchy**: Resolusi path binary FFmpeg wajib memeriksa hirarki `bin_dir`, `bin_dir.parent`, `os.path.dirname(bin_dir)`, dan fallback `PATH` sistem agar konsisten di environment dev, PyInstaller onefile, maupun macOS app bundle.
+10. **Custom Subtitle Persistence Invariant**: Setiap modifikasi subtitle kustom per-klip (revisi manual) **WAJIB** disimpan jalurnya (`custom_subtitle_path`) ke dalam objek `result_clips` pada *history database*. *Endpoint* `api_get_clip_words` dan proses batch `_run_rerender_job` **WAJIB** memprioritaskan membaca `clip.get("custom_subtitle_path")` dibandingkan `metadata.get("subtitle_path")`. Hal ini menjamin revisi kata-per-kata yang dilakukan pengguna tidak tertimpa oleh transkripsi *full-video* asli saat dilakukan "Rerender All Clips".
 
 ### E. Multi-Stage Resume, Job Workspaces, & Mode (AI vs Manual)
 1. Fitur retry/resume di `backend/jobs.py` tidak boleh mengunduh ulang video jika file lokal sudah tersedia.
@@ -72,6 +73,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 4. Konfigurasi perizinan Tauri ada di `src-tauri/tauri.conf.json` dan `src-tauri/capabilities/default.json`.
 5. **NSIS Preinstall File-Lock Prevention (`hooks.nsh`)**: Installer Windows wajib mengeksekusi `taskkill` untuk semua kemungkinan proses backend dan aplikasi (`backend.exe`, `backend-x86_64-pc-windows-msvc.exe`, `Auto Clipper.exe`, `app.exe`) sebelum instalasi dimulai guna menghindari `WinError 32` file lock.
 6. **PyInstaller Dependency Collection**: Konfigurasi `backend.spec` wajib mendaftarkan `backend.metadata` pada `hiddenimports` dan mengumpulkan paket runtime penting seperti `numpy` via `collect_all('numpy')`.
+7. **Tauri Dev Build Zombie Lock (Windows)**: Jika *build* Tauri gagal dengan pesan `PermissionDenied (os error 5)` atau panic pada `tauri-build` saat menjalankan `npm run tauri dev` atau `cargo run`, itu menandakan adanya *zombie sidecar process* (`backend.exe` atau `Auto Clipper.exe`) yang mengunci folder `target/debug`. Solusi wajib: Jalankan `taskkill /F /IM "backend.exe" /T` dan `taskkill /F /IM "Auto Clipper.exe" /T`, kemudian bersihkan *cache* yang *corrupt* dengan perintah `cargo clean` di dalam direktori `src-tauri` sebelum me-rebuild.
 
 ### H. Dokumentasi ADR & Testing
 1. Setiap perubahan arsitektur signifikan, penambahan library inti, atau perubahan alur data wajib dibuatkan dokumen ADR di `docs/decisions/` format `[nomor]-[nama-singkat].md`.

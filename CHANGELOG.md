@@ -2,6 +2,20 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.12.0] - 2026-08-09
+
+### Added
+
+- **Per-Clip Subtitle Correction & Rerendering**:
+  - Penambahan fitur edit subtitle spesifik untuk per-klip (`clip_N_custom.words.json`) langsung dari halaman history.
+  - Rerender per-klip kini dapat dieksekusi secara individual untuk menimpa langsung video klip hasil editan tanpa perlu merender ulang keseluruhan video.
+
+### Fixed
+
+- **Custom Subtitle Persistence**: Memperbaiki masalah di mana *Rerender All Clips* menghapus/menimpa modifikasi teks kustom. Kini sistem memprioritaskan metadata `custom_subtitle_path` pada `result_clips` di _history database_.
+- **Job Status Accuracy**: Memperbaiki hitungan _Progress_ pada proses rerender klip yang mengakibatkan notifikasi "0 klip berhasil" dengan memastikan _append_ `clip` baru ke metrik *job tracking*.
+- **API Error Handling**: Mengatasi `KeyError: error` pada handler FastAPI Exception.
+
 ## [1.11.1] - 2026-08-07
 
 ### Fixed
