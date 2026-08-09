@@ -892,7 +892,9 @@ def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, a
         "status": "QUEUED",
         "progress": "Queued...",
         "clips": [],
-        "cancelled": False
+        "cancelled": False,
+        "failed": 0,
+        "error": None
     }
     thread = threading.Thread(target=_run_rerender_clip_job, args=(new_job_id,), daemon=True)
     thread.start()
