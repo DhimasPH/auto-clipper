@@ -61,7 +61,7 @@ Menjadi asisten editing video pribadi bagi setiap kreator konten, yang secara ot
 
 - **Frontend**: Tauri, React, Vite, Tailwind CSS. Berfungsi sebagai UI yang modern, interaktif (multi-bahasa), dan reaktif.
 - **Backend / Sidecar (FastAPI)**: Memanfaatkan Python (ter-bundle dengan PyInstaller) yang bertindak sebagai Server API Lokal (FastAPI). Backend mengelola Database SQLite untuk riwayat dan antrean Job, memuat pustaka FFmpeg, downloader, dan modul pengolah AI.
-- **Komunikasi**: Komunikasi berjalan via protokol HTTP (REST API) dari Frontend Tauri ke port FastAPI lokal di _backend_, diamankan menggunakan token keamanan internal (API_SECRET_TOKEN) saat environment _production_.
+- **Komunikasi**: Komunikasi berjalan via protokol HTTP (REST API) dari Frontend Tauri ke port FastAPI lokal di _backend_, diamankan menggunakan token keamanan internal (API*SECRET_TOKEN) saat environment \_production*.
 
 ## 5. System Requirements
 
@@ -75,3 +75,4 @@ Menjadi asisten editing video pribadi bagi setiap kreator konten, yang secara ot
 - Preset kustomisasi visual subtitle (warna, font, gaya animasi seperti model font viral Alex Hormozi).
 - _Multi-speaker face-tracking_ (membuat format _split-screen_ atas-bawah saat ada dua narasumber berbicara bersamaan dalam layar yang sama).
 - Integrasi _auto-post_ ke YouTube Shorts, TikTok, Facebook dan Instagram Reels.
+- Revamp/Redesign UI/UX lebih user friendly, modern dan enterprise-level.
