@@ -77,3 +77,8 @@ Menjadi asisten editing video pribadi bagi setiap kreator konten, yang secara ot
 - Integrasi _auto-post_ ke YouTube Shorts, TikTok, Facebook dan Instagram Reels.
 - Revamp/Redesign UI/UX lebih user friendly, modern dan enterprise-level.
 - Subtitle support translate multi bahasa. Contoh video yang di klip bahasa inggris, tapi di subtitle bahasa indonesia.
+- Sekarang baru ada manual koreksi pada subtitle tiap clip, rencananya ingin buat auto correction pada subtitle menggunakan LLM.
+- Tambahkan konfigurasi untuk bebas mengatur posisi subtitle (X dan Y axis) pada setiap clip.
+- Pembuatan Hook di awal video
+- Penambahan Cinematic effect
+- Pembuatan thumbnail dari hasil clip video tiap clip
