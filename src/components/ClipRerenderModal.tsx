@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
-import { X, Search, RotateCcw } from "lucide-react";
+import { X, Search, RotateCcw, Wand2, Copy, Check, Loader2, ChevronRight } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Select } from "./ui/Select";
 import { CanvasConfigControls } from "./ui/CanvasConfigControls";
@@ -38,6 +38,77 @@ export const ClipRerenderModal: React.FC<Props> = ({
   const [burnSubs, setBurnSubs] = useState(initialBurnSubs);
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(initialCanvasConfig || DEFAULT_CANVAS_CONFIG);
   const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(initialSubtitleConfig || DEFAULT_SUBTITLE_CONFIG);
+
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
+  const [aiMode, setAiMode] = useState<'manual' | 'auto'>('manual');
+  const [isCopied, setIsCopied] = useState(false);
+  const [pasteInput, setPasteInput] = useState('');
+  const [isAutoCorrecting, setIsAutoCorrecting] = useState(false);
+
+  const generatePrompt = () => {
+    const jsonStr = JSON.stringify(words, null, 2);
+    return `You are a subtitle editor. Here is a JSON array of video subtitles. Correct any spelling, grammar, or punctuation errors. KEEP the exact JSON format. DO NOT change the 'start' or 'end' properties. Return ONLY the valid JSON array without markdown wrapping.\n\nSubtitles:\n${jsonStr}`;
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatePrompt());
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const applyManualJSON = () => {
+    try {
+      let cleanStr = pasteInput.trim();
+      if (cleanStr.startsWith('```json')) cleanStr = cleanStr.substring(7);
+      else if (cleanStr.startsWith('```')) cleanStr = cleanStr.substring(3);
+      if (cleanStr.endsWith('```')) cleanStr = cleanStr.substring(0, cleanStr.length - 3);
+      cleanStr = cleanStr.trim();
+      
+      const parsed = JSON.parse(cleanStr);
+      const arr = Array.isArray(parsed) ? parsed : (parsed.words || null);
+      
+      if (!arr || !Array.isArray(arr) || arr.length === 0 || typeof arr[0].word !== 'string') {
+        throw new Error('Invalid JSON format. Expected array of words.');
+      }
+      
+      setWords(arr);
+      setPasteInput('');
+      alert("Subtitle berhasil diperbarui");
+    } catch (e: any) {
+      alert('Gagal memproses JSON: ' + e.message);
+    }
+  };
+
+  const runAutoCorrect = async () => {
+    setIsAutoCorrecting(true);
+    try {
+      const provider = localStorage.getItem('ai_provider') || 'openai';
+      const apiKey = localStorage.getItem(`${provider}_api_key`) || '';
+      const model = localStorage.getItem(`${provider}_model`) || '';
+      const customBaseUrl = localStorage.getItem('custom_base_url') || '';
+      const customModelName = localStorage.getItem('custom_model_name') || '';
+
+      if (!apiKey && provider !== 'custom') {
+        throw new Error('API Key belum diatur di menu Settings.');
+      }
+
+      const res = await axios.post(`${API_URL}/ai/correct-subtitle`, {
+        words, provider, api_key: apiKey, model,
+        custom_base_url: customBaseUrl, custom_model_name: customModelName
+      });
+      const data = res.data;
+      if (data.status === 'success' && data.words) {
+        setWords(data.words);
+        alert("Subtitle berhasil dikoreksi otomatis");
+      } else {
+        throw new Error(data.message || 'Gagal mengoreksi subtitle');
+      }
+    } catch (e: any) {
+      alert(e.response?.data?.message || e.message);
+    } finally {
+      setIsAutoCorrecting(false);
+    }
+  };
 
   useEffect(() => {
     fetchWords();
@@ -116,6 +187,101 @@ export const ClipRerenderModal: React.FC<Props> = ({
         </div>
 
         <div className="p-6 overflow-y-auto space-y-6">
+          {/* AI Auto Correction Section */}
+          <div className="bg-bg-surface border border-border rounded-xl overflow-hidden mb-4">
+            <button 
+              onClick={() => setIsAiAssistantOpen(!isAiAssistantOpen)}
+              className="w-full flex items-center justify-between p-4 hover:bg-input-bg transition-colors"
+            >
+              <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
+                <Wand2 className="w-4 h-4 text-accent" />
+                AI Auto Correction
+              </div>
+              <ChevronRight className={`w-4 h-4 text-text-secondary transition-transform ${isAiAssistantOpen ? 'rotate-90' : ''}`} />
+            </button>
+            
+            {isAiAssistantOpen && (
+              <div className="p-4 border-t border-border space-y-4">
+                <div className="flex items-center gap-2 p-1 bg-input-bg rounded-lg w-max">
+                  <button
+                    onClick={() => setAiMode('manual')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${aiMode === 'manual' ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'}`}
+                  >
+                    Manual (Copy/Paste)
+                  </button>
+                  <button
+                    onClick={() => setAiMode('auto')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${aiMode === 'auto' ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'}`}
+                  >
+                    Auto (API Key)
+                  </button>
+                </div>
+
+                {aiMode === 'manual' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-text-secondary">1. Generate & Copy Prompt</span>
+                        <button onClick={copyToClipboard} className="flex items-center gap-1.5 text-xs text-accent hover:opacity-80 transition-opacity">
+                          {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          {isCopied ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                      <textarea
+                        readOnly
+                        value={generatePrompt()}
+                        className="w-full h-32 bg-input-bg border border-border rounded-lg p-2.5 text-xs text-text-primary font-mono resize-none outline-none"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-text-secondary">2. Paste AI Result (JSON)</span>
+                      </div>
+                      <textarea
+                        value={pasteInput}
+                        onChange={(e) => setPasteInput(e.target.value)}
+                        placeholder='[{"word": "Hello", "start": 0.0, "end": 0.5}]'
+                        className="w-full h-32 bg-input-bg border border-border rounded-lg p-2.5 text-xs text-text-primary font-mono resize-none focus:border-accent outline-none"
+                      />
+                      <button 
+                        onClick={applyManualJSON}
+                        disabled={!pasteInput.trim()}
+                        className="w-full py-2 bg-input-bg border border-border hover:bg-bg-secondary disabled:opacity-50 disabled:cursor-not-allowed text-text-primary text-xs font-medium rounded-lg transition-colors"
+                      >
+                        Apply Changes
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-6 px-4 bg-input-bg rounded-lg border border-border text-center">
+                    <Wand2 className="w-8 h-8 text-accent mb-3" />
+                    <h4 className="text-sm font-medium text-text-primary mb-1">Koreksi Subtitle Otomatis</h4>
+                    <p className="text-xs text-text-secondary mb-4 max-w-sm">
+                      Aplikasi akan mengirimkan teks subtitle ke penyedia AI yang telah diatur di Settings (OpenAI/Gemini/dll) untuk memperbaiki ejaan dan tata bahasa.
+                    </p>
+                    <button
+                      onClick={runAutoCorrect}
+                      disabled={isAutoCorrecting}
+                      className="flex items-center gap-2 px-6 py-2.5 bg-accent hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-opacity"
+                    >
+                      {isAutoCorrecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Memproses...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-4 h-4" />
+                          Auto Correct dengan AI
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <section>
             <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
               <h3 className="text-sm font-medium text-text-primary">

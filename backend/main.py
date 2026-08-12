@@ -391,6 +391,32 @@ async def get_clip_words(job_id: str, clip_index: int):
         from backend.logger import log_error
         log_error("get_clip_words", e)
         return {"words": [], "reason": "read_error"}
+class AICorrectSubtitleRequest(BaseModel):
+    words: list
+    provider: str
+    api_key: str
+    model: str = ""
+    custom_base_url: str = ""
+    custom_model_name: str = ""
+
+@app.post("/api/ai/correct-subtitle")
+async def api_ai_correct_subtitle(req: AICorrectSubtitleRequest):
+    try:
+        from backend.ai_utils import correct_subtitle_words_with_ai
+        if not req.api_key and req.provider != "custom":
+            raise ValueError("API Key is required for Auto mode.")
+            
+        corrected_words = correct_subtitle_words_with_ai(
+            words=req.words,
+            provider=req.provider,
+            api_key=req.api_key.strip(),
+            model=req.model.strip(),
+            custom_base_url=req.custom_base_url.strip(),
+            custom_model_name=req.custom_model_name.strip()
+        )
+        return {"status": "success", "words": corrected_words}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 class RerenderClipRequest(BaseModel):
     words: list

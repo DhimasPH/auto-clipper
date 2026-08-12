@@ -2,8 +2,16 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
-## [1.12.0] - 2026-08-09
+## [1.13.0] - 2026-08-12
 
+### Added
+
+- **AI Subtitle Auto Correction**:
+  - Implementasi koreksi ejaan dan tata bahasa pada subtitle secara otomatis dengan AI.
+  - Tersedia opsi mode otomatis terintegrasi menggunakan penyedia AI API lokal atau mode penyalinan prompt templat untuk digunakan pada _chat platform_ eksternal (seperti ChatGPT atau Claude).
+  - Penambahan antarmuka `SubtitleConfigControls` untuk fitur ini yang berada langsung pada fitur pengeditan kata manual.
+
+## [1.12.0] - 2026-08-09
 ### Added
 
 - **Per-Clip Subtitle Correction & Rerendering**:

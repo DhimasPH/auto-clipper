@@ -853,3 +853,72 @@ def ping_provider(provider: str, api_key: str, custom_base_url: str = None, cust
             
         msg = getattr(e, "message", None) or str(e)
         raise Exception(f"AI Provider Error: {msg}")
+
+def correct_subtitle_words_with_ai(words: list, provider: str, api_key: str, model: str = None, custom_base_url: str = None, custom_model_name: str = None) -> list:
+    import json
+    from backend.logger import log_ai, log_error
+    
+    prompt = (
+        "You are a subtitle editor. Here is a JSON array of video subtitles. "
+        "Correct any spelling, grammar, or punctuation errors. KEEP the exact JSON format. "
+        "DO NOT change the 'start' or 'end' properties. Return ONLY the valid JSON array "
+        "without markdown wrapping.\n\nSubtitles:\n" + json.dumps(words)
+    )
+
+    try:
+        if provider == "gemini":
+            from google import genai
+            from google.genai import types
+            client = genai.Client(api_key=api_key)
+            gemini_model = model or "gemini-3.6-flash"
+            if gemini_model.startswith("models/"):
+                gemini_model = gemini_model[7:]
+            
+            response = _with_retry(lambda: client.models.generate_content(
+                model=gemini_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                )
+            ))
+            response_text = response.text
+            log_ai("gemini", gemini_model, prompt, response_text)
+        else:
+            from openai import OpenAI
+            effective_base_url = custom_base_url
+            effective_model = model or custom_model_name
+            
+            if provider in OPENAI_COMPAT_PROVIDERS:
+                cfg = OPENAI_COMPAT_PROVIDERS[provider]
+                effective_base_url = effective_base_url or cfg["base_url"]
+                effective_model = effective_model or cfg["model"]
+                
+            client = OpenAI(api_key=api_key or "-", base_url=effective_base_url, default_headers=BROWSER_HEADERS) if effective_base_url else OpenAI(api_key=api_key, default_headers=BROWSER_HEADERS)
+            model_name = effective_model or "gpt-4o-mini"
+            
+            response = _with_retry(lambda: client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "You are a professional subtitle editor. Always return strictly valid JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={"type": "json_object"} if "gpt" in model_name else None,
+            ))
+            response_text = response.choices[0].message.content
+            log_ai("openai_compatible" if effective_base_url else "openai", model_name, prompt, response_text)
+            
+        cleaned_response = _clean_json_response(response_text)
+        parsed = json.loads(cleaned_response)
+        
+        # Sometimes the AI wraps it in an object like {"words": [...]}
+        if isinstance(parsed, dict) and "words" in parsed:
+            return parsed["words"]
+        elif isinstance(parsed, list):
+            return parsed
+        else:
+            raise ValueError("Unexpected JSON structure returned from AI")
+            
+    except Exception as e:
+        log_error("ai_utils.correct_subtitle_words_with_ai", f"Failed to correct subtitle: {e}")
+        raise e
+
