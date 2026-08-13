@@ -70,8 +70,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
           {/* TikTok */}
           <a
             href="https://www.tiktok.com/@auto_clippers"
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={(e) =>
               handleExternalLink(e, "https://www.tiktok.com/@auto_clippers")
             }
@@ -93,8 +91,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
           {/* YouTube */}
           <a
             href="https://www.youtube.com/@autoclipperss"
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={(e) =>
               handleExternalLink(e, "https://www.youtube.com/@autoclipperss")
             }
@@ -116,8 +112,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
           {/* Instagram */}
           <a
             href="https://www.instagram.com/auto_clipperss/"
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={(e) =>
               handleExternalLink(e, "https://www.instagram.com/auto_clipperss/")
             }
@@ -139,8 +133,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
           {/* GitHub */}
           <a
             href="https://github.com/DhimasPH/auto-clipper"
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={(e) =>
               handleExternalLink(e, "https://github.com/DhimasPH/auto-clipper")
             }
@@ -162,8 +154,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
           {/* Facebook */}
           <a
             href="https://www.facebook.com/people/Auto-Clipper/61592220556873/"
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={(e) =>
               handleExternalLink(
                 e,
@@ -188,8 +178,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
           {/* Discord Community */}
           <a
             href="https://discord.gg/5AvvA682UN"
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={(e) =>
               handleExternalLink(e, "https://discord.gg/5AvvA682UN")
             }
@@ -224,8 +212,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
           {/* Trakteer */}
           <a
             href="https://trakteer.id/dhiimsph"
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={(e) =>
               handleExternalLink(e, "https://trakteer.id/dhiimsph")
             }
