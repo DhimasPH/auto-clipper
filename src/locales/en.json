@@ -388,5 +388,10 @@
     "preview_karaoke_highlight": "VIRAL",
     "preview_karaoke_text_after": "TODAY",
     "preview_standard_text": "Make your videos more engaging and accessible for everyone!"
+  },
+  "subtitle_preset": {
+    "classic": "Classic (Standard)",
+    "podcast": "Podcast (Bold)",
+    "viral_pop": "Viral (Pop Animation)"
   }
 }

@@ -388,5 +388,10 @@
     "preview_karaoke_highlight": "VIRAL",
     "preview_karaoke_text_after": "SEKARANG",
     "preview_standard_text": "Buat konten video Anda menjadi lebih menarik dan viral!"
+  },
+  "subtitle_preset": {
+    "classic": "Klasik (Standard)",
+    "podcast": "Podcast (Tebal)",
+    "viral_pop": "Viral (Animasi Pop)"
   }
 }
