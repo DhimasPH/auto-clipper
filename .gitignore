@@ -25,15 +25,11 @@ ac_vault*
 .ac_vault*
 .env
 
-# Docs
-docs/
 
 # Worktrees
 .worktrees/
 worktrees/
 
-#prototype
-prototype/
 
 # OS
 .DS_Store

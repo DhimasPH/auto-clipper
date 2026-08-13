@@ -50,12 +50,16 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 8. **NVENC Fallback**: Semua *command* FFmpeg untuk rendering video wajib mengimplementasikan percobaan hardware encoding dengan `h264_nvenc`. Jika terjadi error (misalnya karena driver tidak tersedia atau memori GPU penuh), command tersebut harus ditangkap dan fallback secara aman ke CPU encoding (`libx264`).
 9. **FFmpeg Path Discovery Hierarchy**: Resolusi path binary FFmpeg wajib memeriksa hirarki `bin_dir`, `bin_dir.parent`, `os.path.dirname(bin_dir)`, dan fallback `PATH` sistem agar konsisten di environment dev, PyInstaller onefile, maupun macOS app bundle.
 10. **Custom Subtitle Persistence Invariant**: Setiap modifikasi subtitle kustom per-klip (revisi manual) **WAJIB** disimpan jalurnya (`custom_subtitle_path`) ke dalam objek `result_clips` pada *history database*. *Endpoint* `api_get_clip_words` dan proses batch `_run_rerender_job` **WAJIB** memprioritaskan membaca `clip.get("custom_subtitle_path")` dibandingkan `metadata.get("subtitle_path")`. Hal ini menjamin revisi kata-per-kata yang dilakukan pengguna tidak tertimpa oleh transkripsi *full-video* asli saat dilakukan "Rerender All Clips".
+11. **Gaming Layout Auto-Detection & Split-Screen**: Pipeline video secara otomatis dapat mendeteksi layout *gaming* dan mendukung *vertical split-screen cropping* (memotong layar video menjadi atas dan bawah) yang disesuaikan dengan posisi subtitle.
+12. **Watermark Support**: Sistem mendukung penambahan *watermark* pada video hasil render akhir.
 
 ### E. Multi-Stage Resume, Job Workspaces, & Mode (AI vs Manual)
 1. Fitur retry/resume di `backend/jobs.py` tidak boleh mengunduh ulang video jika file lokal sudah tersedia.
 2. Jika transkripsi atau highlight sudah ada, gunakan kembali data yang tersimpan di `history.db` tanpa memanggil ulang Whisper atau LLM secara sia-sia.
 3. **Project Workspace Isolation**: Semua artefak hasil pemrosesan (video mentah, file `.ass`, dan potongan `.mp4`) **HARUS** di-route dan disimpan di dalam sub-direktori *project workspace* yang terisolasi untuk masing-masing job/project (bukan di root atau shared flat directory).
 4. Backend dan frontend mendukung mode alur kerja **AI-driven** maupun **Manual Editor**; metadata klip tidak selalu dihasilkan otomatis oleh LLM.
+5. **Manual Downloader Enhancements**: Fitur downloader mendukung pengunduhan *full video* (tanpa memotong klip / *empty clips allowed*) dan pengguna dapat memilih kualitas resolusi video saat mengunduh.
+6. **Penghapusan Smart Editor**: Fitur eksperimental *Smart Editor* telah **dihapus secara permanen**. Semua alur penyuntingan dan pemotongan (cropping) kini sepenuhnya mengandalkan pengaturan UI standar, *Gaming Mode*, dan modul *Canvas Config*.
 
 ### F. Frontend, i18n & OS Integration (ADR-004, v1.7.0)
 1. Seluruh teks antarmuka **HARUS** mendukung multi-bahasa melalui `src/locales/id.json` dan `src/locales/en.json` (menggunakan library i18n).
@@ -93,6 +97,8 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `backend/db.py`: SQLite database schema & repository functions.
 - `backend/tests/test_subtitle_render.py` & `backend/tests/test_jobs_subtitle.py`: Pengujian render subtitle ASS, anti-overlap, dan jobs threading.
 - `src/App.tsx`: Routing, splash screen, startup update check.
+- `src/pages/LandingPage.tsx`: Halaman utama aplikasi dengan integrasi navigasi tautan sosial dan akses ke *workspace* video.
+- `src/pages/ManualDownloaderPage.tsx`: Halaman pengunduhan manual dengan dukungan kustomisasi resolusi.
 - `src/components/ui/CanvasConfigControls.tsx`: UI selector mode canvas, color picker, blur level, image picker, & zoom slider.
 - `src/components/ui/SubtitleConfigControls.tsx`: UI kontrol tipografi subtitle, preset warna, position selector, dan Live Preview simulator.
 - `src/types/canvas.ts` & `src/types/subtitle.ts`: Interface TypeScript `CanvasConfig` dan `SubtitleConfig`.
