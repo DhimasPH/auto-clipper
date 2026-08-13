@@ -72,8 +72,8 @@ export default function App() {
   const [aspectRatio, setAspectRatio] = useState<
     "1:1" | "4:5" | "9:16" | "16:9"
   >("9:16");
-  const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke">(
-    "karaoke",
+  const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke" | "single_word">(
+    "single_word",
   );
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
   const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(DEFAULT_SUBTITLE_CONFIG);

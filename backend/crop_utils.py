@@ -462,20 +462,36 @@ def hex_to_ass_style_color(hex_str: str, default: str = "&H0000E6FF") -> str:
 
 def normalize_subtitle_config(raw_config: dict = None, legacy_style: str = "standard") -> dict:
     """Menjamin konfigurasi subtitle selalu lengkap dengan fallback yang aman."""
-    default_style = legacy_style if legacy_style in ("standard", "karaoke") else "karaoke"
+    # Legacy mapping: caller lama yang mengirim legacy_style="karaoke"
+    # sebenarnya bermaksud single_word (ADR-009 taxonomy fix).
+    _LEGACY_MAP = {"karaoke": "single_word"}
+    default_style = _LEGACY_MAP.get(legacy_style, legacy_style)
+    if default_style not in ("standard", "karaoke", "single_word"):
+        default_style = "single_word"
+
     if not isinstance(raw_config, dict):
         raw_config = {}
+
     style = raw_config.get("style", default_style)
-    if style not in ("standard", "karaoke"):
+    if style not in ("standard", "karaoke", "single_word"):
         style = default_style
+
     return {
         "style": style,
         "highlight_color": str(raw_config.get("highlight_color", "#FFE600")),
+        "text_color": str(raw_config.get("text_color", "#FFFFFF")),
+        "outline_color": str(raw_config.get("outline_color", "#000000")),
+        "shadow_color": str(raw_config.get("shadow_color", "#000000")),
         "font_family": str(raw_config.get("font_family", "Arial")),
         "font_size_scale": float(raw_config.get("font_size_scale", 1.0)),
         "font_weight": str(raw_config.get("font_weight", "bold")),
         "italic": bool(raw_config.get("italic", False)),
-        "uppercase": bool(raw_config.get("uppercase", (style == "karaoke"))),
+        "uppercase": bool(raw_config.get("uppercase", (style in ("single_word",)))),
+        "outline_width": max(1, min(5, int(raw_config.get("outline_width", 2)))),
+        "shadow_depth": max(0, min(10, int(raw_config.get("shadow_depth", 2)))),
+        "animation_pop": bool(raw_config.get("animation_pop", False)),
+        "watermark_text": str(raw_config.get("watermark_text", "")),
+        "watermark_opacity": float(raw_config.get("watermark_opacity", 0.5)),
     }
 
 
@@ -486,19 +502,18 @@ def calculate_ass_styles(width: int, height: int, custom_margin_v: int = None, s
 
     is_vertical = height > width
     if is_vertical:
-        # For vertical videos (9:16), font size should relate to width, but bounded
         font_size = max(14, round(width * 0.055 * scale))
         margin_v = max(20, round(height * 0.15))
     else:
-        # For landscape (16:9), width is huge, so font size should relate to height
         font_size = max(14, round(height * 0.065 * scale))
         margin_v = max(20, round(height * 0.08))
         
     if custom_margin_v is not None and custom_margin_v > 0:
         margin_v = custom_margin_v
 
-    outline = max(1, round(font_size * 0.08))
-    shadow = outline
+    # Gunakan outline_width & shadow_depth dari config jika tersedia
+    outline = cfg.get("outline_width", max(1, round(font_size * 0.08)))
+    shadow = cfg.get("shadow_depth", outline)
     margin_h = max(20, round(width * 0.05))
     return font_size, outline, shadow, margin_h, margin_v
 
@@ -535,8 +550,9 @@ def srt_to_ass(srt_text: str, width: int, height: int, custom_margin_v: int = No
     if watermark_text:
         wm_alpha = int((1.0 - watermark_opacity) * 255)
         wm_alpha_hex = f"{wm_alpha:02X}"
-        wm_font_size = max(10, int(font_size * 0.6))
-        header += f"Style: Watermark,{font_name},{wm_font_size},&H{wm_alpha_hex}FFFFFF,&H{wm_alpha_hex}000000,&H{wm_alpha_hex}000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,30,1\n"
+        wm_font_size = max(12, int(font_size * 0.75))
+        wm_margin_v = int(height * 0.08) if height > width else int(height * 0.05)
+        header += f"Style: Watermark,{font_name},{wm_font_size},&H{wm_alpha_hex}FFFFFF,&H{wm_alpha_hex}000000,&H{wm_alpha_hex}000000,0,0,0,0,100,100,0,0,1,1,1,8,10,10,{wm_margin_v},1\n"
 
     header += (
         "\n[Events]\n"
@@ -601,21 +617,22 @@ def chunk_words_smartly(clip_words, max_words=5, max_chars=28):
     return chunks
 
 
-def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float, clip_end: float, custom_margin_v: int = None, subtitle_config: dict = None) -> str:
+def words_to_single_word_ass(words: list, width: int, height: int, clip_start: float, clip_end: float, custom_margin_v: int = None, subtitle_config: dict = None) -> str:
     """Convert word-level timestamps to single-word pop ASS subtitles with strict zero-overlap."""
     width = int(width) or 1080
     height = int(height) or 1920
     cfg = normalize_subtitle_config(subtitle_config, legacy_style="karaoke")
     
     font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height, custom_margin_v=custom_margin_v, subtitle_config=cfg)
-    outline = max(2, outline)
-    shadow = max(2, shadow)
 
     font_name = cfg.get("font_family", "Arial")
     bold_val = -1 if cfg.get("font_weight") == "bold" else 0
     italic_val = -1 if cfg.get("italic") else 0
     ass_primary_color = hex_to_ass_style_color(cfg.get("highlight_color", "#FFE600"))
+    ass_outline_color = hex_to_ass_style_color(cfg.get("outline_color", "#000000"))
+    ass_shadow_color = hex_to_ass_style_color(cfg.get("shadow_color", "#000000"), default="&H80000000")
     is_uppercase = cfg.get("uppercase", True)
+    use_pop = cfg.get("animation_pop", False)
 
     header = (
         "[Script Info]\n"
@@ -627,7 +644,7 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
         "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
         "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Default,{font_name},{font_size},{ass_primary_color},&H00000000,&H80000000,"
+        f"Style: Default,{font_name},{font_size},{ass_primary_color},{ass_outline_color},{ass_shadow_color},"
         f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n"
     )
 
@@ -636,8 +653,9 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
     if watermark_text:
         wm_alpha = int((1.0 - watermark_opacity) * 255)
         wm_alpha_hex = f"{wm_alpha:02X}"
-        wm_font_size = max(10, int(font_size * 0.6))
-        header += f"Style: Watermark,{font_name},{wm_font_size},&H{wm_alpha_hex}FFFFFF,&H{wm_alpha_hex}000000,&H{wm_alpha_hex}000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,30,1\n"
+        wm_font_size = max(12, int(font_size * 0.75))
+        wm_margin_v = int(height * 0.08) if height > width else int(height * 0.05)
+        header += f"Style: Watermark,{font_name},{wm_font_size},&H{wm_alpha_hex}FFFFFF,&H{wm_alpha_hex}000000,&H{wm_alpha_hex}000000,0,0,0,0,100,100,0,0,1,1,1,8,10,10,{wm_margin_v},1\n"
 
     header += (
         "\n[Events]\n"
@@ -692,9 +710,127 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
             continue
 
         text = curr_word["word"].upper() if is_uppercase else curr_word["word"]
+
+        # Sisipkan tag animasi pop jika diaktifkan
+        if use_pop:
+            text = r"{\t(0,50,\fscx120\fscy120)\t(50,150,\fscx100\fscy100)}" + text
+
         events.append(
             f"Dialogue: 0,{_fmt_ass_ts(w_start)},{_fmt_ass_ts(w_end)},Default,,0,0,0,,{text}"
         )
+
+    return header + "\n".join(events) + ("\n" if events else "")
+
+
+def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float, clip_end: float, custom_margin_v: int = None, subtitle_config: dict = None) -> str:
+    """Render kalimat penuh dengan highlight warna per-kata sesuai timestamp (true karaoke)."""
+    width = int(width) or 1080
+    height = int(height) or 1920
+    cfg = normalize_subtitle_config(subtitle_config, legacy_style="standard")
+
+    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(width, height, custom_margin_v=custom_margin_v, subtitle_config=cfg)
+
+    font_name = cfg.get("font_family", "Arial")
+    bold_val = -1 if cfg.get("font_weight") == "bold" else 0
+    italic_val = -1 if cfg.get("italic") else 0
+    is_uppercase = cfg.get("uppercase", False)
+
+    ass_text_color = hex_to_ass_style_color(cfg.get("text_color", "#FFFFFF"))
+    ass_highlight_color = hex_to_ass_style_color(cfg.get("highlight_color", "#FFE600"))
+    ass_outline_color = hex_to_ass_style_color(cfg.get("outline_color", "#000000"))
+    ass_shadow_color = hex_to_ass_style_color(cfg.get("shadow_color", "#000000"), default="&H80000000")
+
+    header = (
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        "WrapStyle: 1\n"
+        f"PlayResX: {width}\n"
+        f"PlayResY: {height}\n\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, "
+        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
+        "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        f"Style: Default,{font_name},{font_size},{ass_text_color},{ass_outline_color},{ass_shadow_color},"
+        f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n"
+    )
+
+    watermark_text = cfg.get("watermark_text", "").strip()
+    watermark_opacity = float(cfg.get("watermark_opacity", 0.5))
+    if watermark_text:
+        wm_alpha = int((1.0 - watermark_opacity) * 255)
+        wm_alpha_hex = f"{wm_alpha:02X}"
+        wm_font_size = max(12, int(font_size * 0.75))
+        wm_margin_v = int(height * 0.08) if height > width else int(height * 0.05)
+        header += f"Style: Watermark,{font_name},{wm_font_size},&H{wm_alpha_hex}FFFFFF,&H{wm_alpha_hex}000000,&H{wm_alpha_hex}000000,0,0,0,0,100,100,0,0,1,1,1,8,10,10,{wm_margin_v},1\n"
+
+    header += (
+        "\n[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+
+    clip_words = []
+    for w in words:
+        w_start = float(w.get("start", 0))
+        w_end = float(w.get("end", 0))
+        if w_start < clip_end and w_end > clip_start:
+            s = max(0.0, w_start - clip_start)
+            e = min(clip_end - clip_start, w_end - clip_start)
+            if e > s:
+                raw_w = str(w.get("word", "")).strip()
+                if raw_w:
+                    clip_words.append({"word": raw_w, "start": s, "end": e})
+
+    if not clip_words and not watermark_text:
+        return header
+
+    events = []
+    if watermark_text:
+        dur = max(0.0, clip_end - clip_start)
+        events.append(f"Dialogue: 0,0:00:00.00,{_fmt_ass_ts(dur)},Watermark,,0,0,0,,{watermark_text}")
+
+    if not clip_words:
+        return header + "\n".join(events) + ("\n" if events else "")
+
+    # Kelompokkan kata menjadi kalimat (max 7 kata atau jeda > 0.4s)
+    chunks = []
+    current_chunk = [clip_words[0]]
+    for w in clip_words[1:]:
+        prev_w = current_chunk[-1]
+        gap = w["start"] - prev_w["end"]
+        if gap > 0.4 or len(current_chunk) >= 7 or prev_w["word"].endswith(('.', '!', '?')):
+            chunks.append(current_chunk)
+            current_chunk = [w]
+        else:
+            current_chunk.append(w)
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    for chunk in chunks:
+        c_end = chunk[-1]["end"]
+        num_chunk_words = len(chunk)
+
+        for wi, active_word in enumerate(chunk):
+            w_start = active_word["start"]
+            if wi < num_chunk_words - 1:
+                w_end = chunk[wi + 1]["start"]
+            else:
+                w_end = c_end
+
+            if w_end <= w_start:
+                continue
+
+            parts = []
+            for wj, cw in enumerate(chunk):
+                word_text = cw["word"].upper() if is_uppercase else cw["word"]
+                if wj == wi:
+                    parts.append(r"{\c" + ass_highlight_color + r"}" + word_text + r"{\c" + ass_text_color + r"}")
+                else:
+                    parts.append(word_text)
+
+            full_text = " ".join(parts)
+            events.append(
+                f"Dialogue: 0,{_fmt_ass_ts(w_start)},{_fmt_ass_ts(w_end)},Default,,0,0,0,,{full_text}"
+            )
 
     return header + "\n".join(events) + ("\n" if events else "")
 
@@ -730,8 +866,9 @@ def words_to_standard_ass(words: list, width: int, height: int, clip_start: floa
     if watermark_text:
         wm_alpha = int((1.0 - watermark_opacity) * 255)
         wm_alpha_hex = f"{wm_alpha:02X}"
-        wm_font_size = max(10, int(font_size * 0.6))
-        header += f"Style: Watermark,{font_name},{wm_font_size},&H{wm_alpha_hex}FFFFFF,&H{wm_alpha_hex}000000,&H{wm_alpha_hex}000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,30,1\n"
+        wm_font_size = max(12, int(font_size * 0.75))
+        wm_margin_v = int(height * 0.08) if height > width else int(height * 0.05)
+        header += f"Style: Watermark,{font_name},{wm_font_size},&H{wm_alpha_hex}FFFFFF,&H{wm_alpha_hex}000000,&H{wm_alpha_hex}000000,0,0,0,0,100,100,0,0,1,1,1,8,10,10,{wm_margin_v},1\n"
 
     header += (
         "\n[Events]\n"
@@ -1158,8 +1295,10 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                 words = data.get("words", [])
                 if desired_style == "standard":
                     ass_text = words_to_standard_ass(words, out_w, out_h, start_s, end_s, custom_margin_v=custom_margin_v, subtitle_config=cfg)
-                else:
+                elif desired_style == "karaoke":
                     ass_text = words_to_karaoke_ass(words, out_w, out_h, start_s, end_s, custom_margin_v=custom_margin_v, subtitle_config=cfg)
+                else: # single_word (default)
+                    ass_text = words_to_single_word_ass(words, out_w, out_h, start_s, end_s, custom_margin_v=custom_margin_v, subtitle_config=cfg)
             else:
                 # File .srt legacy (hanya bisa mode standard)
                 clip_srt = shift_srt_for_clip(content, start_s, end_s)

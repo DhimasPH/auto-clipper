@@ -7,6 +7,7 @@ from backend.crop_utils import (
     normalize_subtitle_config,
     calculate_ass_styles,
     srt_to_ass,
+    words_to_single_word_ass,
     words_to_karaoke_ass,
     words_to_standard_ass,
 )
@@ -52,8 +53,40 @@ def test_normalize_subtitle_config():
 
     # Mode karaoke default uppercase = True
     cfg_k = normalize_subtitle_config({}, legacy_style="karaoke")
-    assert cfg_k["style"] == "karaoke"
+    assert cfg_k["style"] == "single_word"
     assert cfg_k["uppercase"] is True
+
+def test_normalize_subtitle_config_single_word():
+    """Test bahwa style 'single_word' dikenali dan properti baru punya default."""
+    cfg = normalize_subtitle_config({"style": "single_word"}, legacy_style="karaoke")
+    assert cfg["style"] == "single_word"
+    assert cfg["text_color"] == "#FFFFFF"
+    assert cfg["outline_color"] == "#000000"
+    assert cfg["shadow_color"] == "#000000"
+    assert cfg["outline_width"] == 2
+    assert cfg["shadow_depth"] == 2
+    assert cfg["animation_pop"] is False
+
+def test_normalize_subtitle_config_legacy_karaoke_maps_to_single_word():
+    """Backward compat: legacy_style='karaoke' tanpa style eksplisit -> 'single_word'."""
+    cfg = normalize_subtitle_config(None, legacy_style="karaoke")
+    assert cfg["style"] == "single_word"
+
+def test_normalize_subtitle_config_explicit_karaoke():
+    """Style 'karaoke' eksplisit tetap dipertahankan sebagai karaoke."""
+    cfg = normalize_subtitle_config({"style": "karaoke"})
+    assert cfg["style"] == "karaoke"
+
+def test_calculate_ass_styles_custom_outline_shadow():
+    """outline_width dan shadow_depth dari config digunakan."""
+    cfg = {
+        "font_size_scale": 1.0,
+        "outline_width": 4,
+        "shadow_depth": 8,
+    }
+    font_size, outline, shadow, margin_h, margin_v = calculate_ass_styles(1080, 1920, subtitle_config=cfg)
+    assert outline == 4
+    assert shadow == 8
 
 def test_calculate_ass_styles_with_config():
     cfg = {
@@ -81,7 +114,7 @@ def test_srt_to_ass_with_subtitle_config():
     assert ",0,-1,0,0,100,100" in ass_text
     assert "HALO DUNIA" in ass_text
 
-def test_words_to_karaoke_ass_zero_overlap_invariant():
+def test_words_to_single_word_ass_zero_overlap_invariant():
     words = [
         {"word": "Halo", "start": 0.0, "end": 0.15},        # short word (<180ms)
         {"word": "semuanya", "start": 0.20, "end": 0.70},    # gap = 0.05s (<0.2s, bridged)
@@ -89,13 +122,13 @@ def test_words_to_karaoke_ass_zero_overlap_invariant():
         {"word": "datang", "start": 1.95, "end": 2.30},      # gap = 0.05s
     ]
     cfg = {
-        "style": "karaoke",
+        "style": "single_word",
         "highlight_color": "#FFE600",
         "font_family": "Impact",
         "font_weight": "bold",
         "uppercase": True
     }
-    ass_out = words_to_karaoke_ass(words, 1080, 1920, clip_start=0.0, clip_end=3.0, subtitle_config=cfg)
+    ass_out = words_to_single_word_ass(words, 1080, 1920, clip_start=0.0, clip_end=3.0, subtitle_config=cfg)
     dialogues = _parse_dialogue_times(ass_out)
     assert len(dialogues) == 4
     
@@ -112,6 +145,64 @@ def test_words_to_karaoke_ass_zero_overlap_invariant():
     assert dialogues[2]["text"] == "SELAMAT"
     assert dialogues[3]["text"] == "DATANG"
     assert "&H0000E6FF" in ass_out
+
+def test_words_to_karaoke_ass_sentence_highlight():
+    """Mode karaoke baru: kalimat penuh ditampilkan, kata aktif disorot warna berbeda."""
+    words = [
+        {"word": "Buat", "start": 0.0, "end": 0.3},
+        {"word": "konten", "start": 0.35, "end": 0.7},
+        {"word": "viral", "start": 0.75, "end": 1.1},
+    ]
+    cfg = {
+        "style": "karaoke",
+        "highlight_color": "#FFE600",
+        "text_color": "#FFFFFF",
+        "outline_color": "#000000",
+        "shadow_color": "#000000",
+        "outline_width": 2,
+        "shadow_depth": 2,
+    }
+    ass_out = words_to_karaoke_ass(words, 1080, 1920, clip_start=0.0, clip_end=2.0, subtitle_config=cfg)
+
+    # Semua Dialogue mengandung lebih dari satu kata
+    assert "Buat" in ass_out or "buat" in ass_out
+    assert "konten" in ass_out or "KONTEN" in ass_out
+    assert "viral" in ass_out or "VIRAL" in ass_out
+
+    # Harus ada ASS inline color override tags
+    assert "\\c&H" in ass_out
+
+def test_words_to_single_word_ass_animation_pop():
+    """Mode single_word dengan animation_pop menyisipkan tag transform."""
+    words = [
+        {"word": "Halo", "start": 0.0, "end": 0.4},
+        {"word": "dunia", "start": 0.5, "end": 0.9},
+    ]
+    cfg = {
+        "style": "single_word",
+        "animation_pop": True,
+        "uppercase": True,
+    }
+    ass_out = words_to_single_word_ass(words, 1080, 1920, clip_start=0.0, clip_end=2.0, subtitle_config=cfg)
+    dialogues = _parse_dialogue_times(ass_out)
+    assert len(dialogues) == 2
+    assert "\\fscx" in ass_out
+    assert "\\fscy" in ass_out
+    assert "\\t(" in ass_out
+    assert "HALO" in ass_out
+    assert "DUNIA" in ass_out
+
+def test_words_to_single_word_ass_no_animation():
+    """Mode single_word tanpa animation_pop TIDAK menyisipkan tag transform."""
+    words = [
+        {"word": "Halo", "start": 0.0, "end": 0.4},
+    ]
+    cfg = {
+        "style": "single_word",
+        "animation_pop": False,
+    }
+    ass_out = words_to_single_word_ass(words, 1080, 1920, clip_start=0.0, clip_end=2.0, subtitle_config=cfg)
+    assert "\\t(" not in ass_out
 
 def test_words_to_standard_ass():
     words = [

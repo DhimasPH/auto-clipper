@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from backend.crop_utils import build_canvas_background_filter, crop_to_vertical, srt_to_ass, words_to_karaoke_ass
+from backend.crop_utils import build_canvas_background_filter, crop_to_vertical, srt_to_ass, words_to_single_word_ass
 
 
 def test_build_canvas_background_filter_blur():
@@ -46,12 +46,12 @@ def test_srt_to_ass_with_custom_margin():
     assert "450" in ass
 
 
-def test_words_to_karaoke_ass_with_custom_margin():
+def test_words_to_single_word_ass_with_custom_margin():
     words = [
-        {"word": "Hello", "start": 0.0, "end": 0.5},
-        {"word": "World", "start": 0.5, "end": 1.0}
+        {"word": "Test", "start": 0.0, "end": 0.5},
+        {"word": "Margin", "start": 0.5, "end": 1.0},
     ]
-    ass = words_to_karaoke_ass(words, 1080, 1920, 0.0, 1.0, custom_margin_v=400)
+    ass = words_to_single_word_ass(words, 1080, 1920, 0.0, 1.0, custom_margin_v=400)
     assert "PlayResX: 1080" in ass
     assert "PlayResY: 1920" in ass
     assert "400" in ass

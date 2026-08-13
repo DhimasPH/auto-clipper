@@ -228,8 +228,8 @@ def test_crop_standard_layout_does_not_split(mock_dims, mock_popen):
     assert not any("vstack" in str(a) for a in cmd)
 
 
-def test_words_to_karaoke_ass_cumulative_and_continuous():
-    from backend.crop_utils import words_to_karaoke_ass
+def test_words_to_single_word_ass_cumulative_and_continuous():
+    from backend.crop_utils import words_to_single_word_ass
     words = [
         {"word": "Halo", "start": 1.0, "end": 1.4},
         {"word": "semua", "start": 1.5, "end": 2.0},
@@ -237,7 +237,7 @@ def test_words_to_karaoke_ass_cumulative_and_continuous():
         {"word": "datang", "start": 2.7, "end": 3.2},
     ]
     # Clip window from 0.0 to 4.0
-    ass = words_to_karaoke_ass(words, 1080, 1920, clip_start=0.0, clip_end=4.0)
+    ass = words_to_single_word_ass(words, 1080, 1920, clip_start=0.0, clip_end=4.0)
     assert "PlayResX: 1080" in ass
     assert "PlayResY: 1920" in ass
     assert "Dialogue:" in ass
