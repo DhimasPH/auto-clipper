@@ -72,7 +72,6 @@ Menjadi asisten editing video pribadi bagi setiap kreator konten, yang secara ot
 
 ## 6. Future Enhancements (Backlog)
 
-- Preset kustomisasi visual subtitle (warna, font, gaya animasi seperti model font viral Alex Hormozi).
 - _Multi-speaker face-tracking_ (membuat format _split-screen_ atas-bawah saat ada dua narasumber berbicara bersamaan dalam layar yang sama).
 - Integrasi _auto-post_ ke YouTube Shorts, TikTok, Facebook dan Instagram Reels.
 - Revamp/Redesign UI/UX lebih user friendly, modern dan enterprise-level.
