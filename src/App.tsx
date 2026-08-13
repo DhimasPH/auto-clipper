@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { WorkspacePage } from "./pages/WorkspacePage";
-import { SmartEditorPage } from "./pages/SmartEditorPage";
 import { ManualAIEditorPage } from "./pages/ManualAIEditorPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { ManualDownloaderPage } from "./pages/ManualDownloaderPage";
@@ -17,7 +16,6 @@ import { useUserSettings } from "./hooks/useUserSettings";
 import { useClipJobs } from "./hooks/useClipJobs";
 import { useStartupUpdateCheck } from "./hooks/useStartupUpdateCheck";
 import { ProviderId, DEFAULT_PROVIDER, LEGACY_PROVIDER_MIGRATION } from "./lib/providers";
-import { SHOW_EXPERIMENTAL_FEATURES } from "./config/features";
 import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "./types/canvas";
 import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "./types/subtitle";
 
@@ -250,10 +248,6 @@ export default function App() {
           <Route path="/" element={<AppLayout />}>
             <Route index element={<WorkspacePage />} />
             <Route path="manual-ai" element={<ManualAIEditorPage />} />
-            <Route
-              path="editor"
-              element={SHOW_EXPERIMENTAL_FEATURES ? <SmartEditorPage /> : <Navigate to="/" replace />}
-            />
             <Route path="downloader" element={<ManualDownloaderPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="settings" element={<SettingsPage />} />
