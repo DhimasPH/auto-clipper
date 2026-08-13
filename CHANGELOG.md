@@ -2,6 +2,21 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.14.0] - 2026-08-13
+
+### Added
+- **Gaming Mode Auto-Detection**: Pipeline video secara otomatis dapat mendeteksi layout *gaming* dan mendukung *vertical split-screen cropping*.
+- **Video Watermark Support**: Sistem sekarang mendukung penambahan watermark pada hasil render video akhir.
+- **UI SubtitleConfigControls**: Menambahkan komponen khusus untuk manajemen tipografi dan gaya subtitle, mendukung *custom preset* visual seperti model font Alex Hormozi.
+- **Landing Page**: Halaman utama aplikasi dengan integrasi navigasi tautan sosial dan akses ke workspace video.
+- **Multi-language Support**: Menambahkan file pelokalan (i18n) untuk bahasa Inggris (`en.json`) dan Indonesia (`id.json`).
+
+### Changed
+- **Manual Downloader Enhancements**: Fitur downloader kini mendukung pengunduhan full video (tanpa memotong klip / *empty clips allowed*) dan memungkinkan pemilihan kualitas resolusi video saat mengunduh.
+
+### Removed / Deprecated
+- **Smart Editor**: Fitur eksperimental Smart Editor telah dihapus secara permanen, dan seluruh alur penyuntingan sepenuhnya mengandalkan pengaturan UI standar dan *Gaming Mode*.
+
 ## [1.13.0] - 2026-08-12
 
 ### Added
