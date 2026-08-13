@@ -527,11 +527,24 @@ def srt_to_ass(srt_text: str, width: int, height: int, custom_margin_v: int = No
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
         "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
         f"Style: Default,{font_name},{font_size},&H00FFFFFF,&H00000000,&H80000000,"
-        f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n\n"
-        "[Events]\n"
+        f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n"
+    )
+
+    watermark_text = cfg.get("watermark_text", "").strip()
+    watermark_opacity = float(cfg.get("watermark_opacity", 0.5))
+    if watermark_text:
+        wm_alpha = int((1.0 - watermark_opacity) * 255)
+        wm_alpha_hex = f"{wm_alpha:02X}"
+        wm_font_size = max(10, int(font_size * 0.6))
+        header += f"Style: Watermark,{font_name},{wm_font_size},&H{wm_alpha_hex}FFFFFF,&H{wm_alpha_hex}000000,&H{wm_alpha_hex}000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,30,1\n"
+
+    header += (
+        "\n[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
     events = []
+    if watermark_text:
+        events.append(f"Dialogue: 0,0:00:00.00,9:59:59.99,Watermark,,0,0,0,,{watermark_text}")
     for block in re.split(r'\n\s*\n', srt_text.strip()):
         lines = block.strip().split('\n')
         if len(lines) < 2:
@@ -615,8 +628,19 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
         "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
         f"Style: Default,{font_name},{font_size},{ass_primary_color},&H00000000,&H80000000,"
-        f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n\n"
-        "[Events]\n"
+        f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n"
+    )
+
+    watermark_text = cfg.get("watermark_text", "").strip()
+    watermark_opacity = float(cfg.get("watermark_opacity", 0.5))
+    if watermark_text:
+        wm_alpha = int((1.0 - watermark_opacity) * 255)
+        wm_alpha_hex = f"{wm_alpha:02X}"
+        wm_font_size = max(10, int(font_size * 0.6))
+        header += f"Style: Watermark,{font_name},{wm_font_size},&H{wm_alpha_hex}FFFFFF,&H{wm_alpha_hex}000000,&H{wm_alpha_hex}000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,30,1\n"
+
+    header += (
+        "\n[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
 
@@ -632,10 +656,14 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
                 if raw_w:
                     clip_words.append({"word": raw_w, "start": s, "end": e})
 
-    if not clip_words:
+    if not clip_words and not watermark_text:
         return header
 
     events = []
+    if watermark_text:
+        dur = max(0.0, clip_end - clip_start)
+        events.append(f"Dialogue: 0,0:00:00.00,{_fmt_ass_ts(dur)},Watermark,,0,0,0,,{watermark_text}")
+        
     num_words = len(clip_words)
     
     for i in range(num_words):
@@ -694,8 +722,19 @@ def words_to_standard_ass(words: list, width: int, height: int, clip_start: floa
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, "
         "Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
         f"Style: Default,{font_name},{font_size},&H00FFFFFF,&H00000000,&H80000000,"
-        f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n\n"
-        "[Events]\n"
+        f"{bold_val},{italic_val},0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1\n"
+    )
+
+    watermark_text = cfg.get("watermark_text", "").strip()
+    watermark_opacity = float(cfg.get("watermark_opacity", 0.5))
+    if watermark_text:
+        wm_alpha = int((1.0 - watermark_opacity) * 255)
+        wm_alpha_hex = f"{wm_alpha:02X}"
+        wm_font_size = max(10, int(font_size * 0.6))
+        header += f"Style: Watermark,{font_name},{wm_font_size},&H{wm_alpha_hex}FFFFFF,&H{wm_alpha_hex}000000,&H{wm_alpha_hex}000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,30,1\n"
+
+    header += (
+        "\n[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
 
@@ -711,32 +750,37 @@ def words_to_standard_ass(words: list, width: int, height: int, clip_start: floa
                 if raw_w:
                     clip_words.append({"word": raw_w, "start": s, "end": e})
 
-    if not clip_words:
+    if not clip_words and not watermark_text:
         return header
 
-    # Kelompokkan kata menjadi kalimat berdasarkan jeda > 0.4s atau max 7 kata
-    chunks = []
-    current_chunk = [clip_words[0]]
-    for w in clip_words[1:]:
-        prev_w = current_chunk[-1]
-        gap = w["start"] - prev_w["end"]
-        if gap > 0.4 or len(current_chunk) >= 7 or prev_w["word"].endswith(('.', '!', '?')):
-            chunks.append(current_chunk)
-            current_chunk = [w]
-        else:
-            current_chunk.append(w)
-    if current_chunk:
-        chunks.append(current_chunk)
-
     events = []
-    for chunk in chunks:
-        c_start = chunk[0]["start"]
-        c_end = chunk[-1]["end"]
-        sentence = " ".join(w["word"] for w in chunk)
-        text = sentence.upper() if is_uppercase else sentence
-        events.append(
-            f"Dialogue: 0,{_fmt_ass_ts(c_start)},{_fmt_ass_ts(c_end)},Default,,0,0,0,,{text}"
-        )
+    if watermark_text:
+        dur = max(0.0, clip_end - clip_start)
+        events.append(f"Dialogue: 0,0:00:00.00,{_fmt_ass_ts(dur)},Watermark,,0,0,0,,{watermark_text}")
+
+    if clip_words:
+        # Kelompokkan kata menjadi kalimat berdasarkan jeda > 0.4s atau max 7 kata
+        chunks = []
+        current_chunk = [clip_words[0]]
+        for w in clip_words[1:]:
+            prev_w = current_chunk[-1]
+            gap = w["start"] - prev_w["end"]
+            if gap > 0.4 or len(current_chunk) >= 7 or prev_w["word"].endswith(('.', '!', '?')):
+                chunks.append(current_chunk)
+                current_chunk = [w]
+            else:
+                current_chunk.append(w)
+        if current_chunk:
+            chunks.append(current_chunk)
+
+        for chunk in chunks:
+            c_start = chunk[0]["start"]
+            c_end = chunk[-1]["end"]
+            sentence = " ".join(w["word"] for w in chunk)
+            text = sentence.upper() if is_uppercase else sentence
+            events.append(
+                f"Dialogue: 0,{_fmt_ass_ts(c_start)},{_fmt_ass_ts(c_end)},Default,,0,0,0,,{text}"
+            )
 
     return header + "\n".join(events) + ("\n" if events else "")
 

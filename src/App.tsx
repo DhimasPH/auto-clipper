@@ -9,6 +9,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { HelpPage } from "./pages/HelpPage";
 import Toasts from "./components/Toasts";
 import { SplashScreen } from "./components/SplashScreen";
+import { LandingPage } from "./pages/LandingPage";
 
 import { useTheme } from "./hooks/useTheme";
 import { useToasts } from "./hooks/useToasts";
@@ -45,6 +46,7 @@ export default function App() {
 
   const [url, setUrl] = useState("");
   const [splashComplete, setSplashComplete] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
   const [provider, setProvider] = useState<ProviderId>(() => {
     const saved = localStorage.getItem("ac_provider");
     if (saved && LEGACY_PROVIDER_MIGRATION[saved]) {
@@ -244,9 +246,12 @@ export default function App() {
       <HashRouter>
         <Toasts toasts={toasts} />
 
-        <Routes>
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<WorkspacePage />} />
+        {showLanding ? (
+          <LandingPage onEnter={() => setShowLanding(false)} />
+        ) : (
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route index element={<WorkspacePage />} />
             <Route path="manual-ai" element={<ManualAIEditorPage />} />
             <Route path="downloader" element={<ManualDownloaderPage />} />
             <Route path="history" element={<HistoryPage />} />
@@ -254,6 +259,7 @@ export default function App() {
             <Route path="help" element={<HelpPage />} />
           </Route>
         </Routes>
+        )}
       </HashRouter>
     </AppContext.Provider>
   );

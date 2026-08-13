@@ -6,6 +6,8 @@ export interface SubtitleConfig {
   font_weight: "normal" | "bold";
   italic: boolean;
   uppercase: boolean;
+  watermark_text?: string;
+  watermark_opacity?: number;
 }
 
 export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfig = {
@@ -16,4 +18,6 @@ export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfig = {
   font_weight: "bold",
   italic: false,
   uppercase: true,
+  watermark_text: "",
+  watermark_opacity: 0.5,
 };

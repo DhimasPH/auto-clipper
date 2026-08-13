@@ -42,6 +42,8 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
   const fontWeight = config.font_weight || "bold";
   const isItalic = !!config.italic;
   const isUppercase = config.uppercase !== undefined ? config.uppercase : true;
+  const watermarkText = config.watermark_text || "";
+  const watermarkOpacity = config.watermark_opacity !== undefined ? config.watermark_opacity : 0.5;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -167,6 +169,16 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
                 </span>
               )}
             </div>
+
+            {/* Watermark Preview */}
+            {watermarkText && (
+              <div 
+                className="absolute bottom-2 text-center w-full text-white text-[10px] drop-shadow-md z-10 transition-opacity"
+                style={{ opacity: watermarkOpacity }}
+              >
+                {watermarkText}
+              </div>
+            )}
           </div>
         </div>
 
@@ -375,6 +387,40 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
             </div>
           </div>
         )}
+
+        {/* Watermark Section */}
+        <div className="space-y-3 pt-2 border-t border-border/50 animate-fade-in">
+          <label className="text-label text-text-secondary font-medium flex items-center gap-2">
+            <Type className="w-4 h-4 text-accent" />
+            <span>Watermark Video (Teks Sumber)</span>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <input
+                type="text"
+                placeholder="misal: sc: youtube raditya dika"
+                value={watermarkText}
+                onChange={(e) => onChange({ ...config, watermark_text: e.target.value })}
+                className="w-full px-3 py-2 text-sm rounded-lg bg-input-bg border border-border text-text-primary focus:outline-none focus:border-accent"
+              />
+            </div>
+            <div className="space-y-1 flex flex-col justify-center">
+              <div className="flex justify-between items-center text-xs text-text-secondary mb-1">
+                <span>Opacity</span>
+                <span>{Math.round(watermarkOpacity * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.1"
+                max="1.0"
+                step="0.05"
+                value={watermarkOpacity}
+                onChange={(e) => onChange({ ...config, watermark_opacity: parseFloat(e.target.value) })}
+                className="w-full accent-accent cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
