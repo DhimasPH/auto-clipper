@@ -3,9 +3,11 @@ import { useTranslation } from "react-i18next";
 import { Link2, Type, Folder, Download, Gamepad2 } from "lucide-react";
 import { SHOW_EXPERIMENTAL_FEATURES } from "../config/features";
 import { PageHeader } from "../components/ui/PageHeader";
-import { AppContext } from "../App";
+import { AppContext, API_URL } from "../App";
+import axios from "axios";
 import { InputGroup } from "../components/ui/InputGroup";
 import { ToggleSwitch } from "../components/ui/ToggleSwitch";
+import { Select } from "../components/ui/Select";
 import { Button } from "../components/ui/Button";
 import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
 
@@ -14,6 +16,22 @@ export const ManualDownloaderPage: React.FC = () => {
   const ctx = useContext(AppContext);
   const [downloadUrl, setDownloadUrl] = useState("");
   const [downloadTitle, setDownloadTitle] = useState("");
+  const [quality, setQuality] = useState<"best" | "2160p" | "1440p" | "1080p" | "720p" | "480p">("best");
+  const [availHeights, setAvailHeights] = useState<number[]>([]);
+  const [probing, setProbing] = useState(false);
+
+  const probeQualities = async () => {
+    if (!downloadUrl) return;
+    setProbing(true);
+    try {
+      const r = await axios.get(`${API_URL}/probe`, { params: { url: downloadUrl } });
+      setAvailHeights(r.data.heights || []);
+    } catch {
+      setAvailHeights([]);
+    } finally {
+      setProbing(false);
+    }
+  };
 
   const handleDownload = () => {
     if (!downloadTitle || !downloadTitle.trim()) {
@@ -22,7 +40,8 @@ export const ManualDownloaderPage: React.FC = () => {
     }
     // Send an empty clips array to trigger the full video download fallback.
     ctx.setTitle(downloadTitle); // make sure context has the title
-    ctx.handleManualGenerate(downloadUrl, []);
+    ctx.setQuality(quality);
+    ctx.handleManualGenerate(downloadUrl, [], true);
   };
 
   return (
@@ -47,6 +66,23 @@ export const ManualDownloaderPage: React.FC = () => {
             onChange={(e) => setDownloadUrl(e.target.value)}
             icon={Link2}
           />
+          <div className="flex items-center gap-3 mt-2">
+            <Button
+              variant="outline"
+              onClick={probeQualities}
+              disabled={!downloadUrl || probing}
+            >
+              {probing
+                ? t("main.probing", "Mengecek...")
+                : t("main.probe_btn", "Cek kualitas tersedia")}
+            </Button>
+            {availHeights.length > 0 && (
+              <span className="text-caption text-text-secondary">
+                {t("main.probe_avail", "Tersedia:")}{" "}
+                {availHeights.map((h) => `${h}p`).join(", ")}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -175,6 +211,34 @@ export const ManualDownloaderPage: React.FC = () => {
             ⚠️ {ctx.errorMsg}
           </div>
         )}
+
+        <div className="pt-2">
+          <Select
+            label={t("main.video_quality_label", "Kualitas Video (Download)")}
+            value={quality}
+            onChange={(e) => setQuality(e.target.value as any)}
+            options={
+              availHeights.length > 0
+                ? [
+                    { label: t("main.quality_best", "Best (Otomatis)"), value: "best" },
+                    ...availHeights.map((h) => {
+                      let label = `${h}p`;
+                      if (h >= 2160) label = "2160p (4K)";
+                      else if (h >= 1440) label = "1440p (2K)";
+                      return { label, value: `${h}p` };
+                    }),
+                  ]
+                : [
+                    { label: t("main.quality_best", "Best (Otomatis)"), value: "best" },
+                    { label: "2160p (4K)", value: "2160p" },
+                    { label: "1440p (2K)", value: "1440p" },
+                    { label: "1080p", value: "1080p" },
+                    { label: "720p", value: "720p" },
+                    { label: "480p", value: "480p" },
+                  ]
+            }
+          />
+        </div>
 
         <div className="pt-2">
           <Button

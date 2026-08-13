@@ -219,8 +219,8 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
-  const handleManualGenerate = async (sourceUrl: string, manualClips: { start: number; end: number }[]) => {
-    if (!sourceUrl || manualClips.length === 0) {
+  const handleManualGenerate = async (sourceUrl: string, manualClips: { start: number; end: number }[], allowEmptyClips: boolean = false) => {
+    if (!sourceUrl || (!allowEmptyClips && manualClips.length === 0)) {
       notify(t('toast.clip_failed', { num: '', msg: t('smartEditor.noClips', 'Belum ada klip.') }), "error");
       return;
     }
