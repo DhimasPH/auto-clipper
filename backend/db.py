@@ -5,7 +5,13 @@ from datetime import datetime
 import sys
 from backend.logger import log_error
 
-def get_app_data_dir():
+def get_app_data_dir() -> str:
+    custom_ws = os.environ.get("AUTO_CLIPPER_WORKSPACE", "").strip()
+    if custom_ws:
+        custom_ws = os.path.abspath(os.path.expanduser(custom_ws))
+        os.makedirs(custom_ws, exist_ok=True)
+        return custom_ws
+
     home = os.path.expanduser("~")
     if sys.platform == "win32":
         base = os.environ.get("APPDATA", os.path.join(home, "AppData", "Roaming"))
@@ -17,6 +23,8 @@ def get_app_data_dir():
     app_dir = os.path.join(base, "AutoClipper")
     os.makedirs(app_dir, exist_ok=True)
     return app_dir
+
+
 
 def get_db_path():
     return os.path.join(get_app_data_dir(), "history.db")

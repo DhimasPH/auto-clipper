@@ -1,4 +1,6 @@
+import os
 import backend.db as db
+
 
 
 def _use_tmp_db(monkeypatch, tmp_path):
@@ -114,5 +116,27 @@ def test_delete_history_cleans_project_workspace(monkeypatch, tmp_path):
     assert not clip_file.exists()
     assert not ws_dir.exists()
     assert db.get_history("job-clean") is None
+
+
+def test_get_app_data_dir_custom_workspace(monkeypatch, tmp_path):
+    custom_ws = str(tmp_path / "custom_workspace")
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", f"  {custom_ws}  ")
+    res = db.get_app_data_dir()
+    assert res == os.path.abspath(custom_ws)
+    assert (tmp_path / "custom_workspace").is_dir()
+
+
+def test_get_app_data_dir_default(monkeypatch, tmp_path):
+    monkeypatch.delenv("AUTO_CLIPPER_WORKSPACE", raising=False)
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    res = db.get_app_data_dir()
+    assert "AutoClipper" in res
+
+    # Empty string should fallback
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", "   ")
+    res2 = db.get_app_data_dir()
+    assert "AutoClipper" in res2
+
+
 
 

@@ -5,6 +5,12 @@ import sys
 from typing import Optional, Union
 
 def get_app_data_dir() -> str:
+    custom_ws = os.environ.get("AUTO_CLIPPER_WORKSPACE", "").strip()
+    if custom_ws:
+        custom_ws = os.path.abspath(os.path.expanduser(custom_ws))
+        os.makedirs(custom_ws, exist_ok=True)
+        return custom_ws
+
     home = os.path.expanduser("~")
     if sys.platform == "win32":
         base = os.environ.get("APPDATA", os.path.join(home, "AppData", "Roaming"))
@@ -16,6 +22,7 @@ def get_app_data_dir() -> str:
     app_dir = os.path.join(base, "AutoClipper")
     os.makedirs(app_dir, exist_ok=True)
     return app_dir
+
 
 def get_error_log_path() -> str:
     return os.path.join(get_app_data_dir(), "backend_error.log")

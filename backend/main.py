@@ -59,7 +59,7 @@ def handle_uncaught_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = handle_uncaught_exception
 
 
-API_SECRET_TOKEN = os.environ.get("AUTO_CLIPPER_DEV_TOKEN", secrets.token_hex(32))
+API_SECRET_TOKEN = os.environ.get("AUTO_CLIPPER_WEB_TOKEN") or os.environ.get("AUTO_CLIPPER_DEV_TOKEN") or secrets.token_hex(32)
 
 # Tambahkan folder bin ke PATH agar FFmpeg dan dependensi lain bisa ditemukan di dev mode maupun bundle mode.
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -95,8 +95,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.add_middleware(
     CORSMiddleware,
-    # Allow local dev and all variations of Tauri custom protocols (including tauri.localhost on Windows)
-    allow_origin_regex=r"https?://([a-zA-Z0-9_.-]+\.)?localhost(:\d+)?|https?://127\.0\.0\.1(:\d+)?|tauri://.*|app://.*",
+    # Allow local dev and all variations of Tauri custom protocols (including tauri.localhost on Windows), plus cloud web app
+    allow_origin_regex=r"https?://([a-zA-Z0-9_.-]+\.)?localhost(:\d+)?|https?://127\.0\.0\.1(:\d+)?|tauri://.*|app://.*|https://clipper\.dhims\.web\.id",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -109,13 +109,14 @@ async def verify_token(request: Request, call_next):
     if request.method == "OPTIONS" or path.startswith("/video") or path in ["/health", "/heartbeat"]:
         return await call_next(request)
         
-    # Skip token verification in development mode (not PyInstaller bundle)
-    import sys
-    if not getattr(sys, 'frozen', False):
+    # Enforce token verification in frozen bundles or cloud mode
+    cloud_mode = bool(os.environ.get("AUTO_CLIPPER_CLOUD_MODE"))
+    if not getattr(sys, 'frozen', False) and not cloud_mode:
         return await call_next(request)
         
     auth_header = request.headers.get("Authorization")
-    if not auth_header or auth_header != f"Bearer {API_SECRET_TOKEN}":
+    token = os.environ.get("AUTO_CLIPPER_WEB_TOKEN") or os.environ.get("AUTO_CLIPPER_DEV_TOKEN") or API_SECRET_TOKEN
+    if not auth_header or auth_header != f"Bearer {token}":
         return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized API access"})
         
     return await call_next(request)
@@ -144,6 +145,17 @@ def api_probe(url: str):
 
 @app.get("/health")
 async def health_check():
+    return {"status": "ok"}
+
+
+last_heartbeat = 0.0
+
+
+@app.post("/heartbeat")
+async def api_heartbeat():
+    global last_heartbeat
+    import time
+    last_heartbeat = time.monotonic()
     return {"status": "ok"}
 
 
@@ -515,6 +527,8 @@ def is_parent_alive(pid) -> bool:
     determined, we assume the parent is alive so a healthy backend is never
     killed by mistake.
     """
+    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
+        return True
     if not pid or pid <= 0:
         return True
     # Prefer psutil when available (cross-platform, reliable).
@@ -569,6 +583,8 @@ def check_watchdog_condition(now_monotonic, last_heartbeat_monotonic, loop_delta
                  running and let the frontend reconnect.
       "ok"    -> healthy, keep running.
     """
+    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
+        return "ok"
     if loop_delta > wake_threshold:
         return "wake"
     if (now_monotonic - last_heartbeat_monotonic) > grace:
@@ -812,35 +828,32 @@ if __name__ == "__main__":
         # tracked on a MONOTONIC clock, and a suspiciously long watchdog loop is
         # treated as "the machine just woke from sleep" (reset, don't kill) so
         # the app no longer shows "Disconnected" after the device sleeps.
+        # Disabled in cloud mode (e.g. Google Colab) where there is no parent Tauri process.
         last_heartbeat = time.monotonic()
-        parent_pid = os.getppid()
 
-        @app.post("/heartbeat")
-        async def api_heartbeat():
-            global last_heartbeat
-            last_heartbeat = time.monotonic()
-            return {"status": "ok"}
+        if not os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
+            parent_pid = os.getppid()
 
-        def watchdog():
-            global last_heartbeat
-            last_loop = time.monotonic()
-            while True:
-                time.sleep(WATCHDOG_INTERVAL)
-                now = time.monotonic()
-                loop_delta = now - last_loop
-                last_loop = now
-                action = check_watchdog_condition(now, last_heartbeat, loop_delta, parent_pid)
-                if action == "wake":
-                    # Resumed from sleep: give the frontend time to reconnect
-                    # instead of killing a perfectly healthy backend.
-                    last_heartbeat = now
-                    continue
-                if action == "kill":
-                    os._exit(0)
-                # "ok" / "stale": keep running.
+            def watchdog():
+                global last_heartbeat
+                last_loop = time.monotonic()
+                while True:
+                    time.sleep(WATCHDOG_INTERVAL)
+                    now = time.monotonic()
+                    loop_delta = now - last_loop
+                    last_loop = now
+                    action = check_watchdog_condition(now, last_heartbeat, loop_delta, parent_pid)
+                    if action == "wake":
+                        # Resumed from sleep: give the frontend time to reconnect
+                        # instead of killing a perfectly healthy backend.
+                        last_heartbeat = now
+                        continue
+                    if action == "kill":
+                        os._exit(0)
+                    # "ok" / "stale": keep running.
 
-        # Start the watchdog as a daemon thread
-        threading.Thread(target=watchdog, daemon=True).start()
+            # Start the watchdog as a daemon thread
+            threading.Thread(target=watchdog, daemon=True).start()
 
         # Find a free port dynamically and reliably
         def get_free_port():

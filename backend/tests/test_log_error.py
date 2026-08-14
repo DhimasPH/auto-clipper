@@ -67,3 +67,19 @@ def test_get_log_content(tmp_path, monkeypatch):
     assert "Line 2" in content
     assert "Line 3" in content
     assert "Line 1" not in content
+
+
+def test_logger_get_app_data_dir(monkeypatch, tmp_path):
+    from backend.logger import get_app_data_dir as logger_get_app_data_dir
+    custom_ws = str(tmp_path / "custom_logger_ws")
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", f"  {custom_ws}  ")
+    res = logger_get_app_data_dir()
+    assert res == os.path.abspath(custom_ws)
+    assert (tmp_path / "custom_logger_ws").is_dir()
+
+    # Empty string should fallback
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", "   ")
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    res2 = logger_get_app_data_dir()
+    assert "AutoClipper" in res2
+
