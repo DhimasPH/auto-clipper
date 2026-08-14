@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { KeyRound, Lock, Eye, EyeOff, Sparkles, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
-import { getAuthToken, setAuthToken, clearAuthToken, apiCheckHealth } from "../api";
+import { getAuthToken, setAuthToken, clearAuthToken, apiFetch } from "../api";
 
 export interface AuthGateProps {
   children: React.ReactNode;
@@ -18,9 +18,22 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
     // Check initial token
     const existingToken = getAuthToken();
     if (existingToken) {
-      setIsAuthenticated(true);
+      apiFetch("/api/settings/whisper-models")
+        .then(() => {
+          setIsAuthenticated(true);
+        })
+        .catch((err: any) => {
+          if (err.status !== 401) {
+            setErrorMsg("Cannot connect to backend. Server might be offline.");
+          }
+          setIsAuthenticated(false);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
 
     // Listen for custom auth events
     const handleUnauthorized = () => {
@@ -62,12 +75,13 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
     try {
       // Save token first
       setAuthToken(cleanToken);
-      // Verify health or connection (optional check)
-      await apiCheckHealth();
+      // Verify token with an authenticated endpoint
+      await apiFetch("/api/settings/whisper-models");
       setIsAuthenticated(true);
       setToken("");
     } catch (err: any) {
-      setErrorMsg(err?.message || "Failed to authenticate with backend");
+      setErrorMsg(err.status === 401 ? "Invalid Access Token." : (err?.message || "Failed to authenticate with backend"));
+      clearAuthToken();
     } finally {
       setIsVerifying(false);
     }
