@@ -125,6 +125,7 @@ function MainWizard() {
     setResetKey((prev) => prev + 1);
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_STEP_KEY);
+      localStorage.removeItem("ac_draft_step_input");
       setTimeout(() => localStorage.removeItem("ac_draft_step_input"), 10);
     }
   };
@@ -136,6 +137,7 @@ function MainWizard() {
     setResetKey((prev) => prev + 1);
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_STEP_KEY);
+      localStorage.removeItem("ac_draft_step_input");
       setTimeout(() => localStorage.removeItem("ac_draft_step_input"), 10);
     }
   };
