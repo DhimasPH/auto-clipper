@@ -6,8 +6,10 @@ import {
   LogOut,
   RotateCcw,
   Cpu,
+  History,
 } from "lucide-react";
 import { AuthGate } from "./components/AuthGate";
+import { HistoryList } from "./components/HistoryList";
 import { StepInput } from "./components/Steps/StepInput";
 import { StepPrompt } from "./components/Steps/StepPrompt";
 import { StepPaste } from "./components/Steps/StepPaste";
@@ -21,6 +23,8 @@ export type WizardStep = 1 | 2 | 3 | 4;
 const STORAGE_STEP_KEY = "ac_wizard_current_step";
 
 function MainWizard() {
+  const [currentView, setCurrentView] = useState<"wizard" | "history">("wizard");
+  const [resetKey, setResetKey] = useState(0);
   const [currentStep, setCurrentStep] = useState<WizardStep>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_STEP_KEY);
@@ -48,6 +52,8 @@ function MainWizard() {
     resumeJobWithJson,
     cancelCurrentJob,
     resetJob,
+    stopPolling,
+    startPolling,
   } = useJobPolling();
 
   // Save current step to localStorage
@@ -76,24 +82,16 @@ function MainWizard() {
   useEffect(() => {
     if (jobId) {
       if (status === "AWAITING_MANUAL" && prompt) {
-        // If we have the prompt ready, user should be on Step 2 (or Step 3 if already moved)
-        if (currentStep === 1) {
-          setCurrentStep(2);
-        }
+        if (currentStep !== 2 && currentStep !== 3) setCurrentStep(2);
       } else if (
         status === "CROPPING" ||
         status === "PROCESSING" ||
         status === "DONE" ||
         status === "ERROR"
       ) {
-        if (currentStep !== 4) {
-          setCurrentStep(4);
-        }
+        if (currentStep !== 4) setCurrentStep(4);
       } else if (status === "DOWNLOADING" || status === "TRANSCRIBING") {
-        if (currentStep === 1) {
-          // Stay or show waiting for prompt
-          setCurrentStep(2);
-        }
+        if (currentStep !== 2 && currentStep !== 3) setCurrentStep(2);
       }
     }
   }, [status, jobId, prompt, currentStep]);
@@ -120,17 +118,22 @@ function MainWizard() {
     }
   };
 
-  const handleResetAll = () => {
+  const handleResetToNewJob = () => {
+    setCurrentView("wizard");
     resetJob();
     setCurrentStep(1);
+    setResetKey((prev) => prev + 1);
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_STEP_KEY);
+      localStorage.removeItem("ac_draft_step_input");
     }
   };
 
   const handleRetryJob = () => {
+    setCurrentView("wizard");
     resetJob();
     setCurrentStep(1);
+    setResetKey((prev) => prev + 1);
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_STEP_KEY);
     }
@@ -198,17 +201,28 @@ function MainWizard() {
 
           {/* Quick Header Actions */}
           <div className="flex items-center gap-2">
-            {jobId && (
-              <button
-                type="button"
-                onClick={handleResetAll}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-neutral-100 hover:bg-neutral-800 transition-colors"
-                title="Start a new clip project"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>New Job</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleResetToNewJob}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-neutral-100 hover:bg-neutral-800 transition-colors"
+              title="Start a new clip project"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>New Job</span>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentView("history");
+                stopPolling();
+              }}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-neutral-100 hover:bg-neutral-800 transition-colors"
+              title="View History"
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>History</span>
+            </button>
 
             <button
               type="button"
@@ -221,102 +235,116 @@ function MainWizard() {
           </div>
         </header>
 
-        {/* Wizard Step Navigation Bar */}
-        <nav aria-label="Progress" className="bg-neutral-900/70 border border-neutral-800/80 rounded-2xl p-2 sm:p-3 backdrop-blur-md shadow-lg">
-          <ol className="grid grid-cols-4 gap-1.5 sm:gap-2">
-            {STEPS_CONFIG.map((step) => {
-              const isActive = currentStep === step.num;
-              const isCompleted = currentStep > step.num;
+        {currentView === "history" ? (
+          <main className="bg-neutral-900/80 border border-neutral-800/90 rounded-3xl p-5 sm:p-8 shadow-2xl backdrop-blur-md relative overflow-hidden">
+            <HistoryList
+              onResume={(id) => {
+                setCurrentView("wizard");
+                startPolling(id);
+              }}
+            />
+          </main>
+        ) : (
+          <>
+            {/* Wizard Step Navigation Bar */}
+            <nav aria-label="Progress" className="bg-neutral-900/70 border border-neutral-800/80 rounded-2xl p-2 sm:p-3 backdrop-blur-md shadow-lg">
+              <ol className="grid grid-cols-4 gap-1.5 sm:gap-2">
+                {STEPS_CONFIG.map((step) => {
+                  const isActive = currentStep === step.num;
+                  const isCompleted = currentStep > step.num;
 
-              return (
-                <li key={step.num}>
-                  <button
-                    type="button"
-                    disabled={!jobId && step.num > 1}
-                    onClick={() => {
-                      if (jobId || step.num === 1) {
-                        setCurrentStep(step.num);
-                      }
-                    }}
-                    className={`w-full text-left p-2 sm:p-3 rounded-xl transition-all flex flex-col justify-between ${
-                      isActive
-                        ? "bg-amber-400/15 border border-amber-400/40 text-amber-300 shadow-sm"
-                        : isCompleted
-                        ? "bg-neutral-950/40 border border-neutral-800 text-neutral-300 hover:bg-neutral-800/60"
-                        : "opacity-40 border border-transparent text-neutral-500 cursor-not-allowed"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <span className="text-[10px] font-mono uppercase tracking-wider font-semibold">
-                        Step 0{step.num}
-                      </span>
-                      {isCompleted ? (
-                        <div className="w-3.5 h-3.5 rounded-full bg-emerald-400/20 text-emerald-400 flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                  return (
+                    <li key={step.num}>
+                      <button
+                        type="button"
+                        disabled={!jobId && step.num > 1}
+                        onClick={() => {
+                          if (jobId || step.num === 1) {
+                            setCurrentStep(step.num);
+                          }
+                        }}
+                        className={`w-full text-left p-2 sm:p-3 rounded-xl transition-all flex flex-col justify-between ${
+                          isActive
+                            ? "bg-amber-400/15 border border-amber-400/40 text-amber-300 shadow-sm"
+                            : isCompleted
+                            ? "bg-neutral-950/40 border border-neutral-800 text-neutral-300 hover:bg-neutral-800/60"
+                            : "opacity-40 border border-transparent text-neutral-500 cursor-not-allowed"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className="text-[10px] font-mono uppercase tracking-wider font-semibold">
+                            Step 0{step.num}
+                          </span>
+                          {isCompleted ? (
+                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-400/20 text-emerald-400 flex items-center justify-center">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </div>
+                          ) : (
+                            <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-amber-400" : "bg-neutral-700"}`} />
+                          )}
                         </div>
-                      ) : (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-amber-400" : "bg-neutral-700"}`} />
-                      )}
-                    </div>
-                    <span className="text-xs sm:text-sm font-bold truncate block">
-                      {step.label}
-                    </span>
-                    <span className="text-[10px] text-neutral-400 hidden sm:block truncate">
-                      {step.desc}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
+                        <span className="text-xs sm:text-sm font-bold truncate block">
+                          {step.label}
+                        </span>
+                        <span className="text-[10px] text-neutral-400 hidden sm:block truncate">
+                          {step.desc}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </nav>
 
-        {/* Wizard Step Body Card */}
-        <main className="bg-neutral-900/80 border border-neutral-800/90 rounded-3xl p-5 sm:p-8 shadow-2xl backdrop-blur-md relative overflow-hidden">
-          {/* Active Step Content */}
-          {currentStep === 1 && (
-            <StepInput
-              initialUrl={activeJob?.metadata?.source_video}
-              isSubmitting={isLoading}
-              onSubmit={handleStep1Submit}
-            />
-          )}
+            {/* Wizard Step Body Card */}
+            <main className="bg-neutral-900/80 border border-neutral-800/90 rounded-3xl p-5 sm:p-8 shadow-2xl backdrop-blur-md relative overflow-hidden">
+              {/* Active Step Content */}
+              {currentStep === 1 && (
+                <StepInput
+                  key={resetKey}
+                  initialUrl={activeJob?.metadata?.source_video}
+                  isSubmitting={isLoading}
+                  onSubmit={handleStep1Submit}
+                />
+              )}
 
-          {currentStep === 2 && (
-            <StepPrompt
-              prompt={prompt}
-              jobId={jobId || "new_job"}
-              status={status}
-              progress={progress}
-              onNext={handleStep2Next}
-              onBack={() => setCurrentStep(1)}
-            />
-          )}
+              {currentStep === 2 && (
+                <StepPrompt
+                  prompt={prompt}
+                  jobId={jobId || "new_job"}
+                  status={status}
+                  progress={progress}
+                  onNext={handleStep2Next}
+                  onBack={() => setCurrentStep(1)}
+                />
+              )}
 
-          {currentStep === 3 && (
-            <StepPaste
-              jobId={jobId || "new_job"}
-              isSubmitting={isLoading}
-              onSubmit={handleStep3Submit}
-              onBack={() => setCurrentStep(2)}
-            />
-          )}
+              {currentStep === 3 && (
+                <StepPaste
+                  jobId={jobId || "new_job"}
+                  isSubmitting={isLoading}
+                  onSubmit={handleStep3Submit}
+                  onBack={() => setCurrentStep(2)}
+                />
+              )}
 
-          {currentStep === 4 && (
-            <StepResult
-              jobId={jobId || "job"}
-              status={status}
-              progress={progress}
-              clips={clips}
-              failedCount={failedCount}
-              error={error}
-              activeJob={activeJob}
-              onReset={handleResetAll}
-              onCancel={cancelCurrentJob}
-              onRetry={handleRetryJob}
-            />
-          )}
-        </main>
+              {currentStep === 4 && (
+                <StepResult
+                  jobId={jobId || "job"}
+                  status={status}
+                  progress={progress}
+                  clips={clips}
+                  failedCount={failedCount}
+                  error={error}
+                  activeJob={activeJob}
+                  onReset={handleResetToNewJob}
+                  onCancel={cancelCurrentJob}
+                  onRetry={handleRetryJob}
+                />
+              )}
+            </main>
+          </>
+        )}
 
         {/* Global Footer */}
         <footer className="pt-2 text-center text-xs text-neutral-500 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-neutral-800/60 pb-6">

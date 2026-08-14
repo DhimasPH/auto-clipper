@@ -193,3 +193,69 @@ export function getVideoStreamUrl(pathOrUrl: string, version?: number): string {
   const vParam = version !== undefined && version !== 0 ? `&v=${version}` : "";
   return `${API_URL}/video?path=${encodeURIComponent(pathOrUrl)}${vParam}`;
 }
+
+export async function apiGetHistory(): Promise<JobResponse[]> {
+  try {
+    return await apiFetch<JobResponse[]>("/history");
+  } catch (err: any) {
+    if (err.status === 404) {
+      return await apiFetch<JobResponse[]>("/api/history");
+    }
+    throw err;
+  }
+}
+
+export async function apiDeleteHistory(jobId: string): Promise<{ status: string }> {
+  const safeId = encodeURIComponent(jobId);
+  try {
+    return await apiFetch<{ status: string }>(`/history/${safeId}`, { method: "DELETE" });
+  } catch (err: any) {
+    if (err.status === 404) {
+      return await apiFetch<{ status: string }>(`/api/history/${safeId}`, { method: "DELETE" });
+    }
+    throw err;
+  }
+}
+
+export async function apiCreateRerenderJob(
+  jobId: string,
+  payload: any
+): Promise<{ status: string; job_id: string; message?: string }> {
+  const safeId = encodeURIComponent(jobId);
+  try {
+    return await apiFetch<{ status: string; job_id: string; message?: string }>(`/jobs/${safeId}/rerender`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (err: any) {
+    if (err.status === 404) {
+      return await apiFetch<{ status: string; job_id: string; message?: string }>(`/api/jobs/${safeId}/rerender`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    throw err;
+  }
+}
+
+export async function apiCreateRerunAiJob(
+  jobId: string,
+  payload: any
+): Promise<{ status: string; job_id: string; message?: string }> {
+  const safeId = encodeURIComponent(jobId);
+  try {
+    return await apiFetch<{ status: string; job_id: string; message?: string }>(`/jobs/${safeId}/rerun-ai`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (err: any) {
+    if (err.status === 404) {
+      return await apiFetch<{ status: string; job_id: string; message?: string }>(`/api/jobs/${safeId}/rerun-ai`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    throw err;
+  }
+}
+
