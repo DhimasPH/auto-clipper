@@ -40,6 +40,7 @@ export interface JobMetadata {
   source_video?: string;
   duration_seconds?: number;
   quality?: string;
+  highlight_prompt?: string;
   aspect_ratio?: string;
   caption_style?: string;
   burn_subs?: boolean;
@@ -57,6 +58,7 @@ export interface JobResponse {
   failed?: number;
   error?: string | null;
   metadata?: JobMetadata;
+  created_at?: string;
 }
 
 export interface CreateJobPayload {

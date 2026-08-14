@@ -18,6 +18,8 @@ Jika Anda adalah kreator konten, podcaster, atau streamer, Anda tahu betapa mele
 - ⏳ **Hemat 2 Jam Per Video** – Tidak perlu lagi _scrubbing_ timeline mencari momen lucu. AI yang memilihkannya untuk Anda.
 - 🎯 **Fokus Selalu Pada Anda** – Video lanskap otomatis dipotong menjadi vertikal dengan teknologi _Face-Tracking_ bawaan. Wajah Anda tidak akan keluar dari frame.
 - 💬 **Subtitle yang Siap Tayang** – Ditenagai teknologi _speech-to-text_ kelas dunia, subtitle sudah langsung menyatu dengan video (_burned-in_).
+- ✍️ **Edit Subtitle Cerdas** – Koreksi salah eja secara manual atau biarkan AI merapikannya untuk Anda, lalu *rerender* klip spesifik dalam hitungan detik.
+- ☁️ **Dukungan Cloud GPU** – Jalankan mesin render berat di Google Colab (Gratis) dan akses UI lewat browser tanpa perlu PC mahal!
 - 🚀 **Semudah Copy-Paste** – Tanpa pengaturan _framerate_ atau _bitrate_ yang membingungkan. Paste Link $\rightarrow$ Klik Proses $\rightarrow$ Dapatkan Video MP4.
 
 ## 💻 Spesifikasi Minimal Komputer (PC/Laptop)
@@ -93,6 +95,13 @@ Jika Anda sedang mengubah kode backend Python (`backend/`) secara terus-menerus 
    npm run tauri dev
    ```
 
+4. **Jalankan Frontend Web (UI Browser):** Jika Anda ingin menggunakan UI web murni:
+   ```bash
+   cd web
+   npm install
+   npm run dev
+   ```
+
 
 ### Opsi 4: Build DMG macOS Sendiri (Lokal, untuk macOS 12+)
 
@@ -109,6 +118,18 @@ Jika Anda pengembang di Mac dan ingin mem-build aplikasi macOS sendiri (misalnya
 3. Hasil build (`.app` + `.dmg`) muncul di `src-tauri/target/x86_64-apple-darwin/release/bundle/` dan disalin ke `./dist-macos/`. Buka DMG-nya, drag **Auto Clipper** ke `/Applications`, lalu jalankan.
 
 > **Catatan:** Ini _build pengujian_ (artifact auto-updater dimatikan, jadi tidak perlu signing key). Script menyasar target **Intel (x86_64)**; jika Anda di Apple Silicon, ubah variabel `TARGET` di dalam script menjadi `aarch64-apple-darwin`. Untuk menghemat ruang setelah selesai, jalankan `CLEAN=1 ./build-mac-local.sh` (sisa build dihapus, DMG tetap disimpan). Jika Gatekeeper memblokir: `xattr -cr "/Applications/Auto Clipper.app"`.
+
+### Opsi 5: Menjalankan Backend di Google Colab (Gratis GPU T4)
+
+Jika PC Anda tidak memiliki GPU yang mumpuni, Anda bisa menjalankan *backend* Auto Clipper di **Google Colab** dan mengontrolnya dari web browser!
+
+1. Buka file **[`Auto_Clipper_Colab.ipynb`](Auto_Clipper_Colab.ipynb)** di Google Colab.
+2. Pastikan Runtime Colab di-set ke **T4 GPU** (Runtime > Change runtime type > T4 GPU).
+3. Masukkan `NGROK_AUTH_TOKEN` (daftar gratis di ngrok.com) dan tentukan `WEB_TOKEN` rahasia Anda di dalam sel notebook, lalu *Run All*.
+4. Colab akan menginstal semua *dependencies* dan memberikan **URL Ngrok public**.
+5. Buka frontend web secara lokal (`cd web && npm run dev`) atau versi yang di-hosting.
+6. Masukkan URL Ngrok dan `WEB_TOKEN` rahasia Anda pada layar login Web UI.
+7. Nikmati render video dan transkripsi *Whisper* ultra-cepat dengan GPU Colab!
 
 ---
 
