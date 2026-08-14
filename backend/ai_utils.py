@@ -785,7 +785,7 @@ def fetch_provider_models(provider: str, api_key: str) -> list:
 
 def ping_provider(provider: str, api_key: str, custom_base_url: str = None, custom_model_name: str = None, model: str = None) -> None:
     """Pre-flight check to fail-fast on invalid keys, bad URLs or exhausted quotas."""
-    if provider == "manual_ai":
+    if provider in ("manual_ai", "manual"):
         return
     if provider == "custom":
         if not custom_base_url or not custom_model_name:
