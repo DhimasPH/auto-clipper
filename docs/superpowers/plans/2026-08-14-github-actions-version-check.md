@@ -1,3 +1,25 @@
+# GitHub Actions Version Check Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Modify `.github/workflows/build.yml` to only run the build job on pushes to `main` if the version in `package.json` changed.
+
+**Architecture:** Add a new `check-version` job that runs early and very fast, reading `package.json` from the current commit and comparing it to the previous commit. If the version changed, it sets an output to `true`. The existing `build` job is modified to require `check-version` and only run if the output is `true`.
+
+**Tech Stack:** GitHub Actions, Shell scripting, jq
+
+---
+
+### Task 1: Modify build.yml
+
+**Files:**
+- Modify: `.github/workflows/build.yml`
+
+- [ ] **Step 1: Write the updated GitHub Actions file**
+
+Replace the contents of `.github/workflows/build.yml` with the code below. We are adding the `check-version` job and updating the `build` job to depend on it.
+
+```yaml
 name: Build and Release
 
 on:
@@ -181,3 +203,16 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
           args: --target ${{ matrix.target }}
+```
+
+- [ ] **Step 2: Commit (if auto_commit enabled)**
+
+Check `.agent/config.yml` for `auto_commit` setting.
+
+If `auto_commit: true` (default when absent):
+```bash
+git add .github/workflows/build.yml
+git commit -m "ci: add version check to avoid redundant builds on main"
+```
+
+If `auto_commit: false`: skip commit and staging. Print: "Skipping commit (auto_commit: false)."
