@@ -1,50 +1,42 @@
-import React, { useState, useEffect } from "react";
+# Web ClipEditModal Alignment Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Align the Web (Cloud) ClipEditModal with Desktop by adding a Word Grid UI and a manual AI assistant flow, replacing the direct API integration.
+
+**Architecture:** We will modify `web/src/components/ClipEditModal.tsx` to include new React states and utility functions for the Word Grid and AI Prompt. The existing OutputStyle and SubtitlePreset sections will remain intact.
+
+**Tech Stack:** React, Tailwind CSS, Lucide React
+
+---
+
+### Task 1: Update State and Utility Functions
+
+**Files:**
+- Modify: `web/src/components/ClipEditModal.tsx`
+
+- [ ] **Step 1: Add new state variables and Lucide icons**
+
+```tsx
 import { X, Wand2, RefreshCcw, Search, RotateCcw, Copy, Check, ChevronRight } from "lucide-react";
-import { apiGetClipWords, apiCreateClipRerenderJob } from "../api";
-import { OutputStyleSelector, type OutputStyle } from "./OutputStyleSelector";
-import { SubtitlePresetBar } from "./SubtitlePresetBar";
-import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../types/subtitle";
-import { DEFAULT_CANVAS_CONFIG } from "../types/canvas";
-
-interface ClipEditModalProps {
-  jobId: string;
-  clipIndex: number;
-  clipTitle: string;
-  initialOutputStyle?: OutputStyle;
-  initialSubtitlePreset?: SubtitlePresetKey;
-  onClose: () => void;
-  onRerenderStart: (newJobId: string) => void;
-}
-
-export const ClipEditModal: React.FC<ClipEditModalProps> = ({
-  jobId,
-  clipIndex,
-  clipTitle,
-  initialOutputStyle = "face_crop",
-  initialSubtitlePreset = "viral_pop",
-  onClose,
-  onRerenderStart,
-}) => {
-  const [words, setWords] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  
-  const [outputStyle, setOutputStyle] = useState<OutputStyle>(initialOutputStyle);
-  const [subtitlePreset, setSubtitlePreset] = useState<SubtitlePresetKey>(initialSubtitlePreset);
-  
+// ... inside component
   const [originalWords, setOriginalWords] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [pasteInput, setPasteInput] = useState("");
+```
 
+- [ ] **Step 2: Update `useEffect` to initialize `originalWords`**
+
+```tsx
   useEffect(() => {
     let mounted = true;
     apiGetClipWords(jobId, clipIndex).then((res) => {
       if (mounted) {
         const fetched = res.words || [];
         setWords(fetched);
-        setOriginalWords(structuredClone(fetched));
+        setOriginalWords(JSON.parse(JSON.stringify(fetched)));
         setLoading(false);
       }
     }).catch((err) => {
@@ -53,7 +45,11 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
     });
     return () => { mounted = false; };
   }, [jobId, clipIndex]);
+```
 
+- [ ] **Step 3: Add utility functions**
+
+```tsx
   const generatePrompt = () => {
     const jsonStr = JSON.stringify(words, null, 2);
     return `You are a subtitle editor. Here is a JSON array of video subtitles. Correct any spelling, grammar, or punctuation errors. KEEP the exact JSON format. DO NOT change the 'start' or 'end' properties. Return ONLY the valid JSON array without markdown wrapping.\n\nSubtitles:\n${jsonStr}`;
@@ -68,10 +64,10 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   const applyManualJSON = () => {
     try {
       let cleanStr = pasteInput.trim();
-      const match = cleanStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (match) {
-        cleanStr = match[1].trim();
-      }
+      if (cleanStr.startsWith('```json')) cleanStr = cleanStr.substring(7);
+      else if (cleanStr.startsWith('```')) cleanStr = cleanStr.substring(3);
+      if (cleanStr.endsWith('```')) cleanStr = cleanStr.substring(0, cleanStr.length - 3);
+      cleanStr = cleanStr.trim();
       
       const parsed = JSON.parse(cleanStr);
       const arr = Array.isArray(parsed) ? parsed : (parsed.words || null);
@@ -95,65 +91,26 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   };
 
   const handleReset = () => {
-    setWords(structuredClone(originalWords));
+    setWords(JSON.parse(JSON.stringify(originalWords)));
   };
 
   const hasChanges = JSON.stringify(words) !== JSON.stringify(originalWords);
+```
 
-  const handleSaveRerender = async () => {
-    setSaving(true);
-    try {
-      const presetBase = SUBTITLE_PRESETS[subtitlePreset]?.config || {};
-      const subtitleConfig: SubtitleConfig = {
-        ...DEFAULT_SUBTITLE_CONFIG,
-        ...presetBase,
-      };
+- [ ] **Step 4: Remove legacy AI functions**
+Remove `handleAiCorrect`, `handleApplyManual`, `manualJson`, `isManualEditOpen` and `setManualJson`.
 
-      let aspectRatio = "9:16";
-      if (outputStyle === "landscape") aspectRatio = "16:9";
-      if (outputStyle === "square") aspectRatio = "1:1";
 
-      const payload = {
-        words,
-        aspect_ratio: aspectRatio,
-        caption_style: subtitlePreset === "podcast" ? "karaoke" : subtitlePreset === "viral_pop" ? "single_word" : "standard",
-        canvas_config: { ...DEFAULT_CANVAS_CONFIG, enabled: outputStyle === "canvas_blur" },
-        subtitle_config: subtitleConfig,
-      };
+### Task 2: Implement UI Sections
 
-      const res = await apiCreateClipRerenderJob(jobId, clipIndex, payload);
-      if (res.job_id) {
-        onRerenderStart(res.job_id);
-      }
-    } catch (err: any) {
-      alert("Failed to rerender: " + err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+**Files:**
+- Modify: `web/src/components/ClipEditModal.tsx`
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-3xl shadow-2xl relative my-auto animate-fadeIn overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-neutral-800">
-          <div>
-            <h2 className="text-xl font-semibold text-neutral-100">Edit Subtitles</h2>
-            <p className="text-sm text-neutral-400 mt-1">{clipTitle}</p>
-          </div>
-          <button onClick={onClose} className="p-2 text-neutral-400 hover:text-neutral-100 rounded-lg hover:bg-neutral-800 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+- [ ] **Step 1: Replace legacy AI and Manual sections with the new AI Assistant**
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-10">
-              <RefreshCcw className="w-6 h-6 text-amber-400 animate-spin" />
-            </div>
-          ) : (
-            <>
+Remove the two `<div className="border border-neutral-800 rounded-xl...">` blocks for AI Auto Correct and Manual JSON Edit. Replace with:
+
+```tsx
               <div className="border border-neutral-800 rounded-xl overflow-hidden bg-neutral-950">
                 <button 
                   onClick={() => setIsAiAssistantOpen(!isAiAssistantOpen)}
@@ -204,7 +161,13 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                   </div>
                 )}
               </div>
+```
 
+- [ ] **Step 2: Add Word Grid UI**
+
+Below the new AI Assistant section (before Output Settings), add:
+
+```tsx
               <div className="space-y-4 pt-4 border-t border-neutral-800">
                 <div className="flex justify-between items-center flex-wrap gap-4">
                   <h3 className="font-medium text-neutral-200">Word Grid</h3>
@@ -264,32 +227,16 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                   </div>
                 )}
               </div>
+```
 
-              {/* Output Style & Rerender */}
-              <div className="space-y-4 pt-4 border-t border-neutral-800">
-                <h3 className="font-medium text-neutral-200">Output Settings</h3>
-                <OutputStyleSelector value={outputStyle} onChange={setOutputStyle} disabled={saving} />
-                <SubtitlePresetBar value={subtitlePreset} onChange={setSubtitlePreset} disabled={saving} />
-              </div>
-            </>
-          )}
-        </div>
+- [ ] **Step 3: Commit (if auto_commit enabled)**
 
-        {/* Footer */}
-        <div className="p-5 border-t border-neutral-800 bg-neutral-950 flex justify-end gap-3">
-          <button onClick={onClose} disabled={saving} className="px-5 py-2 text-neutral-400 hover:text-neutral-200 font-medium">
-            Cancel
-          </button>
-          <button 
-            onClick={handleSaveRerender} 
-            disabled={saving || loading}
-            className="px-6 py-2 bg-amber-400 hover:bg-amber-300 text-neutral-900 font-medium rounded-lg transition-colors flex items-center gap-2"
-          >
-            {saving && <RefreshCcw className="w-4 h-4 animate-spin" />}
-            Save & Rerender
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+Check `.agent/config.yml` for `auto_commit` setting.
+
+If `auto_commit: true` (default when absent):
+```bash
+git add web/src/components/ClipEditModal.tsx
+git commit -m "feat(web): align ClipEditModal with desktop word grid and manual AI correction"
+```
+
+If `auto_commit: false`: skip commit and staging. Print: "Skipping commit (auto_commit: false)."
