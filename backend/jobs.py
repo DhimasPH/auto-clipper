@@ -35,6 +35,23 @@ def sanitize_title(title: str) -> str:
     sanitized = re.sub(r'[^\w\s\-\.,()[\]]', '', title).strip()
     return sanitized or "AutoClipper_Project"
 
+def check_title_uniqueness(title: str):
+    safe_title = sanitize_title(title).lower()
+    if not safe_title:
+        return
+        
+    for job in active_jobs.values():
+        if sanitize_title(job.get("title", "")).lower() == safe_title:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail=f"Judul Proyek '{title}' sudah digunakan oleh proses yang sedang berjalan. Silakan gunakan judul yang berbeda.")
+            
+    from backend.db import get_all_history
+    for row in get_all_history():
+        meta = row.get("metadata", {})
+        if meta and sanitize_title(meta.get("title", "")).lower() == safe_title:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail=f"Judul Proyek '{title}' sudah digunakan di Riwayat. Silakan gunakan judul berbeda untuk mencegah konflik folder.")
+
 
 def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") -> dict:
     safe_title = sanitize_title(title)
@@ -68,8 +85,12 @@ def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") ->
 
 
 def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None) -> str:
+    if is_any_job_running():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     if not title or not title.strip():
         raise ValueError("Judul Proyek wajib diisi.")
+    check_title_uniqueness(title)
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -111,8 +132,12 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
     LLM provider entirely (see the Smart Manual Clipper design spec).
     """
+    if is_any_job_running():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     if not title or not title.strip():
         raise ValueError("Judul Proyek wajib diisi.")
+    check_title_uniqueness(title)
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -146,6 +171,9 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
 
 
 def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None) -> str:
+    if is_any_job_running():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
@@ -179,6 +207,13 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
 
 def get_job(job_id: str) -> dict:
     return active_jobs.get(job_id)
+
+def is_any_job_running() -> bool:
+    """Returns True if there is any job currently processing."""
+    for job in active_jobs.values():
+        if job.get("status") not in ["DONE", "ERROR", "CANCELLED", "AWAITING_MANUAL"]:
+            return True
+    return False
 
 def _register_proc(job: dict, proc):
     """Stash the currently-running ffmpeg process so cancel can kill it."""
@@ -702,6 +737,9 @@ def _run_rerender_job(job_id: str):
         _finalize_job(job_id, "ERROR", metadata)
 
 def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None):
+    if is_any_job_running():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     from backend.db import get_history
     job_record = get_history(history_job_id)
     if not job_record:
@@ -886,6 +924,9 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         _finalize_job(job_id, "ERROR", metadata)
 
 def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, aspect_ratio: str, caption_style: str, burn_subs: bool, canvas_config: dict = None, subtitle_config: dict = None):
+    if is_any_job_running():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     import time
     new_job_id = f"rerender_clip_{job_id}_{clip_index}_{int(time.time())}"
     active_jobs[new_job_id] = {
@@ -1073,6 +1114,9 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
 
 
 def resume_manual_job(history_id: str, json_payload: str) -> str:
+    if is_any_job_running():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata"):
@@ -1147,6 +1191,9 @@ def _run_manual_resume_job(job_id: str, metadata: dict):
         _finalize_job(job_id, "ERROR", metadata)
 
 def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_provider: str = None, fallback_custom_base_url: str = None, fallback_custom_model_name: str = None, fallback_whisper_model: str = None, fallback_model: str = None) -> str:
+    if is_any_job_running():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
