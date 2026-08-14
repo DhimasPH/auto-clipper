@@ -143,14 +143,19 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
     # the whole call.
     import time
     max_retries = 3
-    browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
+    browsers_to_try = ['cookies.txt', 'chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
     
     success = False
     last_error = None
     
     for browser in browsers_to_try:
         ydl_opts = dict(base_ydl_opts)
-        if browser:
+        if browser == 'cookies.txt':
+            cookie_path = Path("cookies.txt")
+            if not cookie_path.exists():
+                continue
+            ydl_opts['cookiefile'] = str(cookie_path.absolute())
+        elif browser:
             ydl_opts['cookiesfrombrowser'] = (browser,)
             
         for attempt in range(max_retries):
