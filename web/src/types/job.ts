@@ -19,6 +19,17 @@ export interface ClipSocialKit {
   caption?: string;
   hashtags?: string[];
   hook?: string;
+  titles_en?: string[];
+  titles_id?: string[];
+  description_en?: string;
+  description_id?: string;
+  hashtags_en?: string[];
+  hashtags_id?: string[];
+  best_time_to_post_en?: string;
+  best_time_to_post_id?: string;
+  backsound_en?: string;
+  backsound_id?: string;
+  thumbnail_layout?: string;
 }
 
 export interface Clip {
