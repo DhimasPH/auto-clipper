@@ -67,6 +67,7 @@ export const StepInput: React.FC<StepInputProps> = ({
   // Subtitle customization
   const [highlightColor, setHighlightColor] = useState<string>("#FFE600");
   const [watermarkText, setWatermarkText] = useState<string>("");
+  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.5);
 
   const [urlError, setUrlError] = useState<string | null>(null);
 
@@ -84,6 +85,7 @@ export const StepInput: React.FC<StepInputProps> = ({
         if (parsed.language) setLanguage(parsed.language);
         if (parsed.highlightColor) setHighlightColor(parsed.highlightColor);
         if (parsed.watermarkText) setWatermarkText(parsed.watermarkText);
+        if (parsed.watermarkOpacity !== undefined) setWatermarkOpacity(parsed.watermarkOpacity);
       }
     } catch {
       // Ignore
@@ -112,12 +114,13 @@ export const StepInput: React.FC<StepInputProps> = ({
           language,
           highlightColor,
           watermarkText,
+          watermarkOpacity,
         })
       );
     } catch {
       // Ignore
     }
-  }, [url, title, outputStyle, subtitlePreset, whisperModel, language, highlightColor, watermarkText]);
+  }, [url, title, outputStyle, subtitlePreset, whisperModel, language, highlightColor, watermarkText, watermarkOpacity]);
 
   const validateUrl = (testUrl: string): boolean => {
     const clean = testUrl.trim();
@@ -169,6 +172,7 @@ export const StepInput: React.FC<StepInputProps> = ({
       ...presetBase,
       highlight_color: highlightColor,
       watermark_text: watermarkText.trim(),
+      watermark_opacity: watermarkOpacity,
     };
 
     // Aspect ratio
@@ -382,7 +386,7 @@ export const StepInput: React.FC<StepInputProps> = ({
                 </div>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-3">
                 <label className="font-medium text-neutral-300 flex items-center gap-1.5">
                   <span>Watermark Text (Optional)</span>
                 </label>
@@ -393,6 +397,44 @@ export const StepInput: React.FC<StepInputProps> = ({
                   placeholder="@yourhandle or channel name"
                   className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-amber-400/80"
                 />
+
+                {watermarkText && (
+                  <div className="space-y-3 pt-2 bg-neutral-950/50 p-3 rounded-lg border border-neutral-800/60">
+                    <div>
+                      <div className="flex justify-between text-xs text-neutral-400 mb-1">
+                        <span>Opacity</span>
+                        <span>{Math.round(watermarkOpacity * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={watermarkOpacity}
+                        onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
+                        className="w-full accent-amber-400"
+                      />
+                    </div>
+                    
+                    <div>
+                      <span className="text-xs text-neutral-500 block mb-1">Live Preview</span>
+                      <div className="relative w-full h-16 bg-neutral-900 rounded-md overflow-hidden flex items-center justify-center border border-neutral-800 shadow-inner">
+                        {/* Fake video background element */}
+                        <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-blue-600 to-purple-800"></div>
+                        <div 
+                          className="relative font-bold text-white tracking-wide"
+                          style={{ 
+                            opacity: watermarkOpacity, 
+                            textShadow: "0px 1px 3px rgba(0,0,0,0.8)",
+                            fontFamily: "Arial, sans-serif"
+                          }}
+                        >
+                          {watermarkText}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
