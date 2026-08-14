@@ -105,6 +105,11 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
         return job;
       } catch (err: any) {
         console.error("Error polling job:", err);
+        if (err?.status === 404) {
+          setStatus("ERROR");
+          setError("Pekerjaan (Job) tidak ditemukan. Mungkin sudah dihapus atau server di-restart.");
+          stopPolling();
+        }
         return null;
       }
     },

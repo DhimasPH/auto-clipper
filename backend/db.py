@@ -212,10 +212,32 @@ def delete_history(job_id: str):
             except Exception as e:
                 log_error("db.delete_history", f"Failed to parse metadata: {e}")
 
-        # 3. Bersihkan direktori project workspace jika ada
-        project_ws = os.path.join(get_app_data_dir(), "projects", f"Project_{job_id}")
-        if os.path.isdir(project_ws):
-            safe_remove_dir(project_ws)
+        # 3. Bersihkan direktori project workspace jika tidak dipakai job lain
+        try:
+            from backend.jobs import get_project_workspace
+            meta_dict = json.loads(row["metadata"]) if row["metadata"] else {}
+            ws = get_project_workspace(meta_dict.get("title", ""), meta_dict.get("output_dir", ""), job_id)
+            project_ws = ws.get("project_dir")
+
+            if project_ws and os.path.isdir(project_ws):
+                cursor.execute("SELECT id, metadata FROM history WHERE id != ?", (job_id,))
+                all_other_rows = cursor.fetchall()
+                ws_in_use = False
+                for o_row in all_other_rows:
+                    if o_row["metadata"]:
+                        try:
+                            o_meta = json.loads(o_row["metadata"])
+                            o_ws = get_project_workspace(o_meta.get("title", ""), o_meta.get("output_dir", ""), o_row["id"])
+                            if o_ws.get("project_dir") == project_ws:
+                                ws_in_use = True
+                                break
+                        except Exception:
+                            pass
+                
+                if not ws_in_use:
+                    safe_remove_dir(project_ws)
+        except Exception as e:
+            log_error("db.delete_history", f"Failed to clean project workspace: {e}")
 
     cursor.execute("DELETE FROM history WHERE id=?", (job_id,))
     conn.commit()
