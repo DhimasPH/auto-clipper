@@ -633,7 +633,8 @@ def api_get_job(job_id: str):
         "progress": job["progress"],
         "clips": job["clips"],
         "failed": job.get("failed", 0),
-        "error": job.get("error")
+        "error": job.get("error"),
+        "metadata": job.get("metadata", {})
     }
 
 @app.post("/jobs/{job_id}/clips/{clip_index}/social")

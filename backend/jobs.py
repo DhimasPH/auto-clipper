@@ -217,6 +217,7 @@ def _run_job(job_id: str):
             return
             
         metadata = {}
+        job["metadata"] = metadata
         ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
         # 1. DOWNLOAD OR LOCAL FILE
         job["status"] = "DOWNLOADING"
@@ -447,6 +448,7 @@ def _run_manual_job(job_id: str):
     job = active_jobs[job_id]
     job["start_time"] = time.time()
     metadata = {}
+    job["metadata"] = metadata
     try:
         def is_cancelled():
             return job.get("cancelled", False)
