@@ -18,6 +18,7 @@ def test_cors_headers():
         "http://localhost:5173",
         "http://127.0.0.1:8000",
         "app://localhost",
+        "https://clipper.dhims.web.id",
     ]
     for origin in allowed_origins:
         r = client.get("/health", headers={"Origin": origin})
@@ -27,6 +28,34 @@ def test_cors_headers():
     # Unauthorized external web origin should NOT receive allow-origin header
     r_unauthorized = client.get("/health", headers={"Origin": "https://malicious-website.com"})
     assert r_unauthorized.headers.get("access-control-allow-origin") is None
+
+
+def test_heartbeat_endpoint():
+    r = client.post("/heartbeat")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+
+
+def test_auth_middleware_in_cloud_mode(monkeypatch):
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    monkeypatch.setenv("AUTO_CLIPPER_WEB_TOKEN", "secret-test-token")
+    
+    # 1. Protected endpoint without token -> 401
+    r_unauthorized = client.get("/history")
+    assert r_unauthorized.status_code == 401
+    assert r_unauthorized.json()["status"] == "error"
+
+    # 2. Protected endpoint with wrong token -> 401
+    r_wrong = client.get("/history", headers={"Authorization": "Bearer wrong-token"})
+    assert r_wrong.status_code == 401
+
+    # 3. Protected endpoint with valid token -> 200
+    r_authorized = client.get("/history", headers={"Authorization": "Bearer secret-test-token"})
+    assert r_authorized.status_code == 200
+
+    # 4. Unprotected endpoints (health, heartbeat) bypass token check
+    assert client.get("/health").status_code == 200
+    assert client.post("/heartbeat").status_code == 200
 
 
 def test_is_valid_source_url_accepts_supported_platforms():

@@ -71,3 +71,19 @@ def test_watchdog_kills_when_stale_and_parent_dead():
         parent_pid=2_000_000_000,
     )
     assert action == "kill"
+
+
+def test_watchdog_cloud_mode_always_ok(monkeypatch):
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    action = check_watchdog_condition(
+        now_monotonic=200.0,
+        last_heartbeat_monotonic=0.0,
+        loop_delta=5,
+        parent_pid=2_000_000_000,
+    )
+    assert action == "ok"
+
+
+def test_is_parent_alive_cloud_mode(monkeypatch):
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    assert is_parent_alive(2_000_000_000) is True
