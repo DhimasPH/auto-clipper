@@ -56,6 +56,7 @@ export const StepInput: React.FC<StepInputProps> = ({
   const [subtitlePreset, setSubtitlePreset] = useState<SubtitlePresetKey>("viral_pop");
   const [whisperModel, setWhisperModel] = useState<string>("small");
   const [language, setLanguage] = useState<string>("auto");
+  const [maxClips, setMaxClips] = useState<number>(0);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
   // Canvas customization
@@ -83,6 +84,7 @@ export const StepInput: React.FC<StepInputProps> = ({
         if (parsed.subtitlePreset) setSubtitlePreset(parsed.subtitlePreset);
         if (parsed.whisperModel) setWhisperModel(parsed.whisperModel);
         if (parsed.language) setLanguage(parsed.language);
+        if (parsed.maxClips !== undefined) setMaxClips(parsed.maxClips);
         if (parsed.highlightColor) setHighlightColor(parsed.highlightColor);
         if (parsed.watermarkText) setWatermarkText(parsed.watermarkText);
         if (parsed.watermarkOpacity !== undefined) setWatermarkOpacity(parsed.watermarkOpacity);
@@ -112,6 +114,7 @@ export const StepInput: React.FC<StepInputProps> = ({
           subtitlePreset,
           whisperModel,
           language,
+          maxClips,
           highlightColor,
           watermarkText,
           watermarkOpacity,
@@ -120,7 +123,7 @@ export const StepInput: React.FC<StepInputProps> = ({
     } catch {
       // Ignore
     }
-  }, [url, title, outputStyle, subtitlePreset, whisperModel, language, highlightColor, watermarkText, watermarkOpacity]);
+  }, [url, title, outputStyle, subtitlePreset, whisperModel, language, maxClips, highlightColor, watermarkText, watermarkOpacity]);
 
   const validateUrl = (testUrl: string): boolean => {
     const clean = testUrl.trim();
@@ -190,6 +193,7 @@ export const StepInput: React.FC<StepInputProps> = ({
       quality: "best",
       whisper_model: whisperModel,
       language: language === "auto" ? "" : language,
+      max_clips: maxClips,
       canvas_config: canvasConfig,
       subtitle_config: subtitleConfig,
     };
@@ -314,8 +318,8 @@ export const StepInput: React.FC<StepInputProps> = ({
               />
             </div>
 
-            {/* Language & Whisper Model */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Language, Whisper Model & Max Clips */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <label className="font-medium text-neutral-300 flex items-center gap-1.5">
                   <Languages className="w-3.5 h-3.5 text-neutral-400" />
@@ -347,6 +351,24 @@ export const StepInput: React.FC<StepInputProps> = ({
                   <option value="small">⚡ small (Fastest, High Accuracy)</option>
                   <option value="medium">🎯 medium (Balanced for Podcast)</option>
                   <option value="large-v3">💎 large-v3 (Maximum Accuracy)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-medium text-neutral-300 flex items-center gap-1.5">
+                  <Film className="w-3.5 h-3.5 text-neutral-400" />
+                  <span>Max Clips</span>
+                </label>
+                <select
+                  value={maxClips}
+                  onChange={(e) => setMaxClips(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-amber-400/80"
+                >
+                  <option value={0}>Auto (Based on duration)</option>
+                  <option value={1}>1 Clip</option>
+                  <option value={3}>3 Clips</option>
+                  <option value={5}>5 Clips</option>
+                  <option value={10}>10 Clips</option>
                 </select>
               </div>
             </div>

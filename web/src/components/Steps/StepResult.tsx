@@ -298,8 +298,25 @@ export const StepResult: React.FC<StepResultProps> = ({
                         </div>
                       </div>
 
+                      {clip.social && (
+                        <div className="mt-3 p-3 bg-neutral-950/60 rounded-xl border border-neutral-800/80 text-xs text-neutral-300 space-y-2 max-h-[140px] overflow-y-auto custom-scrollbar">
+                          <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Social Kit
+                          </div>
+                          {clip.social.title && (
+                            <div><span className="text-neutral-500">Title:</span> <span className="font-medium">{clip.social.title}</span></div>
+                          )}
+                          {clip.social.caption && (
+                            <div><span className="text-neutral-500 block">Caption:</span> {clip.social.caption}</div>
+                          )}
+                          {clip.social.hashtags && clip.social.hashtags.length > 0 && (
+                            <div><span className="text-neutral-500">Tags:</span> <span className="text-blue-400">{clip.social.hashtags.join(" ")}</span></div>
+                          )}
+                        </div>
+                      )}
+                      
                       {/* Download & Share Actions */}
-                      <div className="pt-2 border-t border-neutral-800/80 flex items-center gap-2">
+                      <div className="pt-2 border-t border-neutral-800/80 flex items-center gap-2 p-4">
                         <button
                           type="button"
                           onClick={() => handleDownloadClip(clip, index)}
