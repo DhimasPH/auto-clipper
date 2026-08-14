@@ -272,7 +272,7 @@ def _run_job(job_id: str):
         metadata["subtitle_path"] = predicted_subtitle_path
 
         try:
-            if job["provider"] == "manual_ai":
+            if job["provider"] in ("manual_ai", "manual"):
                 from backend.ai_utils import transcribe_with_faster_whisper, extract_audio, build_srt_from_segments
                 import json
                 
@@ -1154,7 +1154,7 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
     hist_meta = hist.get("metadata", {})
     
     hist_provider = hist_meta.get("provider")
-    if not hist_provider or hist_provider == "manual_ai":
+    if not hist_provider or hist_provider in ("manual_ai", "manual"):
         provider = fallback_provider or "gemini"
     else:
         provider = hist_provider
