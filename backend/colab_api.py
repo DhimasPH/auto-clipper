@@ -133,20 +133,19 @@ def gpu_keep_alive() -> None:
     try:
         import torch
         if not torch.cuda.is_available():
+            print("[Auto Clipper Colab] GPU Keep-Alive skipped: CUDA is not available.", file=sys.stderr)
             return
         
         print("[Auto Clipper Colab] Starting GPU keep-alive thread to prevent Colab timeout...")
+        # Allocate a persistent ~400MB tensor to keep GPU Memory Utilization > 0%
+        persistent_tensor = torch.ones((10000, 10000), device="cuda")
+        
         while True:
-            # Perform a small matrix multiplication on GPU to register utilization
-            a = torch.randn(1024, 1024, device="cuda")
-            b = torch.randn(1024, 1024, device="cuda")
-            _ = a @ b
-            del a, b, _
-            # Clear cache to avoid memory leak
-            torch.cuda.empty_cache()
-            time.sleep(60)  # Pulse every 60 seconds
+            # Perform a minor operation on the persistent tensor
+            _ = persistent_tensor * 1.01
+            time.sleep(15)  # Pulse every 15 seconds
     except ImportError:
-        pass
+        print("[Auto Clipper Colab] GPU Keep-Alive skipped: torch not installed.", file=sys.stderr)
     except Exception as e:
         print(f"[Auto Clipper Colab] GPU keep-alive stopped: {e}", file=sys.stderr)
 
