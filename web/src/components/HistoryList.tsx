@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { apiGetHistory, apiDeleteHistory } from "../api";
+import { apiGetHistory, apiDeleteHistory, apiCreateRerenderJob, apiCreateRerunAiJob, API_URL } from "../api";
 import type { JobResponse } from "../types/job";
-import { Trash2, Play, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Trash2, Play, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, Film, Download, Share2, ExternalLink, Pencil } from "lucide-react";
+import { OutputStyleSelector, type OutputStyle } from "./OutputStyleSelector";
+import { SubtitlePresetBar } from "./SubtitlePresetBar";
+import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../types/subtitle";
+import { DEFAULT_CANVAS_CONFIG } from "../types/canvas";
+import { ClipEditModal } from "./ClipEditModal";
 
 interface HistoryListProps {
   onResume: (jobId: string) => void;
@@ -11,6 +16,16 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [activeRerenderId, setActiveRerenderId] = useState<string | null>(null);
+  const [outputStyle, setOutputStyle] = useState<OutputStyle>("face_crop");
+  const [subtitlePreset, setSubtitlePreset] = useState<SubtitlePresetKey>("viral_pop");
+
+  const [activeAiId, setActiveAiId] = useState<string | null>(null);
+  const [extraPrompt, setExtraPrompt] = useState<string>("");
+  const [isSubmittingPanel, setIsSubmittingPanel] = useState(false);
+  const [downloadingIndex, setDownloadingIndex] = useState<string | null>(null);
+  const [editingClip, setEditingClip] = useState<{jobId: string, index: number, title: string, job: any} | null>(null);
 
   const fetchHistory = async () => {
     try {
@@ -42,6 +57,103 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
       console.error("Failed to delete job:", err);
       setJobs(previousJobs);
       setError("Failed to delete job.");
+    }
+  };
+
+  const handleRerenderSubmit = async (jobId: string) => {
+    if (isSubmittingPanel) return;
+    setIsSubmittingPanel(true);
+    try {
+      const presetBase = SUBTITLE_PRESETS[subtitlePreset]?.config || {};
+      const subtitleConfig: SubtitleConfig = {
+        ...DEFAULT_SUBTITLE_CONFIG,
+        ...presetBase,
+      };
+
+      let aspectRatio = "9:16";
+      if (outputStyle === "landscape") aspectRatio = "16:9";
+      if (outputStyle === "square") aspectRatio = "1:1";
+
+      const payload = {
+        aspect_ratio: aspectRatio,
+        caption_style: subtitlePreset === "podcast" ? "karaoke" : subtitlePreset === "viral_pop" ? "single_word" : "standard",
+        canvas_config: { ...DEFAULT_CANVAS_CONFIG, enabled: outputStyle === "canvas_blur" },
+        subtitle_config: subtitleConfig,
+      };
+
+      const res = await apiCreateRerenderJob(jobId, payload);
+      if (res.job_id) {
+        onResume(res.job_id);
+      }
+    } catch (err: any) {
+      console.error("Failed to rerender:", err);
+      alert(err.message || "Failed to start rerender job.");
+    } finally {
+      setIsSubmittingPanel(false);
+      setActiveRerenderId(null);
+    }
+  };
+
+  const handleAiCorrectSubmit = async (jobId: string) => {
+    if (isSubmittingPanel) return;
+    setIsSubmittingPanel(true);
+    try {
+      const res = await apiCreateRerunAiJob(jobId, { extra_prompt: extraPrompt });
+      if (res.job_id) {
+        onResume(res.job_id);
+      }
+    } catch (err: any) {
+      console.error("Failed to rerun AI:", err);
+      alert(err.message || "Failed to start AI correction job.");
+    } finally {
+      setIsSubmittingPanel(false);
+      setActiveAiId(null);
+      setExtraPrompt("");
+    }
+  };
+
+  const handleDownloadClip = async (clip: any, jobId: string, index: number) => {
+    try {
+      const dlId = `${jobId}-${index}`;
+      setDownloadingIndex(dlId);
+      const videoUrl = `${API_URL}/video?path=${encodeURIComponent(clip.path)}&v=${clip.v || 0}`;
+      
+      const response = await fetch(videoUrl);
+      if (!response.ok) throw new Error("Failed to fetch clip file");
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      const cleanName = (clip.description || `clip_${index + 1}`)
+        .slice(0, 30)
+        .replace(/[^a-zA-Z0-9_-]/g, "_");
+      link.download = `${cleanName}_${jobId.slice(0, 6)}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.warn("Direct blob download failed, opening in new tab", err);
+      window.open(`${API_URL}/video?path=${encodeURIComponent(clip.path)}&v=${clip.v || 0}`, "_blank");
+    } finally {
+      setDownloadingIndex(null);
+    }
+  };
+
+  const handleShareClip = async (clip: any) => {
+    const videoUrl = `${API_URL}/video?path=${encodeURIComponent(clip.path)}&v=${clip.v || 0}`;
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: clip.description || "Auto Clipper Video",
+          text: `Check out this clip: ${clip.description || ""}`,
+          url: videoUrl,
+        });
+      } catch (err) {
+        // Ignore cancel
+      }
     }
   };
 
@@ -84,11 +196,16 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      {jobs.map((job) => (
+    <div className="grid grid-cols-1 gap-6">
+      {jobs.map((job) => {
+        const isRealDone = job.status === "DONE";
+        const isError = job.status === "ERROR";
+        const clips = (job as any).result_clips || job.clips || [];
+
+        return (
         <div
           key={job.id}
-          className="bg-neutral-900 border border-neutral-800 rounded-lg p-5 flex flex-col justify-between hover:border-amber-500/30 transition-colors"
+          className="bg-neutral-900 border border-neutral-800 rounded-lg p-5 flex flex-col hover:border-amber-500/30 transition-colors"
         >
           <div>
             <div className="flex items-start justify-between mb-3">
@@ -100,7 +217,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
               </div>
             </div>
             
-            <div className="space-y-2 mb-4 text-sm text-neutral-400">
+            <div className="space-y-2 mb-4 text-sm text-neutral-400 max-w-sm">
               <div className="flex justify-between items-center bg-neutral-800/50 px-3 py-2 rounded">
                 <span className="font-medium text-neutral-300">Status</span>
                 <span className="text-xs px-2 py-1 bg-neutral-800 rounded-md">
@@ -113,10 +230,36 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
                   {job.progress}
                 </span>
               </div>
+              
+              {/* Job Metadata Details inline */}
+              {job.metadata?.duration_seconds && (
+                <div className="flex justify-between items-center bg-neutral-800/50 px-3 py-2 rounded">
+                  <span className="font-medium text-neutral-300">Duration</span>
+                  <span className="text-xs px-2 py-1 bg-neutral-800 rounded-md">
+                    {job.metadata.duration_seconds}s
+                  </span>
+                </div>
+              )}
+              {job.metadata?.quality && (
+                <div className="flex justify-between items-center bg-neutral-800/50 px-3 py-2 rounded">
+                  <span className="font-medium text-neutral-300">Quality</span>
+                  <span className="text-xs px-2 py-1 bg-neutral-800 rounded-md">
+                    {job.metadata.quality}
+                  </span>
+                </div>
+              )}
+              {job.created_at && (
+                <div className="flex justify-between items-center bg-neutral-800/50 px-3 py-2 rounded">
+                  <span className="font-medium text-neutral-300">Created At</span>
+                  <span className="text-xs px-2 py-1 bg-neutral-800 rounded-md">
+                    {new Date(job.created_at).toLocaleString()}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-4 border-t border-neutral-800">
+          <div className="flex items-center justify-end flex-wrap gap-2 pt-4 border-t border-neutral-800">
             {job.status === "AWAITING_MANUAL" && (
               <button
                 onClick={() => onResume(job.id)}
@@ -124,6 +267,33 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
               >
                 <Play className="w-4 h-4 mr-1" />
                 Resume
+              </button>
+            )}
+            {isError && (
+              <button
+                onClick={() => onResume(job.id)}
+                className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors"
+              >
+                <RotateCcw className="w-4 h-4 mr-1" />
+                Retry
+              </button>
+            )}
+            {(isRealDone || job.status === "AWAITING_MANUAL" || isError) && (
+              <button
+                onClick={() => setActiveRerenderId(activeRerenderId === job.id ? null : job.id)}
+                className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
+              >
+                <Film className="w-4 h-4 mr-1" />
+                Rerender
+              </button>
+            )}
+            {(isRealDone || job.status === "AWAITING_MANUAL" || isError) && job.metadata?.highlight_prompt && (
+              <button
+                onClick={() => setActiveAiId(activeAiId === job.id ? null : job.id)}
+                className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
+              >
+                <Sparkles className="w-4 h-4 mr-1" />
+                AI Correct
               </button>
             )}
             <button
@@ -135,8 +305,183 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
               Delete
             </button>
           </div>
+          
+          {/* Rerender Panel */}
+          {activeRerenderId === job.id && (
+            <div className="mt-4 p-4 border border-neutral-800 rounded-lg bg-neutral-950 animate-fadeIn">
+              <h4 className="font-medium text-neutral-200 mb-3">Rerender Settings</h4>
+              <div className="space-y-4">
+                <OutputStyleSelector value={outputStyle} onChange={(val) => setOutputStyle(val)} disabled={isSubmittingPanel} />
+                <SubtitlePresetBar value={subtitlePreset} onChange={(val) => setSubtitlePreset(val)} disabled={isSubmittingPanel} />
+                <button
+                  onClick={() => handleRerenderSubmit(job.id)}
+                  disabled={isSubmittingPanel}
+                  className="w-full py-2 bg-amber-400 hover:bg-amber-300 text-neutral-900 font-medium rounded-md transition-colors disabled:opacity-50"
+                >
+                  {isSubmittingPanel ? "Submitting..." : "Submit Rerender"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* AI Correction Panel */}
+          {activeAiId === job.id && (
+            <div className="mt-4 p-4 border border-neutral-800 rounded-lg bg-neutral-950 animate-fadeIn">
+              <h4 className="font-medium text-neutral-200 mb-2">AI Correction</h4>
+              <p className="text-xs text-neutral-400 mb-3">Provide extra instructions to adjust how AI creates highlights.</p>
+              <textarea
+                value={extraPrompt}
+                onChange={(e) => setExtraPrompt(e.target.value)}
+                placeholder="E.g. Focus more on the funny moments..."
+                className="w-full bg-neutral-900 border border-neutral-800 rounded p-3 text-sm text-neutral-200 mb-3 focus:outline-none focus:border-amber-400/80"
+                rows={3}
+              />
+              <button
+                onClick={() => handleAiCorrectSubmit(job.id)}
+                disabled={isSubmittingPanel || !extraPrompt.trim()}
+                className="w-full py-2 bg-amber-400 hover:bg-amber-300 text-neutral-900 font-medium rounded-md transition-colors disabled:opacity-50"
+              >
+                {isSubmittingPanel ? "Submitting..." : "Submit AI Correction"}
+              </button>
+            </div>
+          )}
+
+          {/* Clips Viewer */}
+          {isRealDone && clips.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-neutral-800">
+              <h4 className="font-medium text-neutral-200 mb-4">Generated Clips ({clips.length})</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {clips.map((clip: any, index: number) => {
+                  const videoSrc = `${API_URL}/video?path=${encodeURIComponent(clip.path)}&v=${clip.v || 0}`;
+                  
+                  return (
+                    <div
+                      key={clip.path || index}
+                      className="bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden flex flex-col group hover:border-neutral-700 transition-colors shadow-xl"
+                    >
+                      {/* Video Player Header */}
+                      <div className="relative bg-black aspect-[9/16] w-full overflow-hidden flex items-center justify-center">
+                        <video
+                          src={videoSrc}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="w-full h-full object-contain"
+                        />
+                        <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-neutral-900/80 backdrop-blur-sm border border-neutral-800 text-[10px] font-mono text-neutral-300 pointer-events-none">
+                          Clip #{index + 1}
+                        </div>
+                      </div>
+
+                      {/* Clip Info Card */}
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-4">
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-semibold text-neutral-100 line-clamp-2 leading-snug">
+                            {clip.description || `Highlight Clip #${index + 1}`}
+                          </h4>
+                          
+                          <div className="flex items-center gap-2 text-[11px] font-mono text-neutral-400 flex-wrap">
+                            <span className="inline-flex items-center gap-1 bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800">
+                              <Clock className="w-3 h-3 text-amber-400" />
+                              {clip.start} - {clip.end}
+                            </span>
+                            {clip.subs && (
+                              <span className="bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded text-[10px]">
+                                Subtitles Embedded
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {clip.social && (
+                          <div className="mt-3 p-3 bg-neutral-900/60 rounded-xl border border-neutral-800/80 text-xs text-neutral-300 space-y-2 max-h-[140px] overflow-y-auto custom-scrollbar">
+                            <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Social Kit
+                            </div>
+                            {clip.social.title && (
+                              <div><span className="text-neutral-500">Title:</span> <span className="font-medium">{clip.social.title}</span></div>
+                            )}
+                            {clip.social.caption && (
+                              <div><span className="text-neutral-500 block">Caption:</span> {clip.social.caption}</div>
+                            )}
+                            {clip.social.hashtags && clip.social.hashtags.length > 0 && (
+                              <div><span className="text-neutral-500">Tags:</span> <span className="text-blue-400">{clip.social.hashtags.join(" ")}</span></div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Download & Share Actions */}
+                        <div className="pt-2 border-t border-neutral-800/80 flex items-center gap-2 mt-4">
+                          <button
+                            type="button"
+                            onClick={() => setEditingClip({ jobId: job.id, index, title: clip.social?.titles_en?.[0] || clip.social?.titles_id?.[0] || `Clip ${index + 1}`, job })}
+                            className="p-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg border border-neutral-700 transition-colors"
+                            title="Edit Subtitles"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadClip(clip, job.id, index)}
+                            disabled={downloadingIndex === `${job.id}-${index}`}
+                            className="flex-1 py-2 px-3 bg-amber-400 hover:bg-amber-300 active:scale-95 text-neutral-950 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                          >
+                            {downloadingIndex === `${job.id}-${index}` ? (
+                              <>
+                                <div className="w-3 h-3 border-2 border-neutral-950/30 border-t-neutral-950 rounded-full animate-spin" />
+                                <span>Saving...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-3.5 h-3.5" />
+                                <span>Download</span>
+                              </>
+                            )}
+                          </button>
+
+                          {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
+                            <button
+                              type="button"
+                              onClick={() => handleShareClip(clip)}
+                              className="p-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg border border-neutral-700 transition-colors"
+                              title="Share clip"
+                            >
+                              <Share2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          <a
+                            href={videoSrc}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg border border-neutral-700 transition-colors"
+                            title="Open full video in tab"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
-      ))}
+      )})}
+      {editingClip && (
+        <ClipEditModal
+          jobId={editingClip.jobId}
+          clipIndex={editingClip.index}
+          clipTitle={editingClip.title}
+          initialOutputStyle={editingClip.job.metadata?.aspect_ratio === "16:9" ? "landscape" : editingClip.job.metadata?.aspect_ratio === "1:1" ? "square" : "face_crop"}
+          onClose={() => setEditingClip(null)}
+          onRerenderStart={(jobId) => {
+            setEditingClip(null);
+            onResume(jobId);
+          }}
+        />
+      )}
     </div>
   );
 };

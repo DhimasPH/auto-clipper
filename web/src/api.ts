@@ -259,3 +259,53 @@ export async function apiCreateRerunAiJob(
   }
 }
 
+export async function apiGetClipWords(jobId: string, clipIndex: number): Promise<{ words: any[]; reason?: string }> {
+  const safeId = encodeURIComponent(jobId);
+  try {
+    return await apiFetch<{ words: any[]; reason?: string }>(`/jobs/${safeId}/clips/${clipIndex}/words`, { method: "GET" });
+  } catch (err: any) {
+    if (err.status === 404) {
+      return await apiFetch<{ words: any[]; reason?: string }>(`/api/jobs/${safeId}/clips/${clipIndex}/words`, { method: "GET" });
+    }
+    throw err;
+  }
+}
+
+export async function apiCorrectSubtitle(payload: any): Promise<{ status: string; words: any[]; message?: string }> {
+  try {
+    return await apiFetch<{ status: string; words: any[]; message?: string }>(`/ai/correct-subtitle`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (err: any) {
+    if (err.status === 404) {
+      return await apiFetch<{ status: string; words: any[]; message?: string }>(`/api/ai/correct-subtitle`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    throw err;
+  }
+}
+
+export async function apiCreateClipRerenderJob(
+  jobId: string,
+  clipIndex: number,
+  payload: any
+): Promise<{ status: string; job_id: string; message?: string }> {
+  const safeId = encodeURIComponent(jobId);
+  try {
+    return await apiFetch<{ status: string; job_id: string; message?: string }>(`/jobs/${safeId}/clips/${clipIndex}/rerender`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (err: any) {
+    if (err.status === 404) {
+      return await apiFetch<{ status: string; job_id: string; message?: string }>(`/api/jobs/${safeId}/clips/${clipIndex}/rerender`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    throw err;
+  }
+}

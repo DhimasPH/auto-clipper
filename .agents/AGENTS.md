@@ -7,7 +7,9 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 ## 1. Arsitektur Proyek & Tech Stack
 
 - **Frontend Desktop**: Tauri v2 (Rust) + React 18 + TypeScript + Vite + Tailwind CSS + Lucide React + React Router.
+- **Frontend Web (Cloud UI)**: Terletak di folder `web/`. Menggunakan React 18 + TypeScript + Vite + Tailwind CSS untuk antarmuka web murni (tanpa Tauri).
 - **Backend Core (Sidecar)**: Python 3.11+ berjalan sebagai server lokal **FastAPI** yang dibungkus menjadi single executable dengan PyInstaller (`backend-x86_64-pc-windows-msvc.exe` di folder `bin/`).
+- **Cloud Backend Support**: Backend Python mendukung eksekusi di cloud GPU (seperti Google Colab) menggunakan *Ngrok tunnel*. Frontend Web berkomunikasi menggunakan `AUTO_CLIPPER_WEB_TOKEN`.
 - **Database**: SQLite lokal (`history.db`) via `backend/db.py` untuk mengelola riwayat job, metadata klip, dan status pemrosesan.
 - **AI & Processing Pipeline**:
   - **Speech-to-Text**: `faster-whisper` (didukung model: `small`, `medium`, `large-v3`) + Silero VAD filter (`min_silence_duration_ms=500`).
@@ -60,6 +62,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 4. Backend dan frontend mendukung mode alur kerja **AI-driven** maupun **Manual Editor**; metadata klip tidak selalu dihasilkan otomatis oleh LLM.
 5. **Manual Downloader Enhancements**: Fitur downloader mendukung pengunduhan *full video* (tanpa memotong klip / *empty clips allowed*) dan pengguna dapat memilih kualitas resolusi video saat mengunduh.
 6. **Penghapusan Smart Editor**: Fitur eksperimental *Smart Editor* telah **dihapus secara permanen**. Semua alur penyuntingan dan pemotongan (cropping) kini sepenuhnya mengandalkan pengaturan UI standar, *Gaming Mode*, dan modul *Canvas Config*.
+7. **Web UI Draft State Invariant**: Pada Frontend Web, pembersihan status draft di `localStorage` (seperti `ac_draft_step_input`) saat memulai job baru **WAJIB** dilakukan secara asinkron (menggunakan `setTimeout`) untuk menghindari *race condition* dengan efek unmount dari komponen React yang berpotensi menimpa ulang *cache* yang baru saja dihapus.
 
 ### F. Frontend, i18n & OS Integration (ADR-004, v1.7.0)
 1. Seluruh teks antarmuka **HARUS** mendukung multi-bahasa melalui `src/locales/id.json` dan `src/locales/en.json` (menggunakan library i18n).
@@ -96,6 +99,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `backend/logger.py`: Fail-safe error logger (`backend_error.log`).
 - `backend/db.py`: SQLite database schema & repository functions.
 - `backend/tests/test_subtitle_render.py` & `backend/tests/test_jobs_subtitle.py`: Pengujian render subtitle ASS, anti-overlap, dan jobs threading.
+- `Auto_Clipper_Colab.ipynb`: Jupyter Notebook untuk menjalankan backend FastAPI di Google Colab dengan GPU gratis dan Ngrok.
 - `src/App.tsx`: Routing, splash screen, startup update check.
 - `src/pages/LandingPage.tsx`: Halaman utama aplikasi dengan integrasi navigasi tautan sosial dan akses ke *workspace* video.
 - `src/pages/ManualDownloaderPage.tsx`: Halaman pengunduhan manual dengan dukungan kustomisasi resolusi.
@@ -107,3 +111,6 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `src-tauri/hooks.nsh`: NSIS preinstall script untuk kill zombie backend/app processes di Windows.
 - `release-mac-intel.sh` & `docs/release-macos-intel.md`: Script dan panduan build rilis macOS Intel dengan updater artifacts.
 - `docs/decisions/`: Architecture Decision Records (ADR-001 s/d ADR-011).
+- `web/src/App.tsx`: Entry point untuk Web UI (Wizard flow & autentikasi).
+- `web/src/components/HistoryList.tsx`: Menampilkan riwayat job, *Social Kit*, dan Rerender panel di Web UI.
+- `web/src/components/ClipEditModal.tsx`: Modal Web UI untuk koreksi subtitle secara manual/AI dan *rerender* per klip.

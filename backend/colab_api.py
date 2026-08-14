@@ -13,6 +13,7 @@ import signal
 import subprocess
 import sys
 import time
+import threading
 from typing import List, Optional
 
 
@@ -127,6 +128,28 @@ def start_cloudflared(token: str) -> Optional[subprocess.Popen]:
         return None
 
 
+def gpu_keep_alive() -> None:
+    """Background thread to keep GPU utilization > 0% occasionally so Colab doesn't reclaim it."""
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            print("[Auto Clipper Colab] GPU Keep-Alive skipped: CUDA is not available.", file=sys.stderr)
+            return
+        
+        print("[Auto Clipper Colab] Starting GPU keep-alive thread to prevent Colab timeout...")
+        # Allocate a persistent ~400MB tensor to keep GPU Memory Utilization > 0%
+        persistent_tensor = torch.ones((10000, 10000), device="cuda")
+        
+        while True:
+            # Perform a minor operation on the persistent tensor
+            _ = persistent_tensor * 1.01
+            time.sleep(15)  # Pulse every 15 seconds
+    except ImportError:
+        print("[Auto Clipper Colab] GPU Keep-Alive skipped: torch not installed.", file=sys.stderr)
+    except Exception as e:
+        print(f"[Auto Clipper Colab] GPU keep-alive stopped: {e}", file=sys.stderr)
+
+
 def terminate_processes(processes: List[subprocess.Popen], timeout: float = 5.0) -> None:
     """Terminate and clean up child processes gracefully."""
     print("\n[Auto Clipper Colab] Shutting down subprocesses...")
@@ -178,6 +201,10 @@ def run_server(args: Optional[List[str]] = None) -> int:
             signal.signal(signal.SIGTERM, handle_signal)
     except Exception:
         pass
+
+    # Start GPU keep-alive thread
+    keep_alive_thread = threading.Thread(target=gpu_keep_alive, daemon=True)
+    keep_alive_thread.start()
 
     api_proc = start_uvicorn(parsed.host, parsed.port)
     running_procs.append(api_proc)

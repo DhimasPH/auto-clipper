@@ -10,7 +10,7 @@ import { Badge } from "../components/ui/Badge";
 import { Select } from "../components/ui/Select";
 import ClipCard from "../components/ClipCard";
 import { ManualResumeModal } from "../components/ManualResumeModal";
-import { ClipRerenderModal } from "../components/ClipRerenderModal";
+import { ClipEditModal } from "../components/ClipEditModal";
 import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
 import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "../types/subtitle";
@@ -364,7 +364,7 @@ export const HistoryPage: React.FC = () => {
       )}
 
       {activeEditClip && (
-        <ClipRerenderModal
+        <ClipEditModal
           jobId={activeEditClip.job.id}
           clipIndex={activeEditClip.index}
           clipTitle={`${t("clip.title_ai", { num: activeEditClip.index + 1 })}`}
