@@ -303,15 +303,53 @@ export const StepResult: React.FC<StepResultProps> = ({
                           <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Social Kit
                           </div>
-                          {clip.social.title && (
-                            <div><span className="text-neutral-500">Title:</span> <span className="font-medium">{clip.social.title}</span></div>
-                          )}
-                          {clip.social.caption && (
-                            <div><span className="text-neutral-500 block">Caption:</span> {clip.social.caption}</div>
-                          )}
-                          {clip.social.hashtags && clip.social.hashtags.length > 0 && (
-                            <div><span className="text-neutral-500">Tags:</span> <span className="text-blue-400">{clip.social.hashtags.join(" ")}</span></div>
-                          )}
+                          {(() => {
+                            const thumbnail = clip.social.thumbnail_layout;
+                            
+                            const renderLang = (lang: string, titles: any, caption: any, tags: any, bestTime: any, backsound: any) => {
+                              if (!titles?.length && !caption && !tags?.length) return null;
+                              return (
+                                <div className="mb-4 last:mb-0 pb-4 last:pb-0 border-b last:border-b-0 border-neutral-800/50">
+                                  <div className="text-[10px] font-black text-amber-400 mb-2 bg-amber-400/10 inline-block px-1.5 py-0.5 rounded">[{lang} VERSION]</div>
+                                  {titles && titles.length > 0 && (
+                                    <div className="space-y-1.5 mb-2">
+                                      <span className="text-neutral-500 block">Titles:</span>
+                                      <ul className="list-disc pl-4 space-y-1">
+                                        {titles.map((t: string, idx: number) => (
+                                          <li key={idx} className="font-medium text-neutral-200 text-[11px] leading-tight">{t}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  {caption && (
+                                    <div className="mb-2"><span className="text-neutral-500 block mb-0.5">Caption:</span> <span className="text-neutral-300 whitespace-pre-wrap">{caption}</span></div>
+                                  )}
+                                  {tags && tags.length > 0 && (
+                                    <div className="mb-2"><span className="text-neutral-500 block mb-0.5">Tags:</span> <span className="text-blue-400 leading-relaxed">{tags.join(" ")}</span></div>
+                                  )}
+                                  {bestTime && (
+                                    <div className="mb-2"><span className="text-neutral-500 block mb-0.5">Best Time to Post:</span> <span className="text-neutral-300">{bestTime}</span></div>
+                                  )}
+                                  {backsound && (
+                                    <div><span className="text-neutral-500 block mb-0.5">Backsound:</span> <span className="text-neutral-300">{backsound}</span></div>
+                                  )}
+                                </div>
+                              );
+                            };
+
+                            const hasAnyData = clip.social.titles_en?.length || clip.social.titles_id?.length || clip.social.description_en || clip.social.description_id;
+                            if (!hasAnyData) return null;
+                            
+                            return (
+                              <>
+                                {thumbnail && (
+                                  <div className="mb-4 pb-4 border-b border-neutral-800/50"><span className="text-neutral-500 block mb-1">Thumbnail Idea:</span> <span className="text-neutral-300 font-medium">{thumbnail}</span></div>
+                                )}
+                                {renderLang("ID", clip.social.titles_id, clip.social.description_id, clip.social.hashtags_id, clip.social.best_time_to_post_id, clip.social.backsound_id)}
+                                {renderLang("EN", clip.social.titles_en, clip.social.description_en, clip.social.hashtags_en, clip.social.best_time_to_post_en, clip.social.backsound_en)}
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
                       
