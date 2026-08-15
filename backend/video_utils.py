@@ -6,6 +6,7 @@ import os
 import sys
 import shutil
 from pathlib import Path
+import tempfile
 from backend.logger import log_error
 
 
@@ -54,10 +55,16 @@ class _SilentLogger:
         pass
 
     def info(self, msg):
-        pass
+        if "https://www.google.com/device" in msg:
+            log_error(Exception(msg), context="OAuth Required")
+            if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
+                print(f"\n[ACTION REQUIRED] {msg}\n")
 
     def warning(self, msg):
-        pass
+        if "https://www.google.com/device" in msg:
+            log_error(Exception(msg), context="OAuth Required")
+            if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
+                print(f"\n[ACTION REQUIRED] {msg}\n")
 
     def error(self, msg):
         pass
@@ -86,6 +93,13 @@ def probe_formats(url: str) -> list:
         'logger': _SilentLogger(),
     }
     
+    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
+        base_ydl_opts['username'] = 'oauth2'
+        base_ydl_opts['password'] = ''
+        base_ydl_opts['cachedir'] = _get_ytdlp_cache_dir()
+        base_ydl_opts['extractor_args'] = {'youtube': ['player_client=tv,web']}
+
+    
     browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
     info = None
     last_error = None
@@ -112,6 +126,15 @@ def probe_formats(url: str) -> list:
     return sorted(heights, reverse=True)
 
 
+def _get_ytdlp_cache_dir() -> str:
+    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
+        gdrive_cache = Path("/content/drive/MyDrive/AutoClipper_Data/yt-dlp-cache")
+        if gdrive_cache.parent.exists():
+            gdrive_cache.mkdir(parents=True, exist_ok=True)
+            return str(gdrive_cache.absolute())
+    return str(Path(tempfile.gettempdir()) / "auto-clipper" / "yt-dlp-cache")
+
+
 def download_youtube_video(url: str, output_path: str, quality: str = "best", is_cancelled: callable = None) -> Path:
     format_str = quality_to_format(quality)
 
@@ -125,6 +148,12 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
         'updatetime': False,
         'logger': _SilentLogger(),
     }
+
+    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
+        base_ydl_opts['username'] = 'oauth2'
+        base_ydl_opts['password'] = ''
+        base_ydl_opts['cachedir'] = _get_ytdlp_cache_dir()
+        base_ydl_opts['extractor_args'] = {'youtube': ['player_client=tv,web']}
 
     ffmpeg_loc = get_ffmpeg_path()
     if ffmpeg_loc:
