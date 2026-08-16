@@ -147,6 +147,51 @@ def api_probe(url: str):
 async def health_check():
     return {"status": "ok"}
 
+from fastapi import Query
+
+@app.get("/gdrive-browser")
+def api_get_gdrive_browser(dir_path: str = Query("/content/drive/MyDrive")):
+    if not os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
+        return {"status": "error", "message": "Only available in Cloud Mode"}
+    
+    # Keamanan: pastikan path selalu berada di dalam /content/drive/MyDrive
+    base_drive = os.path.abspath("/content/drive/MyDrive")
+    target_path = os.path.abspath(dir_path)
+    if not target_path.startswith(base_drive):
+        target_path = base_drive
+        
+    if not os.path.exists(target_path):
+        return {"status": "success", "items": [], "current_dir": target_path}
+        
+    items = []
+    try:
+        for f in os.listdir(target_path):
+            full_path = os.path.join(target_path, f)
+            is_dir = os.path.isdir(full_path)
+            
+            # Filter: Hanya tampilkan folder atau file video
+            if not is_dir and not f.lower().endswith((".mp4", ".mov", ".mkv", ".webm")):
+                continue
+                
+            items.append({
+                "name": f,
+                "is_dir": is_dir,
+                "path": full_path
+            })
+            
+        # Urutkan: folder di atas, lalu berdasarkan nama abjad
+        items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
+        
+    except Exception as e:
+        log_error(e, context="Browsing GDrive")
+        
+    return {
+        "status": "success", 
+        "items": items, 
+        "current_dir": target_path,
+        "parent_dir": os.path.dirname(target_path) if target_path != base_drive else None
+    }
+
 
 last_heartbeat = 0.0
 

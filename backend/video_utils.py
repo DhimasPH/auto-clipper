@@ -4,9 +4,7 @@ import io
 import subprocess
 import os
 import sys
-import shutil
 from pathlib import Path
-import tempfile
 from backend.logger import log_error
 
 
@@ -55,16 +53,10 @@ class _SilentLogger:
         pass
 
     def info(self, msg):
-        if "https://www.google.com/device" in msg:
-            log_error(Exception(msg), context="OAuth Required")
-            if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
-                print(f"\n[ACTION REQUIRED] {msg}\n")
+        pass
 
     def warning(self, msg):
-        if "https://www.google.com/device" in msg:
-            log_error(Exception(msg), context="OAuth Required")
-            if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
-                print(f"\n[ACTION REQUIRED] {msg}\n")
+        pass
 
     def error(self, msg):
         pass
@@ -93,13 +85,7 @@ def probe_formats(url: str) -> list:
         'logger': _SilentLogger(),
     }
     
-    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
-        base_ydl_opts['username'] = 'oauth2'
-        base_ydl_opts['password'] = ''
-        base_ydl_opts['cachedir'] = _get_ytdlp_cache_dir()
-        base_ydl_opts['extractor_args'] = {'youtube': ['player_client=tv,web']}
 
-    
     browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
     info = None
     last_error = None
@@ -126,15 +112,6 @@ def probe_formats(url: str) -> list:
     return sorted(heights, reverse=True)
 
 
-def _get_ytdlp_cache_dir() -> str:
-    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
-        gdrive_cache = Path("/content/drive/MyDrive/AutoClipper_Data/yt-dlp-cache")
-        if gdrive_cache.parent.exists():
-            gdrive_cache.mkdir(parents=True, exist_ok=True)
-            return str(gdrive_cache.absolute())
-    return str(Path(tempfile.gettempdir()) / "auto-clipper" / "yt-dlp-cache")
-
-
 def download_youtube_video(url: str, output_path: str, quality: str = "best", is_cancelled: callable = None) -> Path:
     format_str = quality_to_format(quality)
 
@@ -148,13 +125,6 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
         'updatetime': False,
         'logger': _SilentLogger(),
     }
-
-    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
-        base_ydl_opts['username'] = 'oauth2'
-        base_ydl_opts['password'] = ''
-        base_ydl_opts['cachedir'] = _get_ytdlp_cache_dir()
-        base_ydl_opts['extractor_args'] = {'youtube': ['player_client=tv,web']}
-
     ffmpeg_loc = get_ffmpeg_path()
     if ffmpeg_loc:
         base_ydl_opts['ffmpeg_location'] = ffmpeg_loc
@@ -170,21 +140,15 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
     # logger. On a broken Windows child-process stream that flush raises
     # OSError [Errno 22], so we redirect both streams to an in-memory sink for
     # the whole call.
-    import time
     max_retries = 3
-    browsers_to_try = ['/content/drive/MyDrive/cookies.txt', 'cookies.txt', 'chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
+    browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
     
     success = False
     last_error = None
     
     for browser in browsers_to_try:
         ydl_opts = dict(base_ydl_opts)
-        if browser in ['/content/drive/MyDrive/cookies.txt', 'cookies.txt']:
-            cookie_path = Path(browser)
-            if not cookie_path.exists():
-                continue
-            ydl_opts['cookiefile'] = str(cookie_path.absolute())
-        elif browser:
+        if browser:
             ydl_opts['cookiesfrombrowser'] = (browser,)
             
         for attempt in range(max_retries):
