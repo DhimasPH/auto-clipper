@@ -11,13 +11,120 @@ import {
   Languages,
   Film,
   Type,
-  AlertCircle
+  AlertCircle,
+  HardDrive,
+  Folder,
+  FileVideo,
+  ChevronLeft
 } from "lucide-react";
 import { OutputStyleSelector, type OutputStyle } from "../OutputStyleSelector";
 import { SubtitlePresetBar } from "../SubtitlePresetBar";
 import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../../types/subtitle";
 import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "../../types/canvas";
 import type { CreateJobPayload } from "../../types/job";
+import { apiBrowseGDrive, type GDriveItem } from "../../api";
+
+const GDriveBrowserModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectFile: (filePath: string) => void;
+}> = ({ isOpen, onClose, onSelectFile }) => {
+  const [currentPath, setCurrentPath] = useState<string>("");
+  const [items, setItems] = useState<GDriveItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [parentDir, setParentDir] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDir(currentPath);
+    }
+  }, [isOpen, currentPath]);
+
+  const fetchDir = async (path: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiBrowseGDrive(path);
+      setItems(res.items);
+      setCurrentPath(res.current_dir);
+      setParentDir(res.parent_dir);
+    } catch (err: any) {
+      setError(err.message || "Failed to load directory");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+          <div className="flex items-center gap-2">
+            <HardDrive className="w-5 h-5 text-amber-400" />
+            <h3 className="font-semibold text-neutral-100">Browse Google Drive</h3>
+          </div>
+          <button type="button" onClick={onClose} className="p-1 text-neutral-400 hover:text-neutral-100 rounded-lg hover:bg-neutral-800 transition-colors">
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="p-3 bg-neutral-950 flex items-center gap-2 text-sm text-neutral-300 font-mono overflow-x-auto whitespace-nowrap border-b border-neutral-800">
+          {parentDir !== null && (
+            <button 
+              type="button"
+              onClick={() => setCurrentPath(parentDir)}
+              className="p-1 hover:bg-neutral-800 rounded-md transition-colors text-neutral-400 hover:text-neutral-200"
+              title="Go up"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
+          <span className="truncate">{currentPath || "/content/drive"}</span>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-2">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-6 h-6 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-12 text-red-400 text-sm">{error}</div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-12 text-neutral-500 text-sm">Folder is empty</div>
+          ) : (
+            <div className="space-y-1">
+              {items.map((item, i) => (
+                <button
+                  type="button"
+                  key={i}
+                  onClick={() => {
+                    if (item.is_dir) {
+                      setCurrentPath(item.path);
+                    } else {
+                      onSelectFile(item.path);
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-800 rounded-xl transition-colors group"
+                >
+                  {item.is_dir ? (
+                    <Folder className="w-5 h-5 text-blue-400 group-hover:text-blue-300 flex-shrink-0" />
+                  ) : (
+                    <FileVideo className="w-5 h-5 text-amber-400 group-hover:text-amber-300 flex-shrink-0" />
+                  )}
+                  <span className="text-sm text-neutral-200 truncate">{item.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 export interface StepInputProps {
   initialUrl?: string;
@@ -58,6 +165,7 @@ export const StepInput: React.FC<StepInputProps> = ({
   const [language, setLanguage] = useState<string>("auto");
   const [maxClips, setMaxClips] = useState<number>(0);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [isBrowserOpen, setIsBrowserOpen] = useState<boolean>(false);
 
   // Canvas customization
   const [canvasBgType, setCanvasBgType] = useState<"blur" | "color">("blur");
@@ -130,6 +238,10 @@ export const StepInput: React.FC<StepInputProps> = ({
     if (!clean) {
       setUrlError("Video URL is required");
       return false;
+    }
+    if (clean.startsWith("local:")) {
+      setUrlError(null);
+      return true;
     }
     const isSupported = SUPPORTED_DOMAINS.some((domain) =>
       clean.toLowerCase().includes(domain)
@@ -208,7 +320,7 @@ export const StepInput: React.FC<StepInputProps> = ({
         <div className="flex items-center justify-between">
           <label htmlFor="video-url" className="text-sm font-semibold text-neutral-200 flex items-center gap-2">
             <LinkIcon className="w-4 h-4 text-amber-400" />
-            <span>Video URL</span>
+            <span>Source Video</span>
             <span className="text-xs font-normal text-amber-400/80">*Required</span>
           </label>
           <div className="flex items-center gap-2 text-xs text-neutral-400">
@@ -222,21 +334,30 @@ export const StepInput: React.FC<StepInputProps> = ({
         <div className="relative flex items-center">
           <input
             id="video-url"
-            type="url"
+            type="text"
             value={url}
             onChange={(e) => {
               setUrl(e.target.value);
               if (urlError) validateUrl(e.target.value);
             }}
-            placeholder="Paste video link (e.g. https://youtu.be/xyz...)"
+            placeholder="Paste URL or Browse Google Drive..."
             required
-            className={`w-full pl-4 pr-24 py-3 bg-neutral-950/80 border rounded-xl text-neutral-100 placeholder:text-neutral-600 text-sm focus:outline-none focus:ring-2 transition-all font-mono ${
+            className={`w-full pl-4 pr-32 py-3 bg-neutral-950/80 border rounded-xl text-neutral-100 placeholder:text-neutral-600 text-sm focus:outline-none focus:ring-2 transition-all font-mono ${
               urlError
                 ? "border-red-500/80 focus:ring-red-500/30"
                 : "border-neutral-800 focus:border-amber-400/80 focus:ring-amber-400/30"
             }`}
           />
           <div className="absolute right-2 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setIsBrowserOpen(true)}
+              className="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-neutral-100 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 border border-neutral-700/60"
+              title="Browse Google Drive"
+            >
+              <HardDrive className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Drive</span>
+            </button>
             {url && (
               <button
                 type="button"
@@ -253,10 +374,21 @@ export const StepInput: React.FC<StepInputProps> = ({
               className="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-neutral-100 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 border border-neutral-700/60"
             >
               <Clipboard className="w-3.5 h-3.5" />
-              <span>Paste</span>
+              <span className="hidden sm:inline">Paste</span>
             </button>
           </div>
         </div>
+
+        <GDriveBrowserModal
+          isOpen={isBrowserOpen}
+          onClose={() => setIsBrowserOpen(false)}
+          onSelectFile={(filePath) => {
+            const newUrl = `local:${filePath}`;
+            setUrl(newUrl);
+            validateUrl(newUrl);
+            setIsBrowserOpen(false);
+          }}
+        />
 
         {urlError && (
           <div className="flex items-center gap-2 text-xs text-red-400 mt-1">

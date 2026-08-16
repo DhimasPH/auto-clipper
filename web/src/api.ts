@@ -309,3 +309,36 @@ export async function apiCreateClipRerenderJob(
     throw err;
   }
 }
+
+export interface GDriveItem {
+  name: string;
+  is_dir: boolean;
+  path: string;
+}
+
+export async function apiBrowseGDrive(dirPath?: string): Promise<{ items: GDriveItem[], current_dir: string, parent_dir: string | null }> {
+  try {
+    const url = dirPath ? `/gdrive-browser?dir_path=${encodeURIComponent(dirPath)}` : `/gdrive-browser`;
+    const response = await apiFetch<{ items: GDriveItem[], current_dir: string, parent_dir: string | null }>(url);
+    return {
+      items: response.items || [],
+      current_dir: response.current_dir || "",
+      parent_dir: response.parent_dir || null
+    };
+  } catch (err: any) {
+    if (err.status === 404) {
+      const fallbackUrl = dirPath ? `/api/gdrive-browser?dir_path=${encodeURIComponent(dirPath)}` : `/api/gdrive-browser`;
+      try {
+        const fallbackResponse = await apiFetch<{ items: GDriveItem[], current_dir: string, parent_dir: string | null }>(fallbackUrl);
+        return {
+          items: fallbackResponse.items || [],
+          current_dir: fallbackResponse.current_dir || "",
+          parent_dir: fallbackResponse.parent_dir || null
+        };
+      } catch {
+        return { items: [], current_dir: "", parent_dir: null };
+      }
+    }
+    return { items: [], current_dir: "", parent_dir: null };
+  }
+}
