@@ -1,509 +1,122 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Auto Clipper UI Prototype</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    :root {
-      --bg-primary: #0c0d11;
-      --bg-secondary: #14161e;
-      --bg-elevated: #1a1d28;
-      --bg-surface: #21242f;
-      --accent: #6366f1;
-      --text-primary: #f0f1f4;
-      --text-secondary: #7c8097;
-      --text-tertiary: #4a4f65;
-      --border: rgba(255, 255, 255, 0.08);
-      --success: #10b981;
-      --danger: #ef4444;
-    }
-
-    [data-theme="light"] {
-      --bg-primary: #f8f9fb;
-      --bg-secondary: #ffffff;
-      --bg-elevated: #ffffff;
-      --bg-surface: #f1f3f7;
-      --accent: #4f46e5;
-      --text-primary: #111827;
-      --text-secondary: #6b7280;
-      --text-tertiary: #9ca3af;
-      --border: rgba(0, 0, 0, 0.08);
-      --success: #059669;
-      --danger: #dc2626;
-    }
-
-    body {
-      background-color: var(--bg-primary);
-      color: var(--text-primary);
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      transition: background-color 0.3s ease, color 0.3s ease;
-    }
-    
-    .bg-bg-primary { background-color: var(--bg-primary); transition: background-color 0.3s; }
-    .bg-bg-secondary { background-color: var(--bg-secondary); transition: background-color 0.3s; }
-    .bg-bg-elevated { background-color: var(--bg-elevated); transition: background-color 0.3s; }
-    .bg-bg-surface { background-color: var(--bg-surface); transition: background-color 0.3s; }
-    
-    .text-text-primary { color: var(--text-primary); transition: color 0.3s; }
-    .text-text-secondary { color: var(--text-secondary); transition: color 0.3s; }
-    .text-text-tertiary { color: var(--text-tertiary); transition: color 0.3s; }
-    
-    .border-border { border-color: var(--border); transition: border-color 0.3s; }
-    
-    .bg-accent { background-color: var(--accent); }
-    .text-accent { color: var(--accent); }
-    .bg-accent-10 { background-color: rgba(99, 102, 241, 0.1); }
-    
-    .bg-success { background-color: var(--success); }
-    .bg-danger { background-color: var(--danger); }
-    .text-danger { color: var(--danger); }
-
-    .page-section {
-      display: none;
-    }
-    .page-section.active {
-      display: block;
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Prototype Map · Auto Clipper</title>
+<link rel="icon" href="assets/img/logo.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/css/app.css"/>
+<script>document.documentElement.setAttribute('data-theme',(localStorage.getItem('acp_theme')||'dark'));</script>
 </head>
-<body class="flex h-screen w-full overflow-hidden" data-theme="dark">
-  
-  <!-- Sidebar -->
-  <aside class="w-60 h-screen bg-bg-secondary border-r border-border flex flex-col shrink-0">
-    <div class="p-6">
-      <h1 class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500">Auto Clipper</h1>
-      <div class="mt-1 flex items-center">
-        <span class="text-[12px] text-text-tertiary bg-bg-surface px-1.5 py-0.5 rounded">v1.7.0</span>
+<body class="grid-dots">
+
+<div class="max-w-[1080px] mx-auto px-8 py-12">
+
+  <header class="flex items-start gap-4 mb-10">
+    <img src="assets/img/logo.png" alt="" class="w-12 h-12 rounded-xl"/>
+    <div class="grow">
+      <h1 class="t-display bg-gradient-to-r from-accent to-[#a78bfa] bg-clip-text text-transparent">Auto Clipper — UI/UX Revamp</h1>
+      <p class="t-body text-text-secondary mt-1">Static prototype · every screen and every state, no backend attached.</p>
+    </div>
+    <button class="btn-secondary js-theme"><span class="js-theme-icon"></span> Theme</button>
+  </header>
+
+  <div class="card p-5 mb-8 border-accent/25 bg-accent-muted">
+    <div class="flex gap-3">
+      <div class="text-accent shrink-0 mt-0.5" id="ico-info"></div>
+      <div class="t-body text-text-secondary">
+        <p class="text-text-primary font-medium mb-1">How to read this prototype</p>
+        <p>Nothing is wired to the Python backend. Screens that have more than one state carry a
+        <span class="badge-accent mx-1">Prototype state</span> switcher in the bottom-right corner —
+        use it to jump between empty, running, error and completed views instead of waiting for a timer.
+        Actions with no static destination will tell you so rather than silently doing nothing.</p>
       </div>
     </div>
-    
-    <nav class="flex-1 px-4 space-y-2 overflow-y-auto" id="sidebar-nav">
-      <div class="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary px-3 mb-2 mt-4">Menu</div>
-      
-      <a href="#" data-page="page-workspace" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] bg-accent-10 text-accent font-medium border-l-2 border-accent transition-colors">
-        <i data-lucide="scissors" class="w-5 h-5"></i>
-        Workspace
-      </a>
-      <a href="#" data-page="page-manual-ai" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] text-text-secondary hover:text-text-primary hover:bg-bg-elevated border-l-2 border-transparent transition-colors">
-        <i data-lucide="wand-2" class="w-5 h-5"></i>
-        Manual AI Editor
-      </a>
-      <a href="#" data-page="page-smart-clipper" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] text-text-secondary hover:text-text-primary hover:bg-bg-elevated border-l-2 border-transparent transition-colors">
-        <i data-lucide="wand-2" class="w-5 h-5"></i>
-        Smart Clipper
-      </a>
-      <a href="#" data-page="page-downloader" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] text-text-secondary hover:text-text-primary hover:bg-bg-elevated border-l-2 border-transparent transition-colors">
-        <i data-lucide="download" class="w-5 h-5"></i>
-        Manual Downloader
-      </a>
-      <a href="#" data-page="page-history" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] text-text-secondary hover:text-text-primary hover:bg-bg-elevated border-l-2 border-transparent transition-colors">
-        <i data-lucide="clock" class="w-5 h-5"></i>
-        History
-      </a>
-    </nav>
-    
-    <div class="p-4 mt-auto border-t border-border space-y-2">
-      <a href="#" data-page="page-settings" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] text-text-secondary hover:text-text-primary hover:bg-bg-elevated border-l-2 border-transparent transition-colors">
-        <i data-lucide="settings" class="w-5 h-5"></i>
-        Settings
-      </a>
-      <a href="#" data-page="page-help" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] text-text-secondary hover:text-text-primary hover:bg-bg-elevated border-l-2 border-transparent transition-colors">
-        <i data-lucide="help-circle" class="w-5 h-5"></i>
-        Help / FAQ
-      </a>
-      <div class="mt-4 px-3 py-2 flex items-center gap-2">
-        <div class="relative flex h-2.5 w-2.5">
-          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-success"></span>
-        </div>
-        <span class="text-[12px] text-text-secondary">Connected</span>
-      </div>
-    </div>
-  </aside>
+  </div>
 
-  <!-- Main Content Area -->
-  <main class="flex-1 h-full overflow-y-auto relative p-8 bg-bg-primary">
-    
-    <!-- Workspace Page -->
-    <div id="page-workspace" class="page-section active">
-      <div class="mb-8 border-b border-border pb-6">
-        <h2 class="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <i data-lucide="sparkles" class="w-6 h-6 text-accent"></i>
-          AI Clipper
-        </h2>
-        <p class="text-text-secondary mt-1 text-[14px]">
-          Ubah video panjang atau URL YouTube menjadi klip pendek viral dalam hitungan menit
-        </p>
-      </div>
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div class="lg:col-span-7">
-          <div class="bg-bg-secondary rounded-xl border border-border p-6 shadow-sm flex flex-col gap-6">
-            <!-- URL/Local Toggle -->
-            <div class="flex gap-4 p-1 bg-bg-surface rounded-xl border border-border">
-              <button class="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-medium text-[14px] bg-accent text-white shadow-sm transition-colors">
-                <i data-lucide="link-2" class="w-4 h-4"></i> URL Video (YouTube)
-              </button>
-              <button class="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-medium text-[14px] text-text-secondary hover:text-text-primary transition-colors">
-                <i data-lucide="file-video" class="w-4 h-4"></i> Local Video (.mp4)
-              </button>
-            </div>
-            <!-- Settings Card -->
-            <div class="space-y-4">
-              <div class="space-y-2">
-                <label class="text-[13px] font-medium text-text-secondary">Video URL</label>
-                <div class="relative">
-                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary"><i data-lucide="link-2" class="w-5 h-5"></i></div>
-                  <input type="text" class="w-full pl-10 p-3 rounded-xl border border-border bg-bg-surface text-text-primary focus:outline-none focus:border-accent" placeholder="https://youtube.com/watch?...">
-                </div>
-              </div>
-              <div class="space-y-2">
-                <label class="text-[13px] font-medium text-text-secondary">Judul Proyek (Opsional)</label>
-                <div class="relative">
-                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary"><i data-lucide="folder" class="w-5 h-5"></i></div>
-                  <input type="text" class="w-full pl-10 p-3 rounded-xl border border-border bg-bg-surface text-text-primary focus:outline-none focus:border-accent" placeholder="Misal: Podcast Radit">
-                </div>
-              </div>
-              <div class="space-y-2">
-                <label class="text-[13px] font-medium text-text-secondary">Video Aspect Ratio</label>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <button class="py-3 px-2 rounded-xl border border-accent bg-accent-10 text-accent flex flex-col items-center gap-2 font-medium"><div class="border-2 rounded-sm border-accent" style="width:14px; height:24px;"></div><span class="text-sm">9:16</span></button>
-                  <button class="py-3 px-2 rounded-xl border border-border bg-bg-surface text-text-secondary flex flex-col items-center gap-2 font-medium"><div class="border-2 rounded-sm border-text-secondary" style="width:24px; height:14px;"></div><span class="text-sm">16:9</span></button>
-                </div>
-              </div>
-            </div>
-            <!-- Advanced Options -->
-            <div class="p-4 bg-bg-surface rounded-xl border border-border space-y-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div class="p-2 bg-accent-10 rounded-lg text-accent"><i data-lucide="type" class="w-5 h-5"></i></div>
-                  <div><h4 class="text-[14px] font-medium text-text-primary">Burn Subtitles</h4><p class="text-[12px] text-text-secondary">Embed captions directly into the video</p></div>
-                </div>
-                <div class="w-11 h-6 bg-accent rounded-full relative cursor-pointer"><div class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div></div>
-              </div>
-            </div>
-            <!-- Generate Btn -->
-            <button class="w-full h-14 mt-2 text-lg font-bold bg-accent text-white rounded-xl shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 flex justify-center items-center gap-2">
-              <i data-lucide="wand-2" class="w-5 h-5"></i> Generate AI Clips
-            </button>
-          </div>
-        </div>
-        <div class="lg:col-span-5">
-          <div class="flex flex-col items-center justify-center text-center gap-3 rounded-2xl border border-dashed border-border bg-bg-secondary p-10 min-h-[360px]">
-            <div class="p-3 bg-accent-10 rounded-full text-accent"><i data-lucide="film" class="w-7 h-7"></i></div>
-            <h3 class="text-[14px] font-medium text-text-primary">Klip kamu muncul di sini</h3>
-            <p class="text-[12px] text-text-secondary max-w-xs">Masukkan URL atau video lokal, atur format, lalu generate.</p>
-          </div>
-        </div>
-      </div>
-    </div>
+  <h2 class="t-section mb-3">Screens</h2>
+  <div class="grid sm:grid-cols-2 gap-3 mb-10" id="map"></div>
 
-    <!-- Manual AI Editor Page -->
-    <div id="page-manual-ai" class="page-section">
-      <div class="mb-8 border-b border-border pb-6">
-        <h2 class="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <i data-lucide="wand-2" class="w-6 h-6 text-accent"></i> Manual AI Clipper
-        </h2>
-        <p class="text-text-secondary mt-1 text-[14px]">Generate prompt dari video untuk diproses AI secara manual</p>
-      </div>
-      <div class="bg-bg-secondary rounded-xl border border-border p-6 shadow-sm">
-        <p class="text-text-secondary">Tampilan formulir manual AI akan mirip dengan Workspace, namun tombol aksinya adalah "Generate Prompt Manual".</p>
-      </div>
-    </div>
+  <h2 class="t-section mb-3">What changed vs. the current build</h2>
+  <div class="card divide-y divide-border mb-10" id="changes"></div>
 
-    <!-- Smart Clipper Page -->
-    <div id="page-smart-clipper" class="page-section">
-      <div class="mb-8 border-b border-border pb-6">
-        <h2 class="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <i data-lucide="cpu" class="w-6 h-6 text-accent"></i> Smart Clipper
-        </h2>
-        <p class="text-text-secondary mt-1 text-[14px]">Edit klip cerdas menggunakan Timeline dan Transcript</p>
-      </div>
-      <div class="bg-bg-secondary rounded-xl border border-border p-6 shadow-sm">
-        <div class="h-64 flex items-center justify-center border-2 border-dashed border-border rounded-lg text-text-secondary">
-          Timeline & Editor Workspace
-        </div>
-      </div>
-    </div>
+  <h2 class="t-section mb-3">Status vocabulary</h2>
+  <div class="card p-5 mb-10">
+    <p class="t-body text-text-secondary mb-4">The prototype proposes one shared vocabulary. Two changes matter:
+      <span class="text-text-primary">CROPPING</span> is renamed to
+      <span class="text-text-primary">RENDERING</span> (it also burns subtitles and draws the canvas, so the old name under-described it),
+      and <span class="text-text-primary">ANALYZING</span> is new — today the LLM step has no status of its own, so the UI sits on
+      <span class="text-text-primary">TRANSCRIBING</span> while it runs.</p>
+    <div class="flex flex-wrap gap-2" id="statuses"></div>
+  </div>
 
-    <!-- Manual Downloader Page -->
-    <div id="page-downloader" class="page-section">
-      <div class="mb-8 border-b border-border pb-6">
-        <h2 class="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <i data-lucide="download" class="w-6 h-6 text-accent"></i> Manual Downloader
-        </h2>
-        <p class="text-text-secondary mt-1 text-[14px]">Download video YouTube dengan yt-dlp secara manual</p>
-      </div>
-      <div class="bg-bg-secondary rounded-xl border border-border p-6 shadow-sm flex flex-col gap-4">
-        <div class="space-y-2">
-          <label class="text-[13px] font-medium text-text-secondary">URL YouTube</label>
-          <input type="text" class="w-full p-3 rounded-xl border border-border bg-bg-surface text-text-primary focus:border-accent" placeholder="https://youtube.com/...">
-        </div>
-        <button class="w-full h-12 mt-2 font-bold bg-accent text-white rounded-xl flex justify-center items-center gap-2">
-          <i data-lucide="download" class="w-5 h-5"></i> Download Video
-        </button>
-      </div>
-    </div>
+  <footer class="t-caption text-text-tertiary border-t border-border pt-5">
+    Brand assets, accent colour and token names are carried over unchanged from
+    <span class="font-mono">src/index.css</span> and <span class="font-mono">tailwind.config.js</span>.
+  </footer>
+</div>
 
-    <!-- History Page -->
-    <div id="page-history" class="page-section">
-      <div class="flex justify-between items-center mb-8 border-b border-border pb-6">
-        <div>
-          <h2 class="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <i data-lucide="clock" class="w-6 h-6 text-accent"></i> History
-          </h2>
-          <p class="text-text-secondary mt-1 text-[14px]">View and manage generated clips</p>
-        </div>
-        <button class="px-4 py-2 border border-border rounded-lg text-[13px] text-text-primary bg-bg-surface hover:bg-bg-elevated transition-colors flex items-center gap-2">
-          <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
-        </button>
-      </div>
-      <div class="flex flex-col gap-6 pb-12">
-        <div class="bg-bg-secondary rounded-card border border-border p-6 shadow-sm flex flex-col gap-4">
-          <div class="flex justify-between items-start gap-4">
-            <div>
-              <a href="#" class="text-[14px] font-medium text-text-primary hover:text-accent">Podcast Radit - https://youtube.com/watch?v=123</a>
-              <div class="flex items-center gap-3 mt-2 text-[12px] text-text-secondary">
-                <span>02 Aug 2026, 08:00</span>
-                <span>•</span>
-                <span class="px-2 py-0.5 bg-success text-white rounded font-medium">completed</span>
-              </div>
-            </div>
-            <button class="text-danger hover:text-red-400"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
-          </div>
-          <div class="flex gap-4 overflow-x-auto py-4">
-            <div class="w-48 h-32 bg-bg-surface border border-border rounded-lg flex items-center justify-center text-text-secondary">Clip 1</div>
-            <div class="w-48 h-32 bg-bg-surface border border-border rounded-lg flex items-center justify-center text-text-secondary">Clip 2</div>
-          </div>
-        </div>
-      </div>
-    </div>
+<script src="assets/vendor/jquery.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+const SCREENS = [
+  { f:'splash.html',      t:'Splash',            d:'Boot + backend handshake. Brand kept as-is.', s:['loading','error'] },
+  { f:'welcome.html',     t:'Welcome',           d:'Brand & community links — no longer a blocking gate on every cold start.', s:[] },
+  { f:'projects.html',    t:'Projects',          d:'The hub. Was “History”, which is what it already was in practice.', s:['default','empty','loading'] },
+  { f:'new-project.html', t:'New Project',       d:'One door. AI / bring-your-own-LLM / download-only are modes, not menus.', s:['mode','source','format','options','review','invalid'] },
+  { f:'project.html',     t:'Project detail',    d:'Live phases, log, clips, recovery. Replaces the split between form and history.', s:['rendering','queued','done','error','cancelled','awaiting','download'] },
+  { f:'studio.html',      t:'Clip Studio',       d:'Timeline, word-level transcript, draggable subtitle box, canvas styling.', s:['default','nowords'] },
+  { f:'handoff.html',     t:'BYO-LLM handoff',   d:'Copy prompt → paste result → preview parsed highlights before committing.', s:['step1','step2','step3','invalid'] },
+  { f:'settings.html',    t:'Settings',          d:'Appearance, AI provider, transcription, output, updates.', s:['provider','transcription','output','appearance','updates'] },
+  { f:'help.html',        t:'Help & FAQ',        d:'Troubleshooting, requirements, shortcuts.', s:[] },
+];
 
-    <!-- Settings Page -->
-    <div id="page-settings" class="page-section">
-      <div class="mb-8 border-b border-border pb-6">
-        <h2 class="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <i data-lucide="settings" class="w-6 h-6 text-accent"></i> Settings
-        </h2>
-        <p class="text-text-secondary mt-1 text-[14px]">Manage application preferences</p>
-      </div>
-      <div class="flex flex-col gap-8 max-w-2xl">
-        
-        <!-- Appearance Section -->
-        <div class="bg-bg-secondary rounded-xl border border-border p-6 shadow-sm">
-          <div class="flex items-center gap-3 mb-6">
-            <div class="p-2 bg-accent-10 rounded-lg text-accent"><i data-lucide="palette" class="w-5 h-5"></i></div>
-            <h2 class="text-[18px] font-semibold text-text-primary">Appearance</h2>
-          </div>
-          <div class="space-y-6">
-            <div class="space-y-2">
-              <label class="text-[13px] font-medium text-text-secondary">Theme</label>
-              <div class="grid grid-cols-3 gap-3">
-                <button class="py-2 px-3 rounded-lg border border-accent bg-accent-10 text-accent font-medium flex items-center justify-center gap-2">🌙 Dark</button>
-                <button class="py-2 px-3 rounded-lg border border-border bg-bg-surface text-text-primary hover:border-gray-500 flex items-center justify-center gap-2">☀️ Light</button>
-                <button class="py-2 px-3 rounded-lg border border-border bg-bg-surface text-text-primary hover:border-gray-500 flex items-center justify-center gap-2">💻 System</button>
-              </div>
-              <div class="mt-4 flex items-center justify-between pt-4 border-t border-border">
-                <span class="text-[13px] font-medium text-text-secondary">Theme Toggle Demo</span>
-                <select id="theme-toggle" class="p-2 rounded bg-bg-surface border border-border text-text-primary focus:outline-none">
-                  <option value="dark">Dark Mode</option>
-                  <option value="light">Light Mode</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
+const CHANGES = [
+  ['Progress is visible','The backend already sends a progress string; today nothing renders it. Every phase now has a name, an elapsed time and an ETA.'],
+  ['Cancel exists in the UI','<code>cancelJob()</code> was implemented but had no button anywhere. It is now in the dock, the header and the phase rail.'],
+  ['Failures are recoverable','Retry was gated on a job id that is nulled in the same branch that sets ERROR, so it could never appear. Errors now name the phase, the cause and the resume point.'],
+  ['One form, not three','Workspace, Manual AI Editor and Manual Downloader rendered the identical 390-line form. They collapse into one stepper with a mode picker.'],
+  ['History is promoted','Re-render, AI Correct, Continue Manual and Edit Clip only existed inside History. It is now the hub, named Projects — the term the PRD already uses.'],
+  ['Subtitle position is direct','PRD backlog asks for free X/Y subtitle placement. In the Studio you drag the caption box on the preview instead of typing numbers.'],
+  ['Running work follows you','A persistent job dock keeps active and queued jobs on screen on every page.'],
+  ['Validation is inline','Five different toasts fired after submit. Requirements are now checked at the field, with a direct link to the setting that is missing.'],
+];
 
-        <!-- AI Provider Section -->
-        <div class="bg-bg-secondary rounded-xl border border-border p-6 shadow-sm">
-          <div class="flex items-center gap-3 mb-6">
-            <div class="p-2 bg-accent-10 rounded-lg text-accent"><i data-lucide="brain" class="w-5 h-5"></i></div>
-            <h2 class="text-[18px] font-semibold text-text-primary">AI Provider</h2>
-          </div>
-          <div class="space-y-6">
-            <div class="space-y-2">
-              <label class="text-[13px] font-medium text-text-secondary">AI Provider</label>
-              <select class="w-full p-3 rounded-xl border border-border bg-bg-surface text-text-primary focus:border-accent">
-                <option>OpenAI</option>
-                <option>Gemini</option>
-                <option>Custom</option>
-              </select>
-            </div>
-            <div class="space-y-2">
-              <label class="text-[13px] font-medium text-text-secondary">Provider API Key</label>
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary"><i data-lucide="lock" class="w-5 h-5"></i></div>
-                <input type="password" class="w-full pl-10 pr-10 p-3 rounded-xl border border-border bg-bg-surface text-text-primary focus:border-accent" placeholder="...">
-                <div class="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary cursor-pointer"><i data-lucide="eye" class="w-4 h-4"></i></div>
-              </div>
-              <p class="text-[12px] text-text-secondary">Encrypted and stored securely on your device</p>
-            </div>
-            <button class="px-4 py-2 border border-border rounded-lg text-[13px] font-medium text-text-primary hover:bg-bg-elevated transition-colors">Test AI Connection</button>
-            <div class="pt-4 border-t border-border space-y-2">
-              <label class="text-[13px] font-medium text-text-secondary">Pexels API Key (Optional)</label>
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary"><i data-lucide="lock" class="w-5 h-5"></i></div>
-                <input type="password" class="w-full pl-10 pr-10 p-3 rounded-xl border border-border bg-bg-surface text-text-primary focus:border-accent" placeholder="...">
-                <div class="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary cursor-pointer"><i data-lucide="eye" class="w-4 h-4"></i></div>
-              </div>
-              <p class="text-[12px] text-text-secondary">Required for Dynamic B-Roll feature</p>
-            </div>
-          </div>
-        </div>
+$(function(){
+  $('#ico-info').html(AC.icon('info','w-5 h-5'));
+  AC.setTheme(AC.getTheme());
+  $(document).on('click','.js-theme',function(){ AC.setTheme(AC.getTheme()==='dark'?'light':'dark'); });
 
-        <!-- AI Transcription Section -->
-        <div class="bg-bg-secondary rounded-xl border border-border p-6 shadow-sm">
-          <div class="flex items-center gap-3 mb-6">
-            <div class="p-2 bg-accent-10 rounded-lg text-accent"><i data-lucide="mic" class="w-5 h-5"></i></div>
-            <div>
-              <h2 class="text-[18px] font-semibold text-text-primary">AI Transcription (Speech-to-Text)</h2>
-              <p class="text-xs text-text-secondary mt-0.5">Konfigurasi model faster-whisper lokal & VAD untuk akurasi transkrip subtitle.</p>
-            </div>
-          </div>
-          <div class="space-y-4">
-            <div class="p-4 rounded-xl border border-accent bg-accent-10/50 ring-1 ring-accent">
-              <div class="flex items-center justify-between gap-3">
-                <div class="space-y-1">
-                  <div class="flex items-center gap-2">
-                    <span class="font-semibold text-text-primary text-sm">Small</span>
-                    <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-accent text-white font-medium">
-                      <i data-lucide="check-circle-2" class="w-3 h-3"></i> Aktif
-                    </span>
-                  </div>
-                  <p class="text-xs text-text-secondary">Cepat dan efisien. Cocok untuk mayoritas video.</p>
-                </div>
-                <button class="px-4 py-1.5 rounded-lg text-xs font-medium bg-accent text-white" disabled>Dipilih</button>
-              </div>
-            </div>
-            <div class="p-4 rounded-xl border border-border bg-bg-surface/40 opacity-80">
-              <div class="flex items-center justify-between gap-3">
-                <div class="space-y-1">
-                  <div class="flex items-center gap-2">
-                    <span class="font-semibold text-text-primary text-sm">Large-v3</span>
-                    <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-medium">Belum Diunduh</span>
-                  </div>
-                  <p class="text-xs text-text-secondary">Paling akurat. Direkomendasikan untuk video kompleks.</p>
-                </div>
-                <button class="px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text-primary hover:bg-bg-elevated flex items-center gap-2">
-                  <i data-lucide="download" class="w-3 h-3"></i> Unduh Model
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+  $('#map').html(SCREENS.map(function(s){
+    return '<a href="'+s.f+'" class="card card-hover p-4 block">'+
+      '<div class="flex items-center gap-2 mb-1">'+
+        '<span class="t-card">'+s.t+'</span>'+
+        '<span class="grow"></span>'+
+        '<span class="text-text-tertiary">'+AC.icon('arrowright')+'</span>'+
+      '</div>'+
+      '<p class="t-caption text-text-secondary mb-3">'+s.d+'</p>'+
+      (s.s.length
+        ? '<div class="flex flex-wrap gap-1">'+s.s.map(function(x){
+            return '<span class="badge-neutral !h-[19px] !text-[10px]">'+x+'</span>';}).join('')+'</div>'
+        : '<span class="t-caption text-text-tertiary">single state</span>')+
+    '</a>';
+  }).join(''));
 
-        <!-- Output Section -->
-        <div class="bg-bg-secondary rounded-xl border border-border p-6 shadow-sm">
-          <div class="flex items-center gap-3 mb-6">
-            <div class="p-2 bg-accent-10 rounded-lg text-accent"><i data-lucide="folder-output" class="w-5 h-5"></i></div>
-            <h2 class="text-[18px] font-semibold text-text-primary">Output</h2>
-          </div>
-          <div class="space-y-6">
-            <div class="space-y-2">
-              <label class="text-[13px] font-medium text-text-secondary">Folder Penyimpanan</label>
-              <div class="flex gap-2">
-                <input type="text" class="flex-1 p-3 rounded-xl border border-border bg-bg-surface text-text-primary pointer-events-none" value="Default (temp_downloads)" readonly>
-                <button class="px-4 py-2 border border-border rounded-xl font-medium text-text-primary bg-bg-surface hover:bg-bg-elevated flex items-center gap-2">
-                  <i data-lucide="folder-open" class="w-4 h-4"></i> Pilih Folder
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+  $('#changes').html(CHANGES.map(function(c){
+    return '<div class="p-4 flex gap-3">'+
+      '<span class="text-success shrink-0 mt-0.5">'+AC.icon('check')+'</span>'+
+      '<div><div class="t-label mb-0.5">'+c[0]+'</div>'+
+      '<div class="t-caption text-text-secondary">'+c[1]+'</div></div></div>';
+  }).join(''));
 
-      </div>
-    </div>
-
-    <!-- Help Page -->
-    <div id="page-help" class="page-section pb-12">
-      <div class="mb-8 pb-6 border-b border-border">
-        <h2 class="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <i data-lucide="help-circle" class="w-6 h-6 text-accent"></i> Help & Guide
-        </h2>
-        <p class="text-text-secondary mt-1 text-[14px]">Troubleshooting & Documentation</p>
-      </div>
-      
-      <div class="flex gap-4 mb-8 border-b border-border">
-        <button class="pb-4 px-2 font-medium transition-colors border-b-2 border-accent text-accent flex items-center gap-2">
-          <i data-lucide="book-open" class="w-4 h-4"></i> User Guide
-        </button>
-        <button class="pb-4 px-2 font-medium transition-colors border-b-2 border-transparent text-text-secondary hover:text-text-primary flex items-center gap-2">
-          <i data-lucide="help-circle" class="w-4 h-4"></i> FAQ
-        </button>
-        <button class="pb-4 px-2 font-medium transition-colors border-b-2 border-transparent text-text-secondary hover:text-text-primary flex items-center gap-2">
-          <i data-lucide="terminal" class="w-4 h-4"></i> System Logs
-        </button>
-      </div>
-
-      <div class="bg-bg-surface border border-border rounded-xl p-6 lg:p-8 max-w-4xl">
-        <div class="space-y-8">
-          <div>
-            <h2 class="text-xl font-bold text-text-primary mb-2">How to Use</h2>
-            <p class="text-text-secondary">Auto Clipper mempermudah proses kurasi video panjang menjadi klip pendek viral (Shorts/Reels/TikTok).</p>
-          </div>
-          <ol class="list-decimal pl-5 flex flex-col gap-6 text-text-secondary marker:text-accent marker:font-bold">
-            <li>
-              <strong class="text-text-primary text-lg block mb-1">Pilih Video</strong>
-              Masukkan URL video YouTube atau upload video MP4/M4V langsung dari komputermu.
-            </li>
-            <li>
-              <strong class="text-text-primary text-lg block mb-1">Atur Format & Subtitle</strong>
-              Tentukan rasio video (contoh: 9:16) dan pilih apakah kamu ingin subtitle statis atau mode karaoke (kata demi kata).
-            </li>
-            <li>
-              <strong class="text-text-primary text-lg block mb-1">Generate AI</strong>
-              Sistem akan otomatis mendeteksi suara, memotong bagian hening, lalu AI (Gemini/OpenAI) akan menyeleksi klip-klip terbaik.
-            </li>
-          </ol>
-          <div class="p-4 bg-danger/10 border-l-4 border-danger rounded-r-lg mt-8">
-            <div class="flex items-center gap-2 text-danger font-bold mb-2">
-              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-              <span>Catatan Penting</span>
-            </div>
-            <p class="text-sm text-text-secondary m-0">Pastikan API Key kamu terisi di menu Settings agar proses identifikasi klip AI berjalan lancar.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </main>
-
-  <script>
-    lucide.createIcons();
-
-    // Tab Navigation Logic
-    const navLinks = document.querySelectorAll('.nav-link');
-    const pages = document.querySelectorAll('.page-section');
-
-    navLinks.forEach(link => {
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        
-        // Remove active class from all navs
-        navLinks.forEach(n => {
-          n.classList.remove('bg-accent-10', 'text-accent', 'border-accent');
-          n.classList.add('text-text-secondary', 'border-transparent');
-        });
-        
-        // Add active class to clicked nav
-        link.classList.remove('text-text-secondary', 'border-transparent');
-        link.classList.add('bg-accent-10', 'text-accent', 'border-accent');
-
-        // Hide all pages
-        pages.forEach(p => p.classList.remove('active'));
-
-        // Show target page
-        const targetId = link.getAttribute('data-page');
-        document.getElementById(targetId).classList.add('active');
-      });
-    });
-
-    // Theme Toggle Logic
-    const themeSelect = document.getElementById('theme-toggle');
-    themeSelect.addEventListener('change', (e) => {
-      document.body.setAttribute('data-theme', e.target.value);
-    });
-  </script>
+  $('#statuses').html(Object.keys(AC.STATUS_META).map(function(k){
+    return '<span class="flex items-center gap-2">'+AC.statusBadge(k)+
+      '<code class="t-caption text-text-tertiary font-mono">'+k+'</code></span>';
+  }).join(''));
+});
+</script>
 </body>
 </html>

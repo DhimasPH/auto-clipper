@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Starting · Auto Clipper</title>
+<link rel="icon" href="assets/img/logo.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/css/app.css"/>
+<script>document.documentElement.setAttribute('data-theme',(localStorage.getItem('acp_theme')||'dark'));</script>
+</head>
+<body>
+
+<div class="min-h-screen grid place-items-center px-6">
+  <div class="w-full max-w-[360px] text-center">
+
+    <img src="assets/img/logo.png" alt="Auto Clipper" class="w-16 h-16 rounded-2xl mx-auto mb-5 shadow-card-hover"/>
+    <h1 class="t-page bg-gradient-to-r from-accent to-[#a78bfa] bg-clip-text text-transparent">Auto Clipper</h1>
+
+    <div id="body" class="mt-8"></div>
+
+    <p class="t-caption text-text-tertiary mt-10">v1.8.0</p>
+  </div>
+</div>
+
+<script src="assets/vendor/jquery.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+const STATES = [
+  { id:'loading', label:'Starting up' },
+  { id:'error',   label:'Engine failed to start' },
+];
+const state = AC.qs('state','loading');
+
+$(function(){
+  AC.boot({ nav:null, dock:false, states:STATES, state:state });
+
+  if (state === 'error') {
+    $('#body').html(
+      '<div class="card p-5 border-error/30 text-left">'+
+        '<div class="flex gap-3 mb-3">'+
+          '<span class="text-error shrink-0 mt-0.5">'+AC.icon('alert','w-5 h-5')+'</span>'+
+          '<div>'+
+            '<div class="t-card mb-1">The processing engine did not start</div>'+
+            '<p class="t-caption text-text-secondary">Port 8000 is already in use by another process. '+
+            'Auto Clipper runs its video engine locally on that port.</p>'+
+          '</div>'+
+        '</div>'+
+        '<div class="panel p-3 mb-4">'+
+          '<div class="t-overline text-text-tertiary mb-1.5">What usually fixes it</div>'+
+          '<ul class="t-caption text-text-secondary space-y-1 list-disc pl-4">'+
+            '<li>Another Auto Clipper window is already open — use that one.</li>'+
+            '<li>A previous run did not shut down. Quit and reopen the app.</li>'+
+          '</ul>'+
+        '</div>'+
+        '<div class="flex gap-2">'+
+          '<button class="btn-primary grow js-toast" data-msg="Retrying handshake…">'+AC.icon('refresh')+' Retry</button>'+
+          '<a class="btn-secondary" href="help.html">Open Help</a>'+
+        '</div>'+
+      '</div>');
+  } else {
+    $('#body').html(
+      '<div class="track w-[200px] mx-auto track-indeterminate mb-4"></div>'+
+      '<p class="t-caption text-text-secondary js-msg">Starting the processing engine…</p>');
+
+    const msgs = ['Starting the processing engine…','Loading FFmpeg…','Checking for updates…','Almost there…'];
+    let i = 0;
+    setInterval(function(){ i = (i+1) % msgs.length; $('.js-msg').text(msgs[i]); }, 1400);
+    setTimeout(function(){ window.location.href = 'welcome.html'; }, 3800);
+  }
+});
+</script>
+</body>
+</html>

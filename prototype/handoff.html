@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LLM Handoff · Auto Clipper</title>
+<link rel="icon" href="assets/img/logo.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/css/app.css"/>
+<script>document.documentElement.setAttribute('data-theme',(localStorage.getItem('acp_theme')||'dark'));</script>
+</head>
+<body>
+
+<div class="flex min-h-screen">
+  <div id="sidebar"></div>
+  <main class="grow min-w-0 pb-[210px]">
+    <div class="max-w-[900px] mx-auto px-8 pt-7 pb-8" id="page"></div>
+  </main>
+</div>
+
+<script src="assets/vendor/jquery.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/handoff.js"></script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Help · Auto Clipper</title>
+<link rel="icon" href="assets/img/logo.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/css/app.css"/>
+<script>document.documentElement.setAttribute('data-theme',(localStorage.getItem('acp_theme')||'dark'));</script>
+</head>
+<body>
+
+<div class="flex min-h-screen">
+  <div id="sidebar"></div>
+  <main class="grow min-w-0 pb-[210px]">
+    <div class="max-w-[900px] mx-auto px-8 pt-7 pb-8" id="page"></div>
+  </main>
+</div>
+
+<script src="assets/vendor/jquery.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+/* =============================================================================
+   HELP — three tabs, mirroring HelpPage.tsx: User Guide / FAQ / System Logs.
+   The log viewer is the part that already exists in the shipped app
+   (GET /logs/{app|error|ai}); it was missing from the first prototype pass.
+============================================================================= */
+
+const TABS = [
+  { id:'guide', label:'User Guide',  icon:'list' },
+  { id:'faq',   label:'FAQ',         icon:'help' },
+  { id:'logs',  label:'System Logs', icon:'terminal' },
+];
+const STATES = [
+  { id:'guide',     label:'User Guide' },
+  { id:'faq',       label:'FAQ' },
+  { id:'logs',      label:'System Logs' },
+  { id:'logsempty', label:'Logs · empty' },
+  { id:'logserror', label:'Logs · backend down' },
+];
+const state = AC.qs('state','guide');
+const tab = state.indexOf('logs') === 0 ? 'logs' : state;
+
+const STEPS = [
+  ['Pick a mode and a source','Paste a YouTube link or choose a file from your drive, then give the project a title. The title becomes its folder on disk.'],
+  ['Choose a format','9:16 for TikTok, Reels and Shorts. Pick 16:9 if you want to keep the whole landscape frame — either as-is, or centred on a vertical canvas with a background.'],
+  ['Let it run','Download, transcribe, find moments, render. You can leave the screen; the job stays visible in the dock at the bottom and you get a system notification when it finishes.'],
+  ['Polish in the Studio','Trim the clip, fix a misheard word, restyle the captions and drag them where you want. Then re-render just that clip.'],
+];
+
+const FAQ = [
+  ['Why is rendering slower than the download?',
+   'Rendering re-encodes every frame — face tracking, canvas composition and burned-in captions all happen there. ' +
+   'Auto Clipper uses your GPU through NVENC when it can and falls back to the CPU when it cannot. ' +
+   'On CPU, expect roughly real-time: a 40-second clip takes around 40 seconds.'],
+  ['Does my video get uploaded anywhere?',
+   'No. Downloading, transcription and rendering all happen on this machine. The only thing that leaves is the ' +
+   'text transcript, sent to the AI provider you chose so it can pick highlights and write captions. ' +
+   'In Bring-your-own-LLM mode, not even that happens — you paste the transcript yourself.'],
+  ['A job failed. Do I lose everything?',
+   'No. Each phase writes to the project folder as it completes. Retrying resumes from the phase that failed, so ' +
+   'a failure during analysis does not re-download or re-transcribe anything.'],
+  ['Can I fix a wrong word in the captions?',
+   'Open the clip in the Studio. The transcript panel is word-level — click a word to jump to it, type to correct it, ' +
+   'then re-render just that clip. Auto-fix can also sweep the whole transcript with your AI provider.'],
+  ['Why do some clips look cropped oddly?',
+   'Face tracking follows one speaker. For slides, gameplay or two people on screen, switch that clip to 16:9 and turn on ' +
+   'the vertical canvas — it keeps the full frame and fills the rest with blur, a colour or your own image.'],
+  ['What does "Bring your own LLM" actually save me?',
+   'The API key. Auto Clipper writes the prompt, you run it in a chat model you already pay for, and paste the answer back. ' +
+   'It costs you one round-trip and saves you per-token billing.'],
+  ['Which Whisper model should I use?',
+   'Small is the right default — fast and accurate enough for most footage. Move up to Medium or Large-v3 only when the ' +
+   'audio has heavy accents, background noise or a lot of technical vocabulary.'],
+];
+
+const SHORTCUTS = [
+  ['Space','Play / pause in the Studio'],
+  ['← →','Nudge the playhead half a second'],
+  ['Esc','Close a dialog'],
+];
+
+const REQS = [
+  ['Operating system','Windows 10/11 64-bit · macOS 12+ · Ubuntu 22.04+'],
+  ['Processor','Intel Core i5 8th gen / AMD Ryzen 5 or newer'],
+  ['Memory','8 GB minimum · 16 GB recommended for HD'],
+  ['Disk','2 GB free, plus room for downloaded source video'],
+  ['Internet','Needed for YouTube downloads and the AI provider. Local files with BYO-LLM work offline.'],
+];
+
+const LOG_TYPES = [
+  { id:'app',   label:'Application', file:'backend_app.log',   cls:'bg-accent text-white' },
+  { id:'error', label:'Errors',      file:'backend_error.log', cls:'bg-error text-white' },
+  { id:'ai',    label:'AI Requests', file:'backend_ai.log',    cls:'bg-info text-white' },
+];
+let logType = state === 'logserror' ? 'error' : 'app';
+
+/* Client-side colouring, same substring rules as HelpPage.tsx */
+function logLineClass(l){
+  if (/\[ERROR\]|Traceback|Error:|Exception:|failed/i.test(l)) return 'text-error font-medium';
+  if (l.indexOf('[WARNING]') >= 0) return 'text-warning';
+  if (l.indexOf('[SUCCESS]') >= 0 || l.indexOf('DONE') >= 0) return 'text-success';
+  if (l.indexOf('[AI') >= 0 || l.indexOf('AI RESPONSE') >= 0 || l.indexOf('AI PROMPT') >= 0) return 'text-accent-hover';
+  return 'text-text-secondary';
+}
+
+function tabGuide(){
+  return (
+    '<h2 class="t-section mb-1">How it works</h2>'+
+    '<p class="t-body text-text-secondary mb-5">Four steps, and only the first one needs decisions.</p>'+
+    '<ol class="space-y-3 mb-6">'+
+      STEPS.map(function(s,i){
+        return '<li class="card p-4 flex gap-3.5">'+
+          '<span class="w-6 h-6 rounded-full bg-accent-muted text-accent grid place-items-center t-caption font-semibold shrink-0 mt-0.5">'+(i+1)+'</span>'+
+          '<div><div class="t-label mb-0.5">'+s[0]+'</div>'+
+          '<p class="t-caption text-text-secondary">'+s[1]+'</p></div></li>';
+      }).join('')+
+    '</ol>'+
+    '<div class="card p-4 border-warning/30 bg-warning/5 flex gap-3">'+
+      '<span class="text-warning shrink-0 mt-0.5">'+AC.icon('alert','w-4 h-4')+'</span>'+
+      '<p class="t-caption text-text-secondary"><span class="text-text-primary font-medium">Before your first AI run:</span> '+
+      'add an API key under <a href="settings.html?state=provider" class="link">Settings → AI provider</a>, or pick '+
+      '<span class="text-text-primary">Bring your own LLM</span> when creating the project and skip keys entirely.</p>'+
+    '</div>'+
+    '<div class="grid md:grid-cols-2 gap-4 mt-6">'+
+      '<div class="card p-5"><h2 class="t-section mb-3">Keyboard shortcuts</h2>'+
+        '<div class="space-y-2.5">'+SHORTCUTS.map(function(s){
+          return '<div class="flex items-center gap-3"><span class="kbd">'+s[0]+'</span>'+
+            '<span class="t-caption text-text-secondary">'+s[1]+'</span></div>';}).join('')+'</div></div>'+
+      '<div class="card p-5"><h2 class="t-section mb-3">System requirements</h2>'+
+        '<dl class="space-y-2.5">'+REQS.map(function(r){
+          return '<div><dt class="t-caption text-text-tertiary">'+r[0]+'</dt>'+
+            '<dd class="t-caption">'+r[1]+'</dd></div>';}).join('')+'</dl></div>'+
+    '</div>'
+  );
+}
+
+function tabFaq(){
+  return '<div class="card divide-y divide-border" id="faq"></div>';
+}
+
+function tabLogs(){
+  return (
+    '<div class="flex flex-wrap items-center gap-2 mb-4">'+
+      '<div class="segmented" id="logTypes">'+
+        LOG_TYPES.map(function(t){
+          return '<span class="segmented-item js-logtype" data-t="'+t.id+'" aria-selected="'+(t.id===logType)+'">'+t.label+'</span>';
+        }).join('')+
+      '</div>'+
+      '<span class="grow"></span>'+
+      '<button class="btn-secondary btn-sm js-log-refresh">'+AC.icon('refresh','w-3.5 h-3.5')+' Refresh</button>'+
+      '<button class="btn-secondary btn-sm js-log-copy">'+AC.icon('copy','w-3.5 h-3.5')+' Copy log</button>'+
+      '<button class="btn-ghost btn-sm js-toast" data-msg="Opens the folder containing the log files">'+
+        AC.icon('folderopen','w-3.5 h-3.5')+' Show files</button>'+
+    '</div>'+
+
+    '<div id="logErr"></div>'+
+
+    '<div class="card overflow-hidden">'+
+      '<div class="flex items-center gap-2 px-3 h-9 border-b border-border bg-bg-surface/60">'+
+        '<span class="flex gap-1.5">'+
+          '<span class="w-2.5 h-2.5 rounded-full bg-error/60"></span>'+
+          '<span class="w-2.5 h-2.5 rounded-full bg-warning/60"></span>'+
+          '<span class="w-2.5 h-2.5 rounded-full bg-success/60"></span></span>'+
+        '<span class="grow text-center t-caption font-mono text-text-tertiary" id="logFile"></span>'+
+        '<span class="t-caption text-text-tertiary js-log-loading hidden">Loading…</span>'+
+      '</div>'+
+      '<div class="p-3 overflow-auto max-h-[460px] min-h-[240px] bg-bg-primary select-text" id="logBody"></div>'+
+    '</div>'+
+
+    '<p class="t-caption text-text-tertiary mt-3">Attach the Errors log when reporting a bug — it usually contains the '+
+    'exact failure and the phase it happened in.</p>'
+  );
+}
+
+function renderLog(){
+  const t = LOG_TYPES.filter(function(x){return x.id===logType;})[0];
+  $('#logFile').text(t.file);
+  $('#logTypes .js-logtype').attr('aria-selected','false');
+  $('#logTypes .js-logtype[data-t="'+logType+'"]').attr('aria-selected','true');
+
+  if (state === 'logserror'){
+    $('#logErr').html(
+      '<div class="card p-3.5 mb-3 border-error/30 bg-error/5 flex items-center gap-2.5">'+
+        '<span class="text-error shrink-0">'+AC.icon('alert','w-4 h-4')+'</span>'+
+        '<span class="t-label grow">Could not read the logs — the processing engine is not responding.</span>'+
+        '<button class="btn-secondary btn-sm js-log-refresh">Retry</button>'+
+      '</div>');
+  } else $('#logErr').empty();
+
+  const text = (state==='logsempty' || state==='logserror') ? '' : (AC.LOGS[logType]||'');
+
+  if (!text.trim()){
+    $('#logBody').html(
+      '<div class="py-16 text-center">'+
+        '<span class="inline-block text-text-tertiary opacity-40 mb-2">'+AC.icon('terminal','w-8 h-8')+'</span>'+
+        '<p class="t-caption text-text-tertiary italic">No logs recorded yet.</p>'+
+      '</div>');
+    return;
+  }
+
+  $('#logBody').html(text.split('\n').map(function(l){
+    return '<div class="font-mono text-[11.5px] leading-5 px-1 rounded whitespace-pre-wrap break-words '+
+      'hover:bg-white/[0.03] '+logLineClass(l)+'">'+(l ? l.replace(/</g,'&lt;') : '&nbsp;')+'</div>';
+  }).join(''));
+
+  const el = document.getElementById('logBody');
+  el.scrollTop = el.scrollHeight;
+}
+
+$(function(){
+  AC.boot({ nav:'help', states:STATES, state:state, crumbs:[
+    {label:'Help', href:'help.html'},
+    {label:(TABS.filter(function(t){return t.id===tab;})[0]||TABS[0]).label}] });
+
+  $('#page').html(
+    AC.pageHead('Help & Guide','How it works, the questions that come up most, and the logs to attach when something breaks.')+
+    '<div class="flex items-center gap-1 border-b border-border mb-6">'+
+      TABS.map(function(t){
+        const on = t.id===tab;
+        return '<a href="help.html?state='+t.id+'" class="flex items-center gap-2 px-3 py-2.5 t-label border-b-2 -mb-px transition-colors '+
+          (on ? 'border-accent text-accent' : 'border-transparent text-text-secondary hover:text-text-primary')+'">'+
+          AC.icon(t.icon,'w-4 h-4')+t.label+'</a>';
+      }).join('')+
+    '</div>'+
+    '<div id="body"></div>'
+  );
+
+  $('#body').html(tab==='logs' ? tabLogs() : tab==='faq' ? tabFaq() : tabGuide());
+
+  if (tab==='faq'){
+    $('#faq').html(FAQ.map(function(f){
+      return '<div>'+
+        '<button class="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-bg-surface/40 transition-colors js-faq-t">'+
+          '<span class="t-label grow">'+f[0]+'</span>'+
+          '<span class="js-faq-c text-text-tertiary shrink-0">'+AC.icon('chevdown')+'</span></button>'+
+        '<div class="js-faq-b hidden px-5 pb-4 -mt-1"><p class="t-body text-text-secondary">'+f[1]+'</p></div>'+
+      '</div>';
+    }).join(''));
+  }
+
+  if (tab==='logs') renderLog();
+
+  $(document).on('click','.js-faq-t',function(){
+    $(this).siblings('.js-faq-b').toggleClass('hidden');
+    $(this).find('.js-faq-c').toggleClass('rotate-180');
+  });
+
+  $(document).on('click','.js-logtype',function(){ logType = $(this).data('t'); renderLog(); });
+
+  $(document).on('click','.js-log-refresh',function(){
+    $('.js-log-loading').removeClass('hidden');
+    setTimeout(function(){ $('.js-log-loading').addClass('hidden'); renderLog(); }, 500);
+  });
+
+  $(document).on('click','.js-log-copy',function(){
+    const $b=$(this);
+    $b.html(AC.icon('check','w-3.5 h-3.5')+' Copied!');
+    AC.toast('Log copied to clipboard','success');
+    setTimeout(function(){ $b.html(AC.icon('copy','w-3.5 h-3.5')+' Copy log'); },2000);
+  });
+});
+</script>
+</body>
+</html>

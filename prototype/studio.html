@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Clip Studio · Auto Clipper</title>
+<link rel="icon" href="assets/img/logo.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/css/app.css"/>
+<script>document.documentElement.setAttribute('data-theme',(localStorage.getItem('acp_theme')||'dark'));</script>
+<style>
+  /* Studio owns the viewport — no page scroll, panels scroll independently. */
+  html,body{height:100%;overflow:hidden}
+  .cap-box{cursor:grab}
+  .cap-box.dragging{cursor:grabbing}
+  .cap-box::after{content:'';position:absolute;inset:-8px;border:1px dashed transparent;border-radius:8px;transition:border-color .15s}
+  .studio-preview:hover .cap-box::after{border-color:rgba(255,255,255,.35)}
+  .cap-box.dragging::after{border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="h-screen flex flex-col" id="page"></div>
+
+<script src="assets/vendor/jquery.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/controls.js"></script>
+<script src="assets/js/studio.js"></script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Welcome · Auto Clipper</title>
+<link rel="icon" href="assets/img/logo.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/css/app.css"/>
+<script>document.documentElement.setAttribute('data-theme',(localStorage.getItem('acp_theme')||'dark'));</script>
+</head>
+<body>
+
+<!-- NOTE vs current build: LandingPage is a boolean gate shown before the app on
+     every cold start, and it hardcodes light colours regardless of theme.
+     Here it is a real destination you can leave and come back to, and it follows
+     the theme. Brand, character art and community links are unchanged. -->
+
+<div class="min-h-screen flex flex-col">
+
+  <div class="grow grid place-items-center px-6 py-10">
+    <div class="w-full max-w-[880px] grid lg:grid-cols-[1.05fr_1fr] gap-8 items-center">
+
+      <!-- left: identity + primary action -->
+      <div class="animate-fade-in-up">
+        <div class="flex items-center gap-3 mb-6">
+          <img src="assets/img/logo.png" alt="" class="w-11 h-11 rounded-xl"/>
+          <div>
+            <div class="t-page bg-gradient-to-r from-accent to-[#a78bfa] bg-clip-text text-transparent leading-none">Auto Clipper</div>
+            <div class="t-caption text-text-tertiary mt-1">v1.8.0 · runs entirely on your machine</div>
+          </div>
+        </div>
+
+        <h1 class="t-display mb-3">Hours of footage in.<br/>Ready-to-post clips out.</h1>
+        <p class="t-body text-text-secondary mb-7 max-w-[440px]">
+          Paste a link or pick a file. Auto Clipper transcribes it, finds the moments worth cutting,
+          reframes them vertically and burns in the captions — without a subscription and without
+          uploading your footage anywhere.
+        </p>
+
+        <div class="flex flex-wrap items-center gap-2.5 mb-8">
+          <a href="new-project.html" class="btn-primary btn-lg" id="cta"></a>
+          <a href="projects.html" class="btn-secondary btn-lg" id="cta2"></a>
+        </div>
+
+        <div class="flex flex-wrap gap-x-6 gap-y-2" id="facts"></div>
+      </div>
+
+      <!-- right: character + community -->
+      <div class="animate-fade-in-up" style="animation-delay:.12s">
+
+        <!-- Character art is a tall full-body figure (373×904 after cutout), so it
+             is sized by HEIGHT and given its own row. Overlapping it with the card
+             clipped the legs; a contact shadow does the grounding instead. -->
+        <div class="relative flex flex-col items-center pointer-events-none mb-3">
+          <img src="assets/img/character-cutout.png" alt=""
+               class="h-[216px] w-auto object-contain select-none
+                      drop-shadow-[0_14px_28px_rgba(0,0,0,.5)]"/>
+          <span class="block w-[120px] h-[10px] rounded-[50%] bg-black/45 blur-[6px] -mt-1"></span>
+        </div>
+
+        <div class="card p-6 relative">
+          <div class="t-overline text-text-tertiary mb-3">Community & support</div>
+          <p class="t-body text-text-secondary mb-5">
+            Feature requests, render issues and clip showcases live in the Discord.
+          </p>
+          <a class="btn-primary w-full mb-2 js-todo" href="#" id="discord"></a>
+          <div class="grid grid-cols-2 gap-2 mb-4" id="socials"></div>
+
+          <div class="divider mb-4"></div>
+
+          <a class="flex items-center gap-3 rounded-input border border-warning/30 bg-warning/5 p-3
+                    hover:border-warning/60 transition-colors js-todo" href="#">
+            <span class="w-9 h-9 rounded-lg bg-warning/15 text-warning grid place-items-center shrink-0" id="tr-ico"></span>
+            <span class="grow min-w-0">
+              <span class="t-label block">Support on Trakteer</span>
+              <span class="t-caption text-text-secondary">Auto Clipper is free and has no subscription. Tips keep it that way.</span>
+            </span>
+            <span class="text-text-tertiary shrink-0" id="tr-arr"></span>
+          </a>
+        </div>
+
+        <p class="t-caption text-text-tertiary text-center mt-4">
+          © 2026 Auto Clipper · <a class="link js-todo" href="#">auto-clipper.dhims.web.id</a>
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/vendor/jquery.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+$(function(){
+  AC.boot({ nav:null, dock:false });
+
+  $('#cta').html(AC.icon('plus')+' Start a new project');
+  $('#cta2').html(AC.icon('folder')+' Open projects');
+  $('#discord').html(AC.icon('globe')+' Join the Discord');
+
+  $('#facts').html([
+    ['cpu','Runs on your GPU or CPU'],
+    ['key','Bring your own API key'],
+    ['globe','English & Indonesian'],
+  ].map(function(f){
+    return '<span class="flex items-center gap-2 t-caption text-text-secondary">'+
+      '<span class="text-accent">'+AC.icon(f[0],'w-3.5 h-3.5')+'</span>'+f[1]+'</span>';
+  }).join(''));
+
+  $('#tr-ico').html(AC.icon('zap','w-4 h-4'));
+  $('#tr-arr').html(AC.icon('external','w-3.5 h-3.5'));
+
+  $('#socials').html(
+    ['TikTok','YouTube','Instagram','Facebook','GitHub','Website'].map(function(s){
+      return '<a href="#" class="btn-secondary btn-sm js-todo justify-between">'+s+
+        '<span class="text-text-tertiary">'+AC.icon('external','w-3.5 h-3.5')+'</span></a>';
+    }).join(''));
+});
+</script>
+</body>
+</html>

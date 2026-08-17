@@ -1,0 +1,11 @@
+{
+  "name": "auto-clipper-prototype",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Static UI/UX revamp prototype for Auto Clipper. No backend.",
+  "scripts": {
+    "css": "tailwindcss -i ./src.css -o ./assets/css/app.css --minify",
+    "watch": "tailwindcss -i ./src.css -o ./assets/css/app.css --watch"
+  },
+  "devDependencies": { "tailwindcss": "^3.4.16" }
+}
