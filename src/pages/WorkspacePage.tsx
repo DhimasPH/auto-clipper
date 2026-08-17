@@ -54,7 +54,7 @@ export const WorkspacePage: React.FC = () => {
               clips={ctx.clips}
               status={ctx.status}
               failedCount={ctx.failedCount}
-              jobId={ctx.job?.id || ""}
+              jobId={ctx.jobId || ""}
               videoSrc={ctx.videoSrc}
             />
           ) : (
