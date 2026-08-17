@@ -1,8 +1,9 @@
 import React from 'react';
 
 export interface TrackProps extends React.HTMLAttributes<HTMLDivElement> {
-  progress: number;
+  progress?: number;
   size?: 'sm' | 'md' | 'lg';
+  indeterminate?: boolean;
 }
 
 const sizes = {
@@ -12,19 +13,27 @@ const sizes = {
 };
 
 export const Track = React.forwardRef<HTMLDivElement, TrackProps>(
-  ({ progress, size = 'md', className = '', ...props }, ref) => {
-    // clamp progress between 0 and 100
-    const clampedProgress = Math.min(100, Math.max(0, progress));
+  ({ progress = 0, size = 'md', indeterminate = false, className = '', ...props }, ref) => {
+    // clamp progress between 0 and 100, handle NaN
+    const clampedProgress = Number.isFinite(progress) ? Math.min(100, Math.max(0, progress)) : 0;
 
     return (
       <div
         ref={ref}
-        className={`w-full overflow-hidden rounded-full bg-bg-secondary ${sizes[size]} ${className}`.trim()}
+        role="progressbar"
+        aria-valuenow={indeterminate ? undefined : clampedProgress}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className={`w-full overflow-hidden rounded-full bg-border ${sizes[size]} ${className}`.trim()}
         {...props}
       >
         <div
-          className="h-full bg-accent-solid transition-all duration-300 ease-in-out"
-          style={{ width: `${clampedProgress}%` }}
+          className={`h-full bg-accent-solid ${
+            indeterminate 
+              ? 'w-full animate-pulse' 
+              : 'transition-all duration-300 ease-in-out'
+          }`}
+          style={indeterminate ? undefined : { width: `${clampedProgress}%` }}
         />
       </div>
     );
