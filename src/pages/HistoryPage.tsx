@@ -3,7 +3,8 @@ import axios from "axios";
 import { useTranslation } from "react-i18next";
 import { Trash2, RefreshCw, Wand2, Play } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
-import { AppContext, API_URL } from "../App";
+import { AppContext } from "../App";
+import { API_URL } from "../config/api";
 import { canRerunAI, canResumeJob } from "../lib/history";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
@@ -119,7 +120,7 @@ export const HistoryPage: React.FC = () => {
                           ? "success"
                           : (job.status === "failed" || job.status === "ERROR")
                             ? "error"
-                            : "neutral"
+                            : "default"
                       }
                     >
                       {job.status}
