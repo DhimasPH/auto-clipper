@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useId } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 export interface SelectOption {
   label: string;
@@ -6,43 +7,68 @@ export interface SelectOption {
 }
 
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string;
-  options: SelectOption[];
+  error?: boolean;
+  errorText?: React.ReactNode;
+  helperText?: React.ReactNode;
+  label?: React.ReactNode;
+  options?: SelectOption[];
 }
 
-export const Select: React.FC<SelectProps> = ({
-  label,
-  options,
-  className = '',
-  id,
-  ...props
-}) => {
-  const generatedId = id || Math.random().toString(36).substr(2, 9);
-  
-  return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
-      {label && (
-        <label htmlFor={generatedId} className="text-label text-text-primary">
-          {label}
-        </label>
-      )}
-      <select
-        id={generatedId}
-        className="w-full bg-bg-surface border border-border rounded-input py-2 pl-3 pr-8 text-body text-text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all duration-200 appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%237c8097' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-          backgroundPosition: 'right 0.5rem center',
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: '1.5em 1.5em',
-        }}
-        {...props}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-};
+export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
+  ({ className, error, errorText, helperText, label, options, id, children, ...props }, ref) => {
+    const generatedId = useId();
+    const selectId = id || generatedId;
+    const helperId = `${selectId}-helper`;
+    const errorId = `${selectId}-error`;
+
+    const isError = error || !!errorText;
+    const describedBy = isError ? errorId : helperText ? helperId : undefined;
+
+    return (
+      <div className="w-full">
+        {label && (
+          <label htmlFor={selectId} className="block mb-1.5 text-label text-text-primary">
+            {label}
+          </label>
+        )}
+        <div className="relative">
+          <select
+            ref={ref}
+            id={selectId}
+            aria-invalid={isError}
+            aria-describedby={describedBy}
+            className={[
+              "flex w-full rounded-input border bg-bg-surface px-3 py-2 pr-10 t-body text-text-primary appearance-none cursor-pointer",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              isError ? "border-error" : "border-border",
+              className
+            ].filter(Boolean).join(" ")}
+            {...props}
+          >
+            {options ? options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            )) : children}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-text-secondary">
+            <ChevronDown className="h-4 w-4" />
+          </div>
+        </div>
+        {isError && errorText && (
+          <p id={errorId} className="mt-1 t-caption text-error">
+            {errorText}
+          </p>
+        )}
+        {!isError && helperText && (
+          <p id={helperId} className="mt-1 t-caption text-text-secondary">
+            {helperText}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
+
+Select.displayName = "Select";
