@@ -4,20 +4,28 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   error?: boolean;
   errorText?: React.ReactNode;
   helperText?: React.ReactNode;
+  label?: React.ReactNode;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, error, errorText, helperText, id, ...props }, ref) => {
+  ({ className, error, errorText, helperText, label, id, ...props }, ref) => {
     const generatedId = useId();
     const inputId = id || generatedId;
     const helperId = `${inputId}-helper`;
     const errorId = `${inputId}-error`;
 
     const isError = error || !!errorText;
-    const describedBy = isError ? errorId : helperText ? helperId : undefined;
+    const hasErrorText = isError && Boolean(errorText);
+    const hasHelperText = !isError && Boolean(helperText);
+    const describedBy = hasErrorText ? errorId : hasHelperText ? helperId : undefined;
 
     return (
       <div className="w-full">
+        {label && (
+          <label htmlFor={inputId} className="block mb-1.5 text-label text-text-primary">
+            {label}
+          </label>
+        )}
         <input
           ref={ref}
           id={inputId}

@@ -11,20 +11,36 @@ export interface SegmentedProps extends Omit<React.HTMLAttributes<HTMLDivElement
   onChange?: (value: string) => void;
   disabled?: boolean;
   name?: string;
+  error?: boolean;
+  errorText?: React.ReactNode;
+  helperText?: React.ReactNode;
 }
 
 export const Segmented = React.forwardRef<HTMLDivElement, SegmentedProps>(
-  ({ className, options, value, onChange, disabled, id, name, ...props }, ref) => {
+  ({ className, options, value, onChange, disabled, id, name, error, errorText, helperText, ...props }, ref) => {
     const generatedName = useId();
     const groupName = name || generatedName;
+    const generatedId = useId();
+    const groupId = id || generatedId;
+    const helperId = `${groupId}-helper`;
+    const errorId = `${groupId}-error`;
+
+    const isError = error || !!errorText;
+    const hasErrorText = isError && Boolean(errorText);
+    const hasHelperText = !isError && Boolean(helperText);
+    const describedBy = hasErrorText ? errorId : hasHelperText ? helperId : undefined;
 
     return (
-      <div 
-        ref={ref}
-        id={id}
-        className={["inline-flex p-1 bg-bg-surface border border-border rounded-input", className].filter(Boolean).join(" ")}
-        {...props}
-      >
+      <div className="w-full">
+        <div 
+          ref={ref}
+          id={groupId}
+          role="radiogroup"
+          aria-invalid={isError}
+          aria-describedby={describedBy}
+          className={["inline-flex p-1 bg-bg-surface border border-border rounded-input", className].filter(Boolean).join(" ")}
+          {...props}
+        >
         {options.map((option) => {
           const isChecked = value === option.value;
           return (
@@ -50,6 +66,17 @@ export const Segmented = React.forwardRef<HTMLDivElement, SegmentedProps>(
             </label>
           );
         })}
+        </div>
+        {isError && errorText && (
+          <p id={errorId} className="mt-1 t-caption text-error">
+            {errorText}
+          </p>
+        )}
+        {!isError && helperText && (
+          <p id={helperId} className="mt-1 t-caption text-text-secondary">
+            {helperText}
+          </p>
+        )}
       </div>
     );
   }

@@ -22,7 +22,9 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     const errorId = `${selectId}-error`;
 
     const isError = error || !!errorText;
-    const describedBy = isError ? errorId : helperText ? helperId : undefined;
+    const hasErrorText = isError && Boolean(errorText);
+    const hasHelperText = !isError && Boolean(helperText);
+    const describedBy = hasErrorText ? errorId : hasHelperText ? helperId : undefined;
 
     return (
       <div className="w-full">
@@ -46,14 +48,14 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             ].filter(Boolean).join(" ")}
             {...props}
           >
-            {options ? options.map((opt) => (
+            {options && options.length > 0 ? options.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
             )) : children}
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-text-secondary">
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </div>
         </div>
         {isError && errorText && (

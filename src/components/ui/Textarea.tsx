@@ -4,27 +4,35 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
   error?: boolean;
   errorText?: React.ReactNode;
   helperText?: React.ReactNode;
+  label?: React.ReactNode;
 }
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, error, errorText, helperText, id, ...props }, ref) => {
+  ({ className, error, errorText, helperText, label, id, ...props }, ref) => {
     const generatedId = useId();
     const textareaId = id || generatedId;
     const helperId = `${textareaId}-helper`;
     const errorId = `${textareaId}-error`;
 
     const isError = error || !!errorText;
-    const describedBy = isError ? errorId : helperText ? helperId : undefined;
+    const hasErrorText = isError && Boolean(errorText);
+    const hasHelperText = !isError && Boolean(helperText);
+    const describedBy = hasErrorText ? errorId : hasHelperText ? helperId : undefined;
 
     return (
       <div className="w-full">
+        {label && (
+          <label htmlFor={textareaId} className="block mb-1.5 text-label text-text-primary">
+            {label}
+          </label>
+        )}
         <textarea
           ref={ref}
           id={textareaId}
           aria-invalid={isError}
           aria-describedby={describedBy}
           className={[
-            "flex w-full rounded-input border bg-bg-surface px-3 py-2 t-body text-text-primary min-h-[80px]",
+            "flex w-full rounded-input border bg-bg-surface px-3 py-2 t-body text-text-primary min-h-[80px] resize-y",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary",
             "disabled:cursor-not-allowed disabled:opacity-50",
             isError ? "border-error" : "border-border",
