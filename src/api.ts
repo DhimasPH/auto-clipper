@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL } from './App';
+import { API_URL } from './config/api';
 
 export const apiGetClipWords = async (jobId: string, clipIndex: number) => {
   const res = await axios.get(`${API_URL}/jobs/${jobId}/clips/${clipIndex}/words`);

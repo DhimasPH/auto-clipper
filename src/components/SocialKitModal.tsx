@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { X, Copy, Check, Clock, Music, Loader2, Sparkles } from "lucide-react";
 import axios from "axios";
 import { SocialData, Clip } from "./ClipCard";
-import { API_URL, AppContext } from "../App";
+import { AppContext } from "../App";
+import { API_URL } from "../config/api";
 
 export interface SocialKitModalProps {
   isOpen: boolean;

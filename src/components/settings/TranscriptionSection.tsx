@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Mic, Download, CheckCircle2, AlertCircle, Loader2, HardDrive, Cpu } from 'lucide-react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
-import { API_URL } from '../../App';
+import { API_URL } from '../../config/api';
 import { Button } from '../ui/Button';
 import { ToastKind } from '../../hooks/useToasts';
 

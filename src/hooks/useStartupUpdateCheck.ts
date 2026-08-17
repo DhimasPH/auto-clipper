@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { check } from "@tauri-apps/plugin-updater";
 import axios from "axios";
-import { API_URL } from "../App";
+import { API_URL } from "../config/api";
 import { ToastKind } from "./useToasts";
 
 interface UseStartupUpdateCheckOptions {

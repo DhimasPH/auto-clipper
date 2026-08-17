@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { API_URL } from '../../App';
+import { API_URL } from '../../config/api';
 import { useTranslation } from 'react-i18next';
 import { Brain, Eye, EyeOff, Lock, Settings2, Server, Box, Loader2 } from 'lucide-react';
 import { Select } from '../ui/Select';

@@ -33,17 +33,20 @@ export const PhaseRail = React.forwardRef<HTMLOListElement, PhaseRailProps>(
                   }`}
                 >
                   {isCompleted ? (
-                    <Check className="w-4 h-4" />
+                    <Check className="w-4 h-4" aria-hidden="true" />
                   ) : isFailed ? (
-                    <X className="w-4 h-4" />
+                    <X className="w-4 h-4" aria-hidden="true" />
                   ) : (
-                    <span className="t-caption font-medium">{index + 1}</span>
+                    <span className="t-caption font-medium" aria-hidden="true">{index + 1}</span>
                   )}
+                  <span className="sr-only">
+                    {isCompleted ? '(Completed)' : isFailed ? '(Failed)' : isActive ? '(Current)' : '(Pending)'}
+                  </span>
                 </div>
                 
                 {/* Label */}
                 <div 
-                  className={`absolute top-10 whitespace-nowrap t-caption transition-colors duration-300 ${
+                  className={`absolute top-10 left-1/2 -translate-x-1/2 text-center whitespace-nowrap t-caption transition-colors duration-300 ${
                     isPending ? 'text-text-secondary' : isFailed ? 'text-error font-medium' : 'text-text-primary font-medium'
                   }`}
                 >

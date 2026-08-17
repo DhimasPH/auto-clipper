@@ -107,12 +107,14 @@ export const UpdaterSection: React.FC = () => {
       <ConfirmDialog
         isOpen={!!updateAvailable && !downloading}
         title={t('updater.available_title', 'Pembaruan Tersedia')}
-        message={
-          t('updater.available_message', 'Versi {{version}} tersedia. Apakah Anda ingin mengunduh dan memasangnya sekarang?', { version: updateAvailable?.version }) 
-          + (updateAvailable?.body ? '\n\n' + updateAvailable.body : '')
+        description={
+          <div className="whitespace-pre-wrap">
+            {t('updater.available_message', 'Versi {{version}} tersedia. Apakah Anda ingin mengunduh dan memasangnya sekarang?', { version: updateAvailable?.version }) 
+            + (updateAvailable?.body ? '\n\n' + updateAvailable.body : '')}
+          </div>
         }
         onConfirm={installUpdate}
-        onCancel={() => setUpdateAvailable(null)}
+        onClose={() => setUpdateAvailable(null)}
         confirmLabel={t('updater.install_now', 'Pasang Sekarang')}
         cancelLabel={t('common.cancel', 'Batal')}
       />

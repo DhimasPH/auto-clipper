@@ -18,12 +18,9 @@ import { useClipJobs } from "./hooks/useClipJobs";
 import { useStartupUpdateCheck } from "./hooks/useStartupUpdateCheck";
 import { ProviderId, DEFAULT_PROVIDER, LEGACY_PROVIDER_MIGRATION } from "./lib/providers";
 import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "./types/canvas";
+import { API_URL } from "./config/api";
 import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "./types/subtitle";
 
-export let API_URL = "http://127.0.0.1:8000";
-export function setApiUrl(url: string) {
-  API_URL = url;
-}
 
 export const AppContext = React.createContext<any>(null);
 
@@ -110,6 +107,7 @@ export default function App() {
     progressPct,
     historyVersion,
     activeJobId,
+    lastFailedJobId,
     handleGenerate,
     handleManualGenerate,
     handleRerender,
@@ -222,6 +220,7 @@ export default function App() {
     progressPct,
     progress,
     jobId: activeJobId,
+    lastFailedJobId,
     handleGenerate,
     handleManualGenerate,
     startManualResumePolling,

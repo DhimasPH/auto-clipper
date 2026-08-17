@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { setApiUrl } from "../App";
+import { setApiUrl } from "../config/api";
 import { Command } from "@tauri-apps/plugin-shell";
 import { Stronghold } from "@tauri-apps/plugin-stronghold";
 import axios from "axios";

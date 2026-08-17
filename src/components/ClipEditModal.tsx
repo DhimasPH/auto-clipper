@@ -8,6 +8,7 @@ import { SubtitleConfigControls } from "./ui/SubtitleConfigControls";
 import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "../types/subtitle";
 import { apiGetClipWords, apiCorrectSubtitle, apiCreateClipRerenderJob } from "../api";
+import { useUserSettings } from "../hooks/useUserSettings";
 
 interface Props {
   jobId: string;
@@ -26,6 +27,7 @@ export const ClipEditModal: React.FC<Props> = ({
   initialSubtitleConfig, initialBurnSubs = true, onClose, onRerenderStart
 }) => {
   const { t } = useTranslation();
+  const { apiKeys } = useUserSettings();
   const [words, setWords] = useState<any[]>([]);
   const [originalWords, setOriginalWords] = useState<any[]>([]); // For reset
   const [loading, setLoading] = useState(true);
@@ -81,11 +83,11 @@ export const ClipEditModal: React.FC<Props> = ({
   const runAutoCorrect = async () => {
     setIsAutoCorrecting(true);
     try {
-      const provider = localStorage.getItem('ai_provider') || 'openai';
-      const apiKey = localStorage.getItem(`${provider}_api_key`) || '';
-      const model = localStorage.getItem(`${provider}_model`) || '';
-      const customBaseUrl = localStorage.getItem('custom_base_url') || '';
-      const customModelName = localStorage.getItem('custom_model_name') || '';
+      const provider = localStorage.getItem('ac_provider') || 'openai';
+      const apiKey = apiKeys[provider] || '';
+      const model = localStorage.getItem('ac_model') || '';
+      const customBaseUrl = apiKeys['custom_base_url'] || '';
+      const customModelName = apiKeys['custom_model_name'] || '';
 
       if (!apiKey && provider !== 'custom') {
         throw new Error('API Key belum diatur di menu Settings.');

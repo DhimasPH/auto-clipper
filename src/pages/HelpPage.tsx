@@ -3,7 +3,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { HelpCircle, BookOpen, AlertTriangle, Terminal, RefreshCw, Copy, Check, AlertCircle } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-import { API_URL } from "../App";
+import { API_URL } from "../config/api";
 
 type TabType = 'guide' | 'faq' | 'logs';
 type LogType = 'app' | 'error' | 'ai';

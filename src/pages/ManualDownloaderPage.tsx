@@ -29,7 +29,10 @@ export const ManualDownloaderPage: React.FC = () => {
   const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke">("karaoke");
   const [isGamingVideo, setIsGamingVideo] = useState(false);
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
-  const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(DEFAULT_SUBTITLE_CONFIG);
+  const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(() => ({
+    ...DEFAULT_SUBTITLE_CONFIG,
+    style: "karaoke",
+  }));
 
   // Reset local state if activeJobId becomes null ? Or just use local state which isolates it.
   const [localError, setLocalError] = useState("");

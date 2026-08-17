@@ -22,8 +22,8 @@ export const Track = React.forwardRef<HTMLDivElement, TrackProps>(
         ref={ref}
         role="progressbar"
         aria-valuenow={indeterminate ? undefined : clampedProgress}
-        aria-valuemin={0}
-        aria-valuemax={100}
+        aria-valuemin={indeterminate ? undefined : 0}
+        aria-valuemax={indeterminate ? undefined : 100}
         className={`w-full overflow-hidden rounded-full bg-border ${sizes[size]} ${className}`.trim()}
         {...props}
       >

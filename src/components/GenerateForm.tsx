@@ -1,6 +1,7 @@
 import { Dispatch, SetStateAction, useState, useContext } from "react";
 import axios from "axios";
-import { API_URL, AppContext } from "../App";
+import { AppContext } from "../App";
+import { API_URL } from "../config/api";
 import { useTranslation } from "react-i18next";
 import { Link2, FileVideo, Wand2, Type, Folder, Film, RefreshCw } from "lucide-react";
 import { InputGroup } from "./ui/InputGroup";
@@ -361,12 +362,12 @@ export default function GenerateForm({
           <div className="text-danger text-body">
             ⚠️ {errorMsg}
           </div>
-          {ctx.status === "ERROR" && ctx.jobId && (
+          {ctx.status === "ERROR" && (ctx.jobId || ctx.lastFailedJobId) && (
             <Button
               variant="outline"
               className="whitespace-nowrap"
               icon={RefreshCw}
-              onClick={() => ctx.handleResumeJob(ctx.jobId)}
+              onClick={() => ctx.handleResumeJob(ctx.lastFailedJobId || ctx.jobId, "workspace")}
             >
               Retry
             </Button>

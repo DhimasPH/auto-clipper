@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { Copy, Check, Play, AlertCircle } from "lucide-react";
 import { Button } from "./ui/Button";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
-import { API_URL } from "../App";
-import { useToasts } from "../hooks/useToasts";
+import { AppContext } from "../App";
+import { API_URL } from "../config/api";
 
 interface ManualResumeModalProps {
   job: any;
@@ -14,7 +14,7 @@ interface ManualResumeModalProps {
 
 export const ManualResumeModal: React.FC<ManualResumeModalProps> = ({ job, onClose, onSuccess }) => {
   const { t } = useTranslation();
-  const { notify } = useToasts();
+  const { notify } = useContext(AppContext);
   const [copied, setCopied] = useState(false);
   const [jsonInput, setJsonInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);

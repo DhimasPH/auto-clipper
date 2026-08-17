@@ -4,7 +4,7 @@ import { Button } from "./ui/Button";
 import { open } from "@tauri-apps/plugin-shell";
 import { save } from "@tauri-apps/plugin-dialog";
 import axios from "axios";
-import { API_URL } from "../App";
+import { API_URL } from "../config/api";
 import { SocialKitModal } from "./SocialKitModal";
 
 export interface SocialData {
