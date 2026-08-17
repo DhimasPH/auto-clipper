@@ -10,6 +10,7 @@ import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "../types/subtitle";
 import { API_URL } from "../config/api";
 import { useUserSettings } from "../hooks/useUserSettings";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 
 interface Props {
   jobId: string;
@@ -46,6 +47,7 @@ export const ClipRerenderModal: React.FC<Props> = ({
   const [isCopied, setIsCopied] = useState(false);
   const [pasteInput, setPasteInput] = useState('');
   const [isAutoCorrecting, setIsAutoCorrecting] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   const generatePrompt = () => {
     const jsonStr = JSON.stringify(words, null, 2);
@@ -75,9 +77,9 @@ export const ClipRerenderModal: React.FC<Props> = ({
       
       setWords(arr);
       setPasteInput('');
-      alert("Subtitle berhasil diperbarui");
+      setAlertMessage("Subtitle berhasil diperbarui");
     } catch (e: any) {
-      alert('Gagal memproses JSON: ' + e.message);
+      setAlertMessage('Gagal memproses JSON: ' + e.message);
     }
   };
 
@@ -101,12 +103,12 @@ export const ClipRerenderModal: React.FC<Props> = ({
       const data = res.data;
       if (data.status === 'success' && data.words) {
         setWords(data.words);
-        alert("Subtitle berhasil dikoreksi otomatis");
+        setAlertMessage("Subtitle berhasil dikoreksi otomatis");
       } else {
         throw new Error(data.message || 'Gagal mengoreksi subtitle');
       }
     } catch (e: any) {
-      alert(e.response?.data?.message || e.message);
+      setAlertMessage(e.response?.data?.message || e.message);
     } finally {
       setIsAutoCorrecting(false);
     }
@@ -157,7 +159,7 @@ export const ClipRerenderModal: React.FC<Props> = ({
       onRerenderStart(res.data.job_id);
     } catch (e) {
       console.error(e);
-      alert(t("clip_rerender.save_failed", "Failed to start rerender"));
+      setAlertMessage(t("clip_rerender.save_failed", "Failed to start rerender"));
     } finally {
       setSaving(false);
     }
@@ -396,6 +398,15 @@ export const ClipRerenderModal: React.FC<Props> = ({
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!alertMessage}
+        onClose={() => setAlertMessage(null)}
+        onConfirm={() => setAlertMessage(null)}
+        title="Information"
+        description={alertMessage}
+        hideCancel
+      />
     </div>
   );
 };

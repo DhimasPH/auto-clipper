@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { FolderOutput, FolderOpen, X } from 'lucide-react';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { InputGroup } from '../ui/InputGroup';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 interface OutputSectionProps {
   outputFolder: string;
@@ -15,12 +16,14 @@ interface OutputSectionProps {
 export const OutputSection: React.FC<OutputSectionProps> = ({
   outputFolder, setOutputFolder, quality, setQuality
 }) => {
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
   const handleSelectFolder = async () => {
     if ('__TAURI_INTERNALS__' in window) {
       const folder = await open({ directory: true, multiple: false });
       if (folder) setOutputFolder(folder as string);
     } else {
-      alert("Fitur pilih folder hanya tersedia di aplikasi Desktop.");
+      setAlertMessage("Fitur pilih folder hanya tersedia di aplikasi Desktop.");
     }
   };
 
@@ -67,6 +70,15 @@ export const OutputSection: React.FC<OutputSectionProps> = ({
           ]}
         />
       </div>
+
+      <ConfirmDialog
+        isOpen={!!alertMessage}
+        onClose={() => setAlertMessage(null)}
+        onConfirm={() => setAlertMessage(null)}
+        title="Information"
+        description={alertMessage}
+        hideCancel
+      />
     </div>
   );
 };

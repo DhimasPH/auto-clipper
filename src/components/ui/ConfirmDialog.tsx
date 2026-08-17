@@ -16,6 +16,7 @@ export interface ConfirmDialogProps {
   intent?: 'primary' | 'danger';
   isLoading?: boolean;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  hideCancel?: boolean;
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -31,6 +32,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   intent = 'primary',
   isLoading,
   maxWidth = 'sm',
+  hideCancel = false,
 }) => {
   const { t } = useTranslation();
 
@@ -40,7 +42,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={isLoading ? () => {} : onClose}
       title={title}
       description={description}
       maxWidth={maxWidth}
@@ -54,9 +56,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       )}
       {children}
       <div className="flex items-center justify-end gap-3 pt-4 mt-2 border-t border-border/50">
-        <Button variant="secondary" onClick={onClose} disabled={isLoading}>
-          {finalCancelLabel}
-        </Button>
+        {!hideCancel && (
+          <Button variant="secondary" onClick={onClose} disabled={isLoading}>
+            {finalCancelLabel}
+          </Button>
+        )}
         <Button
           variant={intent === 'danger' ? 'danger' : 'primary'}
           onClick={onConfirm}

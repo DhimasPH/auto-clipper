@@ -16,6 +16,7 @@ import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
 import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "../types/subtitle";
 import { SubtitleConfigControls } from "../components/ui/SubtitleConfigControls";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 
 export const HistoryPage: React.FC = () => {
   const { t } = useTranslation();
@@ -34,6 +35,7 @@ export const HistoryPage: React.FC = () => {
   const [localSubtitleConfig, setLocalSubtitleConfig] = useState<SubtitleConfig>(DEFAULT_SUBTITLE_CONFIG);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHistory();
@@ -51,19 +53,20 @@ export const HistoryPage: React.FC = () => {
     }
   };
 
-  const deleteHistory = async (jobId: string) => {
-    if (window.confirm(t("history.delete_confirm"))) {
-      try {
-        setDeletingId(jobId);
-        // Short pause to allow DOM to unmount video elements and release file handles
-        await new Promise((r) => setTimeout(r, 60));
-        await axios.delete(`${API_URL}/history/${jobId}`);
-        fetchHistory();
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setDeletingId(null);
-      }
+  const executeDelete = async () => {
+    if (!confirmDeleteId) return;
+    const jobId = confirmDeleteId;
+    setConfirmDeleteId(null);
+    try {
+      setDeletingId(jobId);
+      // Short pause to allow DOM to unmount video elements and release file handles
+      await new Promise((r) => setTimeout(r, 60));
+      await axios.delete(`${API_URL}/history/${jobId}`);
+      fetchHistory();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -153,7 +156,7 @@ export const HistoryPage: React.FC = () => {
                   className="text-danger"
                   icon={Trash2}
                   disabled={deletingId === job.id}
-                  onClick={() => deleteHistory(job.id)}
+                  onClick={() => setConfirmDeleteId(job.id)}
                 />
               </div>
 
@@ -384,6 +387,14 @@ export const HistoryPage: React.FC = () => {
           }}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={executeDelete}
+        title={t("history.delete_confirm")}
+        intent="danger"
+      />
     </div>
   );
 };
