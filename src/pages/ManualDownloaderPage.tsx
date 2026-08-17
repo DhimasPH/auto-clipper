@@ -3,13 +3,16 @@ import { useTranslation } from "react-i18next";
 import { Link2, Type, Folder, Download, Gamepad2 } from "lucide-react";
 import { SHOW_EXPERIMENTAL_FEATURES } from "../config/features";
 import { PageHeader } from "../components/ui/PageHeader";
-import { AppContext, API_URL } from "../App";
+import { AppContext } from "../App";
+import { API_URL } from "../config/api";
 import axios from "axios";
 import { InputGroup } from "../components/ui/InputGroup";
 import { ToggleSwitch } from "../components/ui/ToggleSwitch";
 import { Select } from "../components/ui/Select";
 import { Button } from "../components/ui/Button";
 import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
+import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
+import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "../types/subtitle";
 
 export const ManualDownloaderPage: React.FC = () => {
   const { t } = useTranslation();
@@ -19,6 +22,17 @@ export const ManualDownloaderPage: React.FC = () => {
   const [quality, setQuality] = useState<"best" | "2160p" | "1440p" | "1080p" | "720p" | "480p">("best");
   const [availHeights, setAvailHeights] = useState<number[]>([]);
   const [probing, setProbing] = useState(false);
+
+  // Local state to prevent leaking to main generator (Workspace)
+  const [aspectRatio, setAspectRatio] = useState<"1:1" | "4:5" | "9:16" | "16:9">("9:16");
+  const [burnSubtitles, setBurnSubtitles] = useState(true);
+  const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke">("karaoke");
+  const [isGamingVideo, setIsGamingVideo] = useState(false);
+  const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
+  const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(DEFAULT_SUBTITLE_CONFIG);
+
+  // Reset local state if activeJobId becomes null ? Or just use local state which isolates it.
+  const [localError, setLocalError] = useState("");
 
   const probeQualities = async () => {
     if (!downloadUrl) return;
@@ -34,14 +48,25 @@ export const ManualDownloaderPage: React.FC = () => {
   };
 
   const handleDownload = () => {
+    setLocalError("");
     if (!downloadTitle || !downloadTitle.trim()) {
-      ctx.notify?.(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
+      const errMsg = t('toast.title_required', 'Judul Proyek wajib diisi!');
+      setLocalError(errMsg);
+      ctx.notify?.(t('toast.clip_failed', { num: '', msg: errMsg }), "error");
       return;
     }
     // Send an empty clips array to trigger the full video download fallback.
-    ctx.setTitle(downloadTitle); // make sure context has the title
-    ctx.setQuality(quality);
-    ctx.handleManualGenerate(downloadUrl, [], true);
+    const overrides = {
+      aspectRatio,
+      burnSubtitles,
+      captionStyle,
+      isGamingVideo,
+      canvasConfig,
+      subtitleConfig,
+      quality,
+      title: downloadTitle,
+    };
+    ctx.handleManualGenerate(downloadUrl, [], true, overrides);
   };
 
   return (
@@ -107,9 +132,9 @@ export const ManualDownloaderPage: React.FC = () => {
             {(["16:9", "9:16"] as const).map((ratio) => (
               <button
                 key={ratio}
-                onClick={() => ctx.setAspectRatio(ratio)}
+                onClick={() => setAspectRatio(ratio)}
                 className={`py-3 px-2 rounded-xl border transition-colors flex flex-col items-center gap-2 font-medium ${
-                  ctx.aspectRatio === ratio
+                  aspectRatio === ratio
                     ? "border-accent bg-accent/10 text-accent"
                     : "border-border bg-bg-surface text-text-secondary hover:border-border-active hover:text-text-primary"
                 }`}
@@ -121,11 +146,11 @@ export const ManualDownloaderPage: React.FC = () => {
             ))}
           </div>
 
-          {ctx.aspectRatio === "16:9" && ctx?.canvasConfig && (
+          {aspectRatio === "16:9" && canvasConfig && (
             <div className="pt-3">
               <CanvasConfigControls
-                config={ctx.canvasConfig}
-                onChange={ctx.setCanvasConfig}
+                config={canvasConfig}
+                onChange={setCanvasConfig}
                 showModeSwitch={true}
               />
             </div>
@@ -151,20 +176,23 @@ export const ManualDownloaderPage: React.FC = () => {
               </div>
             </div>
             <ToggleSwitch
-              checked={ctx.burnSubtitles}
-              onChange={ctx.setBurnSubtitles}
+              checked={burnSubtitles}
+              onChange={setBurnSubtitles}
             />
           </div>
 
-          {ctx.burnSubtitles && (
+          {burnSubtitles && (
             <div className="pt-4 border-t border-border">
               <div className="grid grid-cols-2 gap-3">
                 {(["standard", "karaoke"] as const).map((style) => (
                   <button
                     key={style}
-                    onClick={() => ctx.setCaptionStyle(style)}
+                    onClick={() => {
+                      setCaptionStyle(style);
+                      setSubtitleConfig({ ...subtitleConfig, style });
+                    }}
                     className={`py-2 px-3 rounded-lg border font-medium transition-colors ${
-                      ctx.captionStyle === style
+                      captionStyle === style
                         ? "border-accent bg-accent/10 text-accent"
                         : "border-border bg-bg-surface text-text-secondary hover:border-border-active"
                     }`}
@@ -178,7 +206,7 @@ export const ManualDownloaderPage: React.FC = () => {
             </div>
           )}
 
-          {ctx.aspectRatio === "9:16" && SHOW_EXPERIMENTAL_FEATURES && (
+          {aspectRatio === "9:16" && SHOW_EXPERIMENTAL_FEATURES && (
             <div className="pt-4 border-t border-border">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -198,15 +226,21 @@ export const ManualDownloaderPage: React.FC = () => {
                   </div>
                 </div>
                 <ToggleSwitch
-                  checked={ctx.isGamingVideo}
-                  onChange={ctx.setIsGamingVideo}
+                  checked={isGamingVideo}
+                  onChange={setIsGamingVideo}
                 />
               </div>
             </div>
           )}
         </div>
 
-        {ctx.errorMsg && (
+        {localError && (
+          <div className="p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-body">
+            ⚠️ {localError}
+          </div>
+        )}
+
+        {(ctx.errorMsg && ctx.errorMsg !== localError) && (
           <div className="p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-body">
             ⚠️ {ctx.errorMsg}
           </div>

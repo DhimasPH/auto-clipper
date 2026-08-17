@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { API_URL } from "../App";
+import { API_URL } from "../config/api";
 import { Clip } from "../components/ClipCard";
 import { ToastKind } from "./useToasts";
 import { CanvasConfig } from "../types/canvas";
@@ -43,7 +43,7 @@ export function useClipJobs(p: ClipJobParams) {
   const { notify } = p;
 
   const [status, setStatus] = useState<
-    "IDLE" | "GENERATING" | "DOWNLOADING" | "TRANSCRIBING" | "CROPPING" | "DONE" | "ERROR"
+    "IDLE" | "GENERATING" | "DOWNLOADING" | "TRANSCRIBING" | "CROPPING" | "DONE" | "ERROR" | "CANCELLED"
   >("IDLE");
   const [errorMsg, setErrorMsg] = useState("");
   const [progress, setProgress] = useState("");
@@ -51,15 +51,17 @@ export function useClipJobs(p: ClipJobParams) {
   const [totalClips, setTotalClips] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [lastFailedJobId, setLastFailedJobId] = useState<string | null>(null);
   const [jobOrigin, setJobOrigin] = useState<"workspace" | "history">("workspace");
   const [historyVersion, setHistoryVersion] = useState(0);
 
+  const isCancelledRef = useRef(false);
 
   // Polling effect for async job status.
   useEffect(() => {
     // Task 4.2: Block exit if job is running (Handle in Tauri Rust side if needed)
 
-    if (status === "IDLE" || status === "DONE" || status === "ERROR") return;
+    if (status === "IDLE" || status === "DONE" || status === "ERROR" || status === "CANCELLED") return;
     let interval: any;
     if (activeJobId) {
       interval = setInterval(async () => {
@@ -88,10 +90,11 @@ export function useClipJobs(p: ClipJobParams) {
             setStatus("ERROR");
             setErrorMsg(job.error || "Unknown error occurred.");
             notify(`⚠️ ${job.error || "Unknown error"}`, "error");
+            setLastFailedJobId(activeJobId);
             setActiveJobId(null);
             setProgress("");
           } else if (job.status === "CANCELLED") {
-            setStatus("IDLE");
+            setStatus("CANCELLED");
             notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
             setActiveJobId(null);
             setProgress("");
@@ -121,8 +124,9 @@ export function useClipJobs(p: ClipJobParams) {
   }, [activeJobId, status, clips.length, jobOrigin]);
 
   const cancelJob = async () => {
+    isCancelledRef.current = true;
     const jid = activeJobId;
-    setStatus("IDLE");
+    setStatus("CANCELLED");
     setActiveJobId(null);
     setProgress("");
     notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
@@ -166,9 +170,11 @@ export function useClipJobs(p: ClipJobParams) {
     setClips([]);
     setTotalClips(0);
     setFailedCount(0);
+    setLastFailedJobId(null);
     setJobOrigin("workspace");
 
     try {
+      isCancelledRef.current = false;
       setStatus("GENERATING");
 
       let finalUrl = p.url;
@@ -208,7 +214,11 @@ export function useClipJobs(p: ClipJobParams) {
       });
 
       if (res.data.status === "error") throw new Error(res.data.message);
-      setActiveJobId(res.data.job_id);
+      if (isCancelledRef.current) {
+        axios.post(`${API_URL}/jobs/${res.data.job_id}/cancel`).catch(console.error);
+      } else {
+        setActiveJobId(res.data.job_id);
+      }
     } catch (err: any) {
       console.error(err);
       setStatus("IDLE");
@@ -219,12 +229,27 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
-  const handleManualGenerate = async (sourceUrl: string, manualClips: { start: number; end: number }[], allowEmptyClips: boolean = false) => {
+  const handleManualGenerate = async (
+    sourceUrl: string,
+    manualClips: { start: number; end: number }[],
+    allowEmptyClips: boolean = false,
+    overrides?: {
+      aspectRatio?: string;
+      captionStyle?: string;
+      burnSubtitles?: boolean;
+      canvasConfig?: CanvasConfig;
+      subtitleConfig?: SubtitleConfig;
+      quality?: string;
+      title?: string;
+      isGamingVideo?: boolean;
+    }
+  ) => {
     if (!sourceUrl || (!allowEmptyClips && manualClips.length === 0)) {
       notify(t('toast.clip_failed', { num: '', msg: t('smartEditor.noClips', 'Belum ada klip.') }), "error");
       return;
     }
-    if (!p.title || !p.title.trim()) {
+    const effectiveTitle = overrides?.title ?? p.title;
+    if (!effectiveTitle || !effectiveTitle.trim()) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
       return;
     }
@@ -233,27 +258,33 @@ export function useClipJobs(p: ClipJobParams) {
     setClips([]);
     setTotalClips(manualClips.length);
     setFailedCount(0);
+    setLastFailedJobId(null);
     setJobOrigin("workspace");
 
     try {
+      isCancelledRef.current = false;
       setStatus("GENERATING");
       notify(t('smartEditor.submitted', '🚀 Memproses klip manual...'));
       const res = await axios.post(`${API_URL}/jobs/manual`, {
         url: sourceUrl,
         clips: manualClips,
-        aspect_ratio: p.aspectRatio,
-        caption_style: p.captionStyle,
-        burn_subs: p.burnSubtitles,
-        canvas_config: p.canvasConfig,
-        subtitle_config: p.subtitleConfig,
+        aspect_ratio: overrides?.aspectRatio ?? p.aspectRatio,
+        caption_style: overrides?.captionStyle ?? p.captionStyle,
+        burn_subs: overrides?.burnSubtitles ?? p.burnSubtitles,
+        canvas_config: overrides?.canvasConfig ?? p.canvasConfig,
+        subtitle_config: overrides?.subtitleConfig ?? p.subtitleConfig,
         output_dir: p.outputFolder,
-        quality: p.quality,
-        title: p.title,
-        is_gaming_video: p.isGamingVideo,
+        quality: overrides?.quality ?? p.quality,
+        title: effectiveTitle,
+        is_gaming_video: overrides?.isGamingVideo ?? p.isGamingVideo,
         whisper_model: p.whisperModel,
       });
       if (res.data.status === "error") throw new Error(res.data.message);
-      setActiveJobId(res.data.job_id);
+      if (isCancelledRef.current) {
+        axios.post(`${API_URL}/jobs/${res.data.job_id}/cancel`).catch(console.error);
+      } else {
+        setActiveJobId(res.data.job_id);
+      }
     } catch (err: any) {
       console.error(err);
       setStatus("IDLE");
@@ -276,8 +307,10 @@ export function useClipJobs(p: ClipJobParams) {
     setStatus("TRANSCRIBING");
     setProgress("");
     setErrorMsg("");
+    setLastFailedJobId(null);
 
     try {
+      isCancelledRef.current = false;
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerender`, {
         url: "dummy",
         provider: "openai",
@@ -298,9 +331,13 @@ export function useClipJobs(p: ClipJobParams) {
 
       if (res.data.status === "error") throw new Error(res.data.message);
 
-      setActiveJobId(res.data.job_id);
-      p.closeHistory();
-      notify(t('toast.starting_rerender', '🚀 Memulai re-render dari history...'));
+      if (isCancelledRef.current) {
+        axios.post(`${API_URL}/jobs/${res.data.job_id}/cancel`).catch(console.error);
+      } else {
+        setActiveJobId(res.data.job_id);
+        p.closeHistory();
+        notify(t('toast.starting_rerender', '🚀 Memulai re-render dari history...'));
+      }
     } catch (err: any) {
       console.error(err);
       setStatus("ERROR");
@@ -316,8 +353,10 @@ export function useClipJobs(p: ClipJobParams) {
     setStatus("TRANSCRIBING");
     setProgress("");
     setErrorMsg("");
+    setLastFailedJobId(null);
 
     try {
+      isCancelledRef.current = false;
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerun_ai`, {
         url: "dummy",
         provider: p.provider,
@@ -342,9 +381,13 @@ export function useClipJobs(p: ClipJobParams) {
 
       if (res.data.status === "error") throw new Error(res.data.message);
 
-      setActiveJobId(res.data.job_id);
-      p.closeHistory();
-      notify(t('toast.starting_ai_correct', '✨ Memulai proses AI Koreksi dari history...'));
+      if (isCancelledRef.current) {
+        axios.post(`${API_URL}/jobs/${res.data.job_id}/cancel`).catch(console.error);
+      } else {
+        setActiveJobId(res.data.job_id);
+        p.closeHistory();
+        notify(t('toast.starting_ai_correct', '✨ Memulai proses AI Koreksi dari history...'));
+      }
     } catch (err: any) {
       console.error(err);
       setStatus("IDLE");
@@ -355,13 +398,15 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
-  const handleResumeJob = async (historyJobId: string) => {
-    setJobOrigin("history");
+  const handleResumeJob = async (historyJobId: string, origin: "workspace" | "history" = "history") => {
+    setJobOrigin(origin);
     setStatus("TRANSCRIBING");
     setProgress("");
     setErrorMsg("");
+    setLastFailedJobId(null);
 
     try {
+      isCancelledRef.current = false;
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/resume`, {
         api_key: p.apiKey,
         provider: p.provider,
@@ -373,9 +418,13 @@ export function useClipJobs(p: ClipJobParams) {
 
       if (res.data.status === "error") throw new Error(res.data.message);
 
-      setActiveJobId(res.data.job_id);
-      p.closeHistory();
-      notify(t('toast.starting_resume', '🔄 Melanjutkan proses AI...'));
+      if (isCancelledRef.current) {
+        axios.post(`${API_URL}/jobs/${res.data.job_id}/cancel`).catch(console.error);
+      } else {
+        setActiveJobId(res.data.job_id);
+        p.closeHistory();
+        notify(t('toast.starting_resume', '🔄 Melanjutkan proses AI...'));
+      }
     } catch (err: any) {
       console.error(err);
       setStatus("IDLE");
@@ -391,6 +440,7 @@ export function useClipJobs(p: ClipJobParams) {
     setStatus("CROPPING");
     setProgress("");
     setErrorMsg("");
+    setLastFailedJobId(null);
     setActiveJobId(newJobId);
     // Polling loop in useEffect will pick up the new job automatically
   };
@@ -401,6 +451,7 @@ export function useClipJobs(p: ClipJobParams) {
     setErrorMsg("");
     setProgress("");
     setActiveJobId(null);
+    setLastFailedJobId(null);
     setFailedCount(0);
     setTotalClips(0);
   };
@@ -411,10 +462,11 @@ export function useClipJobs(p: ClipJobParams) {
     setStatus("CROPPING");
     setProgress("Memproses klip manual...");
     setErrorMsg("");
+    setLastFailedJobId(null);
     p.closeHistory();
   };
 
-  const isRunning = !!activeJobId || status === "GENERATING";
+  const isRunning = !!activeJobId || (status !== "IDLE" && status !== "DONE" && status !== "ERROR" && status !== "CANCELLED");
   const progressPct =
     status === "DOWNLOADING"
       ? 15
@@ -438,7 +490,7 @@ export function useClipJobs(p: ClipJobParams) {
 
   return {
     status, progress, errorMsg, clips, failedCount,
-    isRunning, progressPct, historyVersion, activeJobId,
+    isRunning, progressPct, historyVersion, activeJobId, lastFailedJobId,
     handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, startManualResumePolling, cancelJob, resetJobState,
   };
 }
