@@ -8,10 +8,14 @@ export interface ConfirmDialogProps {
   onClose: () => void;
   title: React.ReactNode;
   description?: React.ReactNode;
+  children?: React.ReactNode;
+  consequences?: string[];
   onConfirm: () => void;
   confirmLabel?: string;
   cancelLabel?: string;
   intent?: 'primary' | 'danger';
+  isLoading?: boolean;
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -19,10 +23,14 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onClose,
   title,
   description,
+  children,
+  consequences,
   onConfirm,
   confirmLabel,
   cancelLabel,
   intent = 'primary',
+  isLoading,
+  maxWidth = 'sm',
 }) => {
   const { t } = useTranslation();
 
@@ -35,15 +43,24 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       onClose={onClose}
       title={title}
       description={description}
-      maxWidth="sm"
+      maxWidth={maxWidth}
     >
-      <div className="flex items-center justify-end gap-3 pt-2">
-        <Button variant="secondary" onClick={onClose}>
+      {consequences && consequences.length > 0 && (
+        <ul className={`list-disc pl-5 mb-4 text-sm space-y-1 ${intent === 'danger' ? 'text-error' : 'text-text-secondary'}`}>
+          {consequences.map((c, i) => (
+            <li key={i}>{c}</li>
+          ))}
+        </ul>
+      )}
+      {children}
+      <div className="flex items-center justify-end gap-3 pt-4 mt-2 border-t border-border/50">
+        <Button variant="secondary" onClick={onClose} disabled={isLoading}>
           {finalCancelLabel}
         </Button>
         <Button
           variant={intent === 'danger' ? 'danger' : 'primary'}
           onClick={onConfirm}
+          loading={isLoading}
         >
           {finalConfirmLabel}
         </Button>
