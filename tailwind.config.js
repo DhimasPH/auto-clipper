@@ -4,6 +4,14 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: [
+    {
+      pattern: /^(bg|text|border)-(success|error|warning|info|accent|accent-solid)$/,
+    },
+    {
+      pattern: /^(bg|border)-(success|error|warning|info|accent|accent-solid)\/(10|20|25|50)$/,
+    }
+  ],
   theme: {
     extend: {
       fontFamily: {
@@ -11,29 +19,30 @@ export default {
       },
       colors: {
         bg: {
-          primary: 'var(--bg-primary)',
-          secondary: 'var(--bg-secondary)',
-          elevated: 'var(--bg-elevated)',
-          surface: 'var(--bg-surface)',
+          primary: 'rgb(var(--bg-primary) / <alpha-value>)',
+          secondary: 'rgb(var(--bg-secondary) / <alpha-value>)',
+          elevated: 'rgb(var(--bg-elevated) / <alpha-value>)',
+          surface: 'rgb(var(--bg-surface) / <alpha-value>)',
         },
         accent: {
-          DEFAULT: 'var(--accent)',
-          hover: 'var(--accent-hover)',
-          muted: 'var(--accent-muted)',
+          DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
+          solid: 'rgb(var(--accent-solid) / <alpha-value>)',
+          hover: 'rgb(var(--accent-hover) / <alpha-value>)',
+          muted: 'rgb(var(--accent-muted) / <alpha-value>)',
         },
         text: {
-          primary: 'var(--text-primary)',
-          secondary: 'var(--text-secondary)',
-          tertiary: 'var(--text-tertiary)',
+          primary: 'rgb(var(--text-primary) / <alpha-value>)',
+          secondary: 'rgb(var(--text-secondary) / <alpha-value>)',
+          tertiary: 'rgb(var(--text-tertiary) / <alpha-value>)',
         },
         border: {
-          DEFAULT: 'var(--border)',
-          active: 'var(--border-active)',
+          DEFAULT: 'rgb(var(--border) / <alpha-value>)',
+          active: 'rgb(var(--border-active) / <alpha-value>)',
         },
-        success: 'var(--success)',
-        error: 'var(--error)',
-        warning: 'var(--warning)',
-        info: 'var(--info)',
+        success: 'rgb(var(--success) / <alpha-value>)',
+        error: 'rgb(var(--error) / <alpha-value>)',
+        warning: 'rgb(var(--warning) / <alpha-value>)',
+        info: 'rgb(var(--info) / <alpha-value>)',
       },
       borderRadius: {
         'card': '12px',
