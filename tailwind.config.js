@@ -15,7 +15,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Outfit', 'sans-serif'],
+        sans: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
         bg: {
@@ -28,7 +29,7 @@ export default {
           DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
           solid: 'rgb(var(--accent-solid) / <alpha-value>)',
           hover: 'rgb(var(--accent-hover) / <alpha-value>)',
-          muted: 'rgb(var(--accent-muted) / <alpha-value>)',
+          muted: 'rgb(var(--accent) / 0.14)',
         },
         text: {
           primary: 'rgb(var(--text-primary) / <alpha-value>)',
@@ -36,8 +37,8 @@ export default {
           tertiary: 'rgb(var(--text-tertiary) / <alpha-value>)',
         },
         border: {
-          DEFAULT: 'rgb(var(--border) / <alpha-value>)',
-          active: 'rgb(var(--border-active) / <alpha-value>)',
+          DEFAULT: 'var(--border)',
+          active: 'var(--border-active)',
         },
         success: 'rgb(var(--success) / <alpha-value>)',
         error: 'rgb(var(--error) / <alpha-value>)',

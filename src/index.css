@@ -4,22 +4,21 @@
 
 @layer base {
   :root {
-    --bg-primary: 15 23 42;
-    --bg-secondary: 30 41 59;
-    --bg-elevated: 51 65 85;
-    --bg-surface: 71 85 105;
+    --bg-primary: 7 11 20;
+    --bg-secondary: 15 23 42;
+    --bg-elevated: 22 32 58;
+    --bg-surface: 30 41 59;
 
     --accent: 59 130 246;
     --accent-solid: 37 99 235;
     --accent-hover: 96 165 250;
-    --accent-muted: 59 130 246;
 
     --text-primary: 248 250 252;
     --text-secondary: 148 163 184;
     --text-tertiary: 100 116 139;
 
-    --border: 255 255 255;
-    --border-active: 255 255 255;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-active: rgba(255, 255, 255, 0.16);
 
     --success: 16 185 129;
     --error: 239 68 68;
@@ -33,17 +32,16 @@
     --bg-elevated: 255 255 255;
     --bg-surface: 241 245 249;
 
-    --accent: 37 99 235;
-    --accent-solid: 29 78 216;
+    --accent: 29 78 216;
+    --accent-solid: 37 99 235;
     --accent-hover: 30 64 175;
-    --accent-muted: 37 99 235;
 
     --text-primary: 15 23 42;
     --text-secondary: 71 85 105;
     --text-tertiary: 100 116 139;
 
-    --border: 0 0 0;
-    --border-active: 0 0 0;
+    --border: rgba(15, 23, 42, 0.10);
+    --border-active: rgba(15, 23, 42, 0.20);
 
     --success: 5 150 105;
     --error: 220 38 38;
@@ -58,27 +56,15 @@
 }
 
 @layer utilities {
-  .t-display {
-    @apply text-[24px] font-bold;
-  }
-  .t-title {
-    @apply text-[18px] font-semibold;
-  }
-  .t-subtitle {
-    @apply text-[16px] font-semibold;
-  }
-  .t-body {
-    @apply text-[14px] font-normal;
-  }
-  .t-label {
-    @apply text-[13px] font-medium;
-  }
-  .t-caption {
-    @apply text-[12px] font-normal;
-  }
-  .t-overline {
-    @apply text-[11px] font-semibold uppercase tracking-wider;
-  }
+  .t-display    { @apply text-[28px] font-bold leading-tight tracking-[-0.02em]; }
+  .t-page       { @apply text-[22px] font-bold leading-tight tracking-[-0.01em]; }
+  .t-section    { @apply text-[17px] font-semibold leading-snug; }
+  .t-card       { @apply text-[15px] font-semibold leading-snug; }
+  .t-body       { @apply text-[14px] font-normal leading-relaxed; }
+  .t-label      { @apply text-[13px] font-medium leading-snug; }
+  .t-caption    { @apply text-[12px] font-normal leading-snug; }
+  .t-overline   { @apply text-[10px] font-semibold uppercase tracking-[0.12em]; }
+  .t-num        { @apply font-mono tabular-nums; }
 }
 
 /* Custom Scrollbar */
