@@ -120,7 +120,11 @@ export const HistoryPage: React.FC = () => {
                           ? "success"
                           : (job.status === "failed" || job.status === "ERROR")
                             ? "error"
-                            : "default"
+                            : (job.status === "AWAITING_MANUAL")
+                              ? "warning"
+                              : (job.status === "PROCESSING" || job.status === "QUEUED")
+                                ? "info"
+                                : "default"
                       }
                     >
                       {job.status}

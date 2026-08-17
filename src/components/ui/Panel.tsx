@@ -7,7 +7,7 @@ export const Panel = React.forwardRef<HTMLDivElement, PanelProps>(
     return (
       <div 
         ref={ref}
-        className={`bg-bg-secondary border border-border rounded-xl p-4 ${className}`.trim()}
+        className={`bg-bg-secondary border border-border rounded-card p-4 ${className}`.trim()}
         {...props}
       />
     );

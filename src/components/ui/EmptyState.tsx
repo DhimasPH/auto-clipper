@@ -17,11 +17,11 @@ export const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
         {...props}
       >
         {Icon && (
-          <div className="mb-4 text-text-muted">
+          <div className="mb-4 text-text-tertiary">
             <Icon className="w-12 h-12" />
           </div>
         )}
-        <h3 className="t-h4 text-text-primary mb-2">{title}</h3>
+        <h3 className="t-section text-text-primary mb-2">{title}</h3>
         {description && (
           <div className="t-body text-text-secondary max-w-md mx-auto mb-6">
             {description}
