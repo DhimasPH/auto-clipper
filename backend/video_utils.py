@@ -5,6 +5,7 @@ import subprocess
 import os
 import sys
 import time
+import shutil
 from pathlib import Path
 from backend.logger import log_error
 
