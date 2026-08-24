@@ -38,7 +38,7 @@ export const FontSelector: React.FC<FontSelectorProps> = ({ value, onChange }) =
         ))}
       </select>
       <p className="text-xs text-neutral-500">
-        Pilih font kustom untuk menimpa font bawaan dari preset style di atas. Pastikan font ter-install di server backend.
+        Pilih font kustom untuk menimpa font bawaan dari preset style di atas.
       </p>
     </div>
   );
