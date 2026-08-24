@@ -79,6 +79,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
         caption_style: subtitlePreset === "podcast" ? "karaoke" : subtitlePreset === "viral_pop" ? "single_word" : "standard",
         canvas_config: { ...DEFAULT_CANVAS_CONFIG, enabled: outputStyle === "canvas_blur" },
         subtitle_config: subtitleConfig,
+        burn_subs: true,
       };
 
       const res = await apiCreateRerenderJob(jobId, payload);

@@ -119,6 +119,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
         caption_style: subtitlePreset === "podcast" ? "karaoke" : subtitlePreset === "viral_pop" ? "single_word" : "standard",
         canvas_config: { ...DEFAULT_CANVAS_CONFIG, enabled: outputStyle === "canvas_blur" },
         subtitle_config: subtitleConfig,
+        burn_subs: true,
       };
 
       const res = await apiCreateClipRerenderJob(jobId, clipIndex, payload);
