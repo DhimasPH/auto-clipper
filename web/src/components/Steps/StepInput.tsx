@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { OutputStyleSelector, type OutputStyle } from "../OutputStyleSelector";
 import { SubtitlePresetBar } from "../SubtitlePresetBar";
+import { FontSelector } from "../FontSelector";
 import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../../types/subtitle";
 import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "../../types/canvas";
 import type { CreateJobPayload } from "../../types/job";
@@ -161,6 +162,7 @@ export const StepInput: React.FC<StepInputProps> = ({
   const [title, setTitle] = useState<string>("");
   const [outputStyle, setOutputStyle] = useState<OutputStyle>("face_crop");
   const [subtitlePreset, setSubtitlePreset] = useState<SubtitlePresetKey>("viral_pop");
+  const [customFont, setCustomFont] = useState<string>("");
   const [whisperModel, setWhisperModel] = useState<string>("small");
   const [language, setLanguage] = useState<string>("auto");
   const [maxClips, setMaxClips] = useState<number>(0);
@@ -190,6 +192,7 @@ export const StepInput: React.FC<StepInputProps> = ({
         if (parsed.title) setTitle(parsed.title);
         if (parsed.outputStyle) setOutputStyle(parsed.outputStyle);
         if (parsed.subtitlePreset) setSubtitlePreset(parsed.subtitlePreset);
+        if (parsed.customFont) setCustomFont(parsed.customFont);
         if (parsed.whisperModel) setWhisperModel(parsed.whisperModel);
         if (parsed.language) setLanguage(parsed.language);
         if (parsed.maxClips !== undefined) setMaxClips(parsed.maxClips);
@@ -220,6 +223,7 @@ export const StepInput: React.FC<StepInputProps> = ({
           title,
           outputStyle,
           subtitlePreset,
+          customFont,
           whisperModel,
           language,
           maxClips,
@@ -231,7 +235,7 @@ export const StepInput: React.FC<StepInputProps> = ({
     } catch {
       // Ignore
     }
-  }, [url, title, outputStyle, subtitlePreset, whisperModel, language, maxClips, highlightColor, watermarkText, watermarkOpacity]);
+  }, [url, title, outputStyle, subtitlePreset, customFont, whisperModel, language, maxClips, highlightColor, watermarkText, watermarkOpacity]);
 
   const validateUrl = (testUrl: string): boolean => {
     const clean = testUrl.trim();
@@ -282,9 +286,12 @@ export const StepInput: React.FC<StepInputProps> = ({
 
     // Build Subtitle Config
     const presetBase = SUBTITLE_PRESETS[subtitlePreset]?.config || {};
+    const finalFont = customFont || presetBase.font_family || "Arial";
+
     const subtitleConfig: SubtitleConfig = {
       ...DEFAULT_SUBTITLE_CONFIG,
       ...presetBase,
+      font_family: finalFont,
       highlight_color: highlightColor,
       watermark_text: watermarkText.trim(),
       watermark_opacity: watermarkOpacity,
@@ -413,6 +420,10 @@ export const StepInput: React.FC<StepInputProps> = ({
           value={subtitlePreset}
           onChange={(val) => setSubtitlePreset(val)}
           disabled={isSubmitting}
+        />
+        <FontSelector
+          value={customFont}
+          onChange={setCustomFont}
         />
       </div>
 
