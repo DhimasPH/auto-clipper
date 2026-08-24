@@ -4,6 +4,7 @@ import type { JobResponse } from "../types/job";
 import { Trash2, Play, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, Film, Download, Share2, ExternalLink, Pencil } from "lucide-react";
 import { OutputStyleSelector, type OutputStyle } from "./OutputStyleSelector";
 import { SubtitlePresetBar } from "./SubtitlePresetBar";
+import { FontSelector } from "./FontSelector";
 import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../types/subtitle";
 import { DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { ClipEditModal } from "./ClipEditModal";
@@ -20,6 +21,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
   const [activeRerenderId, setActiveRerenderId] = useState<string | null>(null);
   const [outputStyle, setOutputStyle] = useState<OutputStyle>("face_crop");
   const [subtitlePreset, setSubtitlePreset] = useState<SubtitlePresetKey>("viral_pop");
+  const [customFont, setCustomFont] = useState<string>("");
 
   const [activeAiId, setActiveAiId] = useState<string | null>(null);
   const [extraPrompt, setExtraPrompt] = useState<string>("");
@@ -65,9 +67,12 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
     setIsSubmittingPanel(true);
     try {
       const presetBase = SUBTITLE_PRESETS[subtitlePreset]?.config || {};
+      const finalFont = customFont || presetBase.font_family || "Arial";
+      
       const subtitleConfig: SubtitleConfig = {
         ...DEFAULT_SUBTITLE_CONFIG,
         ...presetBase,
+        font_family: finalFont,
       };
 
       let aspectRatio = "9:16";
@@ -79,6 +84,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
         caption_style: subtitlePreset === "podcast" ? "karaoke" : subtitlePreset === "viral_pop" ? "single_word" : "standard",
         canvas_config: { ...DEFAULT_CANVAS_CONFIG, enabled: outputStyle === "canvas_blur" },
         subtitle_config: subtitleConfig,
+        burn_subs: true,
       };
 
       const res = await apiCreateRerenderJob(jobId, payload);
@@ -313,6 +319,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
               <div className="space-y-4">
                 <OutputStyleSelector value={outputStyle} onChange={(val) => setOutputStyle(val)} disabled={isSubmittingPanel} />
                 <SubtitlePresetBar value={subtitlePreset} onChange={(val) => setSubtitlePreset(val)} disabled={isSubmittingPanel} />
+                <FontSelector value={customFont} onChange={setCustomFont} />
                 <button
                   onClick={() => handleRerenderSubmit(job.id)}
                   disabled={isSubmittingPanel}
