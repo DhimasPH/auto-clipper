@@ -3,6 +3,7 @@ import { X, Wand2, RefreshCcw, Search, RotateCcw, Copy, Check, ChevronRight } fr
 import { apiGetClipWords, apiCreateClipRerenderJob } from "../api";
 import { OutputStyleSelector, type OutputStyle } from "./OutputStyleSelector";
 import { SubtitlePresetBar } from "./SubtitlePresetBar";
+import { FontSelector } from "./FontSelector";
 import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../types/subtitle";
 import { DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 
@@ -31,6 +32,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   
   const [outputStyle, setOutputStyle] = useState<OutputStyle>(initialOutputStyle);
   const [subtitlePreset, setSubtitlePreset] = useState<SubtitlePresetKey>(initialSubtitlePreset);
+  const [customFont, setCustomFont] = useState<string>("");
   
   const [originalWords, setOriginalWords] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -104,9 +106,12 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
     setSaving(true);
     try {
       const presetBase = SUBTITLE_PRESETS[subtitlePreset]?.config || {};
+      const finalFont = customFont || presetBase.font_family || "Arial";
+      
       const subtitleConfig: SubtitleConfig = {
         ...DEFAULT_SUBTITLE_CONFIG,
         ...presetBase,
+        font_family: finalFont,
       };
 
       let aspectRatio = "9:16";
@@ -271,6 +276,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                 <h3 className="font-medium text-neutral-200">Output Settings</h3>
                 <OutputStyleSelector value={outputStyle} onChange={setOutputStyle} disabled={saving} />
                 <SubtitlePresetBar value={subtitlePreset} onChange={setSubtitlePreset} disabled={saving} />
+                <FontSelector value={customFont} onChange={setCustomFont} />
               </div>
             </>
           )}
