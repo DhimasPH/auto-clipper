@@ -196,14 +196,23 @@ export function getVideoStreamUrl(pathOrUrl: string, version?: number): string {
 
 export function getDownloadUrl(pathOrUrl: string, version?: number, customName?: string): string {
   const base = getVideoStreamUrl(pathOrUrl, version);
-  if (!base.startsWith("http")) return base;
+  if (!base) return "";
   
-  const separator = base.includes("?") ? "&" : "?";
-  let url = `${base}${separator}dl=1`;
-  if (customName) {
-    url += `&title=${encodeURIComponent(customName)}`;
+  try {
+    const urlObj = new URL(base, window.location.origin);
+    urlObj.searchParams.set("dl", "1");
+    if (customName) {
+      urlObj.searchParams.set("title", customName);
+    }
+    
+    // Return relative if it was relative, otherwise absolute
+    if (base.startsWith("/")) {
+      return urlObj.pathname + urlObj.search + urlObj.hash;
+    }
+    return urlObj.toString();
+  } catch (e) {
+    return base;
   }
-  return url;
 }
 
 export async function apiGetHistory(): Promise<JobResponse[]> {
