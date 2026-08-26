@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   XCircle,
   HardDrive,
@@ -20,13 +20,7 @@ export const GDriveBrowserModal: React.FC<{
   const [error, setError] = useState<string | null>(null);
   const [parentDir, setParentDir] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchDir(currentPath);
-    }
-  }, [isOpen, currentPath]);
-
-  const fetchDir = async (path: string) => {
+  const fetchDir = useCallback(async (path: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -39,13 +33,36 @@ export const GDriveBrowserModal: React.FC<{
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDir(currentPath);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, fetchDir]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-      <div className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn"
+      onClick={onClose}
+    >
+      <div 
+        className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-4 border-b border-neutral-800">
           <div className="flex items-center gap-2">
             <HardDrive className="w-5 h-5 text-amber-400" />
@@ -60,7 +77,7 @@ export const GDriveBrowserModal: React.FC<{
           {parentDir !== null && (
             <button 
               type="button"
-              onClick={() => setCurrentPath(parentDir)}
+              onClick={() => fetchDir(parentDir)}
               className="p-1 hover:bg-neutral-800 rounded-md transition-colors text-neutral-400 hover:text-neutral-200"
               title="Go up"
             >
@@ -87,7 +104,7 @@ export const GDriveBrowserModal: React.FC<{
                   key={i}
                   onClick={() => {
                     if (item.is_dir) {
-                      setCurrentPath(item.path);
+                      fetchDir(item.path);
                     } else {
                       onSelectFile(item.path);
                     }
