@@ -1179,7 +1179,8 @@ def _run_manual_resume_job(job_id: str, metadata: dict):
         output_path = metadata.get("source_video")
         subtitle_path = metadata.get("subtitle_path")
         
-        limit = _get_clip_limit(job.get("max_clips", 0), metadata.get("duration_seconds", 0))
+        # Manual paste: user explicitly chose these highlights, skip auto-limit
+        limit = 0
         
         _render_video_clips(job, job_id, metadata, output_path, subtitle_path, is_cancelled, limit)
     except Exception as e:
