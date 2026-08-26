@@ -24,6 +24,9 @@ function MainWizard() {
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
 
+  const [activePrompt, setActivePrompt] = useState<string>("");
+  const [activeHistoryJob, setActiveHistoryJob] = useState<any | null>(null);
+
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
 
   const {
@@ -197,6 +200,16 @@ function MainWizard() {
                 setCurrentView("wizard");
                 startPolling(id);
               }}
+              onResumeManual={(id, manualPrompt) => {
+                stopPolling();
+                startPolling(id); // Ensure the hook knows about this job
+                setActivePrompt(manualPrompt);
+                setIsPromptModalOpen(true);
+              }}
+              onViewResults={(job) => {
+                setActiveHistoryJob(job);
+                setIsResultsModalOpen(true);
+              }}
             />
           </main>
         ) : (
@@ -275,17 +288,23 @@ function MainWizard() {
       </div>
 
       <PromptJsonModal
-        prompt={prompt}
+        prompt={activePrompt || prompt}
         isOpen={isPromptModalOpen}
-        onClose={() => setIsPromptModalOpen(false)}
+        onClose={() => {
+          setIsPromptModalOpen(false);
+          setActivePrompt("");
+        }}
         onSubmitJson={handleJsonSubmit}
         isSubmitting={isLoading}
       />
 
       <ResultsModal
         isOpen={isResultsModalOpen}
-        onClose={() => setIsResultsModalOpen(false)}
-        clips={clips.map((c, i) => ({
+        onClose={() => {
+          setIsResultsModalOpen(false);
+          setActiveHistoryJob(null);
+        }}
+        clips={(activeHistoryJob?.clips || activeHistoryJob?.result_clips || clips || []).map((c: any, i: number) => ({
           id: `clip-${i}`,
           path: c.path,
           title: c.social?.title || c.description
