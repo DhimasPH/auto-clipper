@@ -35,7 +35,8 @@ export const parseAndValidateClips = (rawJson: string): { count?: number; error?
     }
     
     const first = items[0];
-    if (!first || (typeof first.start_time !== "number" && typeof first.start !== "number")) {
+    const hasStart = first && (first.start_time != null || first.start != null);
+    if (!hasStart) {
       return { error: "Missing 'start_time' or 'start' in the first highlight.", cleanJson };
     }
     
