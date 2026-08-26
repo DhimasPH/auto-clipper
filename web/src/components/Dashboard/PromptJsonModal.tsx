@@ -1,6 +1,51 @@
 import React, { useState, useEffect } from "react";
 import { MessageSquareQuote, FileJson, Copy, Check, Share2, Clipboard, Play, Loader2, AlertCircle, ExternalLink, XCircle } from "lucide-react";
 
+export const parseAndValidateClips = (rawJson: string): { count?: number; error?: string; cleanJson: string } => {
+  if (rawJson.trim() === "") {
+    return { cleanJson: "" };
+  }
+
+  let cleanJson = rawJson;
+  const match = cleanJson.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (match && match[1]) {
+    cleanJson = match[1];
+  }
+
+  try {
+    const data = JSON.parse(cleanJson);
+    let items: any[] = [];
+    if (Array.isArray(data)) {
+      items = data;
+    } else if (data.highlights && Array.isArray(data.highlights)) {
+      items = data.highlights;
+    } else if (data.clips && Array.isArray(data.clips)) {
+      items = data.clips;
+    } else if (data.segments && Array.isArray(data.segments)) {
+      items = data.segments;
+    } else {
+      return { error: "Invalid structure. Expected an array or { highlights: [] }.", cleanJson };
+    }
+    
+    if (items.length === 0) {
+      return { error: "No highlights found in the JSON.", cleanJson };
+    }
+    
+    const first = items[0];
+    if (!first || (typeof first.start_time !== "number" && typeof first.start !== "number")) {
+      return { error: "Missing 'start_time' or 'start' in the first highlight.", cleanJson };
+    }
+    
+    return { count: items.length, cleanJson };
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      return { error: err.message, cleanJson };
+    } else {
+      return { error: "Invalid JSON syntax", cleanJson };
+    }
+  }
+};
+
 export const PromptJsonModal: React.FC<{
   prompt: string;
   isOpen: boolean;
@@ -20,42 +65,9 @@ export const PromptJsonModal: React.FC<{
       setParsedCount(null);
       return;
     }
-    try {
-      let rawJson = inputJson;
-      const match = rawJson.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (match && match[1]) {
-        rawJson = match[1];
-      }
-      const data = JSON.parse(rawJson);
-      let items: any[] = [];
-      if (Array.isArray(data)) {
-        items = data;
-      } else if (data.highlights && Array.isArray(data.highlights)) {
-        items = data.highlights;
-      } else if (data.clips && Array.isArray(data.clips)) {
-        items = data.clips;
-      } else if (data.segments && Array.isArray(data.segments)) {
-        items = data.segments;
-      } else {
-        throw new Error("Invalid structure. Expected an array or { highlights: [] }.");
-      }
-      if (items.length === 0) {
-        throw new Error("No highlights found in the JSON.");
-      }
-      const first = items[0];
-      if (typeof first.start_time !== "number" && typeof first.start !== "number") {
-        throw new Error("Missing 'start_time' or 'start' in the first highlight.");
-      }
-      setError(null);
-      setParsedCount(items.length);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Invalid JSON syntax");
-      }
-      setParsedCount(null);
-    }
+    const result = parseAndValidateClips(inputJson);
+    setError(result.error || null);
+    setParsedCount(result.count || null);
   }, [inputJson]);
 
   const handleCopy = async () => {
@@ -89,6 +101,7 @@ export const PromptJsonModal: React.FC<{
       setInputJson(text);
     } catch (err) {
       console.error("Clipboard paste error:", err);
+      setError("Failed to read from clipboard");
     }
   };
 
@@ -98,12 +111,8 @@ export const PromptJsonModal: React.FC<{
   };
 
   const handleFinalSubmit = () => {
-    let cleanJson = inputJson;
-    const match = cleanJson.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (match && match[1]) {
-      cleanJson = match[1];
-    }
-    onSubmitJson(cleanJson);
+    const result = parseAndValidateClips(inputJson);
+    onSubmitJson(result.cleanJson);
   };
 
   // Close modal on Escape
@@ -119,8 +128,9 @@ export const PromptJsonModal: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto py-10" onClick={(e) => { if(e.target === e.currentTarget && !isSubmitting) onClose(); }}>
-       <div className="bg-neutral-900 border border-neutral-800 w-full max-w-4xl rounded-2xl flex flex-col my-auto">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4 py-10" onClick={(e) => { if(e.target === e.currentTarget && !isSubmitting) onClose(); }}>
+        <div className="bg-neutral-900 border border-neutral-800 w-full max-w-4xl rounded-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
           
           <div className="p-6 border-b border-neutral-800">
              <div className="flex items-center justify-between mb-4">
@@ -152,9 +162,11 @@ export const PromptJsonModal: React.FC<{
                    <button onClick={handleCopy} className="p-2 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white transition-colors">
                      {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                    </button>
-                   <button onClick={handleShare} className="p-2 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white transition-colors">
-                     {shared ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
-                   </button>
+                   {typeof navigator !== "undefined" && !!navigator.share && (
+                     <button onClick={handleShare} className="p-2 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white transition-colors">
+                       {shared ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+                     </button>
+                   )}
                 </div>
              </div>
           </div>
@@ -207,7 +219,8 @@ export const PromptJsonModal: React.FC<{
                 Resume Job
              </button>
           </div>
-       </div>
+        </div>
+      </div>
     </div>
   );
 };
