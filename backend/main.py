@@ -842,23 +842,29 @@ def get_video(path: str, dl: int = 0, title: str = None):
     FileResponse handles HTTP Range requests, so seeking works in the player.
     """
     from backend.logger import log_app
-    import os
-    import re
     
     abs_path = os.path.normpath(os.path.abspath(path))
+    
+    # Path traversal protection: ensure file is inside app data dir or project root
+    safe_dirs = [
+        os.path.abspath(get_app_data_dir()),
+        os.path.abspath(os.getcwd())
+    ]
+    if not any(abs_path.startswith(safe_dir) for safe_dir in safe_dirs):
+        log_app(f"[video] Security error: Path traversal attempt: {abs_path}")
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
+        
     log_app(f"[video] Requested: {path} → Resolved: {abs_path} → Exists: {os.path.exists(abs_path)}")
     if not os.path.exists(abs_path) or not abs_path.lower().endswith(".mp4"):
-        from fastapi.responses import JSONResponse
         return JSONResponse(status_code=404, content={"status": "error", "message": f"File not found or invalid format: {abs_path}"})
     
     filename = os.path.basename(abs_path)
     if title:
-        clean_title = re.sub(r'[^a-zA-Z0-9_-]', '_', title)
+        clean_title = re.sub(r'[^\w\s-]', '', title).strip().replace(' ', '_')
         filename = f"{clean_title}.mp4"
         
     disposition = "attachment" if dl == 1 else "inline"
     
-    from fastapi.responses import FileResponse
     return FileResponse(
         abs_path,
         media_type="video/mp4",
