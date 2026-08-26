@@ -310,7 +310,8 @@ function MainWizard() {
         clips={(activeHistoryJob?.clips || (activeHistoryJob as any)?.result_clips || clips || []).map((c: any, i: number) => ({
           id: `clip-${i}`,
           path: c.path,
-          title: c.social?.title || c.description
+          title: c.social?.title || c.description,
+          social: c.social
         }))}
         onResetApp={handleResetToNewJob}
       />

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { FileVideo, Download, XCircle, ArrowRight } from "lucide-react";
+import { FileVideo, Download, XCircle, ArrowRight, Sparkles } from "lucide-react";
 import { getVideoStreamUrl, getDownloadUrl } from "../../api";
 
 export const ResultsModal: React.FC<{
@@ -10,6 +10,7 @@ export const ResultsModal: React.FC<{
     path: string;
     title?: string;
     duration?: number;
+    social?: any;
   }>;
   onRerenderClip?: (clipId: string) => void;
   onOpenFolder?: () => void;
@@ -50,16 +51,72 @@ export const ResultsModal: React.FC<{
           <div className="p-6 overflow-y-auto flex-1 min-h-0">
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {clips.map((clip, i) => (
-                  <div key={clip.id} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden group">
-                     <div className="aspect-[9/16] bg-black relative">
+                  <div key={clip.id} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden group flex flex-col h-[750px]">
+                     <div className="h-[400px] shrink-0 bg-black relative border-b border-neutral-800">
                         {/* We use a standard video tag since we are in the web UI, paths might need to be resolved via API if they are local, assuming standard Tauri/Web integration applies here. */}
                         <video src={getVideoStreamUrl(clip.path)} preload="metadata" controls className="w-full h-full object-contain" />
                      </div>
-                     <div className="p-4">
-                        <p className="font-medium text-sm text-neutral-200 truncate" title={clip.title || `Clip ${i+1}`}>
+                     <div className="p-4 flex flex-col flex-1 min-h-0">
+                        <p className="font-medium text-sm text-neutral-200 line-clamp-2 shrink-0 mb-3" title={clip.title || `Clip ${i+1}`}>
                           {clip.title || `Clip ${i+1}`}
                         </p>
-                        <div className="mt-4 flex gap-2">
+                        
+                        {clip.social && (
+                           <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar text-xs">
+                             <div className="font-semibold text-neutral-200 flex items-center gap-1.5 mb-3">
+                               <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Social Kit
+                             </div>
+                             {(() => {
+                               const thumbnail = clip.social.thumbnail_layout;
+                               
+                               const renderLang = (lang: string, titles: any, caption: any, tags: any, bestTime: any, backsound: any) => {
+                                 if (!titles?.length && !caption && !tags?.length) return null;
+                                 return (
+                                   <div className="mb-4 last:mb-0 pb-4 last:pb-0 border-b last:border-b-0 border-neutral-800/50">
+                                     <div className="text-[10px] font-black text-amber-400 mb-2 bg-amber-400/10 inline-block px-1.5 py-0.5 rounded">[{lang} VERSION]</div>
+                                     {titles && titles.length > 0 && (
+                                       <div className="space-y-1.5 mb-2">
+                                         <span className="text-neutral-500 block">Titles:</span>
+                                         <ul className="list-disc pl-4 space-y-1">
+                                           {titles.map((t: string, idx: number) => (
+                                             <li key={idx} className="font-medium text-neutral-200 text-[11px] leading-tight">{t}</li>
+                                           ))}
+                                         </ul>
+                                       </div>
+                                     )}
+                                     {caption && (
+                                       <div className="mb-2"><span className="text-neutral-500 block mb-0.5">Caption:</span> <span className="text-neutral-300 whitespace-pre-wrap">{caption}</span></div>
+                                     )}
+                                     {tags && tags.length > 0 && (
+                                       <div className="mb-2"><span className="text-neutral-500 block mb-0.5">Tags:</span> <span className="text-blue-400 leading-relaxed">{tags.join(" ")}</span></div>
+                                     )}
+                                     {bestTime && (
+                                       <div className="mb-2"><span className="text-neutral-500 block mb-0.5">Best Time to Post:</span> <span className="text-neutral-300">{bestTime}</span></div>
+                                     )}
+                                     {backsound && (
+                                       <div><span className="text-neutral-500 block mb-0.5">Backsound:</span> <span className="text-neutral-300">{backsound}</span></div>
+                                     )}
+                                   </div>
+                                 );
+                               };
+
+                               const hasAnyData = clip.social.titles_en?.length || clip.social.titles_id?.length || clip.social.description_en || clip.social.description_id;
+                               if (!hasAnyData) return <div className="text-neutral-500 italic mt-2 text-sm">No Social Kit Data Generated</div>;
+                               
+                               return (
+                                 <div className="mt-2 text-xs">
+                                   {thumbnail && (
+                                     <div className="mb-4 pb-4 border-b border-neutral-800/50"><span className="text-neutral-500 block mb-1">Thumbnail Idea:</span> <span className="text-neutral-300 font-medium">{thumbnail}</span></div>
+                                   )}
+                                   {renderLang("ID", clip.social.titles_id, clip.social.description_id, clip.social.hashtags_id, clip.social.best_time_to_post_id, clip.social.backsound_id)}
+                                   {renderLang("EN", clip.social.titles_en, clip.social.description_en, clip.social.hashtags_en, clip.social.best_time_to_post_en, clip.social.backsound_en)}
+                                 </div>
+                               );
+                             })()}
+                           </div>
+                        )}
+
+                        <div className="mt-4 pt-3 flex gap-2 shrink-0 border-t border-neutral-800/50">
                            {onRerenderClip && (
                              <button onClick={() => onRerenderClip(clip.id)} className="flex-1 px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-xs font-medium rounded-lg transition-colors text-center">
                                Edit / Rerender

@@ -221,7 +221,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
           </div>
 
           <div className="flex items-center justify-end flex-wrap gap-2 pt-4 border-t border-neutral-800">
-            {job.status === "AWAITING_MANUAL" && (
+            {(isRealDone || job.status === "AWAITING_MANUAL" || isError) && (
               <button
                 onClick={() => {
                   if (onResumeManual && (job.metadata as any)?.ai_prompt) {
@@ -233,7 +233,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                 className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors"
               >
                 <Play className="w-4 h-4 mr-1" />
-                Edit Prompt / JSON
+                {job.status === "AWAITING_MANUAL" ? "Edit Prompt / JSON" : "Rerun from JSON"}
               </button>
             )}
             {isError && (
