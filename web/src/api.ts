@@ -194,6 +194,18 @@ export function getVideoStreamUrl(pathOrUrl: string, version?: number): string {
   return `${API_URL}/video?path=${encodeURIComponent(pathOrUrl)}${vParam}`;
 }
 
+export function getDownloadUrl(pathOrUrl: string, version?: number, customName?: string): string {
+  const base = getVideoStreamUrl(pathOrUrl, version);
+  if (!base.startsWith("http")) return base;
+  
+  const separator = base.includes("?") ? "&" : "?";
+  let url = `${base}${separator}dl=1`;
+  if (customName) {
+    url += `&title=${encodeURIComponent(customName)}`;
+  }
+  return url;
+}
+
 export async function apiGetHistory(): Promise<JobResponse[]> {
   try {
     return await apiFetch<JobResponse[]>("/history");
