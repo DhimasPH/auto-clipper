@@ -199,7 +199,7 @@ export function getDownloadUrl(pathOrUrl: string, version?: number, customName?:
   if (!base) return "";
   
   try {
-    const urlObj = new URL(base, window.location.origin);
+    const urlObj = new URL(base, "http://localhost");
     urlObj.searchParams.set("dl", "1");
     if (customName) {
       urlObj.searchParams.set("title", customName);
