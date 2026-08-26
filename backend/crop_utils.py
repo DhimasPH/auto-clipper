@@ -2,7 +2,11 @@ import cv2
 import os
 import re
 import subprocess
+import traceback
+import math
 from backend.logger import log_error, log_app
+
+FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
 
 _NVENC_AVAILABLE = None
 
@@ -1317,8 +1321,9 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             ass_name = os.path.basename(clip_ass_path).replace('\\', '/')
             # Escape colons, brackets, and quotes in the path
             escaped_ass_name = ass_name.replace(":", "\\\\:").replace("'", "\\\\'")
+            fonts_dir_escaped = FONTS_DIR.replace('\\', '/').replace(":", "\\\\:").replace("'", "\\\\'")
             base_vf = f"{crop_filter},{scale_filter}" if crop_filter else scale_filter
-            subtitle_vf = f"{base_vf},ass='{escaped_ass_name}'"
+            subtitle_vf = f"{base_vf},ass='{escaped_ass_name}':fontsdir='{fonts_dir_escaped}'"
 
     def build_cmd(use_split: bool = False, force_cpu: bool = False):
         cmd = [
@@ -1371,7 +1376,7 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             
         if subtitle_vf is not None:
             # ass_name and escaped_ass_name are already defined in the outer scope
-            fc += f"{current_v}ass='{escaped_ass_name}'[vout]"
+            fc += f"{current_v}ass='{escaped_ass_name}':fontsdir='{fonts_dir_escaped}'[vout]"
         else:
             fc += f"{current_v}null[vout]"
             
