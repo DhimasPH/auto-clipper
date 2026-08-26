@@ -148,9 +148,10 @@ export async function apiResumeManualJob(
   jobId: string,
   jsonPayload: string
 ): Promise<{ status: string; job_id: string; message?: string }> {
+  const safeId = encodeURIComponent(jobId);
   try {
     return await apiFetch<{ status: string; job_id: string; message?: string }>(
-      `/jobs/${jobId}/resume-manual`,
+      `/jobs/${safeId}/resume-manual`,
       {
         method: "POST",
         body: JSON.stringify({ json_payload: jsonPayload }),
@@ -159,7 +160,7 @@ export async function apiResumeManualJob(
   } catch (err: any) {
     if (err.status === 404) {
       return await apiFetch<{ status: string; job_id: string; message?: string }>(
-        `/api/jobs/${jobId}/resume-manual`,
+        `/api/jobs/${safeId}/resume-manual`,
         {
           method: "POST",
           body: JSON.stringify({ json_payload: jsonPayload }),
