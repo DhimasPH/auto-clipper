@@ -2,10 +2,7 @@ import React, { useState, useEffect } from "react";
 import { MessageSquareQuote, FileJson, Copy, Check, Share2, Clipboard, Play, Loader2, AlertCircle, ExternalLink, XCircle } from "lucide-react";
 
 export const PromptJsonModal: React.FC<{
-  jobId: string;
   prompt: string;
-  status: string;
-  progress: string;
   isOpen: boolean;
   onClose: () => void;
   onSubmitJson: (json: string) => Promise<void>;
@@ -30,7 +27,7 @@ export const PromptJsonModal: React.FC<{
         rawJson = match[1];
       }
       const data = JSON.parse(rawJson);
-      let items = [];
+      let items: any[] = [];
       if (Array.isArray(data)) {
         items = data;
       } else if (data.highlights && Array.isArray(data.highlights)) {
@@ -51,8 +48,12 @@ export const PromptJsonModal: React.FC<{
       }
       setError(null);
       setParsedCount(items.length);
-    } catch (err: any) {
-      setError(err.message || "Invalid JSON syntax");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Invalid JSON syntax");
+      }
       setParsedCount(null);
     }
   }, [inputJson]);
@@ -62,7 +63,9 @@ export const PromptJsonModal: React.FC<{
       await navigator.clipboard.writeText(prompt);
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
-    } catch (err) {}
+    } catch (err) {
+      console.error("Clipboard copy error:", err);
+    }
   };
 
   const handleShare = async () => {
@@ -74,7 +77,9 @@ export const PromptJsonModal: React.FC<{
         });
         setShared(true);
         setTimeout(() => setShared(false), 2200);
-      } catch (err) {}
+      } catch (err) {
+        console.error("Share error:", err);
+      }
     }
   };
   
@@ -82,7 +87,9 @@ export const PromptJsonModal: React.FC<{
     try {
       const text = await navigator.clipboard.readText();
       setInputJson(text);
-    } catch (err) {}
+    } catch (err) {
+      console.error("Clipboard paste error:", err);
+    }
   };
 
   const handleLLMLaunch = (url: string) => {
@@ -103,16 +110,16 @@ export const PromptJsonModal: React.FC<{
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !isSubmitting) onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isSubmitting]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto py-10" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto py-10" onClick={(e) => { if(e.target === e.currentTarget && !isSubmitting) onClose(); }}>
        <div className="bg-neutral-900 border border-neutral-800 w-full max-w-4xl rounded-2xl flex flex-col my-auto">
           
           <div className="p-6 border-b border-neutral-800">
