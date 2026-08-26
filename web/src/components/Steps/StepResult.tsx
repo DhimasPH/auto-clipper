@@ -13,7 +13,7 @@ import {
   Ban
 } from "lucide-react";
 import type { JobStatus, Clip, JobResponse } from "../../types/job";
-import { getVideoStreamUrl } from "../../api";
+import { getVideoStreamUrl, getDownloadUrl } from "../../api";
 
 export interface StepResultProps {
   jobId: string;
@@ -39,7 +39,6 @@ export const StepResult: React.FC<StepResultProps> = ({
   onRetry,
 }) => {
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
-  const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
 
   const isProcessing =
     status === "PENDING" ||
@@ -70,33 +69,23 @@ export const StepResult: React.FC<StepResultProps> = ({
     return `${mins}:${remainder < 10 ? "0" : ""}${remainder}`;
   };
 
-  const handleDownloadClip = async (clip: Clip, index: number) => {
+  const handleDownloadClip = (clip: Clip, index: number) => {
     try {
-      setDownloadingIndex(index);
-      const videoUrl = getVideoStreamUrl(clip.path);
-      
-      // Attempt blob download for reliable mobile/desktop saving
-      const response = await fetch(videoUrl);
-      if (!response.ok) throw new Error("Failed to fetch clip file");
-      
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      const link = document.createElement("a");
-      link.href = blobUrl;
       const cleanName = (clip.description || `clip_${index + 1}`)
         .slice(0, 30)
         .replace(/[^a-zA-Z0-9_-]/g, "_");
-      link.download = `${cleanName}_${jobId.slice(0, 6)}.mp4`;
+      const filename = `${cleanName}_${jobId.slice(0, 6)}`;
+      
+      const downloadUrl = getDownloadUrl(clip.path, clip.v, filename);
+      
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.target = "_blank"; // Opens a new tab which immediately closes for downloads
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      console.warn("Direct blob download failed, opening in new tab", err);
-      window.open(getVideoStreamUrl(clip.path), "_blank");
-    } finally {
-      setDownloadingIndex(null);
+      console.warn("Failed to trigger download", err);
     }
   };
 
@@ -358,20 +347,10 @@ export const StepResult: React.FC<StepResultProps> = ({
                         <button
                           type="button"
                           onClick={() => handleDownloadClip(clip, index)}
-                          disabled={downloadingIndex === index}
-                          className="flex-1 py-2.5 px-3 bg-amber-400 hover:bg-amber-300 active:scale-95 text-neutral-950 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-400/10 disabled:opacity-50"
+                          className="flex-1 py-2.5 px-3 bg-amber-400 hover:bg-amber-300 active:scale-95 text-neutral-950 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-400/10"
                         >
-                          {downloadingIndex === index ? (
-                            <>
-                              <div className="w-3.5 h-3.5 border-2 border-neutral-950/30 border-t-neutral-950 rounded-full animate-spin" />
-                              <span>Saving...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4" />
-                              <span>Download Clip</span>
-                            </>
-                          )}
+                          <Download className="w-4 h-4" />
+                          <span>Download Clip</span>
                         </button>
 
                         {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
