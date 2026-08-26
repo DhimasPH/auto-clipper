@@ -2,7 +2,7 @@ import urllib.request
 import re
 import os
 
-fonts = ['Montserrat', 'Bebas Neue', 'Poppins', 'Oswald', 'Anton', 'Permanent Marker']
+fonts = ['Montserrat', 'Bebas Neue', 'Poppins', 'Oswald', 'Anton', 'Permanent Marker', 'Roboto']
 os.makedirs('backend/fonts', exist_ok=True)
 
 # Important: Must pretend to be a non-WOFF2 browser (like old Safari or curl) 
