@@ -34,25 +34,26 @@ export const ResultsModal: React.FC<{
           className="bg-neutral-900 border border-neutral-800 w-full max-w-5xl rounded-2xl flex flex-col my-auto max-h-[90vh]"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="results-modal-title"
         >
           
-          <div className="p-6 border-b border-neutral-800 flex items-center justify-between sticky top-0 bg-neutral-900 z-10 rounded-t-2xl">
+          <div className="p-6 border-b border-neutral-800 flex items-center justify-between sticky top-0 bg-neutral-900 z-10 rounded-t-2xl shrink-0">
              <div className="flex items-center gap-3">
                 <FileVideo className="w-6 h-6 text-emerald-400" />
-                <h2 className="text-xl font-bold">Your Clips are Ready!</h2>
+                <h2 id="results-modal-title" className="text-xl font-bold">Your Clips are Ready!</h2>
              </div>
-             <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors">
+             <button onClick={onClose} aria-label="Close modal" className="text-neutral-400 hover:text-white transition-colors">
                <XCircle className="w-6 h-6" />
              </button>
           </div>
 
-          <div className="p-6 overflow-y-auto">
+          <div className="p-6 overflow-y-auto flex-1 min-h-0">
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {clips.map((clip, i) => (
-                  <div key={clip.id || i} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden group">
+                  <div key={clip.id} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden group">
                      <div className="aspect-[9/16] bg-black relative">
                         {/* We use a standard video tag since we are in the web UI, paths might need to be resolved via API if they are local, assuming standard Tauri/Web integration applies here. */}
-                        <video src={getVideoStreamUrl(clip.path)} controls className="w-full h-full object-contain" />
+                        <video src={getVideoStreamUrl(clip.path)} preload="metadata" controls className="w-full h-full object-contain" />
                      </div>
                      <div className="p-4">
                         <p className="font-medium text-sm text-neutral-200 truncate" title={clip.title || `Clip ${i+1}`}>
@@ -64,7 +65,7 @@ export const ResultsModal: React.FC<{
                                Edit / Rerender
                              </button>
                            )}
-                           <a href={getDownloadUrl(clip.path)} download className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg transition-colors flex items-center justify-center">
+                           <a href={getDownloadUrl(clip.path)} download aria-label="Download clip" className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg transition-colors flex items-center justify-center">
                               <Download className="w-4 h-4" />
                            </a>
                         </div>
@@ -79,7 +80,7 @@ export const ResultsModal: React.FC<{
              </div>
           </div>
 
-          <div className="p-6 border-t border-neutral-800 flex justify-between items-center bg-neutral-900/50 rounded-b-2xl">
+          <div className="p-6 border-t border-neutral-800 flex justify-between items-center bg-neutral-900/50 rounded-b-2xl shrink-0">
              {onOpenFolder ? (
                <button onClick={onOpenFolder} className="px-4 py-2 text-sm font-medium text-neutral-300 hover:text-white transition-colors">
                  Open Output Folder
