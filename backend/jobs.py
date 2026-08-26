@@ -206,7 +206,20 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
     return job_id
 
 def get_job(job_id: str) -> dict:
-    return active_jobs.get(job_id)
+    job = active_jobs.get(job_id)
+    if not job:
+        from backend.db import get_history
+        hist = get_history(job_id)
+        if hist:
+            job = {
+                "id": job_id,
+                "url": hist.get("url", ""),
+                "status": hist.get("status", "DONE"),
+                "progress": "Dimuat dari histori",
+                "clips": hist.get("result_clips", []),
+                "metadata": hist.get("metadata", {})
+            }
+    return job
 
 def is_any_job_running() -> bool:
     """Returns True if there is any job currently processing."""
