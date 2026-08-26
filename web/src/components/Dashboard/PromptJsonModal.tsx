@@ -93,7 +93,7 @@ export const PromptJsonModal: React.FC<{
   };
 
   const handleLLMLaunch = (url: string) => {
-    navigator.clipboard.writeText(prompt).catch(() => {});
+    navigator.clipboard.writeText(prompt).catch((err) => console.error("Clipboard copy error:", err));
     window.open(url, "_blank");
   };
 
