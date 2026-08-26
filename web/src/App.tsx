@@ -15,7 +15,7 @@ import { PromptJsonModal } from "./components/Dashboard/PromptJsonModal";
 import { ResultsModal } from "./components/Dashboard/ResultsModal";
 import { useJobPolling } from "./hooks/useJobPolling";
 import { clearAuthToken, apiCheckHealth } from "./api";
-import type { CreateJobPayload } from "./types/job";
+import type { CreateJobPayload, JobResponse } from "./types/job";
 
 function MainWizard() {
   const [currentView, setCurrentView] = useState<"wizard" | "history">("wizard");
@@ -25,7 +25,8 @@ function MainWizard() {
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
 
   const [activePrompt, setActivePrompt] = useState<string>("");
-  const [activeHistoryJob, setActiveHistoryJob] = useState<any | null>(null);
+  const [activeHistoryJob, setActiveHistoryJob] = useState<JobResponse | null>(null);
+  const [shownResultsForJobId, setShownResultsForJobId] = useState<string | null>(null);
 
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
 
@@ -68,12 +69,13 @@ function MainWizard() {
       if (status === "AWAITING_MANUAL" && prompt) {
         setIsPromptModalOpen(true);
       } else if (
-        status === "DONE" && clips && clips.length > 0
+        status === "DONE" && clips && clips.length > 0 && shownResultsForJobId !== jobId
       ) {
         setIsResultsModalOpen(true);
+        setShownResultsForJobId(jobId);
       }
     }
-  }, [status, jobId, prompt, clips]);
+  }, [status, jobId, prompt, clips, shownResultsForJobId]);
 
   const handleHeroSubmit = async (payload: CreateJobPayload) => {
     try {
@@ -201,6 +203,7 @@ function MainWizard() {
                 startPolling(id);
               }}
               onResumeManual={(id, manualPrompt) => {
+                setCurrentView("wizard");
                 stopPolling();
                 startPolling(id); // Ensure the hook knows about this job
                 setActivePrompt(manualPrompt);
@@ -304,7 +307,7 @@ function MainWizard() {
           setIsResultsModalOpen(false);
           setActiveHistoryJob(null);
         }}
-        clips={(activeHistoryJob?.clips || activeHistoryJob?.result_clips || clips || []).map((c: any, i: number) => ({
+        clips={(activeHistoryJob?.clips || (activeHistoryJob as any)?.result_clips || clips || []).map((c: any, i: number) => ({
           id: `clip-${i}`,
           path: c.path,
           title: c.social?.title || c.description

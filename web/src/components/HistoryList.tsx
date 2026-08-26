@@ -57,7 +57,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
     } catch (err) {
       console.error("Failed to delete job:", err);
       setJobs(previousJobs);
-      setError("Failed to delete job.");
+      alert("Failed to delete job.");
     }
   };
 
@@ -233,7 +233,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                 className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors"
               >
                 <Play className="w-4 h-4 mr-1" />
-                Resume
+                Edit Prompt / JSON
               </button>
             )}
             {isError && (
@@ -247,7 +247,10 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
             )}
             {(isRealDone || job.status === "AWAITING_MANUAL" || isError) && (
               <button
-                onClick={() => setActiveRerenderId(activeRerenderId === job.id ? null : job.id)}
+                onClick={() => {
+                  setActiveRerenderId(activeRerenderId === job.id ? null : job.id);
+                  setCustomFont("");
+                }}
                 className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
               >
                 <Film className="w-4 h-4 mr-1" />
@@ -256,7 +259,11 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
             )}
             {(isRealDone || job.status === "AWAITING_MANUAL" || isError) && job.metadata?.highlight_prompt && (
               <button
-                onClick={() => setActiveAiId(activeAiId === job.id ? null : job.id)}
+                onClick={() => {
+                  setActiveAiId(activeAiId === job.id ? null : job.id);
+                  setExtraPrompt("");
+                  setCustomFont(""); // Reset as requested
+                }}
                 className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
               >
                 <Sparkles className="w-4 h-4 mr-1" />
