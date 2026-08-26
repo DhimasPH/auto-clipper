@@ -194,6 +194,28 @@ export function getVideoStreamUrl(pathOrUrl: string, version?: number): string {
   return `${API_URL}/video?path=${encodeURIComponent(pathOrUrl)}${vParam}`;
 }
 
+export function getDownloadUrl(pathOrUrl: string, version?: number, customName?: string): string {
+  const base = getVideoStreamUrl(pathOrUrl, version);
+  if (!base) return "";
+  
+  try {
+    // "http://localhost" is a dummy base required for URL() to parse relative paths
+    const urlObj = new URL(base, "http://localhost");
+    urlObj.searchParams.set("dl", "1");
+    if (customName) {
+      urlObj.searchParams.set("title", customName);
+    }
+    
+    // Return relative if it was relative, otherwise absolute
+    if (base.startsWith("/")) {
+      return urlObj.pathname + urlObj.search + urlObj.hash;
+    }
+    return urlObj.toString();
+  } catch (e) {
+    return base;
+  }
+}
+
 export async function apiGetHistory(): Promise<JobResponse[]> {
   try {
     return await apiFetch<JobResponse[]>("/history");

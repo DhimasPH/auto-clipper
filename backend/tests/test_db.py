@@ -101,7 +101,7 @@ def test_safe_remove_file_and_dir(tmp_path):
 
 def test_delete_history_cleans_project_workspace(monkeypatch, tmp_path):
     _use_tmp_db(monkeypatch, tmp_path)
-    monkeypatch.setattr(db, "get_app_data_dir", lambda: str(tmp_path))
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", str(tmp_path))
 
     ws_dir = tmp_path / "projects" / "Project_job-clean"
     ws_clips = ws_dir / "clips"

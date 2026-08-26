@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { apiGetHistory, apiDeleteHistory, apiCreateRerenderJob, apiCreateRerunAiJob, API_URL } from "../api";
+import { apiGetHistory, apiDeleteHistory, apiCreateRerenderJob, apiCreateRerunAiJob } from "../api";
 import type { JobResponse } from "../types/job";
-import { Trash2, Play, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, Film, Download, Share2, ExternalLink, Pencil } from "lucide-react";
+import { Trash2, Play, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, Film } from "lucide-react";
 import { OutputStyleSelector, type OutputStyle } from "./OutputStyleSelector";
 import { SubtitlePresetBar } from "./SubtitlePresetBar";
 import { FontSelector } from "./FontSelector";
 import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../types/subtitle";
 import { DEFAULT_CANVAS_CONFIG } from "../types/canvas";
-import { ClipEditModal } from "./ClipEditModal";
 
 interface HistoryListProps {
   onResume: (jobId: string) => void;
+  onResumeManual?: (jobId: string, prompt: string) => void;
+  onViewResults?: (job: JobResponse) => void;
 }
 
-export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
+export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManual, onViewResults }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +27,6 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
   const [activeAiId, setActiveAiId] = useState<string | null>(null);
   const [extraPrompt, setExtraPrompt] = useState<string>("");
   const [isSubmittingPanel, setIsSubmittingPanel] = useState(false);
-  const [downloadingIndex, setDownloadingIndex] = useState<string | null>(null);
-  const [editingClip, setEditingClip] = useState<{jobId: string, index: number, title: string, job: any} | null>(null);
 
   const fetchHistory = async () => {
     try {
@@ -58,7 +57,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
     } catch (err) {
       console.error("Failed to delete job:", err);
       setJobs(previousJobs);
-      setError("Failed to delete job.");
+      alert("Failed to delete job.");
     }
   };
 
@@ -118,50 +117,6 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
     }
   };
 
-  const handleDownloadClip = async (clip: any, jobId: string, index: number) => {
-    try {
-      const dlId = `${jobId}-${index}`;
-      setDownloadingIndex(dlId);
-      const videoUrl = `${API_URL}/video?path=${encodeURIComponent(clip.path)}&v=${clip.v || 0}`;
-      
-      const response = await fetch(videoUrl);
-      if (!response.ok) throw new Error("Failed to fetch clip file");
-      
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      const cleanName = (clip.description || `clip_${index + 1}`)
-        .slice(0, 30)
-        .replace(/[^a-zA-Z0-9_-]/g, "_");
-      link.download = `${cleanName}_${jobId.slice(0, 6)}.mp4`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.warn("Direct blob download failed, opening in new tab", err);
-      window.open(`${API_URL}/video?path=${encodeURIComponent(clip.path)}&v=${clip.v || 0}`, "_blank");
-    } finally {
-      setDownloadingIndex(null);
-    }
-  };
-
-  const handleShareClip = async (clip: any) => {
-    const videoUrl = `${API_URL}/video?path=${encodeURIComponent(clip.path)}&v=${clip.v || 0}`;
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      try {
-        await navigator.share({
-          title: clip.description || "Auto Clipper Video",
-          text: `Check out this clip: ${clip.description || ""}`,
-          url: videoUrl,
-        });
-      } catch (err) {
-        // Ignore cancel
-      }
-    }
-  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -268,11 +223,17 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
           <div className="flex items-center justify-end flex-wrap gap-2 pt-4 border-t border-neutral-800">
             {job.status === "AWAITING_MANUAL" && (
               <button
-                onClick={() => onResume(job.id)}
+                onClick={() => {
+                  if (onResumeManual && (job.metadata as any)?.ai_prompt) {
+                    onResumeManual(job.id, (job.metadata as any).ai_prompt);
+                  } else {
+                    onResume(job.id); // fallback
+                  }
+                }}
                 className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors"
               >
                 <Play className="w-4 h-4 mr-1" />
-                Resume
+                Edit Prompt / JSON
               </button>
             )}
             {isError && (
@@ -286,7 +247,10 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
             )}
             {(isRealDone || job.status === "AWAITING_MANUAL" || isError) && (
               <button
-                onClick={() => setActiveRerenderId(activeRerenderId === job.id ? null : job.id)}
+                onClick={() => {
+                  setActiveRerenderId(activeRerenderId === job.id ? null : job.id);
+                  setCustomFont("");
+                }}
                 className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
               >
                 <Film className="w-4 h-4 mr-1" />
@@ -295,11 +259,24 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
             )}
             {(isRealDone || job.status === "AWAITING_MANUAL" || isError) && job.metadata?.highlight_prompt && (
               <button
-                onClick={() => setActiveAiId(activeAiId === job.id ? null : job.id)}
+                onClick={() => {
+                  setActiveAiId(activeAiId === job.id ? null : job.id);
+                  setExtraPrompt("");
+                  setCustomFont(""); // Reset as requested
+                }}
                 className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
               >
                 <Sparkles className="w-4 h-4 mr-1" />
                 AI Correct
+              </button>
+            )}
+            {(isRealDone || clips.length > 0) && (
+              <button
+                onClick={() => onViewResults && onViewResults(job)}
+                className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <Film className="w-4 h-4" />
+                View Clips ({clips.length})
               </button>
             )}
             <button
@@ -353,180 +330,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume }) => {
             </div>
           )}
 
-          {/* Clips Viewer */}
-          {isRealDone && clips.length > 0 && (
-            <div className="mt-6 pt-6 border-t border-neutral-800">
-              <h4 className="font-medium text-neutral-200 mb-4">Generated Clips ({clips.length})</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {clips.map((clip: any, index: number) => {
-                  const videoSrc = `${API_URL}/video?path=${encodeURIComponent(clip.path)}&v=${clip.v || 0}`;
-                  
-                  return (
-                    <div
-                      key={clip.path || index}
-                      className="bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden flex flex-col group hover:border-neutral-700 transition-colors shadow-xl"
-                    >
-                      {/* Video Player Header */}
-                      <div className="relative bg-black aspect-[9/16] w-full overflow-hidden flex items-center justify-center">
-                        <video
-                          src={videoSrc}
-                          controls
-                          playsInline
-                          preload="metadata"
-                          className="w-full h-full object-contain"
-                        />
-                        <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-neutral-900/80 backdrop-blur-sm border border-neutral-800 text-[10px] font-mono text-neutral-300 pointer-events-none">
-                          Clip #{index + 1}
-                        </div>
-                      </div>
-
-                      {/* Clip Info Card */}
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-4">
-                        <div className="space-y-2">
-                          <h4 className="text-sm font-semibold text-neutral-100 line-clamp-2 leading-snug">
-                            {clip.description || `Highlight Clip #${index + 1}`}
-                          </h4>
-                          
-                          <div className="flex items-center gap-2 text-[11px] font-mono text-neutral-400 flex-wrap">
-                            <span className="inline-flex items-center gap-1 bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800">
-                              <Clock className="w-3 h-3 text-amber-400" />
-                              {clip.start} - {clip.end}
-                            </span>
-                            {clip.subs && (
-                              <span className="bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded text-[10px]">
-                                Subtitles Embedded
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {clip.social && (
-                          <div className="mt-3 p-3 bg-neutral-900/60 rounded-xl border border-neutral-800/80 text-xs text-neutral-300 space-y-2 max-h-[140px] overflow-y-auto custom-scrollbar">
-                            <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
-                              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Social Kit
-                            </div>
-                            {(() => {
-                              const thumbnail = clip.social.thumbnail_layout;
-                              
-                              const renderLang = (lang: string, titles: any, caption: any, tags: any, bestTime: any, backsound: any) => {
-                                if (!titles?.length && !caption && !tags?.length) return null;
-                                return (
-                                  <div className="mb-4 last:mb-0 pb-4 last:pb-0 border-b last:border-b-0 border-neutral-800/50">
-                                    <div className="text-[10px] font-black text-amber-400 mb-2 bg-amber-400/10 inline-block px-1.5 py-0.5 rounded">[{lang} VERSION]</div>
-                                    {titles && titles.length > 0 && (
-                                      <div className="space-y-1.5 mb-2">
-                                        <span className="text-neutral-500 block">Titles:</span>
-                                        <ul className="list-disc pl-4 space-y-1">
-                                          {titles.map((t: string, idx: number) => (
-                                            <li key={idx} className="font-medium text-neutral-200 text-[11px] leading-tight">{t}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-                                    {caption && (
-                                      <div className="mb-2"><span className="text-neutral-500 block mb-0.5">Caption:</span> <span className="text-neutral-300 whitespace-pre-wrap">{caption}</span></div>
-                                    )}
-                                    {tags && tags.length > 0 && (
-                                      <div className="mb-2"><span className="text-neutral-500 block mb-0.5">Tags:</span> <span className="text-blue-400 leading-relaxed">{tags.join(" ")}</span></div>
-                                    )}
-                                    {bestTime && (
-                                      <div className="mb-2"><span className="text-neutral-500 block mb-0.5">Best Time to Post:</span> <span className="text-neutral-300">{bestTime}</span></div>
-                                    )}
-                                    {backsound && (
-                                      <div><span className="text-neutral-500 block mb-0.5">Backsound:</span> <span className="text-neutral-300">{backsound}</span></div>
-                                    )}
-                                  </div>
-                                );
-                              };
-
-                              const hasAnyData = clip.social.titles_en?.length || clip.social.titles_id?.length || clip.social.description_en || clip.social.description_id;
-                              if (!hasAnyData) return <div className="text-neutral-500 italic">No Social Kit Data Generated</div>;
-                              
-                              return (
-                                <>
-                                  {thumbnail && (
-                                    <div className="mb-4 pb-4 border-b border-neutral-800/50"><span className="text-neutral-500 block mb-1">Thumbnail Idea:</span> <span className="text-neutral-300 font-medium">{thumbnail}</span></div>
-                                  )}
-                                  {renderLang("ID", clip.social.titles_id, clip.social.description_id, clip.social.hashtags_id, clip.social.best_time_to_post_id, clip.social.backsound_id)}
-                                  {renderLang("EN", clip.social.titles_en, clip.social.description_en, clip.social.hashtags_en, clip.social.best_time_to_post_en, clip.social.backsound_en)}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
-                        
-                        {/* Download & Share Actions */}
-                        <div className="pt-2 border-t border-neutral-800/80 flex items-center gap-2 mt-4">
-                          <button
-                            type="button"
-                            onClick={() => setEditingClip({ jobId: job.id, index, title: clip.social?.titles_en?.[0] || clip.social?.titles_id?.[0] || `Clip ${index + 1}`, job })}
-                            className="p-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg border border-neutral-700 transition-colors"
-                            title="Edit Subtitles"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadClip(clip, job.id, index)}
-                            disabled={downloadingIndex === `${job.id}-${index}`}
-                            className="flex-1 py-2 px-3 bg-amber-400 hover:bg-amber-300 active:scale-95 text-neutral-950 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            {downloadingIndex === `${job.id}-${index}` ? (
-                              <>
-                                <div className="w-3 h-3 border-2 border-neutral-950/30 border-t-neutral-950 rounded-full animate-spin" />
-                                <span>Saving...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Download className="w-3.5 h-3.5" />
-                                <span>Download</span>
-                              </>
-                            )}
-                          </button>
-
-                          {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
-                            <button
-                              type="button"
-                              onClick={() => handleShareClip(clip)}
-                              className="p-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg border border-neutral-700 transition-colors"
-                              title="Share clip"
-                            >
-                              <Share2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-
-                          <a
-                            href={videoSrc}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg border border-neutral-700 transition-colors"
-                            title="Open full video in tab"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       )})}
-      {editingClip && (
-        <ClipEditModal
-          jobId={editingClip.jobId}
-          clipIndex={editingClip.index}
-          clipTitle={editingClip.title}
-          initialOutputStyle={editingClip.job.metadata?.aspect_ratio === "16:9" ? "landscape" : editingClip.job.metadata?.aspect_ratio === "1:1" ? "square" : "face_crop"}
-          onClose={() => setEditingClip(null)}
-          onRerenderStart={(jobId) => {
-            setEditingClip(null);
-            onResume(jobId);
-          }}
-        />
-      )}
     </div>
   );
 };

@@ -136,7 +136,10 @@ def test_history_list_ok():
 
 
 def test_video_missing_returns_404():
-    r = client.get("/video", params={"path": "/nope.mp4"})
+    from backend.db import get_app_data_dir
+    import os
+    missing_path = os.path.join(get_app_data_dir(), "nope.mp4")
+    r = client.get("/video", params={"path": missing_path})
     assert r.status_code == 404
 
 
