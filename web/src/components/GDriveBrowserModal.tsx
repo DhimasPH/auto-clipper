@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   XCircle,
   HardDrive,
@@ -35,12 +35,13 @@ export const GDriveBrowserModal: React.FC<{
     }
   }, []);
 
+  const prevIsOpen = useRef(false);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpen.current) {
       fetchDir(currentPath);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, fetchDir]);
+    prevIsOpen.current = isOpen;
+  }, [isOpen, currentPath, fetchDir]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -57,12 +58,9 @@ export const GDriveBrowserModal: React.FC<{
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn"
-      onClick={onClose}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div 
-        className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
         <div className="flex items-center justify-between p-4 border-b border-neutral-800">
           <div className="flex items-center gap-2">
             <HardDrive className="w-5 h-5 text-amber-400" />
@@ -78,7 +76,8 @@ export const GDriveBrowserModal: React.FC<{
             <button 
               type="button"
               onClick={() => fetchDir(parentDir)}
-              className="p-1 hover:bg-neutral-800 rounded-md transition-colors text-neutral-400 hover:text-neutral-200"
+              disabled={loading}
+              className="p-1 hover:bg-neutral-800 rounded-md transition-colors text-neutral-400 hover:text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Go up"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -98,10 +97,10 @@ export const GDriveBrowserModal: React.FC<{
             <div className="text-center py-12 text-neutral-500 text-sm">Folder is empty</div>
           ) : (
             <div className="space-y-1">
-              {items.map((item, i) => (
+              {items.map((item) => (
                 <button
                   type="button"
-                  key={i}
+                  key={item.path}
                   onClick={() => {
                     if (item.is_dir) {
                       fetchDir(item.path);
