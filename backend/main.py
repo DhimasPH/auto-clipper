@@ -835,22 +835,35 @@ def api_create_manual_job(req: ManualJobRequest):
 
 
 @app.get("/video")
-def get_video(path: str):
+def get_video(path: str, dl: int = 0, title: str = None):
     """Serve a generated clip so the frontend can preview it inline.
 
     Restricted to existing .mp4 files. Starlette's
     FileResponse handles HTTP Range requests, so seeking works in the player.
     """
     from backend.logger import log_app
+    import os
+    import re
+    
     abs_path = os.path.normpath(os.path.abspath(path))
     log_app(f"[video] Requested: {path} → Resolved: {abs_path} → Exists: {os.path.exists(abs_path)}")
     if not os.path.exists(abs_path) or not abs_path.lower().endswith(".mp4"):
+        from fastapi.responses import JSONResponse
         return JSONResponse(status_code=404, content={"status": "error", "message": f"File not found or invalid format: {abs_path}"})
+    
+    filename = os.path.basename(abs_path)
+    if title:
+        clean_title = re.sub(r'[^a-zA-Z0-9_-]', '_', title)
+        filename = f"{clean_title}.mp4"
+        
+    disposition = "attachment" if dl == 1 else "inline"
+    
+    from fastapi.responses import FileResponse
     return FileResponse(
         abs_path,
         media_type="video/mp4",
         headers={
-            "Content-Disposition": f'inline; filename="{os.path.basename(abs_path)}"',
+            "Content-Disposition": f'{disposition}; filename="{filename}"',
             "Accept-Ranges": "bytes",
             "Cache-Control": "no-cache",
         },
