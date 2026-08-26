@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { FileVideo, Download, XCircle, ArrowRight } from "lucide-react";
+import { getVideoStreamUrl, getDownloadUrl } from "../../api";
 
 export const ResultsModal: React.FC<{
   isOpen: boolean;
@@ -29,7 +30,11 @@ export const ResultsModal: React.FC<{
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4 py-10" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
-        <div className="bg-neutral-900 border border-neutral-800 w-full max-w-5xl rounded-2xl flex flex-col my-auto max-h-[90vh]">
+        <div 
+          className="bg-neutral-900 border border-neutral-800 w-full max-w-5xl rounded-2xl flex flex-col my-auto max-h-[90vh]"
+          role="dialog"
+          aria-modal="true"
+        >
           
           <div className="p-6 border-b border-neutral-800 flex items-center justify-between sticky top-0 bg-neutral-900 z-10 rounded-t-2xl">
              <div className="flex items-center gap-3">
@@ -47,7 +52,7 @@ export const ResultsModal: React.FC<{
                   <div key={clip.id || i} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden group">
                      <div className="aspect-[9/16] bg-black relative">
                         {/* We use a standard video tag since we are in the web UI, paths might need to be resolved via API if they are local, assuming standard Tauri/Web integration applies here. */}
-                        <video src={`http://127.0.0.1:43210/api/video?path=${encodeURIComponent(clip.path)}`} controls className="w-full h-full object-contain" />
+                        <video src={getVideoStreamUrl(clip.path)} controls className="w-full h-full object-contain" />
                      </div>
                      <div className="p-4">
                         <p className="font-medium text-sm text-neutral-200 truncate" title={clip.title || `Clip ${i+1}`}>
@@ -59,7 +64,7 @@ export const ResultsModal: React.FC<{
                                Edit / Rerender
                              </button>
                            )}
-                           <a href={`http://127.0.0.1:43210/api/video?path=${encodeURIComponent(clip.path)}`} download className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg transition-colors flex items-center justify-center">
+                           <a href={getDownloadUrl(clip.path)} download className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg transition-colors flex items-center justify-center">
                               <Download className="w-4 h-4" />
                            </a>
                         </div>
@@ -75,9 +80,13 @@ export const ResultsModal: React.FC<{
           </div>
 
           <div className="p-6 border-t border-neutral-800 flex justify-between items-center bg-neutral-900/50 rounded-b-2xl">
-             <button onClick={onOpenFolder} className="px-4 py-2 text-sm font-medium text-neutral-300 hover:text-white transition-colors">
-               Open Output Folder
-             </button>
+             {onOpenFolder ? (
+               <button onClick={onOpenFolder} className="px-4 py-2 text-sm font-medium text-neutral-300 hover:text-white transition-colors">
+                 Open Output Folder
+               </button>
+             ) : (
+               <div /> /* Placeholder to maintain flex-between layout */
+             )}
              <button onClick={() => { onClose(); if(onResetApp) onResetApp(); }} className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-emerald-950 hover:bg-emerald-400 transition-colors">
                 Start New Job <ArrowRight className="w-4 h-4" />
              </button>
