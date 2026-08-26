@@ -199,6 +199,7 @@ export function getDownloadUrl(pathOrUrl: string, version?: number, customName?:
   if (!base) return "";
   
   try {
+    // "http://localhost" is a dummy base required for URL() to parse relative paths
     const urlObj = new URL(base, "http://localhost");
     urlObj.searchParams.set("dl", "1");
     if (customName) {

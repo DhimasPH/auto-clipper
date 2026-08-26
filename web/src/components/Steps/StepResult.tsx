@@ -73,7 +73,7 @@ export const StepResult: React.FC<StepResultProps> = ({
     try {
       const cleanName = (clip.description || `clip_${index + 1}`)
         .slice(0, 30)
-        .replace(/[^a-zA-Z0-9_-]/g, "_");
+        .replace(/[\/\\:*?"<>|]/g, "_");
       const filename = `${cleanName}_${jobId.slice(0, 6)}`;
       
       const downloadUrl = getDownloadUrl(clip.path, clip.v, filename);

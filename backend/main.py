@@ -850,7 +850,7 @@ def get_video(path: str, dl: int = 0, title: str = None):
         os.path.abspath(get_app_data_dir()),
         os.path.abspath(os.getcwd())
     ]
-    if not any(abs_path.startswith(safe_dir) for safe_dir in safe_dirs):
+    if not any(os.path.commonpath([abs_path, safe_dir]) == safe_dir for safe_dir in safe_dirs):
         log_app(f"[video] Security error: Path traversal attempt: {abs_path}")
         return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
         
@@ -860,7 +860,9 @@ def get_video(path: str, dl: int = 0, title: str = None):
     
     filename = os.path.basename(abs_path)
     if title:
-        clean_title = re.sub(r'[^\w\s-]', '', title).strip().replace(' ', '_')
+        # Relax sanitization to allow unicode
+        import re
+        clean_title = re.sub(r'[\/\\:*?"<>|]', '_', title).strip()
         filename = f"{clean_title}.mp4"
         
     disposition = "attachment" if dl == 1 else "inline"
@@ -868,8 +870,9 @@ def get_video(path: str, dl: int = 0, title: str = None):
     return FileResponse(
         abs_path,
         media_type="video/mp4",
+        filename=filename,
+        content_disposition_type=disposition,
         headers={
-            "Content-Disposition": f'{disposition}; filename="{filename}"',
             "Accept-Ranges": "bytes",
             "Cache-Control": "no-cache",
         },
