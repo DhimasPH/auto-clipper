@@ -14,6 +14,9 @@ export const parseAndValidateClips = (rawJson: string): { count?: number; error?
 
   try {
     const data = JSON.parse(cleanJson);
+    if (!data || typeof data !== 'object') {
+      return { error: "Invalid structure. Expected an array or object containing highlights.", cleanJson };
+    }
     let items: any[] = [];
     if (Array.isArray(data)) {
       items = data;
@@ -112,6 +115,10 @@ export const PromptJsonModal: React.FC<{
 
   const handleFinalSubmit = () => {
     const result = parseAndValidateClips(inputJson);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
     onSubmitJson(result.cleanJson);
   };
 
@@ -138,7 +145,7 @@ export const PromptJsonModal: React.FC<{
                    <MessageSquareQuote className="w-5 h-5 text-amber-400" />
                    <h2 className="text-xl font-bold">Review AI Prompt & JSON</h2>
                 </div>
-                <button onClick={onClose} className="text-neutral-400 hover:text-white"><XCircle className="w-6 h-6" /></button>
+                <button onClick={() => !isSubmitting && onClose()} disabled={isSubmitting} className="text-neutral-400 hover:text-white disabled:opacity-50"><XCircle className="w-6 h-6" /></button>
              </div>
              
              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
