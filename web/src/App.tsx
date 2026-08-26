@@ -90,7 +90,7 @@ function MainWizard() {
       await resumeJobWithJson(jsonPayload);
       setIsPromptModalOpen(false);
     } catch (err) {
-      // Error handled in hook
+      setIsPromptModalOpen(false); // Close so they can see the error!
     }
   };
 

@@ -224,8 +224,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
             {(isRealDone || job.status === "AWAITING_MANUAL" || isError) && (
               <button
                 onClick={() => {
-                  if (onResumeManual && (job.metadata as any)?.ai_prompt) {
-                    onResumeManual(job.id, (job.metadata as any).ai_prompt);
+                  if (onResumeManual) {
+                    onResumeManual(job.id, (job.metadata as any)?.ai_prompt || "");
                   } else {
                     onResume(job.id); // fallback
                   }
