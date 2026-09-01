@@ -119,17 +119,20 @@ Jika Anda pengembang di Mac dan ingin mem-build aplikasi macOS sendiri (misalnya
 
 > **Catatan:** Ini _build pengujian_ (artifact auto-updater dimatikan, jadi tidak perlu signing key). Script menyasar target **Intel (x86_64)**; jika Anda di Apple Silicon, ubah variabel `TARGET` di dalam script menjadi `aarch64-apple-darwin`. Untuk menghemat ruang setelah selesai, jalankan `CLEAN=1 ./build-mac-local.sh` (sisa build dihapus, DMG tetap disimpan). Jika Gatekeeper memblokir: `xattr -cr "/Applications/Auto Clipper.app"`.
 
-### Opsi 5: Menjalankan Backend di Google Colab (Gratis GPU T4)
+### Opsi 5: Menjalankan Auto Clipper Cloud (Google Colab GPU + Web UI HP)
 
-Jika PC Anda tidak memiliki GPU yang mumpuni, Anda bisa menjalankan *backend* Auto Clipper di **Google Colab** dan mengontrolnya dari web browser!
+Jika Anda ingin memproses video dari smartphone atau PC Anda tidak memiliki GPU yang mumpuni, Anda bisa menjalankan *backend* Auto Clipper di **Google Colab (Gratis GPU T4)** dengan penyimpanan persisten di **Google Drive**, dan mengontrolnya langsung dari browser smartphone:
 
+📖 **[Baca Panduan Teknis Lengkap Auto Clipper Cloud (Tutorial Step-by-Step)](docs/tutorial-auto-clipper-cloud.md)**
+
+**Ringkasan Cepat:**
 1. Buka file **[`Auto_Clipper_Colab.ipynb`](Auto_Clipper_Colab.ipynb)** di Google Colab.
-2. Pastikan Runtime Colab di-set ke **T4 GPU** (Runtime > Change runtime type > T4 GPU).
-3. Masukkan `NGROK_AUTH_TOKEN` (daftar gratis di ngrok.com) dan tentukan `WEB_TOKEN` rahasia Anda di dalam sel notebook, lalu *Run All*.
-4. Colab akan menginstal semua *dependencies* dan memberikan **URL Ngrok public**.
-5. Buka frontend web secara lokal (`cd web && npm run dev`) atau versi yang di-hosting.
-6. Masukkan URL Ngrok dan `WEB_TOKEN` rahasia Anda pada layar login Web UI.
-7. Nikmati render video dan transkripsi *Whisper* ultra-cepat dengan GPU Colab!
+2. Pastikan Runtime Colab di-set ke **T4 GPU** (*Runtime $\rightarrow$ Change runtime type $\rightarrow$ T4 GPU*).
+3. Masukkan `CLOUDFLARE_TUNNEL_TOKEN` (atau token Ngrok) dan `API_SECRET_TOKEN` rahasia Anda, lalu jalankan semua sel (*Run All*).
+4. Buka antarmuka Web UI di browser smartphone Anda (misal `https://clipper.dhims.web.id` yang di-deploy di Vercel, atau lokal `cd web && npm run dev`).
+5. Masukkan token rahasia Anda pada layar login Web UI.
+6. Nikmati kemudahan memotong klip dan transkripsi video otomatis berkecepatan tinggi langsung dari genggaman HP Anda!
+
 
 ---
 
