@@ -197,18 +197,19 @@ Karena Google Colab berjalan di dalam jaringan virtual Google yang tertutup, kit
 
 ### Metode 1: Cloudflare Zero Trust Tunnel (Rekomendasi Custom Domain)
 
-Metode ini memberikan URL HTTPS yang stabil dan permanen (misal: `https://be-clipper.dhims.web.id`) tanpa perlu mengganti konfigurasi di frontend setiap kali Colab dinyalakan ulang.
+Metode ini memberikan URL HTTPS yang stabil dan permanen (misal: `https://be-clipper.domainanda.com`) tanpa perlu mengganti konfigurasi di frontend setiap kali Colab dinyalakan ulang.
 
 1. Buka [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/).
 2. Masuk ke menu **Networks** $\rightarrow$ **Tunnels** $\rightarrow$ klik **Create a tunnel**.
 3. Pilih tipe **Cloudflared**, beri nama tunnel (misal: `colab-clipper`), lalu klik **Save tunnel**.
 4. Di bagian *Install and run a connector*, pilih tab **Debian (64-bit)** dan salin token tunnel (string panjang setelah `--token`).
 5. Masuk ke tab **Public Hostname** pada tunnel tersebut, klik **Add a public hostname**:
-   - **Subdomain:** `be-clipper`
-   - **Domain:** `dhims.web.id` (pilih domain Anda yang terdaftar di Cloudflare)
+   - **Subdomain:** `be-clipper` (atau `api`)
+   - **Domain:** Pilih domain Anda sendiri yang sudah aktif di Cloudflare (misal: `domainanda.com`)
+   - **Path:** *(Kosongkan / biarkan default)*
    - **Type:** `HTTP`
    - **URL:** `localhost:8000`
-6. Klik **Save hostname**.
+6. Klik **Save hostname**. Publik URL backend Anda sekarang adalah: `https://be-clipper.domainanda.com`.
 7. Tempel token yang disalin ke kolom `CLOUDFLARE_TUNNEL_TOKEN` di notebook Colab.
 
 ---
@@ -249,7 +250,7 @@ Frontend Web Auto Clipper terletak pada sub-direktori `web/` dan berbasis **Reac
 ### Langkah 5.1: Import Repositori ke Vercel
 
 1. Buka dashboard [Vercel](https://vercel.com) dan klik **Add New...** $\rightarrow$ **Project**.
-2. Hubungkan akun GitHub Anda dan pilih repositori `auto-clipper`.
+2. Hubungkan akun GitHub Anda dan pilih repositori `auto-clipper` (atau hasil fork Anda).
 
 ### Langkah 5.2: Konfigurasi Root Directory & Build Settings
 
@@ -261,21 +262,35 @@ Pada halaman konfigurasi proyek Vercel:
 - **Output Directory:** `dist` (default).
 - **Install Command:** `npm install` (default).
 
-### Langkah 5.3: Pengaturan Environment Variable
+### Langkah 5.3: Pengaturan Environment Variable (`VITE_API_URL`)
 
-Buka bagian **Environment Variables** dan tambahkan variabel berikut:
+Buka bagian **Environment Variables** di Vercel dan sesuaikan dengan domain backend Anda:
 
 | Nama Variabel | Nilai Contoh | Keterangan |
 |---|---|---|
-| `VITE_API_URL` | `https://be-clipper.dhims.web.id` | URL domain backend Cloudflare Tunnel (atau URL Ngrok) |
+| `VITE_API_URL` | `https://be-clipper.domainanda.com` | URL domain backend Cloudflare Tunnel Anda (atau URL Ngrok) |
 
-### Langkah 5.4: Konfigurasi Custom Domain & Pengujian
+> [!TIP]
+> **Cara Kerja `VITE_API_URL` di Frontend:**
+> File [`web/src/api.ts`](../web/src/api.ts) secara otomatis membaca `import.meta.env.VITE_API_URL`. Jika Anda telah mengisi variabel ini di Vercel Dashboard, Anda **tidak perlu mengubah kodingan** di repositori.
+> 
+> *Catatan:* Jika Anda mengubah nilai `VITE_API_URL` di Vercel, jangan lupa untuk melakukan **Redeploy** (*Deployments $\rightarrow$ Redeploy*) agar Vite memperbarui nilai URL tersebut ke bundle JavaScript.
 
-1. Klik **Deploy**. Tunggu proses build selesai (~1-2 menit).
-2. Setelah deployment berhasil, masuk ke **Settings** $\rightarrow$ **Domains**.
-3. Tambahkan custom domain Anda (contoh: `clipper.dhims.web.id`).
-4. Atur DNS CNAME di penyedia domain Anda mengarah ke `cname.vercel-dns.com`.
-5. Buka `https://clipper.dhims.web.id` di browser smartphone untuk menguji antarmuka.
+### Langkah 5.4: Konfigurasi Custom Domain Frontend & CORS Backend
+
+1. **Atur Domain di Vercel:**
+   - Masuk ke **Settings** $\rightarrow$ **Domains** di proyek Vercel Anda.
+   - Tambahkan custom domain untuk antarmuka web, misal: `clipper.domainanda.com`.
+   - Atur DNS CNAME pada DNS Manager domain Anda mengarah ke `cname.vercel-dns.com` (di Cloudflare DNS, set *Proxy status: DNS Only*).
+2. **Konektivitas CORS Backend:**
+   - Backend FastAPI secara otomatis mengizinkan domain `*.vercel.app` dan localhost.
+   - Jika Anda menggunakan custom domain frontend sendiri (misal `https://clipper.domainanda.com`), Anda dapat mendaftarkannya ke backend dengan menambahkan Environment Variable `AUTO_CLIPPER_CORS_ORIGIN` di Google Colab:
+     ```python
+     os.environ["AUTO_CLIPPER_CORS_ORIGIN"] = "https://clipper.domainanda.com"
+     ```
+     *(Gunakan tanda koma `,` jika ada lebih dari 1 domain, atau gunakan `*` untuk mengizinkan semua domain).*
+3. Buka `https://clipper.domainanda.com` di browser smartphone untuk menguji aplikasi!
+
 
 ---
 

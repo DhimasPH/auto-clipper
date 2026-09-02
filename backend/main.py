@@ -93,14 +93,25 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"status": "error", "message": f"Internal Server Error: {str(exc)}"}
     )
 
+cors_regex = r"https?://([a-zA-Z0-9_.-]+\.)?localhost(:\d+)?|https?://127\.0\.0\.1(:\d+)?|tauri://.*|app://.*|https://clipper\.dhims\.web\.id|https://.*\.vercel\.app"
+custom_cors = os.environ.get("AUTO_CLIPPER_CORS_ORIGIN", "").strip()
+if custom_cors:
+    if custom_cors == "*":
+        cors_regex = r".*"
+    else:
+        custom_parts = [re.escape(orig.strip()) for orig in custom_cors.split(",") if orig.strip()]
+        if custom_parts:
+            cors_regex += "|" + "|".join(custom_parts)
+
 app.add_middleware(
     CORSMiddleware,
     # Allow local dev and all variations of Tauri custom protocols (including tauri.localhost on Windows), plus cloud web app
-    allow_origin_regex=r"https?://([a-zA-Z0-9_.-]+\.)?localhost(:\d+)?|https?://127\.0\.0\.1(:\d+)?|tauri://.*|app://.*|https://clipper\.dhims\.web\.id",
+    allow_origin_regex=cors_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.middleware("http")
 async def verify_token(request: Request, call_next):

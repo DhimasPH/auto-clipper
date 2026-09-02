@@ -19,6 +19,7 @@ def test_cors_headers():
         "http://127.0.0.1:8000",
         "app://localhost",
         "https://clipper.dhims.web.id",
+        "https://my-app.vercel.app",
     ]
     for origin in allowed_origins:
         r = client.get("/health", headers={"Origin": origin})
