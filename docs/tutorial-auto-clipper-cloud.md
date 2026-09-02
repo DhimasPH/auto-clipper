@@ -1,6 +1,13 @@
 # ☁️ Panduan Teknis Lengkap: Menjalankan Auto Clipper Cloud
 
-Dokumentasi ini merupakan panduan teknis resmi *end-to-end* untuk mengonfigurasi, mendeploy, dan mengoperasikan **Auto Clipper Cloud**. Dengan arsitektur ini, seluruh proses berat (transkripsi suara dengan Whisper, *face tracking*, pembuatan kanvas dinamis, dan *rendering* video FFmpeg dengan akselerasi hardware NVIDIA NVENC) dijalankan pada **GPU Google Colab (T4 GPU Gratis)** dengan penyimpanan persisten di **Google Drive**, serta diakses secara praktis melalui antarmuka **Web App Smartphone (Vercel)**.
+Dokumentasi ini merupakan panduan teknis resmi *end-to-end* untuk mengonfigurasi, mendeploy, dan mengoperasikan **Auto Clipper Cloud secara mandiri (*self-hosted*)**.
+
+Dengan panduan ini, Anda dapat menjalankan seluruh proses berat (transkripsi suara dengan Whisper, *face tracking*, pembuatan kanvas dinamis, dan *rendering* video FFmpeg dengan akselerasi hardware NVIDIA NVENC) pada **GPU Google Colab (T4 GPU Gratis)** dengan penyimpanan persisten di **Google Drive**, serta mengontrolnya langsung dari **Web App Smartphone (Vercel)**.
+
+> [!NOTE]
+> **Pilihan Metode Konektivitas (Pilih Sesuai Kebutuhan Anda):**
+> 1. **Jalur A (Rekomendasi jika Punya Domain Pribadi):** Menggunakan **Cloudflare Zero Trust Named Tunnel** (`be-clipper.domainanda.com`) + Custom Domain di Vercel (`clipper.domainanda.com`).
+> 2. **Jalur B (100% Gratis Tanpa Punya Domain):** Menggunakan **Ngrok Tunnel** (`https://xxxx.ngrok-free.app`) + Domain default gratis Vercel (`https://auto-clipper-web-xxxx.vercel.app`).
 
 ---
 
@@ -12,18 +19,18 @@ Dokumentasi ini merupakan panduan teknis resmi *end-to-end* untuk mengonfigurasi
 2. [Prasyarat & Persiapan Akun (One-Time Setup)](#2-prasyarat--persiapan-akun-one-time-setup)
 3. [Setup Backend Cloud (Google Colab & Google Drive)](#3-setup-backend-cloud-google-colab--google-drive)
    - [Langkah 3.1: Membuka Notebook Colab](#langkah-31-membuka-notebook-colab)
-   - [Langkah 3.2: Memastikan Hardware Accelerator T4 GPU](#langkah-32-memastikan-hardware-accelerator-t4-gpu)
+   - [Langkah 3.2: Mengaktifkan Akselerator Hardware T4 GPU](#langkah-32-mengaktifkan-akselerator-hardware-t4-gpu)
    - [Langkah 3.3: Mounting Google Drive & Struktur Workspace](#langkah-33-mounting-google-drive--struktur-workspace)
    - [Langkah 3.4: Eksekusi Server & Mekanisme GPU Keep-Alive](#langkah-34-eksekusi-server--mekanisme-gpu-keep-alive)
    - [Langkah 3.5: Verifikasi Health Check Backend](#langkah-35-verifikasi-health-check-backend)
 4. [Setup Konektivitas Tunnel Publik](#4-setup-konektivitas-tunnel-publik)
-   - [Metode 1: Cloudflare Zero Trust Tunnel (Rekomendasi Custom Domain)](#metode-1-cloudflare-zero-trust-tunnel-rekomendasi-custom-domain)
-   - [Metode 2: Ngrok Tunnel (Opsi Alternatif Gratis Tanpa Domain)](#metode-2-ngrok-tunnel-opsi-alternatif-gratis-tanpa-domain)
+   - [Jalur A: Cloudflare Zero Trust Tunnel (Jika Punya Domain Sendiri)](#jalur-a-cloudflare-zero-trust-tunnel-jika-punya-domain-sendiri)
+   - [Jalur B: Ngrok Tunnel Gratis (Jika Tidak Punya Domain)](#jalur-b-ngrok-tunnel-gratis-jika-tidak-punya-domain)
 5. [Setup & Deployment Frontend Web ke Vercel](#5-setup--deployment-frontend-web-ke-vercel)
    - [Langkah 5.1: Import Repositori ke Vercel](#langkah-51-import-repositori-ke-vercel)
    - [Langkah 5.2: Konfigurasi Root Directory & Build Settings](#langkah-52-konfigurasi-root-directory--build-settings)
-   - [Langkah 5.3: Pengaturan Environment Variable](#langkah-53-pengaturan-environment-variable)
-   - [Langkah 5.4: Konfigurasi Custom Domain & Pengujian](#langkah-54-konfigurasi-custom-domain--pengujian)
+   - [Langkah 5.3: Pengaturan Environment Variable (VITE_API_URL)](#langkah-53-pengaturan-environment-variable-vite_api_url)
+   - [Langkah 5.4: Pengaturan Domain Frontend (Custom Domain vs Default Vercel)](#langkah-54-pengaturan-domain-frontend-custom-domain-vs-default-vercel)
 6. [SOP Pengoperasian Harian via Smartphone (4-Step Wizard)](#6-sop-pengoperasian-harian-via-smartphone-4-step-wizard)
    - [Langkah 0: Inisialisasi Sesi & Login](#langkah-0-inisialisasi-sesi--login)
    - [Step 1: Input URL & Pemilihan Gaya Video](#step-1-input-url--pemilihan-gaya-video)
@@ -48,16 +55,16 @@ Auto Clipper Cloud memisahkan antarmuka pengguna (*Frontend*) dengan mesin kompu
 ```mermaid
 graph TD
     subgraph Client["📱 Smartphone Client (Mobile Browser)"]
-        Browser["Safari / Chrome<br/>https://clipper.dhims.web.id"]
+        BrowserA["Safari / Chrome<br/>https://clipper.domainanda.com<br/>(atau https://auto-clipper.vercel.app)"]
     end
 
     subgraph Hosting["☁️ Vercel Edge Network"]
-        Vercel["React + Vite Single-Page Wizard<br/>(Folder: web/)"]
+        Vercel["React + Vite Single-Page Wizard<br/>(Root Folder: web/)"]
     end
 
-    subgraph Tunneling["🌐 Secure Reverse Tunnel"]
-        CFTunnel["Cloudflare Named Tunnel<br/>https://be-clipper.dhims.web.id"]
-        NgrokTunnel["Ngrok Tunnel (Alternatif)<br/>https://xxxx.ngrok-free.app"]
+    subgraph Tunneling["🌐 Secure Reverse Tunnel Options"]
+        CFTunnel["Jalur A: Cloudflare Named Tunnel<br/>https://be-clipper.domainanda.com"]
+        NgrokTunnel["Jalur B: Ngrok Tunnel Gratis<br/>https://xxxx.ngrok-free.app"]
     end
 
     subgraph Compute["🖥️ Google Colab (GPU NVIDIA T4)"]
@@ -71,9 +78,9 @@ graph TD
         GDrive["/content/drive/MyDrive/AutoClipperData/<br/>├── history.db (SQLite Database)<br/>└── projects/{job_id}/<br/>    ├── raw_video.mp4<br/>    ├── words.json<br/>    ├── subtitles.ass<br/>    └── clip_1.mp4, clip_2.mp4..."]
     end
 
-    Browser -->|"1. Akses Web UI"| Vercel
-    Browser -->|"2. REST API Request (Bearer Token)"| CFTunnel
-    Browser -.->|"2. Alternatif Request"| NgrokTunnel
+    BrowserA -->|"1. Akses Web UI"| Vercel
+    BrowserA -->|"2. API Request via Tunnel (Bearer Token)"| CFTunnel
+    BrowserA -.->|"2. Alternatif API Request"| NgrokTunnel
     CFTunnel -->|"Forward ke localhost:8000"| Uvicorn
     NgrokTunnel -.->|"Forward ke localhost:8000"| Uvicorn
     Uvicorn --> Whisper
@@ -81,7 +88,7 @@ graph TD
     Uvicorn --> KeepAlive
     Uvicorn <-->|"Read / Write Metadata & DB"| GDrive
     FFmpeg -->|"Simpan Klip MP4"| GDrive
-    Uvicorn -->|"Stream Video & Direct Download"| Browser
+    Uvicorn -->|"Stream Video & Direct Download"| BrowserA
 ```
 
 ### Keunggulan Mode Cloud
@@ -102,12 +109,12 @@ Sebelum menjalankan Auto Clipper Cloud untuk pertama kali, siapkan akun dan toke
 | **Akun Google** | Akses Google Colab & Google Drive | Gratis (15 GB) | [google.com](https://google.com) |
 | **Akun GitHub** | Repository hosting kode Auto Clipper | Gratis | [github.com](https://github.com) |
 | **Akun Vercel** | Hosting antarmuka Frontend Web | Gratis (Hobby Tier) | [vercel.com](https://vercel.com) |
-| **Cloudflare Zero Trust** *(Disarankan)* | Tunnel aman dengan custom domain | Gratis (Free Tier) | [dash.cloudflare.com](https://dash.cloudflare.com) |
-| **Akun Ngrok** *(Alternatif)* | Tunnel instan tanpa domain | Gratis (Free Tier) | [ngrok.com](https://ngrok.com) |
+| **Cloudflare Zero Trust** *(Jalur A)* | Tunnel aman jika punya custom domain | Gratis (Free Tier) | [dash.cloudflare.com](https://dash.cloudflare.com) |
+| **Akun Ngrok** *(Jalur B)* | Tunnel instan jika tidak punya domain | Gratis (Free Tier) | [ngrok.com](https://ngrok.com) |
 
 > [!IMPORTANT]
-> **Tentukan Static API Secret Token:**
-> Siapkan sebuah kata sandi rahasia yang kuat (misalnya: `rahasia-clipper-2026-xyz`). Token ini akan digunakan bersama antara Colab Backend (`API_SECRET_TOKEN`) dan Web App di HP untuk mencegah akses tanpa izin dari publik.
+> **Tentukan Static API Secret Token Anda:**
+> Siapkan sebuah kata sandi rahasia yang kuat (misalnya: `rahasia-saya-2026-xyz`). Token ini akan digunakan bersama antara Colab Backend (`API_SECRET_TOKEN`) dan Web App di HP Anda untuk mencegah akses tanpa izin dari publik.
 
 ---
 
@@ -116,69 +123,79 @@ Sebelum menjalankan Auto Clipper Cloud untuk pertama kali, siapkan akun dan toke
 ### Langkah 3.1: Membuka Notebook Colab
 
 1. Buka [Google Colab](https://colab.research.google.com/).
-2. Pilih tab **GitHub**, masukkan URL repository `https://github.com/DhimasPH/auto-clipper` (atau upload file [`Auto_Clipper_Colab.ipynb`](../Auto_Clipper_Colab.ipynb)).
+2. Pilih tab **GitHub**, masukkan URL repository Anda (atau upload file [`Auto_Clipper_Colab.ipynb`](../Auto_Clipper_Colab.ipynb)).
 3. Buka file **`Auto_Clipper_Colab.ipynb`**.
 
-### Langkah 3.2: Memastikan Hardware Accelerator T4 GPU
+### Langkah 3.2: Mengaktifkan Akselerator Hardware T4 GPU
 
 1. Pada menu navigasi Colab, klik **Runtime** $\rightarrow$ **Change runtime type** (*Ubah jenis runtime*).
 2. Di bagian **Hardware accelerator**, pilih **T4 GPU**.
-3. Pastikan **GPU RAM** muncul di status bar kanan atas.
+3. Pastikan indikator **GPU RAM** muncul di status bar kanan atas.
 
 > [!WARNING]
 > Jika runtime berjalan pada mode standard **CPU**, transkripsi Whisper dan rendering FFmpeg akan berjalan jauh lebih lambat dan fitur NVENC tidak dapat digunakan.
 
-### Langkah 3.3: Mounting Google Drive & Struktur Workspace
+### Langkah 3.3: Menghubungkan Google Drive & Mempersiapkan Ruang Kerja
 
-Jalankan **Cell 1**:
-```python
-from google.colab import drive
-drive.mount('/content/drive')
-```
-*Klik tautan persetujuan dan berikan izin akses ke Google Drive Anda.*
+Di Google Colab, setiap instruksi kode berada di dalam **kotak eksekusi**. Anda cukup mengklik **tombol Play (▶️)** di sebelah kiri masing-masing kotak:
 
-Setelah ter-mount, backend secara otomatis membuat direktori kerja persisten di:
-```text
-/content/drive/MyDrive/AutoClipperData/
-├── history.db                  # Database riwayat job & status klip
-└── projects/                   # Folder isolasi per proyek
-    └── {job_id}/
-        ├── source.mp4          # Video mentah asli dari yt-dlp
-        ├── source.words.json   # Timestamp per kata dari Whisper
-        ├── subtitles.ass       # Format subtitle karaoke / standard
-        └── clip_1.mp4          # Potongan video siap unduh
-```
+1. **Hubungkan Google Drive (Kotak Bagian 1):**
+   - Klik tombol **Play (▶️)** pada bagian **`1. Mount Google Drive`**.
+   - Colab akan menampilkan tombol persetujuan *"Connect to Google Drive"*. Klik tombol tersebut dan izinkan akses akun Google Anda.
+   
+   Setelah terhubung, Auto Clipper akan secara otomatis membuat folder penyimpanan permanen di Google Drive Anda:
+   ```text
+   Google Drive Saya / AutoClipperData /
+   ├── history.db                  # Database riwayat klip & metadata
+   └── projects/                   # Folder file video tiap pekerjaan
+       └── {job_id}/
+           ├── source.mp4          # Video asli yang diunduh
+           ├── source.words.json   # Hasil transkripsi kata dari Whisper
+           ├── subtitles.ass       # Berkas subtitle karaoke/standar
+           └── clip_1.mp4          # Klip video hasil render siap unduh
+   ```
 
-### Langkah 3.4: Eksekusi Server & Mekanisme GPU Keep-Alive
+### Langkah 3.4: Memasang Program & Menjalankan Server Backend
 
-Jalankan **Cell 2 & 3** untuk menginstal dependensi sistem dan cloning repo:
-```bash
-!apt-get update -qq && apt-get install -y -qq ffmpeg
-!wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && dpkg -i cloudflared-linux-amd64.deb
-!git clone https://github.com/DhimasPH/auto-clipper.git /content/auto-clipper || true
-%cd /content/auto-clipper
-!pip install -q -r backend/requirements.txt uvicorn pyngrok
-```
+2. **Pemasangan Otomatis (Kotak Bagian 2 & 3):**
+   - Klik tombol **Play (▶️)** pada bagian **`2. Install System Dependencies`** (untuk memasang FFmpeg).
+   - Klik tombol **Play (▶️)** pada bagian **`3. Clone Repository & Install Python Dependencies`** (untuk mengunduh kode Auto Clipper).
+   - Tunggu proses instalasi selesai (ditandai dengan centang hijau ✅ di samping tombol Play).
 
-Pada **Cell 4**, masukkan token konfigurasi Anda:
-```python
-#@title Run Auto Clipper Backend
-CLOUDFLARE_TUNNEL_TOKEN = "eyJhIjoi..." #@param {type:"string"}
-API_SECRET_TOKEN = "password-rahasia-anda" #@param {type:"string"}
+3. **Menjalankan Server (Kotak Bagian 4):**
+   Pilih salah satu formulir sesuai jalur yang Anda gunakan:
 
-!python backend/colab_api.py --cloudflare-token "$CLOUDFLARE_TUNNEL_TOKEN" --api-token "$API_SECRET_TOKEN"
-```
+#### Jika Memilih Jalur A (Cloudflare Named Tunnel - Punya Domain Sendiri):
+Isi kolom formulir pada kotak **`4A. Run Auto Clipper Backend (Cloudflare)`**:
+- **`CLOUDFLARE_TUNNEL_TOKEN`**: Tempel token tunnel Cloudflare Anda.
+- **`API_SECRET_TOKEN`**: Masukkan password rahasia yang Anda tentukan sendiri.
+- Klik tombol **Play (▶️)** untuk mulai menjalankan server.
 
-#### Cara Kerja `gpu_keep_alive()` di Colab:
-Backend menyertakan modul otomatis (`backend/colab_api.py`) yang mengalokasikan tensor memori GPU ringan (~400MB) dan mengirimkan pulsa komputasi mikro setiap 15 detik. Ini mencegah Google Colab menandai sesi sebagai *idle* dan memutus koneksi saat Anda sedang menunggu respons AI.
+#### Jika Memilih Jalur B (Ngrok Tunnel - 100% Gratis Tanpa Domain):
+Isi kolom formulir pada kotak **`4B. Run Auto Clipper Backend (Ngrok)`**:
+- **`NGROK_AUTHTOKEN`**: Tempel authtoken akun Ngrok gratis Anda.
+- **`API_SECRET_TOKEN`**: Masukkan password rahasia yang Anda tentukan sendiri.
+- Klik tombol **Play (▶️)**.
+- Tunggu beberapa detik, Colab akan mencetak URL publik Anda dengan format:
+  ```text
+  🚀 PUBLIC BACKEND URL ANDA: https://abcd-12-34-56.ngrok-free.app
+  ```
+  *(Salin URL ini untuk dimasukkan ke Vercel).*
 
-### Langkah 3.5: Verifikasi Health Check Backend
+> [!TIP]
+> **💡 Cara Paling Cepat (*Run All*):**
+> Anda juga bisa langsung mengisi token di formulir Bagian 4 terlebih dahulu, lalu klik menu **Runtime** di bagian atas layar Colab $\rightarrow$ pilih **Run all** (atau tekan shortcut `Ctrl + F9` di Windows / `Cmd + F9` di Mac). Seluruh proses dari nomor 1 sampai 4 akan berjalan otomatis!
 
-Buka tab baru di browser Anda dan akses endpoint:
-```http
-GET https://be-clipper.dhims.web.id/health
-```
-Respons yang diharapkan:
+#### Keunggulan Fitur Anti-Idle (*GPU Keep-Alive*):
+Saat server berjalan, Auto Clipper secara otomatis mengaktifkan fitur penjaga GPU (*keep-alive*). Sistem akan memberikan aktivitas mikro pada memori GPU setiap 15 detik sehingga Google Colab tidak akan memutuskan koneksi secara tiba-tiba saat Anda sedang santai menunggu hasil pemotongan video di HP.
+
+### Langkah 3.5: Memeriksa Status Server (Health Check)
+
+Untuk memastikan server Anda sudah siap menerima perintah, buka tab baru di browser dan buka alamat:
+- **Jalur A:** `https://be-clipper.domainanda.com/health`
+- **Jalur B:** `https://xxxx.ngrok-free.app/health`
+
+Jika berhasil, browser akan menampilkan teks:
 ```json
 {
   "status": "ok",
@@ -186,18 +203,21 @@ Respons yang diharapkan:
   "gpu_available": true
 }
 ```
+*Tanda `"gpu_available": true` memastikan rendering video akan menggunakan akselerasi kartu grafis NVIDIA T4!*
+
+```
 
 ---
 
 ## 4. Setup Konektivitas Tunnel Publik
 
-Karena Google Colab berjalan di dalam jaringan virtual Google yang tertutup, kita membutuhkan *reverse tunnel* agar browser HP dapat mengirim request ke backend FastAPI (port 8000).
+Karena Google Colab berjalan di dalam jaringan internal Google yang tertutup, Anda memerlukan *reverse tunnel* agar browser HP dapat mengirim perintah ke backend FastAPI (port 8000).
 
 ---
 
-### Metode 1: Cloudflare Zero Trust Tunnel (Rekomendasi Custom Domain)
+### Jalur A: Cloudflare Zero Trust Tunnel (Jika Punya Domain Sendiri)
 
-Metode ini memberikan URL HTTPS yang stabil dan permanen (misal: `https://be-clipper.domainanda.com`) tanpa perlu mengganti konfigurasi di frontend setiap kali Colab dinyalakan ulang.
+Gunakan metode ini jika Anda sudah memiliki domain pribadi (contoh: `domainanda.com`) yang terhubung ke Cloudflare:
 
 1. Buka [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/).
 2. Masuk ke menu **Networks** $\rightarrow$ **Tunnels** $\rightarrow$ klik **Create a tunnel**.
@@ -205,8 +225,8 @@ Metode ini memberikan URL HTTPS yang stabil dan permanen (misal: `https://be-cli
 4. Di bagian *Install and run a connector*, pilih tab **Debian (64-bit)** dan salin token tunnel (string panjang setelah `--token`).
 5. Masuk ke tab **Public Hostname** pada tunnel tersebut, klik **Add a public hostname**:
    - **Subdomain:** `be-clipper` (atau `api`)
-   - **Domain:** Pilih domain Anda sendiri yang sudah aktif di Cloudflare (misal: `domainanda.com`)
-   - **Path:** *(Kosongkan / biarkan default)*
+   - **Domain:** Pilih domain Anda yang aktif di Cloudflare (misal: `domainanda.com`)
+   - **Path:** *(Biarkan kosong)*
    - **Type:** `HTTP`
    - **URL:** `localhost:8000`
 6. Klik **Save hostname**. Publik URL backend Anda sekarang adalah: `https://be-clipper.domainanda.com`.
@@ -214,32 +234,15 @@ Metode ini memberikan URL HTTPS yang stabil dan permanen (misal: `https://be-cli
 
 ---
 
-### Metode 2: Ngrok Tunnel (Opsi Alternatif Gratis Tanpa Domain)
+### Jalur B: Ngrok Tunnel Gratis (Jika Tidak Punya Domain)
 
-Jika Anda belum memiliki domain pribadi di Cloudflare, Anda dapat menggunakan Ngrok:
+Gunakan metode ini jika Anda **tidak memiliki domain sendiri**. Seluruh proses 100% gratis:
 
 1. Daftar akun di [ngrok.com](https://ngrok.com) dan buka halaman **Your Authtoken**.
-2. Salin token autentikasi Anda.
-3. Di Google Colab, jalankan blok Python alternatif berikut:
-```python
-from pyngrok import ngrok
-import os
-
-NGROK_AUTHTOKEN = "TOKEN_NGROK_ANDA"
-ngrok.set_auth_token(NGROK_AUTHTOKEN)
-
-# Buka HTTP tunnel ke port 8000
-public_url = ngrok.connect(8000).public_url
-print(f"🚀 Public Backend URL: {public_url}")
-
-os.environ["API_SECRET_TOKEN"] = "password-rahasia-anda"
-os.environ["AUTO_CLIPPER_DEV_TOKEN"] = "password-rahasia-anda"
-os.environ["AUTO_CLIPPER_CLOUD_MODE"] = "1"
-os.environ["AUTO_CLIPPER_WORKSPACE"] = "/content/drive/MyDrive/AutoClipperData"
-
-!python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
-```
-4. Salin URL publik yang dihasilkan (misal: `https://abcd-123-45.ngrok-free.app`) untuk digunakan pada frontend web.
+2. Salin token autentikasi Ngrok Anda.
+3. Tempel token tersebut ke notebook Colab (pada blok Ngrok di Langkah 3.4).
+4. Saat sel dijalankan, Colab akan mencetak URL publik unik, contoh: `https://abcd-12-34-56.ngrok-free.app`.
+5. Salin URL tersebut untuk dimasukkan ke konfigurasi Vercel di bab berikutnya.
 
 ---
 
@@ -255,7 +258,7 @@ Frontend Web Auto Clipper terletak pada sub-direktori `web/` dan berbasis **Reac
 ### Langkah 5.2: Konfigurasi Root Directory & Build Settings
 
 Pada halaman konfigurasi proyek Vercel:
-- **Project Name:** `auto-clipper-web` (atau sesuai keinginan Anda).
+- **Project Name:** `auto-clipper-web` (atau sesuai preferensi Anda).
 - **Framework Preset:** `Vite`.
 - **Root Directory:** Klik **Edit** dan pilih folder `web` (Penting!).
 - **Build Command:** `npm run build` (default).
@@ -264,33 +267,30 @@ Pada halaman konfigurasi proyek Vercel:
 
 ### Langkah 5.3: Pengaturan Environment Variable (`VITE_API_URL`)
 
-Buka bagian **Environment Variables** di Vercel dan sesuaikan dengan domain backend Anda:
+Buka bagian **Environment Variables** di Vercel dan tambahkan variabel penunjuk backend:
 
-| Nama Variabel | Nilai Contoh | Keterangan |
+| Nama Variabel | Contoh Nilai Jalur A (Domain Sendiri) | Contoh Nilai Jalur B (Ngrok Gratis) |
 |---|---|---|
-| `VITE_API_URL` | `https://be-clipper.domainanda.com` | URL domain backend Cloudflare Tunnel Anda (atau URL Ngrok) |
+| `VITE_API_URL` | `https://be-clipper.domainanda.com` | `https://abcd-12-34-56.ngrok-free.app` |
 
 > [!TIP]
-> **Cara Kerja `VITE_API_URL` di Frontend:**
-> File [`web/src/api.ts`](../web/src/api.ts) secara otomatis membaca `import.meta.env.VITE_API_URL`. Jika Anda telah mengisi variabel ini di Vercel Dashboard, Anda **tidak perlu mengubah kodingan** di repositori.
-> 
-> *Catatan:* Jika Anda mengubah nilai `VITE_API_URL` di Vercel, jangan lupa untuk melakukan **Redeploy** (*Deployments $\rightarrow$ Redeploy*) agar Vite memperbarui nilai URL tersebut ke bundle JavaScript.
+> **Tidak Perlu Mengubah Kodingan:**
+> File [`web/src/api.ts`](../web/src/api.ts) secara otomatis membaca `import.meta.env.VITE_API_URL`. Anda cukup mengisi variabel ini di Vercel Dashboard tanpa perlu mengotak-atik file kode di Git.
+>
+> *Catatan:* Jika Anda mengubah nilai `VITE_API_URL` di Vercel di kemudian hari (misal saat URL Ngrok berganti), buka tab **Deployments** $\rightarrow$ klik `...` pada deployment terakhir $\rightarrow$ pilih **Redeploy** agar Vite memperbarui bundle frontend.
 
-### Langkah 5.4: Konfigurasi Custom Domain Frontend & CORS Backend
+### Langkah 5.4: Pengaturan Domain Frontend (Custom Domain vs Default Vercel)
 
-1. **Atur Domain di Vercel:**
-   - Masuk ke **Settings** $\rightarrow$ **Domains** di proyek Vercel Anda.
-   - Tambahkan custom domain untuk antarmuka web, misal: `clipper.domainanda.com`.
-   - Atur DNS CNAME pada DNS Manager domain Anda mengarah ke `cname.vercel-dns.com` (di Cloudflare DNS, set *Proxy status: DNS Only*).
-2. **Konektivitas CORS Backend:**
-   - Backend FastAPI secara otomatis mengizinkan domain `*.vercel.app` dan localhost.
-   - Jika Anda menggunakan custom domain frontend sendiri (misal `https://clipper.domainanda.com`), Anda dapat mendaftarkannya ke backend dengan menambahkan Environment Variable `AUTO_CLIPPER_CORS_ORIGIN` di Google Colab:
-     ```python
-     os.environ["AUTO_CLIPPER_CORS_ORIGIN"] = "https://clipper.domainanda.com"
-     ```
-     *(Gunakan tanda koma `,` jika ada lebih dari 1 domain, atau gunakan `*` untuk mengizinkan semua domain).*
-3. Buka `https://clipper.domainanda.com` di browser smartphone untuk menguji aplikasi!
-
+1. **Jalur A (Menggunakan Custom Domain Frontend):**
+   - Di Vercel, masuk ke **Settings** $\rightarrow$ **Domains**.
+   - Tambahkan domain frontend, misal: `clipper.domainanda.com`.
+   - Di DNS Manager Cloudflare Anda, tambahkan CNAME Record:
+     - **Name:** `clipper`
+     - **Target:** `cname.vercel-dns.com`
+     - **Proxy status:** *DNS Only* (abu-abu).
+2. **Jalur B (Menggunakan Domain Gratis Bawaan Vercel):**
+   - Anda tidak perlu mengatur DNS apapun! Vercel otomatis memberikan URL gratis seperti: `https://auto-clipper-web-xxxx.vercel.app`.
+   - Backend FastAPI Auto Clipper secara otomatis mengizinkan seluruh domain `*.vercel.app` tanpa konfigurasi tambahan.
 
 ---
 
@@ -307,11 +307,11 @@ sequenceDiagram
     participant AI as 🤖 External AI (Gemini / ChatGPT / Claude)
 
     Note over User,Colab: Sesi Awal
-    User->>Web: Buka clipper.dhims.web.id & Masukkan Token
+    User->>Web: Buka Web App & Masukkan Access Token
     Web->>Colab: Verifikasi Autentikasi (Bearer Auth)
 
     Note over User,Colab: Step 1 - Input Video & Visual Styling
-    User->>Web: Paste URL Video YouTube + Pilih Style (Canvas/Face Crop) + Subtitle Preset
+    User->>Web: Paste URL Video YouTube + Pilih Style + Subtitle Preset
     Web->>Colab: POST /jobs/manual (URL, canvas_config, subtitle_config)
     Colab->>Colab: Unduh Video (yt-dlp) + Transkripsi Kata (Whisper GPU)
     Colab-->>Web: Status: AWAITING_MANUAL + manual_prompt
@@ -340,8 +340,9 @@ sequenceDiagram
 
 ### Langkah 0: Inisialisasi Sesi & Login
 1. Buka notebook Google Colab di browser laptop atau tab HP, lalu klik **Run All**.
-2. Buka `https://clipper.dhims.web.id` di browser smartphone (Safari di iOS / Chrome di Android).
-3. Masukkan **API Secret Token** yang sudah Anda tentukan. Token ini otomatis disimpan di `localStorage` browser Anda sehingga Anda tidak perlu memasukkannya berulang kali.
+2. Buka Web App Anda di browser smartphone (Safari di iOS / Chrome di Android):
+   - Contoh URL: `https://clipper.domainanda.com` atau `https://auto-clipper-web-xxxx.vercel.app`.
+3. Masukkan **API Secret Token** yang sudah Anda tentukan. Token ini otomatis disimpan di `localStorage` browser Anda.
 
 ---
 
@@ -392,7 +393,7 @@ sequenceDiagram
 ### Step 4: Background Rendering & Download MP4
 1. Backend Colab mulai memotong video, menghitung interpolasi tracking wajah, merender filter kanvas, dan menempelkan subtitle ASS secara presisi dengan GPU hardware acceleration.
 2. **Kebebasan Menutup Browser:** Anda **bisa menutup browser smartphone** atau mematikan layar HP. Pemrosesan tetap berjalan aman di Colab.
-3. Saat Anda membuka kembali web `https://clipper.dhims.web.id`, halaman otomatis memulihkan status job terakhir.
+3. Saat Anda membuka kembali Web App, halaman otomatis memulihkan status job terakhir.
 4. Setelah status menjadi **`DONE`**, daftar klip video akan muncul:
    - Putar video langsung di browser menggunakan inline player.
    - Klik tombol **⬇️ Download MP4** untuk menyimpan video langsung ke galeri foto/video smartphone Anda.
@@ -413,20 +414,21 @@ sequenceDiagram
 ### Kendala 2: Error 401 Unauthorized / Token Mismatch
 * **Penyebab:** Token yang dimasukkan di Web UI HP tidak sama dengan `API_SECRET_TOKEN` yang berjalan di sel Colab.
 * **Solusi:**
-  1. Buka menu pengaturan browser HP Anda atau hapus data *local storage* untuk situs `clipper.dhims.web.id`.
+  1. Buka menu pengaturan browser HP Anda atau hapus data *local storage* untuk situs web app Anda.
   2. Muat ulang halaman, maka form **AuthGate (Login)** akan muncul kembali.
   3. Masukkan kata sandi yang sesuai dengan yang Anda tuliskan pada sel Colab.
 
 ---
 
 ### Kendala 3: Error CORS atau Network Connection Failed
-* **Penyebab:** Request dari domain Vercel diblokir oleh header backend, atau tunnel Cloudflare/Ngrok sedang offline.
+* **Penyebab:** Request dari domain frontend diblokir oleh backend, atau tunnel Cloudflare/Ngrok sedang offline.
 * **Solusi:**
   1. Pastikan sel backend Colab sedang aktif dan tidak berhenti dengan error.
-  2. Uji endpoint `https://be-clipper.dhims.web.id/health` di browser untuk memastikan tunnel aktif.
-  3. Backend Auto Clipper sudah dilengkapi konfigurasi CORS komprehensif pada `backend/main.py`:
+  2. Uji endpoint `/health` backend di browser untuk memastikan tunnel aktif.
+  3. Backend Auto Clipper secara bawaan sudah mengizinkan seluruh domain `*.vercel.app` dan localhost.
+  4. Jika Anda menggunakan domain kustom sendiri di luar vercel.app, pastikan Anda telah men-set environment variable `AUTO_CLIPPER_CORS_ORIGIN` di Colab:
      ```python
-     allow_origin_regex=r"https?://([a-zA-Z0-9_.-]+\.)?localhost(:\d+)?|https?://127\.0\.0\.1(:\d+)?|tauri://.*|app://.*|https://.*\.vercel\.app|https://clipper\.dhims\.web\.id"
+     os.environ["AUTO_CLIPPER_CORS_ORIGIN"] = "https://clipper.domainanda.com"
      ```
 
 ---
@@ -451,4 +453,4 @@ sequenceDiagram
 
 ## 🎯 Kesimpulan
 
-Dengan setup **Auto Clipper Cloud**, Anda memiliki studio klip video otomatis berbasis AI kelas profesional yang ditenagai infrastruktur cloud GPU gratis dan dapat dioperasikan secara fleksibel di mana saja langsung dari genggaman smartphone Anda.
+Dengan setup **Auto Clipper Cloud**, Anda memiliki studio klip video otomatis berbasis AI kelas profesional yang 100% mandiri, ditenagai infrastruktur cloud GPU gratis, dan dapat dioperasikan secara fleksibel di mana saja langsung dari genggaman smartphone Anda.
