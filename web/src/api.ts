@@ -2,9 +2,10 @@ import type { CreateJobPayload, JobResponse } from "./types/job";
 
 export const API_URL =
   import.meta.env.VITE_API_URL ||
-  (typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? "https://be-clipper.dhims.web.id"
-    : "http://localhost:8000");
+  (typeof window !== "undefined" &&
+    (localStorage.getItem("AUTO_CLIPPER_API_URL") ||
+      localStorage.getItem("ac_api_url"))) ||
+  "http://localhost:8000";
 
 export const STORAGE_AUTH_KEY = "AUTO_CLIPPER_WEB_TOKEN";
 export const STORAGE_AUTH_LEGACY_KEY = "ac_web_token";
