@@ -135,90 +135,76 @@ Sebelum menjalankan Auto Clipper Cloud untuk pertama kali, siapkan akun dan toke
 > [!WARNING]
 > Jika runtime berjalan pada mode standard **CPU**, transkripsi Whisper dan rendering FFmpeg akan berjalan jauh lebih lambat dan fitur NVENC tidak dapat digunakan.
 
-### Langkah 3.3: Mounting Google Drive & Struktur Workspace
+### Langkah 3.3: Menghubungkan Google Drive & Mempersiapkan Ruang Kerja
 
-Jalankan **Cell 1**:
-```python
-from google.colab import drive
-drive.mount('/content/drive')
-```
-*Klik tautan persetujuan dan berikan izin akses ke Google Drive Anda.*
+Di Google Colab, setiap instruksi kode berada di dalam **kotak eksekusi**. Anda cukup mengklik **tombol Play (▶️)** di sebelah kiri masing-masing kotak:
 
-Setelah ter-mount, backend secara otomatis membuat direktori kerja persisten di:
-```text
-/content/drive/MyDrive/AutoClipperData/
-├── history.db                  # Database riwayat job & status klip
-└── projects/                   # Folder isolasi per proyek
-    └── {job_id}/
-        ├── source.mp4          # Video mentah asli dari yt-dlp
-        ├── source.words.json   # Timestamp per kata dari Whisper
-        ├── subtitles.ass       # Format subtitle karaoke / standard
-        └── clip_1.mp4          # Potongan video siap unduh
-```
+1. **Hubungkan Google Drive (Kotak Bagian 1):**
+   - Klik tombol **Play (▶️)** pada bagian **`1. Mount Google Drive`**.
+   - Colab akan menampilkan tombol persetujuan *"Connect to Google Drive"*. Klik tombol tersebut dan izinkan akses akun Google Anda.
+   
+   Setelah terhubung, Auto Clipper akan secara otomatis membuat folder penyimpanan permanen di Google Drive Anda:
+   ```text
+   Google Drive Saya / AutoClipperData /
+   ├── history.db                  # Database riwayat klip & metadata
+   └── projects/                   # Folder file video tiap pekerjaan
+       └── {job_id}/
+           ├── source.mp4          # Video asli yang diunduh
+           ├── source.words.json   # Hasil transkripsi kata dari Whisper
+           ├── subtitles.ass       # Berkas subtitle karaoke/standar
+           └── clip_1.mp4          # Klip video hasil render siap unduh
+   ```
 
-### Langkah 3.4: Eksekusi Server & Mekanisme GPU Keep-Alive
+### Langkah 3.4: Memasang Program & Menjalankan Server Backend
 
-Jalankan **Cell 2 & 3** untuk menginstal dependensi sistem dan cloning repo:
-```bash
-!apt-get update -qq && apt-get install -y -qq ffmpeg
-!wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && dpkg -i cloudflared-linux-amd64.deb
-!git clone https://github.com/DhimasPH/auto-clipper.git /content/auto-clipper || true
-%cd /content/auto-clipper
-!pip install -q -r backend/requirements.txt uvicorn pyngrok
-```
+2. **Pemasangan Otomatis (Kotak Bagian 2 & 3):**
+   - Klik tombol **Play (▶️)** pada bagian **`2. Install System Dependencies`** (untuk memasang FFmpeg).
+   - Klik tombol **Play (▶️)** pada bagian **`3. Clone Repository & Install Python Dependencies`** (untuk mengunduh kode Auto Clipper).
+   - Tunggu proses instalasi selesai (ditandai dengan centang hijau ✅ di samping tombol Play).
 
-Pada **Cell 4**, masukkan token konfigurasi sesuai jalur yang Anda pilih:
+3. **Menjalankan Server (Kotak Bagian 4):**
+   Pilih salah satu formulir sesuai jalur yang Anda gunakan:
 
-#### Jika Menggunakan Jalur A (Cloudflare Named Tunnel):
-```python
-#@title Run Auto Clipper Backend (Cloudflare)
-CLOUDFLARE_TUNNEL_TOKEN = "eyJhIjoi..." #@param {type:"string"}
-API_SECRET_TOKEN = "password-rahasia-anda" #@param {type:"string"}
+#### Jika Memilih Jalur A (Cloudflare Named Tunnel - Punya Domain Sendiri):
+Isi kolom formulir pada kotak **`4A. Run Auto Clipper Backend (Cloudflare)`**:
+- **`CLOUDFLARE_TUNNEL_TOKEN`**: Tempel token tunnel Cloudflare Anda.
+- **`API_SECRET_TOKEN`**: Masukkan password rahasia yang Anda tentukan sendiri.
+- Klik tombol **Play (▶️)** untuk mulai menjalankan server.
 
-# Opsional: Jika menggunakan domain frontend custom
-import os
-os.environ["AUTO_CLIPPER_CORS_ORIGIN"] = "https://clipper.domainanda.com"
+#### Jika Memilih Jalur B (Ngrok Tunnel - 100% Gratis Tanpa Domain):
+Isi kolom formulir pada kotak **`4B. Run Auto Clipper Backend (Ngrok)`**:
+- **`NGROK_AUTHTOKEN`**: Tempel authtoken akun Ngrok gratis Anda.
+- **`API_SECRET_TOKEN`**: Masukkan password rahasia yang Anda tentukan sendiri.
+- Klik tombol **Play (▶️)**.
+- Tunggu beberapa detik, Colab akan mencetak URL publik Anda dengan format:
+  ```text
+  🚀 PUBLIC BACKEND URL ANDA: https://abcd-12-34-56.ngrok-free.app
+  ```
+  *(Salin URL ini untuk dimasukkan ke Vercel).*
 
-!python backend/colab_api.py --cloudflare-token "$CLOUDFLARE_TUNNEL_TOKEN" --api-token "$API_SECRET_TOKEN"
-```
+> [!TIP]
+> **💡 Cara Paling Cepat (*Run All*):**
+> Anda juga bisa langsung mengisi token di formulir Bagian 4 terlebih dahulu, lalu klik menu **Runtime** di bagian atas layar Colab $\rightarrow$ pilih **Run all** (atau tekan shortcut `Ctrl + F9` di Windows / `Cmd + F9` di Mac). Seluruh proses dari nomor 1 sampai 4 akan berjalan otomatis!
 
-#### Jika Menggunakan Jalur B (Ngrok Gratis):
-```python
-#@title Run Auto Clipper Backend (Ngrok)
-from pyngrok import ngrok
-import os
+#### Keunggulan Fitur Anti-Idle (*GPU Keep-Alive*):
+Saat server berjalan, Auto Clipper secara otomatis mengaktifkan fitur penjaga GPU (*keep-alive*). Sistem akan memberikan aktivitas mikro pada memori GPU setiap 15 detik sehingga Google Colab tidak akan memutuskan koneksi secara tiba-tiba saat Anda sedang santai menunggu hasil pemotongan video di HP.
 
-NGROK_AUTHTOKEN = "TOKEN_NGROK_ANDA" #@param {type:"string"}
-API_SECRET_TOKEN = "password-rahasia-anda" #@param {type:"string"}
+### Langkah 3.5: Memeriksa Status Server (Health Check)
 
-ngrok.set_auth_token(NGROK_AUTHTOKEN)
-public_url = ngrok.connect(8000).public_url
-print(f"\n🚀 PUBLIC BACKEND URL ANDA: {public_url}\n")
-
-os.environ["API_SECRET_TOKEN"] = API_SECRET_TOKEN
-os.environ["AUTO_CLIPPER_DEV_TOKEN"] = API_SECRET_TOKEN
-os.environ["AUTO_CLIPPER_CLOUD_MODE"] = "1"
-os.environ["AUTO_CLIPPER_WORKSPACE"] = "/content/drive/MyDrive/AutoClipperData"
-
-!python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
-```
-
-#### Cara Kerja `gpu_keep_alive()` di Colab:
-Backend menyertakan thread latar belakang otomatis yang mengalokasikan tensor memori GPU ringan (~400MB) dan mengirimkan pulsa komputasi mikro setiap 15 detik. Ini mencegah Google Colab menandai sesi sebagai *idle* saat Anda sedang menunggu respons AI di HP.
-
-### Langkah 3.5: Verifikasi Health Check Backend
-
-Buka tab baru di browser Anda dan akses endpoint:
+Untuk memastikan server Anda sudah siap menerima perintah, buka tab baru di browser dan buka alamat:
 - **Jalur A:** `https://be-clipper.domainanda.com/health`
 - **Jalur B:** `https://xxxx.ngrok-free.app/health`
 
-Respons yang diharapkan:
+Jika berhasil, browser akan menampilkan teks:
 ```json
 {
   "status": "ok",
   "version": "1.14.0",
   "gpu_available": true
 }
+```
+*Tanda `"gpu_available": true` memastikan rendering video akan menggunakan akselerasi kartu grafis NVIDIA T4!*
+
 ```
 
 ---
