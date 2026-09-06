@@ -4,6 +4,7 @@ import { apiGetClipWords, apiCreateClipRerenderJob } from "../api";
 import { OutputStyleSelector, type OutputStyle } from "./OutputStyleSelector";
 import { SubtitlePresetBar } from "./SubtitlePresetBar";
 import { FontSelector } from "./FontSelector";
+import { ToggleSwitch } from "./ToggleSwitch";
 import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../types/subtitle";
 import { DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 
@@ -33,6 +34,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   const [outputStyle, setOutputStyle] = useState<OutputStyle>(initialOutputStyle);
   const [subtitlePreset, setSubtitlePreset] = useState<SubtitlePresetKey>(initialSubtitlePreset);
   const [customFont, setCustomFont] = useState<string>("");
+  const [burnSubtitles, setBurnSubtitles] = useState<boolean>(true);
   
   const [originalWords, setOriginalWords] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -124,7 +126,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
         caption_style: subtitlePreset === "podcast" ? "karaoke" : subtitlePreset === "viral_pop" ? "single_word" : "standard",
         canvas_config: { ...DEFAULT_CANVAS_CONFIG, enabled: outputStyle === "canvas_blur" },
         subtitle_config: subtitleConfig,
-        burn_subs: true,
+        burn_subs: burnSubtitles,
       };
 
       const res = await apiCreateClipRerenderJob(jobId, clipIndex, payload);
@@ -275,8 +277,23 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
               <div className="space-y-4 pt-4 border-t border-neutral-800">
                 <h3 className="font-medium text-neutral-200">Output Settings</h3>
                 <OutputStyleSelector value={outputStyle} onChange={setOutputStyle} disabled={saving} />
-                <SubtitlePresetBar value={subtitlePreset} onChange={setSubtitlePreset} disabled={saving} />
-                <FontSelector value={customFont} onChange={setCustomFont} />
+                
+                {/* Burn Subtitles Toggle */}
+                <div className="pt-2 pb-1 flex items-center justify-between border-t border-neutral-800/60 mt-2">
+                  <label className="text-sm font-medium text-neutral-200">Burn Subtitles</label>
+                  <ToggleSwitch
+                    checked={burnSubtitles}
+                    onChange={setBurnSubtitles}
+                    disabled={saving}
+                  />
+                </div>
+
+                {burnSubtitles && (
+                  <>
+                    <SubtitlePresetBar value={subtitlePreset} onChange={setSubtitlePreset} disabled={saving} />
+                    <FontSelector value={customFont} onChange={setCustomFont} />
+                  </>
+                )}
               </div>
             </>
           )}
