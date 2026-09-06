@@ -85,6 +85,7 @@ def probe_formats(url: str) -> list:
     base_ydl_opts = {
         'quiet': True, 'no_warnings': True, 'skip_download': True,
         'logger': _SilentLogger(),
+        'extractor_args': {'youtube': ['player_client=android', 'player_skip=web']},
     }
     
 
@@ -126,6 +127,7 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
         'noprogress': True,
         'updatetime': False,
         'logger': _SilentLogger(),
+        'extractor_args': {'youtube': ['player_client=android', 'player_skip=web']},
     }
     ffmpeg_loc = get_ffmpeg_path()
     if ffmpeg_loc:

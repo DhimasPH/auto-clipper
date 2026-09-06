@@ -17,6 +17,7 @@ import {
 import { OutputStyleSelector, type OutputStyle } from "../OutputStyleSelector";
 import { SubtitlePresetBar } from "../SubtitlePresetBar";
 import { FontSelector } from "../FontSelector";
+import { ToggleSwitch } from "../ToggleSwitch";
 import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../../types/subtitle";
 import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "../../types/canvas";
 import type { CreateJobPayload } from "../../types/job";
@@ -63,6 +64,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   const [maxClips, setMaxClips] = useState<number>(0);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [isBrowserOpen, setIsBrowserOpen] = useState<boolean>(false);
+  const [burnSubtitles, setBurnSubtitles] = useState<boolean>(true);
 
   // Canvas customization
   const [canvasBgType, setCanvasBgType] = useState<"blur" | "color">("blur");
@@ -94,6 +96,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         if (parsed.highlightColor) setHighlightColor(parsed.highlightColor);
         if (parsed.watermarkText) setWatermarkText(parsed.watermarkText);
         if (parsed.watermarkOpacity !== undefined) setWatermarkOpacity(parsed.watermarkOpacity);
+        if (parsed.burnSubtitles !== undefined) setBurnSubtitles(parsed.burnSubtitles);
       }
     } catch {
       // Ignore
@@ -125,12 +128,13 @@ export const HeroInput: React.FC<HeroInputProps> = ({
           highlightColor,
           watermarkText,
           watermarkOpacity,
+          burnSubtitles,
         })
       );
     } catch {
       // Ignore
     }
-  }, [url, title, outputStyle, subtitlePreset, customFont, whisperModel, language, maxClips, highlightColor, watermarkText, watermarkOpacity]);
+  }, [url, title, outputStyle, subtitlePreset, customFont, whisperModel, language, maxClips, highlightColor, watermarkText, watermarkOpacity, burnSubtitles]);
 
   const validateUrl = (testUrl: string): boolean => {
     const clean = testUrl.trim();
@@ -203,7 +207,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
       title: title.trim() || `Auto Clip - ${new Date().toLocaleTimeString()}`,
       aspect_ratio: aspectRatio,
       caption_style: subtitlePreset === "podcast" ? "karaoke" : subtitlePreset === "viral_pop" ? "single_word" : "standard",
-      burn_subs: true,
+      burn_subs: burnSubtitles,
       quality: "best",
       whisper_model: whisperModel,
       language: language === "auto" ? "" : language,
@@ -309,18 +313,30 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         />
       </div>
 
-      {/* Subtitle Preset Selector */}
-      <div className="pt-1">
-        <SubtitlePresetBar
-          value={subtitlePreset}
-          onChange={(val) => setSubtitlePreset(val)}
+      {/* Burn Subtitles Toggle */}
+      <div className="pt-3 pb-1 flex items-center justify-between border-t border-neutral-800/60 mt-3">
+        <label className="text-sm font-semibold text-neutral-200">Burn Subtitles</label>
+        <ToggleSwitch
+          checked={burnSubtitles}
+          onChange={setBurnSubtitles}
           disabled={isSubmitting}
         />
-        <FontSelector
-          value={customFont}
-          onChange={setCustomFont}
-        />
       </div>
+
+      {/* Subtitle Preset Selector */}
+      {burnSubtitles && (
+        <div className="pt-1">
+          <SubtitlePresetBar
+            value={subtitlePreset}
+            onChange={(val) => setSubtitlePreset(val)}
+            disabled={isSubmitting}
+          />
+          <FontSelector
+            value={customFont}
+            onChange={setCustomFont}
+          />
+        </div>
+      )}
 
       {/* Advanced Drawer Toggle */}
       <div className="border border-neutral-800/80 rounded-xl bg-neutral-950/40 overflow-hidden transition-all">
@@ -412,91 +428,93 @@ export const HeroInput: React.FC<HeroInputProps> = ({
             </div>
 
             {/* Subtitle Highlight Color & Watermark */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-neutral-800/60">
-              <div className="space-y-2">
-                <label className="font-medium text-neutral-300 flex items-center gap-1.5">
-                  <Type className="w-3.5 h-3.5 text-neutral-400" />
-                  <span>Highlight Accent Color</span>
-                </label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {HIGHLIGHT_COLOR_SWATCHES.map((swatch) => (
-                    <button
-                      key={swatch.value}
-                      type="button"
-                      onClick={() => setHighlightColor(swatch.value)}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${swatch.bg} ${
-                        highlightColor === swatch.value
-                          ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-neutral-900 scale-110"
-                          : "opacity-80 hover:opacity-100 hover:scale-105"
-                      }`}
-                      title={swatch.name}
-                    >
-                      {highlightColor === swatch.value && (
-                        <Check className="w-4 h-4 text-neutral-950 stroke-[3]" />
-                      )}
-                    </button>
-                  ))}
-                  <input
-                    type="color"
-                    value={highlightColor}
-                    onChange={(e) => setHighlightColor(e.target.value)}
-                    className="w-7 h-7 rounded-full bg-transparent cursor-pointer border border-neutral-700"
-                    title="Custom color"
-                  />
+            {burnSubtitles && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-neutral-800/60">
+                <div className="space-y-2">
+                  <label className="font-medium text-neutral-300 flex items-center gap-1.5">
+                    <Type className="w-3.5 h-3.5 text-neutral-400" />
+                    <span>Highlight Accent Color</span>
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {HIGHLIGHT_COLOR_SWATCHES.map((swatch) => (
+                      <button
+                        key={swatch.value}
+                        type="button"
+                        onClick={() => setHighlightColor(swatch.value)}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${swatch.bg} ${
+                          highlightColor === swatch.value
+                            ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-neutral-900 scale-110"
+                            : "opacity-80 hover:opacity-100 hover:scale-105"
+                        }`}
+                        title={swatch.name}
+                      >
+                        {highlightColor === swatch.value && (
+                          <Check className="w-4 h-4 text-neutral-950 stroke-[3]" />
+                        )}
+                      </button>
+                    ))}
+                    <input
+                      type="color"
+                      value={highlightColor}
+                      onChange={(e) => setHighlightColor(e.target.value)}
+                      className="w-7 h-7 rounded-full bg-transparent cursor-pointer border border-neutral-700"
+                      title="Custom color"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-3">
-                <label className="font-medium text-neutral-300 flex items-center gap-1.5">
-                  <span>Watermark Text (Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={watermarkText}
-                  onChange={(e) => setWatermarkText(e.target.value)}
-                  placeholder="@yourhandle or channel name"
-                  className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-amber-400/80"
-                />
+                <div className="space-y-3">
+                  <label className="font-medium text-neutral-300 flex items-center gap-1.5">
+                    <span>Watermark Text (Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={watermarkText}
+                    onChange={(e) => setWatermarkText(e.target.value)}
+                    placeholder="@yourhandle or channel name"
+                    className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-amber-400/80"
+                  />
 
-                {watermarkText && (
-                  <div className="space-y-3 pt-2 bg-neutral-950/50 p-3 rounded-lg border border-neutral-800/60">
-                    <div>
-                      <div className="flex justify-between text-xs text-neutral-400 mb-1">
-                        <span>Opacity</span>
-                        <span>{Math.round(watermarkOpacity * 100)}%</span>
+                  {watermarkText && (
+                    <div className="space-y-3 pt-2 bg-neutral-950/50 p-3 rounded-lg border border-neutral-800/60">
+                      <div>
+                        <div className="flex justify-between text-xs text-neutral-400 mb-1">
+                          <span>Opacity</span>
+                          <span>{Math.round(watermarkOpacity * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={watermarkOpacity}
+                          onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
+                          className="w-full accent-amber-400"
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={watermarkOpacity}
-                        onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
-                        className="w-full accent-amber-400"
-                      />
-                    </div>
-                    
-                    <div>
-                      <span className="text-xs text-neutral-500 block mb-1">Live Preview</span>
-                      <div className="relative w-full h-16 bg-neutral-900 rounded-md overflow-hidden flex items-center justify-center border border-neutral-800 shadow-inner">
-                        {/* Fake video background element */}
-                        <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-blue-600 to-purple-800"></div>
-                        <div 
-                          className="relative font-bold text-white tracking-wide"
-                          style={{ 
-                            opacity: watermarkOpacity, 
-                            textShadow: "0px 1px 3px rgba(0,0,0,0.8)",
-                            fontFamily: "Arial, sans-serif"
-                          }}
-                        >
-                          {watermarkText}
+                      
+                      <div>
+                        <span className="text-xs text-neutral-500 block mb-1">Live Preview</span>
+                        <div className="relative w-full h-16 bg-neutral-900 rounded-md overflow-hidden flex items-center justify-center border border-neutral-800 shadow-inner">
+                          {/* Fake video background element */}
+                          <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-blue-600 to-purple-800"></div>
+                          <div 
+                            className="relative font-bold text-white tracking-wide"
+                            style={{ 
+                              opacity: watermarkOpacity, 
+                              textShadow: "0px 1px 3px rgba(0,0,0,0.8)",
+                              fontFamily: "Arial, sans-serif"
+                            }}
+                          >
+                            {watermarkText}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Canvas Blur Controls (if Canvas Blur is active) */}
             {outputStyle === "canvas_blur" && (
