@@ -176,10 +176,10 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full bg-white border border-border rounded-3xl p-5 sm:p-8 shadow-xl shadow-slate-200/50 space-y-6">
+    <form onSubmit={handleSubmit} className="w-full bg-white border border-border rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl shadow-slate-200/50 space-y-5 sm:space-y-6">
       {/* Video URL Input Section */}
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <label htmlFor="video-url" className="text-sm font-semibold text-text-primary flex items-center gap-2">
             <LinkIcon className="w-4 h-4 text-purple-600" />
             <span>Source Video</span>
@@ -187,7 +187,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
           </label>
           <div className="flex items-center gap-2 text-xs text-text-secondary">
             <span className="hidden sm:inline">Supports:</span>
-            <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-bg-surface px-2 py-0.5 rounded text-text-secondary border border-border">
+            <span className="inline-flex items-center gap-1 font-mono text-[10px] sm:text-[11px] bg-bg-surface px-2 py-0.5 rounded text-text-secondary border border-border">
               <Film className="w-3 h-3 text-red-500" /> YouTube, TikTok, Reels, X
             </span>
           </div>
@@ -202,9 +202,9 @@ export const HeroInput: React.FC<HeroInputProps> = ({
               setUrl(e.target.value);
               if (urlError) validateUrl(e.target.value);
             }}
-            placeholder="Paste URL or Browse Google Drive..."
+            placeholder="Paste URL or browse Google Drive..."
             required
-            className={`w-full pl-4 pr-32 py-3 bg-bg-surface/50 border rounded-xl text-text-primary placeholder:text-text-tertiary text-sm focus:outline-none focus:bg-white focus:ring-2 transition-all font-mono ${
+            className={`w-full pl-3 sm:pl-4 pr-24 sm:pr-32 py-2.5 sm:py-3 bg-bg-surface/50 border rounded-xl text-text-primary placeholder:text-text-tertiary text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 transition-all font-mono ${
               urlError
                 ? "border-red-500/80 focus:ring-red-500/30"
                 : "border-border focus:border-purple-500 focus:ring-purple-500/20"
@@ -397,7 +397,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         <button
           type="submit"
           disabled={isSubmitting || !url.trim()}
-          className="w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-2xl transition-all duration-200 flex items-center justify-center gap-2.5 shadow-lg shadow-purple-500/25"
+          className="w-full py-3.5 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm rounded-2xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25"
         >
           {isSubmitting ? (
             <>
