@@ -41,33 +41,26 @@ export const WorkspacePage: React.FC = () => {
         </div>
       )}
 
-      {ctx.status !== "IDLE" && !ctx.error && ctx.progress && (
-        <div className="mt-4 p-4 rounded-xl bg-bg-surface border border-border shadow-md">
-          <div className="flex items-center justify-between mb-2">
+      {!ctx.isRunning && ctx.status !== "IDLE" && !ctx.error && (
+        <div className="mt-4 p-4 rounded-2xl bg-bg-surface border border-border shadow-sm">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${ctx.isPolling ? 'bg-warning animate-pulse' : 'bg-success'}`} />
-              <span className="text-sm font-medium text-text-primary capitalize">
-                Status: {ctx.status.toLowerCase().replace('_', ' ')}
+              <div className="w-2.5 h-2.5 rounded-full bg-success" />
+              <span className="text-sm font-semibold text-text-primary capitalize">
+                Status: {ctx.status.toLowerCase().replace(/_/g, ' ')}
               </span>
             </div>
             {(ctx.status === "AWAITING_MANUAL" || ctx.status === "DONE") && (
               <button
                 onClick={() => ctx.status === "DONE" ? ctx.setIsResultsModalOpen(true) : ctx.setIsPromptModalOpen(true)}
-                className="text-xs text-accent hover:text-accent-hover underline underline-offset-2"
+                className="text-xs font-semibold text-purple-600 hover:text-purple-700 underline underline-offset-2"
               >
-                {ctx.status === "DONE" ? "View Results" : "Open AI Prompt"}
+                {ctx.status === "DONE" ? "Lihat Hasil Klip" : "Buka Prompt AI"}
               </button>
             )}
           </div>
-          <p className="text-xs text-text-secondary font-mono break-all">{ctx.progress}</p>
-          
-          {ctx.isPolling && (
-            <button
-              onClick={ctx.cancelCurrentJob}
-              className="mt-3 px-3 py-1.5 bg-error/10 hover:bg-error/20 text-error hover:text-error/80 text-xs font-medium rounded-lg transition-colors border border-error/20"
-            >
-              Cancel Job
-            </button>
+          {ctx.progress && (
+            <p className="text-xs text-text-secondary font-mono mt-2 break-all">{ctx.progress}</p>
           )}
         </div>
       )}

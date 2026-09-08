@@ -7,6 +7,7 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { PromptJsonModal } from "./components/Dashboard/PromptJsonModal";
 import { ResultsModal } from "./components/Dashboard/ResultsModal";
 import { ClipEditModal } from "./components/ClipEditModal";
+import { BusyOverlay } from "./components/BusyOverlay";
 import { useJobPolling } from "./hooks/useJobPolling";
 import type { JobResponse } from "./types/job";
 import { DEFAULT_CANVAS_CONFIG } from "./types/canvas";
@@ -84,11 +85,21 @@ function MainApp() {
     }
   };
 
+  const isRunning =
+    isLoading ||
+    (isPolling &&
+      status !== "IDLE" &&
+      status !== "DONE" &&
+      status !== "ERROR" &&
+      status !== "CANCELLED" &&
+      status !== "AWAITING_MANUAL");
+
   const contextValue = {
     resetKey,
     activeJob,
     isLoading,
     isPolling,
+    isRunning,
     handleHeroSubmit,
     error,
     status,
@@ -113,6 +124,9 @@ function MainApp() {
           </Route>
         </Routes>
       </HashRouter>
+
+      {/* Busy Overlay Modal (Persistent Modal like Desktop Auto Clipper) */}
+      <BusyOverlay />
 
       {/* Global Modals for Job Flow */}
       <PromptJsonModal
