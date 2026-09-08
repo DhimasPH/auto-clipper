@@ -124,16 +124,18 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8 text-neutral-400">
-        <Clock className="w-6 h-6 animate-spin mr-2" />
-        <span>Loading history...</span>
+      <div className="flex items-center justify-center p-12 text-text-tertiary">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-purple-600/30 border-t-purple-600 rounded-full animate-spin" />
+          <span className="text-xs font-mono">Loading history...</span>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-900/20 border border-red-500/20 rounded-lg text-red-400">
+      <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
         {error}
       </div>
     );
@@ -141,8 +143,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
 
   if (jobs.length === 0) {
     return (
-      <div className="p-8 text-center bg-neutral-900 border border-neutral-800 rounded-lg">
-        <p className="text-neutral-400">No processing history found.</p>
+      <div className="p-12 text-center bg-white border border-border rounded-2xl shadow-sm">
+        <p className="text-text-secondary text-sm">No processing history found.</p>
       </div>
     );
   }
@@ -157,11 +159,11 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
         return (
         <div
           key={job.id}
-          className="bg-neutral-900 border border-neutral-800 rounded-lg p-5 flex flex-col hover:border-amber-500/30 transition-colors"
+          className="bg-white border border-border rounded-2xl p-6 flex flex-col hover:border-purple-300 hover:shadow-md transition-all shadow-sm"
         >
           <div>
             <div className="flex items-start justify-between mb-3">
-              <h3 className="font-medium text-neutral-100 line-clamp-2" title={job.metadata?.title || job.id}>
+              <h3 className="font-semibold text-text-primary text-base line-clamp-2" title={job.metadata?.title || job.id}>
                 {job.metadata?.title || job.id}
               </h3>
               <div className="flex-shrink-0 ml-3" title={job.status}>
@@ -169,41 +171,41 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
               </div>
             </div>
             
-            <div className="space-y-2 mb-4 text-sm text-neutral-400 max-w-sm">
-              <div className="flex justify-between items-center bg-neutral-800/50 px-3 py-2 rounded">
-                <span className="font-medium text-neutral-300">Status</span>
-                <span className="text-xs px-2 py-1 bg-neutral-800 rounded-md">
+            <div className="space-y-2 mb-4 text-sm text-text-secondary max-w-sm">
+              <div className="flex justify-between items-center bg-bg-surface/60 px-3 py-2 rounded-xl">
+                <span className="font-medium text-text-secondary">Status</span>
+                <span className="text-xs px-2.5 py-1 bg-white border border-border rounded-lg text-text-primary font-medium">
                   {job.status.replace(/_/g, " ")}
                 </span>
               </div>
-              <div className="flex justify-between items-center bg-neutral-800/50 px-3 py-2 rounded">
-                <span className="font-medium text-neutral-300">Progress</span>
-                <span className="text-amber-400 font-medium">
+              <div className="flex justify-between items-center bg-bg-surface/60 px-3 py-2 rounded-xl">
+                <span className="font-medium text-text-secondary">Progress</span>
+                <span className="text-purple-600 font-semibold text-xs">
                   {job.progress}
                 </span>
               </div>
               
               {/* Job Metadata Details inline */}
               {job.metadata?.duration_seconds && (
-                <div className="flex justify-between items-center bg-neutral-800/50 px-3 py-2 rounded">
-                  <span className="font-medium text-neutral-300">Duration</span>
-                  <span className="text-xs px-2 py-1 bg-neutral-800 rounded-md">
+                <div className="flex justify-between items-center bg-bg-surface/60 px-3 py-2 rounded-xl">
+                  <span className="font-medium text-text-secondary">Duration</span>
+                  <span className="text-xs px-2.5 py-1 bg-white border border-border rounded-lg text-text-primary font-medium">
                     {job.metadata.duration_seconds}s
                   </span>
                 </div>
               )}
               {job.metadata?.quality && (
-                <div className="flex justify-between items-center bg-neutral-800/50 px-3 py-2 rounded">
-                  <span className="font-medium text-neutral-300">Quality</span>
-                  <span className="text-xs px-2 py-1 bg-neutral-800 rounded-md">
+                <div className="flex justify-between items-center bg-bg-surface/60 px-3 py-2 rounded-xl">
+                  <span className="font-medium text-text-secondary">Quality</span>
+                  <span className="text-xs px-2.5 py-1 bg-white border border-border rounded-lg text-text-primary font-medium">
                     {job.metadata.quality}
                   </span>
                 </div>
               )}
               {job.created_at && (
-                <div className="flex justify-between items-center bg-neutral-800/50 px-3 py-2 rounded">
-                  <span className="font-medium text-neutral-300">Created At</span>
-                  <span className="text-xs px-2 py-1 bg-neutral-800 rounded-md">
+                <div className="flex justify-between items-center bg-bg-surface/60 px-3 py-2 rounded-xl">
+                  <span className="font-medium text-text-secondary">Created At</span>
+                  <span className="text-xs px-2.5 py-1 bg-white border border-border rounded-lg text-text-primary font-medium">
                     {new Date(job.created_at).toLocaleString()}
                   </span>
                 </div>
@@ -211,7 +213,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
             </div>
           </div>
 
-          <div className="flex items-center justify-end flex-wrap gap-2 pt-4 border-t border-neutral-800">
+          <div className="flex items-center justify-end flex-wrap gap-2 pt-4 border-t border-border">
             {(isRealDone || job.status === "AWAITING_MANUAL" || isError) && (
               <button
                 onClick={() => {
@@ -221,18 +223,18 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                     onResume(job.id); // fallback
                   }
                 }}
-                className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors"
+                className="flex items-center px-3.5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 rounded-xl transition-all shadow-sm shadow-purple-500/20"
               >
-                <Play className="w-4 h-4 mr-1" />
+                <Play className="w-4 h-4 mr-1.5" />
                 {job.status === "AWAITING_MANUAL" ? "Edit Prompt / JSON" : "Rerun from JSON"}
               </button>
             )}
             {isError && (
               <button
                 onClick={() => onResume(job.id)}
-                className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors"
+                className="flex items-center px-3.5 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors shadow-sm"
               >
-                <RotateCcw className="w-4 h-4 mr-1" />
+                <RotateCcw className="w-4 h-4 mr-1.5" />
                 Retry
               </button>
             )}
@@ -243,9 +245,9 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                   setSubtitleConfig(DEFAULT_SUBTITLE_CONFIG);
                   setCanvasConfig(DEFAULT_CANVAS_CONFIG);
                 }}
-                className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
+                className="flex items-center px-3.5 py-2 text-sm font-medium text-text-secondary bg-bg-surface hover:bg-slate-200 border border-border rounded-xl transition-colors"
               >
-                <Film className="w-4 h-4 mr-1" />
+                <Film className="w-4 h-4 mr-1.5 text-purple-600" />
                 Rerender
               </button>
             )}
@@ -257,16 +259,16 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                   setSubtitleConfig(DEFAULT_SUBTITLE_CONFIG);
                   setCanvasConfig(DEFAULT_CANVAS_CONFIG);
                 }}
-                className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
+                className="flex items-center px-3.5 py-2 text-sm font-medium text-text-secondary bg-bg-surface hover:bg-slate-200 border border-border rounded-xl transition-colors"
               >
-                <Sparkles className="w-4 h-4 mr-1" />
+                <Sparkles className="w-4 h-4 mr-1.5 text-purple-600" />
                 AI Correct
               </button>
             )}
             {(isRealDone || clips.length > 0) && (
               <button
                 onClick={() => onViewResults && onViewResults(job)}
-                className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                className="px-3.5 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2"
               >
                 <Film className="w-4 h-4" />
                 View Clips ({clips.length})
@@ -274,7 +276,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
             )}
             <button
               onClick={() => handleDelete(job.id)}
-              className="flex items-center px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-red-900/30 hover:text-red-300 rounded-md transition-colors"
+              className="flex items-center px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-colors"
               title="Delete Job"
             >
               <Trash2 className="w-4 h-4 mr-1" />
@@ -284,8 +286,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
           
           {/* Rerender Panel */}
           {activeRerenderId === job.id && (
-            <div className="mt-4 p-4 border border-neutral-800 rounded-lg bg-neutral-950 animate-fadeIn">
-              <h4 className="font-medium text-neutral-200 mb-3">Rerender Settings</h4>
+            <div className="mt-4 p-5 border border-border rounded-2xl bg-bg-surface/30 animate-fadeIn">
+              <h4 className="font-semibold text-text-primary mb-3">Rerender Settings</h4>
               <div className="space-y-4">
                 <OutputStyleSelector value={outputStyle} onChange={(val) => {
                   setOutputStyle(val);
@@ -298,7 +300,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                 <button
                   onClick={() => handleRerenderSubmit(job.id)}
                   disabled={isSubmittingPanel}
-                  className="w-full py-2 bg-amber-400 hover:bg-amber-300 text-neutral-900 font-medium rounded-md transition-colors disabled:opacity-50"
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold rounded-xl transition-all shadow-md shadow-purple-500/20 disabled:opacity-50"
                 >
                   {isSubmittingPanel ? "Submitting..." : "Submit Rerender"}
                 </button>
@@ -308,20 +310,20 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
 
           {/* AI Correction Panel */}
           {activeAiId === job.id && (
-            <div className="mt-4 p-4 border border-neutral-800 rounded-lg bg-neutral-950 animate-fadeIn">
-              <h4 className="font-medium text-neutral-200 mb-2">AI Correction</h4>
-              <p className="text-xs text-neutral-400 mb-3">Provide extra instructions to adjust how AI creates highlights.</p>
+            <div className="mt-4 p-5 border border-border rounded-2xl bg-bg-surface/30 animate-fadeIn">
+              <h4 className="font-semibold text-text-primary mb-1">AI Correction</h4>
+              <p className="text-xs text-text-secondary mb-3">Provide extra instructions to adjust how AI creates highlights.</p>
               <textarea
                 value={extraPrompt}
                 onChange={(e) => setExtraPrompt(e.target.value)}
                 placeholder="E.g. Focus more on the funny moments..."
-                className="w-full bg-neutral-900 border border-neutral-800 rounded p-3 text-sm text-neutral-200 mb-3 focus:outline-none focus:border-amber-400/80"
+                className="w-full bg-white border border-border rounded-xl p-3 text-sm text-text-primary mb-3 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
                 rows={3}
               />
               <button
                 onClick={() => handleAiCorrectSubmit(job.id)}
                 disabled={isSubmittingPanel || !extraPrompt.trim()}
-                className="w-full py-2 bg-amber-400 hover:bg-amber-300 text-neutral-900 font-medium rounded-md transition-colors disabled:opacity-50"
+                className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold rounded-xl transition-all shadow-md shadow-purple-500/20 disabled:opacity-50"
               >
                 {isSubmittingPanel ? "Submitting..." : "Submit AI Correction"}
               </button>

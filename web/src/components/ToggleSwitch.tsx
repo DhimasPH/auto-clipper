@@ -26,13 +26,13 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
           disabled={disabled}
         />
         <div className={`block w-10 h-6 rounded-full transition-colors duration-200 ${
-          checked ? 'bg-amber-400' : 'bg-neutral-800 border border-neutral-700'
+          checked ? 'bg-purple-600 shadow-sm' : 'bg-slate-200 border border-slate-300'
         }`}></div>
-        <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ${
+        <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ${
           checked ? 'transform translate-x-4' : ''
         }`}></div>
       </div>
-      {label && <span className="ml-3 text-sm font-medium text-neutral-300">{label}</span>}
+      {label && <span className="ml-3 text-sm font-medium text-text-primary">{label}</span>}
     </label>
   );
 };

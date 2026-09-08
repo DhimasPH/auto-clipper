@@ -176,19 +176,19 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full bg-neutral-900/80 border border-neutral-800/90 rounded-3xl p-5 sm:p-8 shadow-2xl backdrop-blur-md space-y-6">
+    <form onSubmit={handleSubmit} className="w-full bg-white border border-border rounded-3xl p-5 sm:p-8 shadow-xl shadow-slate-200/50 space-y-6">
       {/* Video URL Input Section */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <label htmlFor="video-url" className="text-sm font-semibold text-neutral-200 flex items-center gap-2">
-            <LinkIcon className="w-4 h-4 text-amber-400" />
+          <label htmlFor="video-url" className="text-sm font-semibold text-text-primary flex items-center gap-2">
+            <LinkIcon className="w-4 h-4 text-purple-600" />
             <span>Source Video</span>
-            <span className="text-xs font-normal text-amber-400/80">*Required</span>
+            <span className="text-xs font-normal text-purple-600">*Required</span>
           </label>
-          <div className="flex items-center gap-2 text-xs text-neutral-400">
+          <div className="flex items-center gap-2 text-xs text-text-secondary">
             <span className="hidden sm:inline">Supports:</span>
-            <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-neutral-800 px-2 py-0.5 rounded text-neutral-300">
-              <Film className="w-3 h-3 text-red-400" /> YouTube, TikTok, Reels, X
+            <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-bg-surface px-2 py-0.5 rounded text-text-secondary border border-border">
+              <Film className="w-3 h-3 text-red-500" /> YouTube, TikTok, Reels, X
             </span>
           </div>
         </div>
@@ -204,27 +204,27 @@ export const HeroInput: React.FC<HeroInputProps> = ({
             }}
             placeholder="Paste URL or Browse Google Drive..."
             required
-            className={`w-full pl-4 pr-32 py-3 bg-neutral-950/80 border rounded-xl text-neutral-100 placeholder:text-neutral-600 text-sm focus:outline-none focus:ring-2 transition-all font-mono ${
+            className={`w-full pl-4 pr-32 py-3 bg-bg-surface/50 border rounded-xl text-text-primary placeholder:text-text-tertiary text-sm focus:outline-none focus:bg-white focus:ring-2 transition-all font-mono ${
               urlError
                 ? "border-red-500/80 focus:ring-red-500/30"
-                : "border-neutral-800 focus:border-amber-400/80 focus:ring-amber-400/30"
+                : "border-border focus:border-purple-500 focus:ring-purple-500/20"
             }`}
           />
           <div className="absolute right-2 flex items-center gap-1">
             <button
               type="button"
               onClick={() => setIsBrowserOpen(true)}
-              className="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-neutral-100 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 border border-neutral-700/60"
+              className="px-2.5 py-1.5 bg-bg-surface hover:bg-slate-200 text-text-secondary hover:text-text-primary text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 border border-border"
               title="Browse Google Drive"
             >
-              <HardDrive className="w-3.5 h-3.5 text-amber-400" />
+              <HardDrive className="w-3.5 h-3.5 text-purple-600" />
               <span className="hidden sm:inline">Drive</span>
             </button>
             {url && (
               <button
                 type="button"
                 onClick={() => setUrl("")}
-                className="p-1.5 text-neutral-500 hover:text-neutral-300 rounded-lg hover:bg-neutral-800 transition-colors"
+                className="p-1.5 text-text-tertiary hover:text-text-primary rounded-lg hover:bg-bg-surface transition-colors"
                 title="Clear input"
               >
                 <XCircle className="w-4 h-4" />
@@ -233,7 +233,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
             <button
               type="button"
               onClick={handlePasteClipboard}
-              className="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-neutral-100 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 border border-neutral-700/60"
+              className="px-2.5 py-1.5 bg-bg-surface hover:bg-slate-200 text-text-secondary hover:text-text-primary text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 border border-border"
             >
               <Clipboard className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Paste</span>
@@ -253,7 +253,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         />
 
         {urlError && (
-          <div className="flex items-center gap-2 text-xs text-red-400 mt-1">
+          <div className="flex items-center gap-2 text-xs text-red-500 mt-1">
             <AlertCircle className="w-3.5 h-3.5" />
             <span>{urlError}</span>
           </div>
@@ -271,7 +271,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
 
       {/* Canvas Config Controls */}
       {outputStyle === "canvas_blur" && (
-        <div className="pt-3 border-t border-neutral-800/60">
+        <div className="pt-3 border-t border-border">
           <CanvasConfigControls 
             config={canvasConfig} 
             onChange={setCanvasConfig} 
@@ -281,8 +281,8 @@ export const HeroInput: React.FC<HeroInputProps> = ({
       )}
 
       {/* Burn Subtitles Toggle */}
-      <div className="pt-3 pb-1 flex items-center justify-between border-t border-neutral-800/60 mt-3">
-        <label className="text-sm font-semibold text-neutral-200">Burn Subtitles</label>
+      <div className="pt-3 pb-1 flex items-center justify-between border-t border-border mt-3">
+        <label className="text-sm font-semibold text-text-primary">Burn Subtitles</label>
         <ToggleSwitch
           checked={burnSubtitles}
           onChange={setBurnSubtitles}
@@ -301,27 +301,27 @@ export const HeroInput: React.FC<HeroInputProps> = ({
       )}
 
       {/* Advanced Drawer Toggle */}
-      <div className="border border-neutral-800/80 rounded-xl bg-neutral-950/40 overflow-hidden transition-all mt-4">
+      <div className="border border-border rounded-2xl bg-bg-surface/40 overflow-hidden transition-all mt-4">
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="w-full px-4 py-3 flex items-center justify-between text-xs font-medium text-neutral-300 hover:text-neutral-100 hover:bg-neutral-900/60 transition-colors"
+          className="w-full px-4 py-3 flex items-center justify-between text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-amber-400" />
+            <Sliders className="w-4 h-4 text-purple-600" />
             <span>Advanced Transcription Settings</span>
           </div>
-          <span className="text-[11px] text-neutral-500 font-mono">
+          <span className="text-[11px] text-text-tertiary font-mono">
             {showAdvanced ? "Hide options ▲" : "Show options ▼"}
           </span>
         </button>
 
         {showAdvanced && (
-          <div className="p-4 sm:p-5 border-t border-neutral-800/80 space-y-5 bg-neutral-900/40 animate-fadeIn text-xs">
+          <div className="p-4 sm:p-5 border-t border-border space-y-5 bg-white animate-fadeIn text-xs">
             {/* Project Title */}
             <div className="space-y-1.5">
-              <label htmlFor="project-title" className="font-medium text-neutral-300 flex items-center gap-1.5">
-                <Film className="w-3.5 h-3.5 text-neutral-400" />
+              <label htmlFor="project-title" className="font-medium text-text-secondary flex items-center gap-1.5">
+                <Film className="w-3.5 h-3.5 text-text-tertiary" />
                 <span>Project Name / Title (Optional)</span>
               </label>
               <input
@@ -330,21 +330,21 @@ export const HeroInput: React.FC<HeroInputProps> = ({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Give your clip project a memorable name..."
-                className="w-full px-3.5 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-amber-400/80"
+                className="w-full px-3.5 py-2 bg-bg-surface/50 border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
               />
             </div>
 
             {/* Language, Whisper Model & Max Clips */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <label className="font-medium text-neutral-300 flex items-center gap-1.5">
-                  <Languages className="w-3.5 h-3.5 text-neutral-400" />
+                <label className="font-medium text-text-secondary flex items-center gap-1.5">
+                  <Languages className="w-3.5 h-3.5 text-text-tertiary" />
                   <span>Transcription Language</span>
                 </label>
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-amber-400/80"
+                  className="w-full px-3 py-2 bg-bg-surface/50 border border-border rounded-lg text-text-primary focus:outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
                 >
                   <option value="auto">🌍 Auto Detect (Whisper VAD)</option>
                   <option value="id">🇮🇩 Indonesian (Bahasa)</option>
@@ -355,14 +355,14 @@ export const HeroInput: React.FC<HeroInputProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <label className="font-medium text-neutral-300 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <label className="font-medium text-text-secondary flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
                   <span>Faster Whisper Model</span>
                 </label>
                 <select
                   value={whisperModel}
                   onChange={(e) => setWhisperModel(e.target.value)}
-                  className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-amber-400/80"
+                  className="w-full px-3 py-2 bg-bg-surface/50 border border-border rounded-lg text-text-primary focus:outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
                 >
                   <option value="small">⚡ small (Fastest, High Accuracy)</option>
                   <option value="medium">🎯 medium (Balanced for Podcast)</option>
@@ -371,14 +371,14 @@ export const HeroInput: React.FC<HeroInputProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <label className="font-medium text-neutral-300 flex items-center gap-1.5">
-                  <Film className="w-3.5 h-3.5 text-neutral-400" />
+                <label className="font-medium text-text-secondary flex items-center gap-1.5">
+                  <Film className="w-3.5 h-3.5 text-text-tertiary" />
                   <span>Max Clips</span>
                 </label>
                 <select
                   value={maxClips}
                   onChange={(e) => setMaxClips(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-amber-400/80"
+                  className="w-full px-3 py-2 bg-bg-surface/50 border border-border rounded-lg text-text-primary focus:outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
                 >
                   <option value={0}>Auto (Based on duration)</option>
                   <option value={1}>1 Clip</option>
@@ -397,16 +397,16 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         <button
           type="submit"
           disabled={isSubmitting || !url.trim()}
-          className="w-full py-3.5 px-6 bg-amber-400 hover:bg-amber-300 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-neutral-950 font-bold text-sm rounded-xl transition-all duration-150 flex items-center justify-center gap-2.5 shadow-xl shadow-amber-400/10"
+          className="w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-2xl transition-all duration-200 flex items-center justify-center gap-2.5 shadow-lg shadow-purple-500/25"
         >
           {isSubmitting ? (
             <>
-              <div className="w-5 h-5 border-2 border-neutral-950/30 border-t-neutral-950 rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               <span>Submitting to GPU Server...</span>
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4 fill-neutral-950" />
+              <Sparkles className="w-4 h-4" />
               <span>Transcribe & Generate AI Prompt</span>
               <ArrowRight className="w-4 h-4" />
             </>
