@@ -2,7 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --bg-primary: #0c0d11;
+    --bg-secondary: #14161e;
+    --bg-elevated: #1a1d28;
+    --bg-surface: #21242f;
+
+    --accent: #6366f1;
+    --accent-hover: #818cf8;
+    --accent-muted: rgba(99, 102, 241, 0.12);
+
+    --text-primary: #f0f1f4;
+    --text-secondary: #7c8097;
+    --text-tertiary: #4a4f65;
+
+    --border: rgba(255, 255, 255, 0.08);
+    --border-active: rgba(255, 255, 255, 0.16);
+
+    --success: #10b981;
+    --error: #ef4444;
+    --warning: #f59e0b;
+    --info: #3b82f6;
+  }
+
+  [data-theme="light"] {
+    --bg-primary: #f8f9fb;
+    --bg-secondary: #ffffff;
+    --bg-elevated: #ffffff;
+    --bg-surface: #f1f3f7;
+
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-muted: rgba(79, 70, 229, 0.08);
+
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+
+    --border: rgba(0, 0, 0, 0.08);
+    --border-active: rgba(0, 0, 0, 0.16);
+
+    --success: #059669;
+    --error: #dc2626;
+    --warning: #d97706;
+    --info: #2563eb;
+  }
+
+  body {
+    @apply bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen font-sans;
+    margin: 0;
+  }
+}
+
 @layer utilities {
+  .text-page-title {
+    @apply text-[24px] font-bold;
+  }
+  .text-section-title {
+    @apply text-[18px] font-semibold;
+  }
+  .text-card-title {
+    @apply text-[16px] font-semibold;
+  }
+  .text-body {
+    @apply text-[14px] font-normal;
+  }
+  .text-label {
+    @apply text-[13px] font-medium;
+  }
+  .text-caption {
+    @apply text-[12px] font-normal;
+  }
+  .text-overline {
+    @apply text-[11px] font-semibold uppercase tracking-wider;
+  }
+
   @keyframes fadeIn {
     from {
       opacity: 0;

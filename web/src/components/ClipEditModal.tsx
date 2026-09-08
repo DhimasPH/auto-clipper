@@ -2,18 +2,19 @@ import React, { useState, useEffect } from "react";
 import { X, Wand2, RefreshCcw, Search, RotateCcw, Copy, Check, ChevronRight } from "lucide-react";
 import { apiGetClipWords, apiCreateClipRerenderJob } from "../api";
 import { OutputStyleSelector, type OutputStyle } from "./OutputStyleSelector";
-import { SubtitlePresetBar } from "./SubtitlePresetBar";
-import { FontSelector } from "./FontSelector";
+import { CanvasConfigControls } from "./ui/CanvasConfigControls";
+import { SubtitleConfigControls } from "./ui/SubtitleConfigControls";
 import { ToggleSwitch } from "./ToggleSwitch";
-import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../types/subtitle";
-import { DEFAULT_CANVAS_CONFIG } from "../types/canvas";
+import { DEFAULT_SUBTITLE_CONFIG, type SubtitleConfig } from "../types/subtitle";
+import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "../types/canvas";
 
 interface ClipEditModalProps {
   jobId: string;
   clipIndex: number;
   clipTitle: string;
   initialOutputStyle?: OutputStyle;
-  initialSubtitlePreset?: SubtitlePresetKey;
+  initialSubtitleConfig?: SubtitleConfig;
+  initialCanvasConfig?: CanvasConfig;
   onClose: () => void;
   onRerenderStart: (newJobId: string) => void;
 }
@@ -23,7 +24,8 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   clipIndex,
   clipTitle,
   initialOutputStyle = "face_crop",
-  initialSubtitlePreset = "viral_pop",
+  initialSubtitleConfig = DEFAULT_SUBTITLE_CONFIG,
+  initialCanvasConfig = DEFAULT_CANVAS_CONFIG,
   onClose,
   onRerenderStart,
 }) => {
@@ -32,8 +34,8 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   const [saving, setSaving] = useState(false);
   
   const [outputStyle, setOutputStyle] = useState<OutputStyle>(initialOutputStyle);
-  const [subtitlePreset, setSubtitlePreset] = useState<SubtitlePresetKey>(initialSubtitlePreset);
-  const [customFont, setCustomFont] = useState<string>("");
+  const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(initialSubtitleConfig);
+  const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(initialCanvasConfig);
   const [burnSubtitles, setBurnSubtitles] = useState<boolean>(true);
   
   const [originalWords, setOriginalWords] = useState<any[]>([]);
@@ -107,24 +109,15 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   const handleSaveRerender = async () => {
     setSaving(true);
     try {
-      const presetBase = SUBTITLE_PRESETS[subtitlePreset]?.config || {};
-      const finalFont = customFont || presetBase.font_family || "Arial";
-      
-      const subtitleConfig: SubtitleConfig = {
-        ...DEFAULT_SUBTITLE_CONFIG,
-        ...presetBase,
-        font_family: finalFont,
-      };
-
       let aspectRatio = "9:16";
-      if (outputStyle === "landscape") aspectRatio = "16:9";
+      if (outputStyle === "landscape" || (!canvasConfig.enabled && outputStyle === "canvas_blur")) aspectRatio = "16:9";
       if (outputStyle === "square") aspectRatio = "1:1";
 
       const payload = {
         words,
         aspect_ratio: aspectRatio,
-        caption_style: subtitlePreset === "podcast" ? "karaoke" : subtitlePreset === "viral_pop" ? "single_word" : "standard",
-        canvas_config: { ...DEFAULT_CANVAS_CONFIG, enabled: outputStyle === "canvas_blur" },
+        caption_style: subtitleConfig.style,
+        canvas_config: canvasConfig,
         subtitle_config: subtitleConfig,
         burn_subs: burnSubtitles,
       };
@@ -276,7 +269,14 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
               {/* Output Style & Rerender */}
               <div className="space-y-4 pt-4 border-t border-neutral-800">
                 <h3 className="font-medium text-neutral-200">Output Settings</h3>
-                <OutputStyleSelector value={outputStyle} onChange={setOutputStyle} disabled={saving} />
+                <OutputStyleSelector value={outputStyle} onChange={(val) => {
+                  setOutputStyle(val);
+                  setCanvasConfig(prev => ({ ...prev, enabled: val === "canvas_blur" }));
+                }} disabled={saving} />
+                
+                {outputStyle === "canvas_blur" && (
+                  <CanvasConfigControls config={canvasConfig} onChange={setCanvasConfig} showModeSwitch={false} />
+                )}
                 
                 {/* Burn Subtitles Toggle */}
                 <div className="pt-2 pb-1 flex items-center justify-between border-t border-neutral-800/60 mt-2">
@@ -289,10 +289,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                 </div>
 
                 {burnSubtitles && (
-                  <>
-                    <SubtitlePresetBar value={subtitlePreset} onChange={setSubtitlePreset} disabled={saving} />
-                    <FontSelector value={customFont} onChange={setCustomFont} />
-                  </>
+                  <SubtitleConfigControls config={subtitleConfig} onChange={setSubtitleConfig} showModeSwitch={true} />
                 )}
               </div>
             </>

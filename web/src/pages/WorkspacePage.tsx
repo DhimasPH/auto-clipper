@@ -1,0 +1,76 @@
+import React from "react";
+import { HeroInput } from "../components/Dashboard/HeroInput";
+import { AlertCircle } from "lucide-react";
+import { AppContext } from "../App";
+
+export const WorkspacePage: React.FC = () => {
+  const ctx = React.useContext(AppContext);
+
+  return (
+    <div className="p-6 sm:p-8 max-w-4xl mx-auto space-y-6">
+      <header className="mb-6">
+        <h1 className="text-page-title text-text-primary">Workspace</h1>
+        <p className="text-body text-text-secondary mt-1">
+          Automated short-form video generation on Google Colab GPU
+        </p>
+      </header>
+
+      <HeroInput
+        key={ctx.resetKey}
+        initialUrl={ctx.activeJob?.metadata?.source_video}
+        isSubmitting={ctx.isLoading || ctx.isPolling}
+        onSubmit={ctx.handleHeroSubmit}
+      />
+
+      {ctx.error && (
+        <div className="mt-4 p-4 rounded-xl bg-error/10 border border-error/20 flex flex-col gap-2 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1 h-full bg-error" />
+          <h4 className="text-error font-bold text-sm flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            Task Failed
+          </h4>
+          <p className="text-text-primary text-sm whitespace-pre-wrap">{ctx.error}</p>
+          <div className="mt-2">
+            <button
+              onClick={ctx.handleResetToNewJob}
+              className="px-3 py-1.5 bg-bg-elevated hover:bg-bg-surface text-xs font-medium rounded-lg transition-colors border border-border"
+            >
+              Reset and Try Again
+            </button>
+          </div>
+        </div>
+      )}
+
+      {ctx.status !== "IDLE" && !ctx.error && ctx.progress && (
+        <div className="mt-4 p-4 rounded-xl bg-bg-surface border border-border shadow-md">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${ctx.isPolling ? 'bg-warning animate-pulse' : 'bg-success'}`} />
+              <span className="text-sm font-medium text-text-primary capitalize">
+                Status: {ctx.status.toLowerCase().replace('_', ' ')}
+              </span>
+            </div>
+            {(ctx.status === "AWAITING_MANUAL" || ctx.status === "DONE") && (
+              <button
+                onClick={() => ctx.status === "DONE" ? ctx.setIsResultsModalOpen(true) : ctx.setIsPromptModalOpen(true)}
+                className="text-xs text-accent hover:text-accent-hover underline underline-offset-2"
+              >
+                {ctx.status === "DONE" ? "View Results" : "Open AI Prompt"}
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-text-secondary font-mono break-all">{ctx.progress}</p>
+          
+          {ctx.isPolling && (
+            <button
+              onClick={ctx.cancelCurrentJob}
+              className="mt-3 px-3 py-1.5 bg-error/10 hover:bg-error/20 text-error hover:text-error/80 text-xs font-medium rounded-lg transition-colors border border-error/20"
+            >
+              Cancel Job
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

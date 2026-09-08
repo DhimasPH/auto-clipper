@@ -7,21 +7,19 @@ import {
   Clipboard,
   XCircle,
   Sliders,
-  Check,
   Languages,
   Film,
-  Type,
   AlertCircle,
   HardDrive
 } from "lucide-react";
 import { OutputStyleSelector, type OutputStyle } from "../OutputStyleSelector";
-import { SubtitlePresetBar } from "../SubtitlePresetBar";
-import { FontSelector } from "../FontSelector";
 import { ToggleSwitch } from "../ToggleSwitch";
-import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../../types/subtitle";
+import { DEFAULT_SUBTITLE_CONFIG, type SubtitleConfig } from "../../types/subtitle";
 import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "../../types/canvas";
 import type { CreateJobPayload } from "../../types/job";
 import { GDriveBrowserModal } from "../GDriveBrowserModal";
+import { CanvasConfigControls } from "../ui/CanvasConfigControls";
+import { SubtitleConfigControls } from "../ui/SubtitleConfigControls";
 
 export interface HeroInputProps {
   initialUrl?: string;
@@ -30,15 +28,6 @@ export interface HeroInputProps {
 }
 
 const STORAGE_DRAFT_INPUT = "ac_draft_hero_input";
-
-const HIGHLIGHT_COLOR_SWATCHES = [
-  { name: "Yellow", value: "#FFE600", bg: "bg-[#FFE600]" },
-  { name: "Cyan", value: "#38BDF8", bg: "bg-[#38BDF8]" },
-  { name: "Green", value: "#4ADE80", bg: "bg-[#4ADE80]" },
-  { name: "Pink", value: "#F43F5E", bg: "bg-[#F43F5E]" },
-  { name: "White", value: "#FFFFFF", bg: "bg-[#FFFFFF]" },
-  { name: "Orange", value: "#FB923C", bg: "bg-[#FB923C]" },
-];
 
 const SUPPORTED_DOMAINS = [
   "youtube.com",
@@ -57,8 +46,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   const [url, setUrl] = useState<string>(initialUrl);
   const [title, setTitle] = useState<string>("");
   const [outputStyle, setOutputStyle] = useState<OutputStyle>("face_crop");
-  const [subtitlePreset, setSubtitlePreset] = useState<SubtitlePresetKey>("viral_pop");
-  const [customFont, setCustomFont] = useState<string>("");
+  
   const [whisperModel, setWhisperModel] = useState<string>("small");
   const [language, setLanguage] = useState<string>("auto");
   const [maxClips, setMaxClips] = useState<number>(0);
@@ -66,16 +54,12 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   const [isBrowserOpen, setIsBrowserOpen] = useState<boolean>(false);
   const [burnSubtitles, setBurnSubtitles] = useState<boolean>(true);
 
-  // Canvas customization
-  const [canvasBgType, setCanvasBgType] = useState<"blur" | "color">("blur");
-  const [canvasBlurLevel, setCanvasBlurLevel] = useState<"light" | "medium" | "strong">("medium");
-  const [canvasBgColor] = useState<string>("#000000");
-  const [canvasScale, setCanvasScale] = useState<number>(1.0);
-
-  // Subtitle customization
-  const [highlightColor, setHighlightColor] = useState<string>("#FFE600");
-  const [watermarkText, setWatermarkText] = useState<string>("");
-  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.5);
+  // New Structured Configs
+  const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
+  const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>({
+    ...DEFAULT_SUBTITLE_CONFIG,
+    style: "viral_pop" as any, // Set default
+  });
 
   const [urlError, setUrlError] = useState<string | null>(null);
 
@@ -88,28 +72,26 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         if (parsed.url && !initialUrl) setUrl(parsed.url);
         if (parsed.title) setTitle(parsed.title);
         if (parsed.outputStyle) setOutputStyle(parsed.outputStyle);
-        if (parsed.subtitlePreset) setSubtitlePreset(parsed.subtitlePreset);
-        if (parsed.customFont) setCustomFont(parsed.customFont);
         if (parsed.whisperModel) setWhisperModel(parsed.whisperModel);
         if (parsed.language) setLanguage(parsed.language);
         if (parsed.maxClips !== undefined) setMaxClips(parsed.maxClips);
-        if (parsed.highlightColor) setHighlightColor(parsed.highlightColor);
-        if (parsed.watermarkText) setWatermarkText(parsed.watermarkText);
-        if (parsed.watermarkOpacity !== undefined) setWatermarkOpacity(parsed.watermarkOpacity);
         if (parsed.burnSubtitles !== undefined) setBurnSubtitles(parsed.burnSubtitles);
+        if (parsed.canvasConfig) setCanvasConfig(parsed.canvasConfig);
+        if (parsed.subtitleConfig) setSubtitleConfig(parsed.subtitleConfig);
       }
     } catch {
       // Ignore
     }
   }, [initialUrl]);
 
-  // Sync default highlight color when preset changes
+  // Sync canvas config enabled state with output style
   useEffect(() => {
-    const presetConfig = SUBTITLE_PRESETS[subtitlePreset]?.config;
-    if (presetConfig?.highlight_color) {
-      setHighlightColor(presetConfig.highlight_color);
+    if (outputStyle === "canvas_blur") {
+      setCanvasConfig(prev => ({ ...prev, enabled: true }));
+    } else {
+      setCanvasConfig(prev => ({ ...prev, enabled: false }));
     }
-  }, [subtitlePreset]);
+  }, [outputStyle]);
 
   // Save drafts to localStorage
   useEffect(() => {
@@ -120,21 +102,18 @@ export const HeroInput: React.FC<HeroInputProps> = ({
           url,
           title,
           outputStyle,
-          subtitlePreset,
-          customFont,
           whisperModel,
           language,
           maxClips,
-          highlightColor,
-          watermarkText,
-          watermarkOpacity,
           burnSubtitles,
+          canvasConfig,
+          subtitleConfig,
         })
       );
     } catch {
       // Ignore
     }
-  }, [url, title, outputStyle, subtitlePreset, customFont, whisperModel, language, maxClips, highlightColor, watermarkText, watermarkOpacity, burnSubtitles]);
+  }, [url, title, outputStyle, whisperModel, language, maxClips, burnSubtitles, canvasConfig, subtitleConfig]);
 
   const validateUrl = (testUrl: string): boolean => {
     const clean = testUrl.trim();
@@ -173,32 +152,9 @@ export const HeroInput: React.FC<HeroInputProps> = ({
     e.preventDefault();
     if (!validateUrl(url)) return;
 
-    // Build Canvas Config
-    let canvasConfig: CanvasConfig = {
-      ...DEFAULT_CANVAS_CONFIG,
-      enabled: outputStyle === "canvas_blur",
-      background_type: canvasBgType,
-      blur_level: canvasBlurLevel,
-      background_color: canvasBgColor,
-      enlarge_scale: canvasScale,
-    };
-
-    // Build Subtitle Config
-    const presetBase = SUBTITLE_PRESETS[subtitlePreset]?.config || {};
-    const finalFont = customFont || presetBase.font_family || "Arial";
-
-    const subtitleConfig: SubtitleConfig = {
-      ...DEFAULT_SUBTITLE_CONFIG,
-      ...presetBase,
-      font_family: finalFont,
-      highlight_color: highlightColor,
-      watermark_text: watermarkText.trim(),
-      watermark_opacity: watermarkOpacity,
-    };
-
     // Aspect ratio
     let aspectRatio = "9:16";
-    if (outputStyle === "landscape") aspectRatio = "16:9";
+    if (outputStyle === "landscape" || (!canvasConfig.enabled && outputStyle === "canvas_blur")) aspectRatio = "16:9";
     if (outputStyle === "square") aspectRatio = "1:1";
 
     const payload: CreateJobPayload = {
@@ -206,7 +162,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
       provider: "manual",
       title: title.trim() || `Auto Clip - ${new Date().toLocaleTimeString()}`,
       aspect_ratio: aspectRatio,
-      caption_style: subtitlePreset === "podcast" ? "karaoke" : subtitlePreset === "viral_pop" ? "single_word" : "standard",
+      caption_style: subtitleConfig.style,
       burn_subs: burnSubtitles,
       quality: "best",
       whisper_model: whisperModel,
@@ -313,6 +269,17 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         />
       </div>
 
+      {/* Canvas Config Controls */}
+      {outputStyle === "canvas_blur" && (
+        <div className="pt-3 border-t border-neutral-800/60">
+          <CanvasConfigControls 
+            config={canvasConfig} 
+            onChange={setCanvasConfig} 
+            showModeSwitch={true}
+          />
+        </div>
+      )}
+
       {/* Burn Subtitles Toggle */}
       <div className="pt-3 pb-1 flex items-center justify-between border-t border-neutral-800/60 mt-3">
         <label className="text-sm font-semibold text-neutral-200">Burn Subtitles</label>
@@ -323,23 +290,18 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         />
       </div>
 
-      {/* Subtitle Preset Selector */}
+      {/* Subtitle Config Controls */}
       {burnSubtitles && (
         <div className="pt-1">
-          <SubtitlePresetBar
-            value={subtitlePreset}
-            onChange={(val) => setSubtitlePreset(val)}
-            disabled={isSubmitting}
-          />
-          <FontSelector
-            value={customFont}
-            onChange={setCustomFont}
+          <SubtitleConfigControls
+            config={subtitleConfig}
+            onChange={setSubtitleConfig}
           />
         </div>
       )}
 
       {/* Advanced Drawer Toggle */}
-      <div className="border border-neutral-800/80 rounded-xl bg-neutral-950/40 overflow-hidden transition-all">
+      <div className="border border-neutral-800/80 rounded-xl bg-neutral-950/40 overflow-hidden transition-all mt-4">
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
@@ -347,7 +309,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         >
           <div className="flex items-center gap-2">
             <Sliders className="w-4 h-4 text-amber-400" />
-            <span>Advanced Customizations & AI Settings</span>
+            <span>Advanced Transcription Settings</span>
           </div>
           <span className="text-[11px] text-neutral-500 font-mono">
             {showAdvanced ? "Hide options ▲" : "Show options ▼"}
@@ -426,156 +388,6 @@ export const HeroInput: React.FC<HeroInputProps> = ({
                 </select>
               </div>
             </div>
-
-            {/* Subtitle Highlight Color & Watermark */}
-            {burnSubtitles && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-neutral-800/60">
-                <div className="space-y-2">
-                  <label className="font-medium text-neutral-300 flex items-center gap-1.5">
-                    <Type className="w-3.5 h-3.5 text-neutral-400" />
-                    <span>Highlight Accent Color</span>
-                  </label>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {HIGHLIGHT_COLOR_SWATCHES.map((swatch) => (
-                      <button
-                        key={swatch.value}
-                        type="button"
-                        onClick={() => setHighlightColor(swatch.value)}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${swatch.bg} ${
-                          highlightColor === swatch.value
-                            ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-neutral-900 scale-110"
-                            : "opacity-80 hover:opacity-100 hover:scale-105"
-                        }`}
-                        title={swatch.name}
-                      >
-                        {highlightColor === swatch.value && (
-                          <Check className="w-4 h-4 text-neutral-950 stroke-[3]" />
-                        )}
-                      </button>
-                    ))}
-                    <input
-                      type="color"
-                      value={highlightColor}
-                      onChange={(e) => setHighlightColor(e.target.value)}
-                      className="w-7 h-7 rounded-full bg-transparent cursor-pointer border border-neutral-700"
-                      title="Custom color"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="font-medium text-neutral-300 flex items-center gap-1.5">
-                    <span>Watermark Text (Optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={watermarkText}
-                    onChange={(e) => setWatermarkText(e.target.value)}
-                    placeholder="@yourhandle or channel name"
-                    className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-amber-400/80"
-                  />
-
-                  {watermarkText && (
-                    <div className="space-y-3 pt-2 bg-neutral-950/50 p-3 rounded-lg border border-neutral-800/60">
-                      <div>
-                        <div className="flex justify-between text-xs text-neutral-400 mb-1">
-                          <span>Opacity</span>
-                          <span>{Math.round(watermarkOpacity * 100)}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.05"
-                          value={watermarkOpacity}
-                          onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
-                          className="w-full accent-amber-400"
-                        />
-                      </div>
-                      
-                      <div>
-                        <span className="text-xs text-neutral-500 block mb-1">Live Preview</span>
-                        <div className="relative w-full h-16 bg-neutral-900 rounded-md overflow-hidden flex items-center justify-center border border-neutral-800 shadow-inner">
-                          {/* Fake video background element */}
-                          <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-blue-600 to-purple-800"></div>
-                          <div 
-                            className="relative font-bold text-white tracking-wide"
-                            style={{ 
-                              opacity: watermarkOpacity, 
-                              textShadow: "0px 1px 3px rgba(0,0,0,0.8)",
-                              fontFamily: "Arial, sans-serif"
-                            }}
-                          >
-                            {watermarkText}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Canvas Blur Controls (if Canvas Blur is active) */}
-            {outputStyle === "canvas_blur" && (
-              <div className="pt-2 border-t border-neutral-800/60 space-y-3">
-                <span className="font-semibold text-neutral-200 block">Canvas Background Options</span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-neutral-400 block mb-1">Blur Intensity</label>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(["light", "medium", "strong"] as const).map((lvl) => (
-                        <button
-                          key={lvl}
-                          type="button"
-                          onClick={() => setCanvasBlurLevel(lvl)}
-                          className={`py-1.5 px-2 rounded-lg border text-center font-medium capitalize transition-colors ${
-                            canvasBlurLevel === lvl
-                              ? "bg-amber-400/20 border-amber-400/60 text-amber-300"
-                              : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:bg-neutral-900"
-                          }`}
-                        >
-                          {lvl}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-neutral-400 block mb-1">Background Mode</label>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {(["blur", "color"] as const).map((mode) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          onClick={() => setCanvasBgType(mode)}
-                          className={`py-1.5 px-2 rounded-lg border text-center font-medium capitalize transition-colors ${
-                            canvasBgType === mode
-                              ? "bg-amber-400/20 border-amber-400/60 text-amber-300"
-                              : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:bg-neutral-900"
-                          }`}
-                        >
-                          {mode === "blur" ? "Blurred Video" : "Solid Color"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-neutral-400 block mb-1">Video Zoom Scale ({canvasScale}x)</label>
-                    <input
-                      type="range"
-                      min="1.0"
-                      max="2.0"
-                      step="0.1"
-                      value={canvasScale}
-                      onChange={(e) => setCanvasScale(parseFloat(e.target.value))}
-                      className="w-full accent-amber-400 mt-2"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
