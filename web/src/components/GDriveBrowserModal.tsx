@@ -56,27 +56,27 @@ export const GDriveBrowserModal: React.FC<{
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fadeIn"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-        <div className="flex items-center justify-between p-4 border-b border-neutral-800">
-          <div className="flex items-center gap-2">
-            <HardDrive className="w-5 h-5 text-amber-400" />
-            <h3 className="font-semibold text-neutral-100">Browse Google Drive</h3>
+      <div className="w-full max-w-2xl bg-white border border-border rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="flex items-center justify-between p-5 border-b border-border bg-white">
+          <div className="flex items-center gap-2.5">
+            <HardDrive className="w-5 h-5 text-purple-600" />
+            <h3 className="font-semibold text-text-primary text-base">Browse Google Drive</h3>
           </div>
-          <button type="button" onClick={onClose} className="p-1 text-neutral-400 hover:text-neutral-100 rounded-lg hover:bg-neutral-800 transition-colors">
+          <button type="button" onClick={onClose} className="p-1.5 text-text-tertiary hover:text-text-primary rounded-xl hover:bg-slate-100 transition-colors">
             <XCircle className="w-5 h-5" />
           </button>
         </div>
         
-        <div className="p-3 bg-neutral-950 flex items-center gap-2 text-sm text-neutral-300 font-mono overflow-x-auto whitespace-nowrap border-b border-neutral-800">
+        <div className="p-3 bg-slate-50 flex items-center gap-2 text-sm text-text-secondary font-mono overflow-x-auto whitespace-nowrap border-b border-border">
           {parentDir !== null && (
             <button 
               type="button"
               onClick={() => fetchDir(parentDir)}
               disabled={loading}
-              className="p-1 hover:bg-neutral-800 rounded-md transition-colors text-neutral-400 hover:text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1 hover:bg-slate-200 rounded-md transition-colors text-text-secondary hover:text-text-primary disabled:opacity-50 disabled:cursor-not-allowed"
               title="Go up"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -85,15 +85,15 @@ export const GDriveBrowserModal: React.FC<{
           <span className="truncate">{currentPath || "/content/drive"}</span>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto p-3 bg-white">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="w-6 h-6 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-purple-600/30 border-t-purple-600 rounded-full animate-spin" />
             </div>
           ) : error ? (
-            <div className="text-center py-12 text-red-400 text-sm">{error}</div>
+            <div className="text-center py-12 text-red-500 text-sm">{error}</div>
           ) : items.length === 0 ? (
-            <div className="text-center py-12 text-neutral-500 text-sm">Folder is empty</div>
+            <div className="text-center py-12 text-text-tertiary text-sm">Folder is empty</div>
           ) : (
             <div className="space-y-1">
               {items.map((item) => (
@@ -107,14 +107,14 @@ export const GDriveBrowserModal: React.FC<{
                       onSelectFile(item.path);
                     }
                   }}
-                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-800 rounded-xl transition-colors group"
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-slate-50 border border-transparent hover:border-border rounded-xl transition-all group"
                 >
                   {item.is_dir ? (
-                    <Folder className="w-5 h-5 text-blue-400 group-hover:text-blue-300 flex-shrink-0" />
+                    <Folder className="w-5 h-5 text-purple-600 group-hover:text-purple-700 flex-shrink-0" />
                   ) : (
-                    <FileVideo className="w-5 h-5 text-amber-400 group-hover:text-amber-300 flex-shrink-0" />
+                    <FileVideo className="w-5 h-5 text-pink-500 group-hover:text-pink-600 flex-shrink-0" />
                   )}
-                  <span className="text-sm text-neutral-200 truncate">{item.name}</span>
+                  <span className="text-sm font-medium text-text-primary truncate">{item.name}</span>
                 </button>
               ))}
             </div>

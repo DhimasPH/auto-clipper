@@ -134,15 +134,15 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-3xl shadow-2xl relative my-auto animate-fadeIn overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      <div className="bg-white border border-border rounded-3xl w-full max-w-3xl shadow-2xl relative my-auto animate-fadeIn overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-neutral-800">
+        <div className="flex items-center justify-between p-6 border-b border-border bg-white">
           <div>
-            <h2 className="text-xl font-semibold text-neutral-100">Edit Subtitles</h2>
-            <p className="text-sm text-neutral-400 mt-1">{clipTitle}</p>
+            <h2 className="text-xl font-bold text-text-primary">Edit Subtitles</h2>
+            <p className="text-sm text-text-secondary mt-0.5">{clipTitle}</p>
           </div>
-          <button onClick={onClose} className="p-2 text-neutral-400 hover:text-neutral-100 rounded-lg hover:bg-neutral-800 transition-colors">
+          <button onClick={onClose} className="p-2 text-text-tertiary hover:text-text-primary rounded-xl hover:bg-bg-surface transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -151,28 +151,28 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
         <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <RefreshCcw className="w-6 h-6 text-amber-400 animate-spin" />
+              <RefreshCcw className="w-6 h-6 text-purple-600 animate-spin" />
             </div>
           ) : (
             <>
-              <div className="border border-neutral-800 rounded-xl overflow-hidden bg-neutral-950">
+              <div className="border border-border rounded-2xl overflow-hidden bg-bg-surface/30">
                 <button 
                   onClick={() => setIsAiAssistantOpen(!isAiAssistantOpen)}
-                  className="w-full flex items-center justify-between p-4 bg-neutral-900/50 hover:bg-neutral-800 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-bg-surface/60 hover:bg-bg-surface transition-colors"
                 >
-                  <div className="flex items-center gap-2 text-amber-400 font-medium">
+                  <div className="flex items-center gap-2 text-purple-600 font-semibold text-sm">
                     <Wand2 className="w-4 h-4" /> AI Auto Correction
                   </div>
-                  <ChevronRight className={`w-4 h-4 text-neutral-500 transition-transform ${isAiAssistantOpen ? 'rotate-90' : ''}`} />
+                  <ChevronRight className={`w-4 h-4 text-text-tertiary transition-transform ${isAiAssistantOpen ? 'rotate-90' : ''}`} />
                 </button>
                 
                 {isAiAssistantOpen && (
-                  <div className="p-4 border-t border-neutral-800 space-y-4">
+                  <div className="p-5 border-t border-border space-y-4 bg-white">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-neutral-400">1. Generate & Copy Prompt</span>
-                          <button onClick={copyToClipboard} className="flex items-center gap-1.5 text-xs text-amber-400 hover:opacity-80 transition-opacity">
+                          <span className="text-xs font-medium text-text-secondary">1. Generate & Copy Prompt</span>
+                          <button onClick={copyToClipboard} className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors">
                             {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                             {isCopied ? 'Copied!' : 'Copy'}
                           </button>
@@ -180,23 +180,23 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                         <textarea
                           readOnly
                           value={generatePrompt()}
-                          className="w-full h-32 bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-neutral-300 font-mono resize-none focus:outline-none"
+                          className="w-full h-32 bg-bg-surface/50 border border-border rounded-xl p-3 text-xs text-text-primary font-mono resize-none focus:outline-none"
                         />
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-neutral-400">2. Paste AI Result (JSON)</span>
+                          <span className="text-xs font-medium text-text-secondary">2. Paste AI Result (JSON)</span>
                         </div>
                         <textarea
                           value={pasteInput}
                           onChange={(e) => setPasteInput(e.target.value)}
                           placeholder='[{"word": "Hello", "start": 0.0, "end": 0.5}]'
-                          className="w-full h-32 bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-neutral-300 font-mono resize-none focus:border-amber-400/80 focus:outline-none"
+                          className="w-full h-32 bg-bg-surface/50 border border-border rounded-xl p-3 text-xs text-text-primary font-mono resize-none focus:border-purple-500 focus:bg-white focus:ring-2 focus:ring-purple-500/10 focus:outline-none"
                         />
                         <button 
                           onClick={applyManualJSON}
                           disabled={!pasteInput.trim()}
-                          className="w-full py-2 bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed text-neutral-200 text-xs font-medium rounded-lg transition-colors"
+                          className="w-full py-2.5 bg-bg-surface hover:bg-slate-200 border border-border disabled:opacity-50 disabled:cursor-not-allowed text-text-primary text-xs font-semibold rounded-xl transition-colors"
                         >
                           Apply Changes
                         </button>
@@ -206,37 +206,37 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                 )}
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-neutral-800">
+              <div className="space-y-4 pt-5 border-t border-border">
                 <div className="flex justify-between items-center flex-wrap gap-4">
-                  <h3 className="font-medium text-neutral-200">Word Grid</h3>
+                  <h3 className="font-semibold text-text-primary text-base">Word Grid</h3>
                   <div className="flex items-center gap-3">
                     {hasChanges && (
                       <button
                         onClick={handleReset}
-                        className="flex items-center gap-1 text-xs text-neutral-400 hover:text-amber-400 transition-colors"
+                        className="flex items-center gap-1 text-xs text-text-tertiary hover:text-purple-600 transition-colors"
                         title="Reset changes"
                       >
                         <RotateCcw className="w-3.5 h-3.5" /> Reset
                       </button>
                     )}
                     <div className="relative">
-                      <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         placeholder="Search word..."
-                        className="bg-neutral-900 border border-neutral-800 rounded-md pl-9 pr-3 py-1.5 text-sm text-neutral-200 focus:border-amber-400/80 outline-none"
+                        className="bg-bg-surface/60 border border-border rounded-xl pl-9 pr-3 py-1.5 text-sm text-text-primary placeholder:text-text-tertiary focus:border-purple-500 focus:bg-white focus:ring-2 focus:ring-purple-500/10 outline-none"
                       />
                     </div>
-                    <span className="text-xs bg-amber-400/10 text-amber-400 px-2 py-1 rounded-md">
+                    <span className="text-xs bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-lg font-medium">
                       {words.length} words
                     </span>
                   </div>
                 </div>
 
                 {words.length === 0 ? (
-                  <div className="text-center py-8 text-neutral-500 text-sm">
+                  <div className="text-center py-8 text-text-tertiary text-sm">
                     No words found.
                   </div>
                 ) : (
@@ -246,17 +246,17 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                       const isChanged = originalWords[idx] && w.word !== originalWords[idx].word;
                       return (
                         <div key={idx} className="flex flex-col gap-1">
-                          <span className="text-[10px] text-neutral-500 font-mono">
+                          <span className="text-[10px] text-text-tertiary font-mono">
                             {w.start.toFixed(1)}s - {w.end.toFixed(1)}s
                           </span>
                           <input
                             type="text"
                             value={w.word}
                             onChange={e => handleWordChange(idx, e.target.value)}
-                            className={`bg-neutral-900 border rounded-md px-2 py-1.5 text-sm text-neutral-200 focus:outline-none ${
-                              isMatch ? 'border-amber-400 bg-amber-400/10' :
-                              isChanged ? 'border-yellow-500/50 bg-yellow-500/5' :
-                              'border-neutral-800 focus:border-amber-400/80'
+                            className={`border rounded-xl px-2.5 py-1.5 text-sm text-text-primary focus:outline-none transition-all ${
+                              isMatch ? 'border-purple-500 bg-purple-50 text-purple-900 ring-2 ring-purple-500/20' :
+                              isChanged ? 'border-amber-400 bg-amber-50 text-amber-900' :
+                              'bg-bg-surface/40 border-border hover:border-slate-300 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10'
                             }`}
                           />
                         </div>
@@ -267,8 +267,8 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
               </div>
 
               {/* Output Style & Rerender */}
-              <div className="space-y-4 pt-4 border-t border-neutral-800">
-                <h3 className="font-medium text-neutral-200">Output Settings</h3>
+              <div className="space-y-4 pt-5 border-t border-border">
+                <h3 className="font-semibold text-text-primary text-base">Output Settings</h3>
                 <OutputStyleSelector value={outputStyle} onChange={(val) => {
                   setOutputStyle(val);
                   setCanvasConfig(prev => ({ ...prev, enabled: val === "canvas_blur" }));
@@ -279,8 +279,8 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                 )}
                 
                 {/* Burn Subtitles Toggle */}
-                <div className="pt-2 pb-1 flex items-center justify-between border-t border-neutral-800/60 mt-2">
-                  <label className="text-sm font-medium text-neutral-200">Burn Subtitles</label>
+                <div className="pt-3 pb-1 flex items-center justify-between border-t border-border mt-3">
+                  <label className="text-sm font-semibold text-text-primary">Burn Subtitles</label>
                   <ToggleSwitch
                     checked={burnSubtitles}
                     onChange={setBurnSubtitles}
@@ -297,14 +297,14 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-neutral-800 bg-neutral-950 flex justify-end gap-3">
-          <button onClick={onClose} disabled={saving} className="px-5 py-2 text-neutral-400 hover:text-neutral-200 font-medium">
+        <div className="p-5 border-t border-border bg-bg-surface/30 flex justify-end gap-3">
+          <button onClick={onClose} disabled={saving} className="px-5 py-2.5 text-text-secondary hover:text-text-primary hover:bg-bg-surface font-semibold text-sm rounded-xl transition-colors">
             Cancel
           </button>
           <button 
             onClick={handleSaveRerender} 
             disabled={saving || loading}
-            className="px-6 py-2 bg-amber-400 hover:bg-amber-300 text-neutral-900 font-medium rounded-lg transition-colors flex items-center gap-2"
+            className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-purple-500/25 transition-all flex items-center gap-2"
           >
             {saving && <RefreshCcw className="w-4 h-4 animate-spin" />}
             Save & Rerender

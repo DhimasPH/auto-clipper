@@ -6,8 +6,11 @@ import { WorkspacePage } from "./pages/WorkspacePage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { PromptJsonModal } from "./components/Dashboard/PromptJsonModal";
 import { ResultsModal } from "./components/Dashboard/ResultsModal";
+import { ClipEditModal } from "./components/ClipEditModal";
 import { useJobPolling } from "./hooks/useJobPolling";
 import type { JobResponse } from "./types/job";
+import { DEFAULT_CANVAS_CONFIG } from "./types/canvas";
+import { DEFAULT_SUBTITLE_CONFIG } from "./types/subtitle";
 
 export const AppContext = React.createContext<any>(null);
 
@@ -19,6 +22,7 @@ function MainApp() {
   const [activePrompt, setActivePrompt] = useState<string>("");
   const [activeHistoryJob, setActiveHistoryJob] = useState<JobResponse | null>(null);
   const [shownResultsForJobId, setShownResultsForJobId] = useState<string | null>(null);
+  const [activeEditModalClip, setActiveEditModalClip] = useState<{ jobId: string; index: number; jobMeta?: any } | null>(null);
 
   const {
     jobId,
@@ -134,8 +138,44 @@ function MainApp() {
           title: c.social?.title || c.description,
           social: c.social
         }))}
+        onEditSubtitle={(clipIdx) => {
+          const targetJobId = activeHistoryJob?.id || jobId;
+          if (targetJobId) {
+            setActiveEditModalClip({
+              jobId: targetJobId,
+              index: clipIdx,
+              jobMeta: activeHistoryJob?.metadata || activeJob?.metadata,
+            });
+          }
+        }}
         onResetApp={handleResetToNewJob}
       />
+
+      {activeEditModalClip && (
+        <ClipEditModal
+          jobId={activeEditModalClip.jobId}
+          clipIndex={activeEditModalClip.index}
+          clipTitle={`Clip #${activeEditModalClip.index + 1}`}
+          initialOutputStyle={
+            activeEditModalClip.jobMeta?.aspect_ratio === "16:9" &&
+            activeEditModalClip.jobMeta?.canvas_config?.enabled
+              ? "canvas_blur"
+              : activeEditModalClip.jobMeta?.aspect_ratio === "16:9"
+                ? "landscape"
+                : activeEditModalClip.jobMeta?.aspect_ratio === "1:1"
+                  ? "square"
+                  : "face_crop"
+          }
+          initialCanvasConfig={activeEditModalClip.jobMeta?.canvas_config || DEFAULT_CANVAS_CONFIG}
+          initialSubtitleConfig={activeEditModalClip.jobMeta?.subtitle_config || DEFAULT_SUBTITLE_CONFIG}
+          onClose={() => setActiveEditModalClip(null)}
+          onRerenderStart={(newJobId) => {
+            setActiveEditModalClip(null);
+            setIsResultsModalOpen(false);
+            startPolling(newJobId);
+          }}
+        />
+      )}
     </AppContext.Provider>
   );
 }

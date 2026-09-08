@@ -107,9 +107,9 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-neutral-400">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-600">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-purple-600/30 border-t-purple-600 rounded-full animate-spin" />
           <span className="text-xs font-mono">
             Initializing Auto Clipper...
           </span>
