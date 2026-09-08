@@ -1,3 +1,115 @@
+# Cloud Landing Page Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Make the Cloud UI (`web/`) entry page look exactly like the Desktop `LandingPage.tsx` (light theme, 3D character, animations) with an added login modal.
+
+**Architecture:** We will copy the Tailwind animations from the desktop `tailwind.config.js` to the web `tailwind.config.js`. We will add the `Outfit` font to `web/index.html`. Finally, we will refactor `web/src/components/AuthGate.tsx` to render the exact markup of the desktop Landing Page, while maintaining its `token` state and adding a modal for the token input.
+
+**Tech Stack:** React, Tailwind CSS
+
+---
+
+### Task 1: Update Web HTML and Tailwind Config
+
+**Files:**
+- Modify: `web/index.html`
+- Modify: `web/tailwind.config.js`
+
+- [ ] **Step 1: Add Outfit font to index.html**
+Modify `web/index.html` to include the `Outfit` font. Append it to the existing Google Fonts link or add a new one.
+
+```html
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+```
+
+- [ ] **Step 2: Update tailwind.config.js**
+Modify `web/tailwind.config.js` to include the custom animations and font family.
+
+```javascript
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Outfit', 'sans-serif'],
+      },
+      animation: {
+        'float': 'float 3s ease-in-out infinite',
+        'gradient-x': 'gradient-x 3s ease infinite',
+        'mesh': 'mesh 15s ease infinite',
+        'fade-in-up': 'fade-in-up 0.6s ease-out forwards',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        'gradient-x': {
+          '0%, 100%': {
+            'background-size': '200% 200%',
+            'background-position': 'left center'
+          },
+          '50%': {
+            'background-size': '200% 200%',
+            'background-position': 'right center'
+          },
+        },
+        'mesh': {
+          '0%, 100%': {
+            'background-size': '400% 400%',
+            'background-position': '0% 50%'
+          },
+          '50%': {
+            'background-size': '400% 400%',
+            'background-position': '100% 50%'
+          }
+        },
+        'fade-in-up': {
+          '0%': {
+            opacity: '0',
+            transform: 'translateY(20px)'
+          },
+          '100%': {
+            opacity: '1',
+            transform: 'translateY(0)'
+          }
+        }
+      }
+    },
+  },
+  plugins: [],
+}
+```
+
+- [ ] **Step 3: Commit (if auto_commit enabled)**
+
+Check `.agent/config.yml` for `auto_commit` setting.
+
+If `auto_commit: true` (default when absent):
+```bash
+git add web/index.html web/tailwind.config.js
+git commit -m "chore: update tailwind config and fonts for cloud landing page"
+```
+
+If `auto_commit: false`: skip commit and staging. Print: "Skipping commit (auto_commit: false)."
+
+---
+
+### Task 2: Refactor AuthGate Component
+
+**Files:**
+- Modify: `web/src/components/AuthGate.tsx`
+
+- [ ] **Step 1: Rewrite AuthGate.tsx to match LandingPage.tsx**
+
+Modify `web/src/components/AuthGate.tsx`. The file should look like this (incorporating the UI from `LandingPage.tsx` and adding a modal for login):
+
+```tsx
 import React, { useState, useEffect } from "react";
 import { KeyRound, Eye, EyeOff, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { getAuthToken, setAuthToken, clearAuthToken, apiFetch } from "../api";
@@ -243,5 +355,18 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
     </div>
   );
 };
+```
 
-export default AuthGate;
+- [ ] **Step 2: Commit (if auto_commit enabled)**
+
+Check `.agent/config.yml` for `auto_commit` setting.
+
+If `auto_commit: true` (default when absent):
+```bash
+git add web/src/components/AuthGate.tsx
+git commit -m "feat: redesign cloud landing page and add login modal"
+```
+
+If `auto_commit: false`: skip commit and staging. Print: "Skipping commit (auto_commit: false)."
+
+---

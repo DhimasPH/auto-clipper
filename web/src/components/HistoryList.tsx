@@ -3,10 +3,10 @@ import { apiGetHistory, apiDeleteHistory, apiCreateRerenderJob, apiCreateRerunAi
 import type { JobResponse } from "../types/job";
 import { Trash2, Play, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, Film } from "lucide-react";
 import { OutputStyleSelector, type OutputStyle } from "./OutputStyleSelector";
-import { SubtitlePresetBar } from "./SubtitlePresetBar";
-import { FontSelector } from "./FontSelector";
-import { SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, type SubtitlePresetKey, type SubtitleConfig } from "../types/subtitle";
-import { DEFAULT_CANVAS_CONFIG } from "../types/canvas";
+import { CanvasConfigControls } from "./ui/CanvasConfigControls";
+import { SubtitleConfigControls } from "./ui/SubtitleConfigControls";
+import { DEFAULT_SUBTITLE_CONFIG, type SubtitleConfig } from "../types/subtitle";
+import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "../types/canvas";
 
 interface HistoryListProps {
   onResume: (jobId: string) => void;
@@ -21,8 +21,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
 
   const [activeRerenderId, setActiveRerenderId] = useState<string | null>(null);
   const [outputStyle, setOutputStyle] = useState<OutputStyle>("face_crop");
-  const [subtitlePreset, setSubtitlePreset] = useState<SubtitlePresetKey>("viral_pop");
-  const [customFont, setCustomFont] = useState<string>("");
+  const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
+  const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(DEFAULT_SUBTITLE_CONFIG);
 
   const [activeAiId, setActiveAiId] = useState<string | null>(null);
   const [extraPrompt, setExtraPrompt] = useState<string>("");
@@ -65,23 +65,14 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
     if (isSubmittingPanel) return;
     setIsSubmittingPanel(true);
     try {
-      const presetBase = SUBTITLE_PRESETS[subtitlePreset]?.config || {};
-      const finalFont = customFont || presetBase.font_family || "Arial";
-      
-      const subtitleConfig: SubtitleConfig = {
-        ...DEFAULT_SUBTITLE_CONFIG,
-        ...presetBase,
-        font_family: finalFont,
-      };
-
       let aspectRatio = "9:16";
-      if (outputStyle === "landscape") aspectRatio = "16:9";
+      if (outputStyle === "landscape" || (!canvasConfig.enabled && outputStyle === "canvas_blur")) aspectRatio = "16:9";
       if (outputStyle === "square") aspectRatio = "1:1";
 
       const payload = {
         aspect_ratio: aspectRatio,
-        caption_style: subtitlePreset === "podcast" ? "karaoke" : subtitlePreset === "viral_pop" ? "single_word" : "standard",
-        canvas_config: { ...DEFAULT_CANVAS_CONFIG, enabled: outputStyle === "canvas_blur" },
+        caption_style: subtitleConfig.style,
+        canvas_config: canvasConfig,
         subtitle_config: subtitleConfig,
         burn_subs: true,
       };
@@ -249,7 +240,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
               <button
                 onClick={() => {
                   setActiveRerenderId(activeRerenderId === job.id ? null : job.id);
-                  setCustomFont("");
+                  setSubtitleConfig(DEFAULT_SUBTITLE_CONFIG);
+                  setCanvasConfig(DEFAULT_CANVAS_CONFIG);
                 }}
                 className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
               >
@@ -262,7 +254,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                 onClick={() => {
                   setActiveAiId(activeAiId === job.id ? null : job.id);
                   setExtraPrompt("");
-                  setCustomFont(""); // Reset as requested
+                  setSubtitleConfig(DEFAULT_SUBTITLE_CONFIG);
+                  setCanvasConfig(DEFAULT_CANVAS_CONFIG);
                 }}
                 className="flex items-center px-3 py-1.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
               >
@@ -294,9 +287,14 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
             <div className="mt-4 p-4 border border-neutral-800 rounded-lg bg-neutral-950 animate-fadeIn">
               <h4 className="font-medium text-neutral-200 mb-3">Rerender Settings</h4>
               <div className="space-y-4">
-                <OutputStyleSelector value={outputStyle} onChange={(val) => setOutputStyle(val)} disabled={isSubmittingPanel} />
-                <SubtitlePresetBar value={subtitlePreset} onChange={(val) => setSubtitlePreset(val)} disabled={isSubmittingPanel} />
-                <FontSelector value={customFont} onChange={setCustomFont} />
+                <OutputStyleSelector value={outputStyle} onChange={(val) => {
+                  setOutputStyle(val);
+                  setCanvasConfig(prev => ({ ...prev, enabled: val === "canvas_blur" }));
+                }} disabled={isSubmittingPanel} />
+                {outputStyle === "canvas_blur" && (
+                  <CanvasConfigControls config={canvasConfig} onChange={setCanvasConfig} showModeSwitch={false} />
+                )}
+                <SubtitleConfigControls config={subtitleConfig} onChange={setSubtitleConfig} showModeSwitch={true} />
                 <button
                   onClick={() => handleRerenderSubmit(job.id)}
                   disabled={isSubmittingPanel}

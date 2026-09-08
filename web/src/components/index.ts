@@ -1,3 +1,3 @@
 export * from "./OutputStyleSelector";
-export * from "./SubtitlePresetBar";
+export * from "./ToggleSwitch";
 export * from "./AuthGate";
