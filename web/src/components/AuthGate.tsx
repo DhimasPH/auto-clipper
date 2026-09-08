@@ -137,10 +137,10 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
             className="w-16 h-16 rounded-full object-cover shadow-md ring-2 ring-gray-50 mb-4 -mt-6 z-10"
           />
           <h1 className="text-3xl font-extrabold mb-1 text-center tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 animate-gradient-x">
-            Auto Clipper Cloud
+            Auto Clipper
           </h1>
           <p className="text-gray-500 text-center text-sm font-medium">
-            Let AI create viral short videos from long videos
+            The smartest way to automate your video clips.
           </p>
         </div>
 
