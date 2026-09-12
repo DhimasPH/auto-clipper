@@ -18,6 +18,7 @@ export interface ClipJobParams {
   customModelName: string;
   model: string;
   aspectRatio: string;
+  trackingMode: string;
   captionStyle: string;
   burnSubtitles: boolean;
   canvasConfig?: CanvasConfig;
@@ -190,6 +191,7 @@ export function useClipJobs(p: ClipJobParams) {
         provider: overrideProvider || p.provider,
         api_key: p.apiKey,
         aspect_ratio: p.aspectRatio,
+        tracking_mode: p.trackingMode,
         caption_style: p.captionStyle,
         burn_subs: p.burnSubtitles,
         canvas_config: p.canvasConfig,

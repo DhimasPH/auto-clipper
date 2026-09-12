@@ -84,7 +84,7 @@ def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") ->
     }
 
 
-def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None) -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto") -> str:
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -105,6 +105,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "aspect_ratio": aspect_ratio,
         "canvas_config": canvas_config,
         "subtitle_config": subtitle_config,
+        "tracking_mode": tracking_mode,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -126,7 +127,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
 
 
 def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption_style: str = "standard",
-                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None, subtitle_config: dict = None) -> str:
+                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto") -> str:
     """Manual clipper job: cut user-chosen ranges, no AI highlight selection.
 
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
@@ -150,6 +151,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         "aspect_ratio": aspect_ratio,
         "canvas_config": canvas_config,
         "subtitle_config": subtitle_config,
+        "tracking_mode": tracking_mode,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -170,7 +172,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
     return job_id
 
 
-def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None) -> str:
+def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto") -> str:
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -188,6 +190,7 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "aspect_ratio": aspect_ratio,
         "canvas_config": canvas_config if canvas_config is not None else hist_meta.get("canvas_config"),
         "subtitle_config": subtitle_config if subtitle_config is not None else hist_meta.get("subtitle_config"),
+        "tracking_mode": tracking_mode if tracking_mode else hist_meta.get("tracking_mode", "auto"),
         "burn_subs": burn_subs,
         "output_dir": output_dir or hist_meta.get("output_dir", ""),
         "title": hist_meta.get("title", ""),
@@ -457,7 +460,8 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                 broll_path=broll_path,
                 layout=job_layout,
                 canvas_config=job.get("canvas_config"),
-                subtitle_config=job.get("subtitle_config")
+                subtitle_config=job.get("subtitle_config"),
+                tracking_mode=job.get("tracking_mode", "auto")
             )
 
             # Append to clips
@@ -587,7 +591,8 @@ def _run_manual_job(job_id: str):
                     should_cancel=is_cancelled,
                     layout=job_layout,
                     canvas_config=job.get("canvas_config"),
-                    subtitle_config=job.get("subtitle_config")
+                    subtitle_config=job.get("subtitle_config"),
+                    tracking_mode=job.get("tracking_mode", "auto")
                 )
                 job["clips"].append({
                     "path": result_path,
@@ -710,7 +715,8 @@ def _run_rerender_job(job_id: str):
                     broll_path=broll_path,
                     layout=job_layout,
                     canvas_config=job.get("canvas_config"),
-                    subtitle_config=job.get("subtitle_config")
+                    subtitle_config=job.get("subtitle_config"),
+                    tracking_mode=job.get("tracking_mode", "auto")
                 )
 
                 job["clips"].append({
@@ -749,7 +755,7 @@ def _run_rerender_job(job_id: str):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None):
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto"):
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -777,6 +783,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "aspect_ratio": aspect_ratio,
         "canvas_config": canvas_config if canvas_config is not None else metadata.get("canvas_config"),
         "subtitle_config": subtitle_config if subtitle_config is not None else metadata.get("subtitle_config"),
+        "tracking_mode": tracking_mode if tracking_mode else metadata.get("tracking_mode", "auto"),
         "caption_style": job_record.get("caption_style", "standard"),
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -897,7 +904,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     broll_path=broll_path,
                     layout=job_layout,
                     canvas_config=job.get("canvas_config"),
-                    subtitle_config=job.get("subtitle_config")
+                    subtitle_config=job.get("subtitle_config"),
+                    tracking_mode=job.get("tracking_mode", "auto")
                 )
                 
                 job["clips"].append({
@@ -936,7 +944,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, aspect_ratio: str, caption_style: str, burn_subs: bool, canvas_config: dict = None, subtitle_config: dict = None):
+def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, aspect_ratio: str, caption_style: str, burn_subs: bool, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto"):
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -954,6 +962,7 @@ def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, a
         "burn_subs": burn_subs,
         "canvas_config": canvas_config,
         "subtitle_config": subtitle_config,
+        "tracking_mode": tracking_mode,
         "status": "QUEUED",
         "progress": "Queued...",
         "clips": [],
@@ -1042,7 +1051,8 @@ def _run_rerender_clip_job(new_job_id: str):
             should_cancel=lambda: job.get("cancelled", False),
             layout=job_layout,
             canvas_config=job.get("canvas_config"),
-            subtitle_config=job.get("subtitle_config")
+            subtitle_config=job.get("subtitle_config"),
+            tracking_mode=job.get("tracking_mode", "auto")
         )
 
         # Atomic replace: move temp to final path

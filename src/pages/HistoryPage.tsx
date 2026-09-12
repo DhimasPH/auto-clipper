@@ -369,6 +369,7 @@ export const HistoryPage: React.FC = () => {
           clipIndex={activeEditClip.index}
           clipTitle={`${t("clip.title_ai", { num: activeEditClip.index + 1 })}`}
           initialAspectRatio={activeEditClip.job.metadata?.aspect_ratio || "9:16"}
+          initialTrackingMode={activeEditClip.job.metadata?.tracking_mode || "auto"}
           initialBurnSubs={activeEditClip.job.metadata?.burn_subs ?? true}
           initialCanvasConfig={activeEditClip.job.metadata?.canvas_config}
           initialSubtitleConfig={activeEditClip.job.metadata?.subtitle_config}

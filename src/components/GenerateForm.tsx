@@ -225,6 +225,39 @@ export default function GenerateForm({
           ))}
         </div>
 
+        {/* Tracking Mode Options for Portrait */}
+        {["9:16", "4:5", "1:1"].includes(aspectRatio) && ctx?.setTrackingMode && (
+          <div className="pt-3 space-y-2">
+            <label className="text-label text-text-secondary">
+              {t("main.tracking_mode_label", "Face Tracking Mode")}
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => ctx.setTrackingMode("auto")}
+                className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                  ctx.trackingMode === "auto"
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-border bg-bg-surface text-text-secondary hover:border-border-active hover:text-text-primary"
+                }`}
+              >
+                <span className="text-sm">Auto Face Tracking</span>
+                <span className="text-xs text-text-muted font-normal text-center">AI mengikuti wajah pembicara utama</span>
+              </button>
+              <button
+                onClick={() => ctx.setTrackingMode("center")}
+                className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                  ctx.trackingMode === "center"
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-border bg-bg-surface text-text-secondary hover:border-border-active hover:text-text-primary"
+                }`}
+              >
+                <span className="text-sm">Center Crop</span>
+                <span className="text-xs text-text-muted font-normal text-center">Statis di tengah video (tanpa pergerakan AI)</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Canvas Options for Landscape 16:9 */}
         {aspectRatio === "16:9" && ctx?.canvasConfig && (
           <div className="pt-3">

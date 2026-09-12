@@ -59,6 +59,7 @@ export interface JobMetadata {
   subtitle_config?: SubtitleConfig;
   whisper_model?: string;
   language?: string;
+  tracking_mode?: string;
 }
 
 export interface JobResponse {
@@ -94,4 +95,5 @@ export interface CreateJobPayload {
   language?: string;
   canvas_config?: CanvasConfig;
   subtitle_config?: SubtitleConfig;
+  tracking_mode?: string;
 }

@@ -72,6 +72,7 @@ export default function App() {
   const [aspectRatio, setAspectRatio] = useState<
     "1:1" | "4:5" | "9:16" | "16:9"
   >("9:16");
+  const [trackingMode, setTrackingMode] = useState<"auto" | "center">("auto");
   const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke" | "single_word">(
     "single_word",
   );
@@ -129,6 +130,7 @@ export default function App() {
     customModelName,
     model: selectedModel,
     aspectRatio,
+    trackingMode,
     captionStyle: subtitleConfig.style,
     burnSubtitles,
     canvasConfig,
@@ -189,6 +191,8 @@ export default function App() {
     setLocalFile,
     aspectRatio,
     setAspectRatio,
+    trackingMode,
+    setTrackingMode,
     captionStyle: subtitleConfig.style,
     setCaptionStyle: (style: "standard" | "karaoke") => {
       setCaptionStyle(style);

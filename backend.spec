@@ -64,6 +64,7 @@ for pkg in [
     'yt_dlp',
     'requests',
     'certifi',
+    'mediapipe',
 ]:
     try:
         d, b, h = collect_all(pkg)
