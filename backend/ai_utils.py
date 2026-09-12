@@ -94,6 +94,7 @@ HIGHLIGHT_GUIDANCE = (
     "20-120 seconds. Set start/end PRECISELY on natural speech pauses (silence gaps). "
     "Prefer longer clips (60-90s) when the narrative arc is compelling, but allow shorter (20-30s) for punchy standalone moments. "
     "Ensure that the first word is clearly spoken from the beginning and the last word finishes completely. "
+    "For EACH highlight, you MUST also select a 'hook_start' and 'hook_end' (exactly 3-5 seconds long) from WITHIN the highlight itself. This hook should be the most exciting/curiosity-inducing part of the clip. "
     "Return them in chronological order and avoid intros, filler, and dead air."
 )
 
@@ -109,7 +110,7 @@ def _get_user_datetime_context() -> str:
 
 SOCIAL_PROMPT_TEMPLATE = (
     "Return a JSON object with a 'highlights' key holding an array of objects. "
-    "Each object must have 'start_time', 'end_time' (in HH:MM:SS.mmm format), "
+    "Each object must have 'start_time', 'end_time', 'hook_start', 'hook_end' (all in HH:MM:SS.mmm format), "
     "'description_en' (in English), 'description_id' (in Indonesian), "
     "and 'broll_query_en' (STRICTLY 1-2 visual English words, e.g. 'coding man', 'fast car').\n"
     "ALSO, include a nested 'social' object with the following keys:\n"
