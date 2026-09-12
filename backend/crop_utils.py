@@ -125,12 +125,10 @@ def detect_primary_face_center(video_path: str, start_time=None, end_time=None) 
 def sample_face_trajectory(video_path: str, start_time: float, end_time: float, interval: float = 0.5, should_cancel = None) -> list[tuple[float, float]]:
     """Sample face positions at periodic intervals across a clip window.
 
-    Returns a list of (relative_time_s, x_center_ratio) tuples.
-    Missing detections are forward-filled or default to 0.5.
+    Attempts to use MediaPipe Face Mesh for high-accuracy tracking (via Mouth Aspect Ratio).
+    Gracefully falls back to OpenCV Haar Cascade if MediaPipe fails to import or errors out.
     """
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    if face_cascade.empty():
-        return [(0.0, 0.5)]
+    import numpy as np
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -149,8 +147,121 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
     lo, hi = half_window, 1.0 - half_window
 
     trajectory = []
-    last_valid_x = 0.5
 
+    # Try MediaPipe Face Mesh
+    try:
+        import mediapipe as mp
+        # Some versions of mediapipe hide solutions if initialization fails (e.g. tensorflow missing)
+        if not hasattr(mp, 'solutions'):
+            raise ImportError("MediaPipe 'solutions' attribute is missing")
+        mp_face_mesh = mp.solutions.face_mesh
+        
+        face_mesh = mp_face_mesh.FaceMesh(
+            static_image_mode=False,
+            max_num_faces=5,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+
+        raw_frames = []
+        for i in range(num_samples):
+            if should_cancel and should_cancel():
+                break
+            rel_t = min(duration, i * interval)
+            abs_t = start_time + rel_t
+            cap.set(cv2.CAP_PROP_POS_MSEC, abs_t * 1000.0)
+            ret, frame = cap.read()
+            if not ret:
+                raw_frames.append((rel_t, []))
+                continue
+                
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = face_mesh.process(rgb_frame)
+            
+            frame_faces = []
+            if results.multi_face_landmarks:
+                for face_landmarks in results.multi_face_landmarks:
+                    xs = [lm.x for lm in face_landmarks.landmark]
+                    cx = sum(xs) / len(xs)
+                    
+                    p13 = np.array([face_landmarks.landmark[13].x, face_landmarks.landmark[13].y])
+                    p14 = np.array([face_landmarks.landmark[14].x, face_landmarks.landmark[14].y])
+                    p78 = np.array([face_landmarks.landmark[78].x, face_landmarks.landmark[78].y])
+                    p308 = np.array([face_landmarks.landmark[308].x, face_landmarks.landmark[308].y])
+                    
+                    mar = np.linalg.norm(p13 - p14) / (np.linalg.norm(p78 - p308) + 1e-6)
+                    frame_faces.append({'cx': cx, 'mar': mar})
+                    
+            raw_frames.append((rel_t, frame_faces))
+
+        face_mesh.close()
+
+        if raw_frames:
+            tracks = []
+            for rel_t, faces in raw_frames:
+                for face in faces:
+                    matched = False
+                    for track in tracks:
+                        if abs(track['last_cx'] - face['cx']) < 0.1:
+                            track['mars'].append(face['mar'])
+                            track['cxs'].append(face['cx'])
+                            track['last_cx'] = face['cx']
+                            matched = True
+                            break
+                    if not matched:
+                        tracks.append({
+                            'mars': [face['mar']],
+                            'cxs': [face['cx']],
+                            'last_cx': face['cx']
+                        })
+
+            best_track_cx = 0.5
+            if tracks:
+                valid_tracks = [t for t in tracks if len(t['mars']) > 1]
+                if valid_tracks:
+                    best_track = max(valid_tracks, key=lambda t: np.var(t['mars']))
+                    best_track_cx = np.median(best_track['cxs'])
+                else:
+                    best_track = max(tracks, key=lambda t: len(t['cxs']))
+                    best_track_cx = np.median(best_track['cxs'])
+
+            last_valid_x = best_track_cx
+            for rel_t, faces in raw_frames:
+                speaker_face = None
+                min_dist = 0.15
+                for face in faces:
+                    dist = abs(face['cx'] - last_valid_x)
+                    if dist < min_dist:
+                        speaker_face = face
+                        min_dist = dist
+                        
+                if speaker_face:
+                    x = speaker_face['cx']
+                    clamped_center = max(lo, min(hi, x)) if lo <= hi else x
+                    last_valid_x = clamped_center
+                    trajectory.append((rel_t, clamped_center))
+                else:
+                    trajectory.append((rel_t, last_valid_x))
+
+            if trajectory:
+                cap.release()
+                return trajectory
+                
+    except Exception as e:
+        # Graceful fallback to OpenCV Haar Cascade
+        pass
+
+    # OpenCV Haar Cascade Fallback
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    if face_cascade.empty():
+        cap.release()
+        return [(0.0, 0.5)]
+        
+    last_valid_x = 0.5
+    # Reset capture position
+    cap.set(cv2.CAP_PROP_POS_MSEC, start_time * 1000.0)
+    
     for i in range(num_samples):
         if should_cancel and should_cancel():
             break
@@ -178,6 +289,8 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
 
     cap.release()
     return trajectory if trajectory else [(0.0, 0.5)]
+
+
 
 
 def smooth_trajectory(trajectory: list[tuple[float, float]], alpha: float = 0.25) -> list[tuple[float, float]]:
