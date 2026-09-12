@@ -85,18 +85,16 @@ def probe_formats(url: str) -> list:
     base_ydl_opts = {
         'quiet': True, 'no_warnings': True, 'skip_download': True,
         'logger': _SilentLogger(),
-        'extractor_args': {'youtube': ['player_client=android', 'player_skip=web']},
     }
     
 
-    browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
+    clients_to_try = ['ios', 'tv', 'web_creator', 'android']
     info = None
     last_error = None
     
-    for browser in browsers_to_try:
+    for client in clients_to_try:
         ydl_opts = dict(base_ydl_opts)
-        if browser:
-            ydl_opts['cookiesfrombrowser'] = (browser,)
+        ydl_opts['extractor_args'] = {'youtube': [f'player_client={client}', 'player_skip=web']}
             
         sink = io.StringIO()
         try:
@@ -127,7 +125,6 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
         'noprogress': True,
         'updatetime': False,
         'logger': _SilentLogger(),
-        'extractor_args': {'youtube': ['player_client=android', 'player_skip=web']},
     }
     ffmpeg_loc = get_ffmpeg_path()
     if ffmpeg_loc:
@@ -145,15 +142,14 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
     # OSError [Errno 22], so we redirect both streams to an in-memory sink for
     # the whole call.
     max_retries = 3
-    browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
+    clients_to_try = ['ios', 'tv', 'web_creator', 'android']
     
     success = False
     last_error = None
     
-    for browser in browsers_to_try:
+    for client in clients_to_try:
         ydl_opts = dict(base_ydl_opts)
-        if browser:
-            ydl_opts['cookiesfrombrowser'] = (browser,)
+        ydl_opts['extractor_args'] = {'youtube': [f'player_client={client}', 'player_skip=web']}
             
         for attempt in range(max_retries):
             try:
@@ -169,10 +165,9 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
                 if is_cancelled and is_cancelled():
                     raise DownloadCancelledError("Download cancelled by user")
                 
-                # If the error is about unsupported browser, no need to retry this browser
                 err_str = str(e).lower()
-                if "unsupported browser" in err_str or "unsupported platform" in err_str or "failed to load cookies" in err_str:
-                    break # Break retry loop, move to next browser
+                if "sign in to confirm" in err_str or "bot" in err_str or "unsupported browser" in err_str:
+                    break 
                     
                 # Wait a bit before retrying, especially useful for 403 blocks
                 if attempt < max_retries - 1:
