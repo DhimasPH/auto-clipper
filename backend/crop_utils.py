@@ -126,35 +126,31 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
     """Sample face positions at periodic intervals across a clip window.
 
     Returns a list of (relative_time_s, x_center_ratio) tuples.
-    Now uses MediaPipe Face Mesh to track the active speaker via Mouth Aspect Ratio (MAR).
+    Missing detections are forward-filled or default to 0.5.
     """
-    import mediapipe.python.solutions.face_mesh as mp_face_mesh
-    import numpy as np
-    
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    if face_cascade.empty():
+        return [(0.0, 0.5)]
+
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         cap.release()
         return [(0.0, 0.5)]
 
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
     frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
     frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
 
     duration = max(0.1, end_time - start_time)
     num_samples = max(2, int(duration / interval) + 1)
-
+    
     half_window = (frame_h * 9 / 16) / frame_w / 2 if (frame_w and frame_h) else 0.28
     lo, hi = half_window, 1.0 - half_window
 
-    face_mesh = mp_face_mesh.FaceMesh(
-        static_image_mode=False,
-        max_num_faces=5,
-        refine_landmarks=True,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5
-    )
+    trajectory = []
+    last_valid_x = 0.5
 
-    raw_frames = []
-    
     for i in range(num_samples):
         if should_cancel and should_cancel():
             break
@@ -163,92 +159,24 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
         cap.set(cv2.CAP_PROP_POS_MSEC, abs_t * 1000.0)
         ret, frame = cap.read()
         if not ret:
-            raw_frames.append((rel_t, []))
+            trajectory.append((rel_t, last_valid_x))
             continue
-            
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = face_mesh.process(rgb_frame)
-        
-        frame_faces = []
-        if results.multi_face_landmarks:
-            for face_landmarks in results.multi_face_landmarks:
-                xs = [lm.x for lm in face_landmarks.landmark]
-                cx = sum(xs) / len(xs)
-                
-                # Inner lip landmarks: 13 (upper), 14 (lower), 78 (left), 308 (right)
-                p13 = np.array([face_landmarks.landmark[13].x, face_landmarks.landmark[13].y])
-                p14 = np.array([face_landmarks.landmark[14].x, face_landmarks.landmark[14].y])
-                p78 = np.array([face_landmarks.landmark[78].x, face_landmarks.landmark[78].y])
-                p308 = np.array([face_landmarks.landmark[308].x, face_landmarks.landmark[308].y])
-                
-                mar = np.linalg.norm(p13 - p14) / (np.linalg.norm(p78 - p308) + 1e-6)
-                frame_faces.append({'cx': cx, 'mar': mar})
-                
-        raw_frames.append((rel_t, frame_faces))
 
-    cap.release()
-    face_mesh.close()
-
-    if not raw_frames:
-        return [(0.0, 0.5)]
-
-    # Group faces into "tracks" by proximity to find the active speaker
-    tracks = []
-    for rel_t, faces in raw_frames:
-        for face in faces:
-            matched = False
-            for track in tracks:
-                # If X center is within 10% screen width, assume it's the same person
-                if abs(track['last_cx'] - face['cx']) < 0.1:
-                    track['mars'].append(face['mar'])
-                    track['cxs'].append(face['cx'])
-                    track['last_cx'] = face['cx']
-                    matched = True
-                    break
-            if not matched:
-                tracks.append({
-                    'mars': [face['mar']],
-                    'cxs': [face['cx']],
-                    'last_cx': face['cx']
-                })
-
-    # Find the track with the highest total MAR variance
-    best_track_cx = 0.5
-    if tracks:
-        valid_tracks = [t for t in tracks if len(t['mars']) > 1]
-        if valid_tracks:
-            best_track = max(valid_tracks, key=lambda t: np.var(t['mars']))
-            best_track_cx = np.median(best_track['cxs'])
-        else:
-            best_track = max(tracks, key=lambda t: len(t['cxs']))
-            best_track_cx = np.median(best_track['cxs'])
-
-    # Pass 3: Clamp in-frame and output trajectory
-    # For a stable track, we can just use the active speaker's median X, OR
-    # build a dynamic trajectory if they move around.
-    # Since we want to follow them but not jump to other people, we filter raw_frames to only
-    # include detections close to the best_track_cx.
-    
-    trajectory = []
-    last_valid_x = best_track_cx
-    for rel_t, faces in raw_frames:
-        # Find face closest to our active speaker
-        speaker_face = None
-        min_dist = 0.15
-        for face in faces:
-            dist = abs(face['cx'] - last_valid_x)
-            if dist < min_dist:
-                speaker_face = face
-                min_dist = dist
-                
-        if speaker_face:
-            x = speaker_face['cx']
-            clamped_center = max(lo, min(hi, x)) if lo <= hi else x
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+        if len(faces) > 0:
+            x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
+            raw_center = (x + w / 2) / frame.shape[1]
+            if lo <= hi:
+                clamped_center = max(lo, min(hi, raw_center))
+            else:
+                clamped_center = raw_center
             last_valid_x = clamped_center
             trajectory.append((rel_t, clamped_center))
         else:
             trajectory.append((rel_t, last_valid_x))
 
+    cap.release()
     return trajectory if trajectory else [(0.0, 0.5)]
 
 
