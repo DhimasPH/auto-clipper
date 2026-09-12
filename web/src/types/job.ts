@@ -85,6 +85,7 @@ export interface CreateJobPayload {
   extra_prompt?: string;
   title?: string;
   enable_broll?: boolean;
+  enable_hook?: boolean;
   pexels_api_key?: string;
   max_clips?: number;
   custom_base_url?: string;
