@@ -330,6 +330,7 @@ class CreateJobRequest(BaseModel):
     extra_prompt: str = ""
     title: str = ""
     enable_broll: bool = False
+    enable_hook: bool = False
     pexels_api_key: str = ""
     max_clips: int = 0
     custom_base_url: str = ""
@@ -407,7 +408,7 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
             job_id, req.provider, req.api_key.strip(),
             req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
             req.custom_base_url.strip(), req.custom_model_name.strip(), req.whisper_model,
-            req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config,
+            req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, enable_hook=req.enable_hook,
             tracking_mode=req.tracking_mode
         )
         return {"status": "success", "job_id": new_job_id}

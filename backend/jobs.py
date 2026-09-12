@@ -84,7 +84,7 @@ def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") ->
     }
 
 
-def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto") -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", enable_hook: bool = False) -> str:
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -112,6 +112,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "quality": quality,
         "title": title,
         "enable_broll": enable_broll,
+        "enable_hook": enable_hook,
         "pexels_api_key": pexels_api_key,
         "max_clips": max_clips,
         "is_gaming_video": is_gaming_video,
@@ -127,7 +128,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
 
 
 def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption_style: str = "standard",
-                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto") -> str:
+                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", enable_hook: bool = False) -> str:
     """Manual clipper job: cut user-chosen ranges, no AI highlight selection.
 
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
@@ -172,7 +173,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
     return job_id
 
 
-def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto") -> str:
+def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", enable_hook: bool = False) -> str:
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -428,7 +429,17 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
             log_error(f"Failed to detect video layout: {e}")
             job_layout = None
 
+    rendered_count = len(job.get("clips", []))
+
     for i, seg in enumerate(segments):
+        if is_cancelled():
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
+            
+        if i < rendered_count:
+            job["progress"] = f"Melewati klip {i+1} dari {len(segments)} (sudah dirender)..."
+            log_app(f"[{job_id}] " + str(job["progress"]))
+            continue
         if is_cancelled():
             _finalize_job(job_id, "CANCELLED", metadata)
             return
@@ -451,18 +462,62 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
         clip_output = os.path.normpath(os.path.join(ws["clips_dir"], f"{ws['safe_title']}_clip_{i+1}.mp4"))
         
         try:
-            result_path = crop_to_vertical(
-                output_path, clip_output, seg["start_time"], seg["end_time"],
-                subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
-                aspect_ratio=job["aspect_ratio"],
-                register_proc=lambda p: _register_proc(job, p),
-                should_cancel=is_cancelled,
-                broll_path=broll_path,
-                layout=job_layout,
-                canvas_config=job.get("canvas_config"),
-                subtitle_config=job.get("subtitle_config"),
-                tracking_mode=job.get("tracking_mode", "auto")
-            )
+            if job.get("enable_hook") and "hook_start" in seg and "hook_end" in seg:
+                import subprocess
+                job["progress"] = f"Merender Hook klip {i+1}..."
+                hook_output = os.path.normpath(os.path.join(ws["clips_dir"], f"{ws['safe_title']}_hook_{i+1}.mp4"))
+                main_output = os.path.normpath(os.path.join(ws["clips_dir"], f"{ws['safe_title']}_main_{i+1}.mp4"))
+                
+                crop_to_vertical(
+                    output_path, hook_output, seg["hook_start"], seg["hook_end"],
+                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
+                    aspect_ratio=job["aspect_ratio"],
+                    register_proc=lambda p: _register_proc(job, p),
+                    should_cancel=is_cancelled,
+                    broll_path=None,
+                    layout=job_layout,
+                    canvas_config=job.get("canvas_config"),
+                    subtitle_config=job.get("subtitle_config"),
+                    tracking_mode=job.get("tracking_mode", "auto")
+                )
+                
+                crop_to_vertical(
+                    output_path, main_output, seg["start_time"], seg["end_time"],
+                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
+                    aspect_ratio=job["aspect_ratio"],
+                    register_proc=lambda p: _register_proc(job, p),
+                    should_cancel=is_cancelled,
+                    broll_path=broll_path,
+                    layout=job_layout,
+                    canvas_config=job.get("canvas_config"),
+                    subtitle_config=job.get("subtitle_config"),
+                    tracking_mode=job.get("tracking_mode", "auto")
+                )
+                
+                job["progress"] = f"Menggabungkan Hook untuk klip {i+1}..."
+                transition_asset = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "glitch_transition.mp4")
+                concat_cmd = [
+                    "ffmpeg", "-y", "-i", hook_output, "-i", transition_asset, "-i", main_output, 
+                    "-filter_complex", "[0:v]setsar=1[v0];[1:v]setsar=1,scale=1080:1920[v1];[2:v]setsar=1[v2];[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[v][a]", 
+                    "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-c:a", "aac", clip_output
+                ]
+                subprocess.run(concat_cmd, check=True)
+                if os.path.exists(hook_output): os.remove(hook_output)
+                if os.path.exists(main_output): os.remove(main_output)
+                result_path = clip_output
+            else:
+                result_path = crop_to_vertical(
+                    output_path, clip_output, seg["start_time"], seg["end_time"],
+                    subtitle_path=subtitle_path if job.get("burn_subs", True) else None,
+                    aspect_ratio=job["aspect_ratio"],
+                    register_proc=lambda p: _register_proc(job, p),
+                    should_cancel=is_cancelled,
+                    broll_path=broll_path,
+                    layout=job_layout,
+                    canvas_config=job.get("canvas_config"),
+                    subtitle_config=job.get("subtitle_config"),
+                    tracking_mode=job.get("tracking_mode", "auto")
+                )
 
             # Append to clips
             job["clips"].append({
@@ -476,6 +531,12 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                 "social": seg.get("social", {}),
                 "v": 0
             })
+            
+            try:
+                from backend.db import save_history
+                save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
+            except Exception as db_e:
+                log_error("save_history_in_loop", db_e)
         except Exception as e:
             if is_cancelled():
                 _finalize_job(job_id, "CANCELLED", metadata)
@@ -571,10 +632,18 @@ def _run_manual_job(job_id: str):
         # 4. Crop each user-selected range.
         job["status"] = "CROPPING"
         log_app(f"[{job_id}] " + str("CROPPING"))
+        
+        rendered_count = len(job.get("clips", []))
+        
         for i, clip in enumerate(clips):
             if is_cancelled():
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
+            
+            if i < rendered_count:
+                job["progress"] = f"Melewati klip {i+1} dari {len(clips)} (sudah dirender)..."
+                log_app(f"[{job_id}] " + str(job["progress"]))
+                continue
             job["progress"] = f"Merender klip {i+1} dari {len(clips)}..."
             log_app(f"[{job_id}] " + str(f"Merender klip {i+1} dari {len(clips)}..."))
             start_t = clip.get("start")
@@ -604,6 +673,12 @@ def _run_manual_job(job_id: str):
                     "subs": bool(subtitle_path),
                     "v": 0,
                 })
+                
+                try:
+                    from backend.db import save_history
+                    save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
+                except Exception as db_e:
+                    log_error("save_history_in_loop", db_e)
             except Exception as e:
                 if is_cancelled():
                     _finalize_job(job_id, "CANCELLED", metadata)
@@ -674,10 +749,17 @@ def _run_rerender_job(job_id: str):
                 log_error(f"Failed to detect video layout (rerender): {e}")
                 job_layout = None
 
+        rendered_count = len(job.get("clips", []))
+
         for i, seg in enumerate(segments):
             if job.get("cancelled", False):
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
+                
+            if i < rendered_count:
+                job["progress"] = f"Melewati klip {i+1} dari {len(segments)} (sudah dirender)..."
+                log_app(f"[{job_id}] " + str(job["progress"]))
+                continue
                 
             broll_path = None
             if job.get("enable_broll") and job.get("pexels_api_key"):
@@ -730,6 +812,12 @@ def _run_rerender_job(job_id: str):
                     "social": seg.get("social", {}),
                     "v": 0
                 })
+                
+                try:
+                    from backend.db import save_history
+                    save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
+                except Exception as db_e:
+                    log_error("save_history_in_loop", db_e)
             except Exception as e:
                 if job.get("cancelled", False):
                     _finalize_job(job_id, "CANCELLED", metadata)
@@ -873,10 +961,17 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                 log_error("jobs.rerun_detect_layout", e)
                 job_layout = None
 
+        rendered_count = len(job.get("clips", []))
+
         for i, seg in enumerate(segments):
             if job.get("cancelled", False):
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
+            
+            if i < rendered_count:
+                job["progress"] = f"Melewati klip {i+1} dari {len(segments)} (sudah dirender)..."
+                log_app(f"[{job_id}] " + str(job["progress"]))
+                continue
             
             broll_path = None
             if job.get("enable_broll") and job.get("pexels_api_key"):
@@ -919,6 +1014,12 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     "social": seg.get("social", {}),
                     "v": 0
                 })
+                
+                try:
+                    from backend.db import save_history
+                    save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
+                except Exception as db_e:
+                    log_error("save_history_in_loop", db_e)
             except Exception as e:
                 if job.get("cancelled", False):
                     _finalize_job(job_id, "CANCELLED", metadata)
