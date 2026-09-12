@@ -55,6 +55,8 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   const [burnSubtitles, setBurnSubtitles] = useState<boolean>(true);
   const [enableHook, setEnableHook] = useState<boolean>(false);
 
+  const [isGamingVideo, setIsGamingVideo] = useState<boolean>(false);
+
   // New Structured Configs
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
   const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>({
@@ -80,6 +82,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         if (parsed.maxClips !== undefined) setMaxClips(parsed.maxClips);
         if (parsed.burnSubtitles !== undefined) setBurnSubtitles(parsed.burnSubtitles);
         if (parsed.enableHook !== undefined) setEnableHook(parsed.enableHook);
+        if (parsed.isGamingVideo !== undefined) setIsGamingVideo(parsed.isGamingVideo);
         if (parsed.canvasConfig) setCanvasConfig(parsed.canvasConfig);
         if (parsed.subtitleConfig) setSubtitleConfig(parsed.subtitleConfig);
         if (parsed.trackingMode) setTrackingMode(parsed.trackingMode);
@@ -112,6 +115,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
           maxClips,
           burnSubtitles,
           enableHook,
+          isGamingVideo,
           canvasConfig,
           subtitleConfig,
           trackingMode,
@@ -120,7 +124,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
     } catch {
       // Ignore
     }
-  }, [url, title, outputStyle, whisperModel, language, maxClips, burnSubtitles, enableHook, canvasConfig, subtitleConfig, trackingMode]);
+  }, [url, title, outputStyle, whisperModel, language, maxClips, burnSubtitles, enableHook, isGamingVideo, canvasConfig, subtitleConfig, trackingMode]);
 
   const validateUrl = (testUrl: string): boolean => {
     const clean = testUrl.trim();
@@ -172,6 +176,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
       caption_style: subtitleConfig.style,
       burn_subs: burnSubtitles,
       enable_hook: enableHook,
+      is_gaming_video: isGamingVideo,
       quality: "best",
       whisper_model: whisperModel,
       language: language === "auto" ? "" : language,
@@ -347,6 +352,23 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         <ToggleSwitch
           checked={enableHook}
           onChange={setEnableHook}
+          disabled={isSubmitting}
+        />
+      </div>
+
+      {/* Gaming Video Toggle */}
+      <div className="pt-3 pb-1 flex items-center justify-between border-t border-border mt-3">
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold text-text-primary">
+            Gaming Video
+          </span>
+          <span className="text-xs text-text-secondary">
+            Gunakan mode Split-screen otomatis untuk mendeteksi facecam streamer
+          </span>
+        </div>
+        <ToggleSwitch
+          checked={isGamingVideo}
+          onChange={setIsGamingVideo}
           disabled={isSubmitting}
         />
       </div>
