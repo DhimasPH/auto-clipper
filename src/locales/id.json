@@ -387,7 +387,10 @@
     "preview_karaoke_text_before": "BUAT KONTEN JADI LEBIH",
     "preview_karaoke_highlight": "VIRAL",
     "preview_karaoke_text_after": "SEKARANG",
-    "preview_standard_text": "Buat konten video Anda menjadi lebih menarik dan viral!"
+    "preview_standard_text": "Buat konten video Anda menjadi lebih menarik dan viral!",
+    "position_title": "Posisi Subtitle",
+    "position_x": "Horizontal (Kiri/Kanan)",
+    "position_y": "Vertikal (Atas/Bawah)"
   },
   "subtitle_preset": {
     "classic": "Klasik (Standard)",

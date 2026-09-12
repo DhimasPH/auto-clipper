@@ -537,6 +537,8 @@ def normalize_subtitle_config(raw_config: dict = None, legacy_style: str = "stan
         "animation_pop": bool(raw_config.get("animation_pop", False)),
         "watermark_text": str(raw_config.get("watermark_text", "")),
         "watermark_opacity": float(raw_config.get("watermark_opacity", 0.5)),
+        "position_x": int(raw_config.get("position_x", 50)),
+        "position_y": int(raw_config.get("position_y", 85)),
     }
 
 
@@ -627,6 +629,14 @@ def srt_to_ass(srt_text: str, width: int, height: int, custom_margin_v: int = No
         if not raw_text:
             continue
         text = raw_text.upper() if is_uppercase else raw_text
+        
+        pos_x = cfg.get("position_x", 50)
+        pos_y = cfg.get("position_y", 85)
+        if pos_x != 50 or pos_y != 85:
+            x_px = int(width * pos_x / 100)
+            y_px = int(height * pos_y / 100)
+            text = f"{{\\pos({x_px},{y_px})}}{text}"
+            
         events.append(
             f"Dialogue: 0,{_fmt_ass_ts(st)},{_fmt_ass_ts(et)},Default,,0,0,0,,{text}"
         )
@@ -760,6 +770,13 @@ def words_to_single_word_ass(words: list, width: int, height: int, clip_start: f
         if use_pop:
             text = r"{\t(0,50,\fscx120\fscy120)\t(50,150,\fscx100\fscy100)}" + text
 
+        pos_x = cfg.get("position_x", 50)
+        pos_y = cfg.get("position_y", 85)
+        if pos_x != 50 or pos_y != 85:
+            x_px = int(width * pos_x / 100)
+            y_px = int(height * pos_y / 100)
+            text = f"{{\\pos({x_px},{y_px})}}{text}"
+
         events.append(
             f"Dialogue: 0,{_fmt_ass_ts(w_start)},{_fmt_ass_ts(w_end)},Default,,0,0,0,,{text}"
         )
@@ -873,6 +890,14 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
                     parts.append(word_text)
 
             full_text = " ".join(parts)
+            
+            pos_x = cfg.get("position_x", 50)
+            pos_y = cfg.get("position_y", 85)
+            if pos_x != 50 or pos_y != 85:
+                x_px = int(width * pos_x / 100)
+                y_px = int(height * pos_y / 100)
+                full_text = f"{{\\pos({x_px},{y_px})}}{full_text}"
+                
             events.append(
                 f"Dialogue: 0,{_fmt_ass_ts(w_start)},{_fmt_ass_ts(w_end)},Default,,0,0,0,,{full_text}"
             )
@@ -960,6 +985,14 @@ def words_to_standard_ass(words: list, width: int, height: int, clip_start: floa
             c_end = chunk[-1]["end"]
             sentence = " ".join(w["word"] for w in chunk)
             text = sentence.upper() if is_uppercase else sentence
+            
+            pos_x = cfg.get("position_x", 50)
+            pos_y = cfg.get("position_y", 85)
+            if pos_x != 50 or pos_y != 85:
+                x_px = int(width * pos_x / 100)
+                y_px = int(height * pos_y / 100)
+                text = f"{{\\pos({x_px},{y_px})}}{text}"
+                
             events.append(
                 f"Dialogue: 0,{_fmt_ass_ts(c_start)},{_fmt_ass_ts(c_end)},Default,,0,0,0,,{text}"
             )

@@ -328,7 +328,12 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                 </div>
 
                 {burnSubtitles && (
-                  <SubtitleConfigControls config={subtitleConfig} onChange={setSubtitleConfig} showModeSwitch={true} />
+                  <SubtitleConfigControls
+                    config={subtitleConfig}
+                    onChange={setSubtitleConfig}
+                    showModeSwitch={true}
+                    aspectRatio={outputStyle === "square" ? "1:1" : outputStyle === "landscape" || (!canvasConfig.enabled && outputStyle === "canvas_blur") ? "16:9" : "9:16"}
+                  />
                 )}
               </div>
             </>

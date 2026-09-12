@@ -389,7 +389,12 @@ export const ClipEditModal: React.FC<Props> = ({
             </div>
             {burnSubs && (
               <div className="mb-4">
-                <SubtitleConfigControls config={subtitleConfig} onChange={setSubtitleConfig} showModeSwitch={true} />
+                <SubtitleConfigControls
+                  config={subtitleConfig}
+                  onChange={setSubtitleConfig}
+                  showModeSwitch={true}
+                  aspectRatio={aspectRatio}
+                />
               </div>
             )}
             {aspectRatio === "16:9" && (

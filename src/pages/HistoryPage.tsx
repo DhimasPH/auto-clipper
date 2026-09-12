@@ -213,6 +213,7 @@ export const HistoryPage: React.FC = () => {
                         config={localSubtitleConfig}
                         onChange={setLocalSubtitleConfig}
                         showModeSwitch={true}
+                        aspectRatio={localAspectRatio}
                       />
                     </div>
                   )}

@@ -299,6 +299,7 @@ export default function GenerateForm({
                 config={ctx.subtitleConfig}
                 onChange={ctx.setSubtitleConfig}
                 showModeSwitch={true}
+                aspectRatio={aspectRatio}
               />
             </div>
           )}
