@@ -41,7 +41,7 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
   showModeSwitch = true,
   aspectRatio = "9:16",
 }) => {
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(true);
 
   const styleMode = config.style || "single_word";
   const highlightColor = config.highlight_color || "#FFE600";
@@ -253,6 +253,7 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
           <div className="lg:col-span-7 space-y-4">
             {/* Accordion Toggle */}
             <button
+              type="button"
               onClick={() => setShowAdvanced(!showAdvanced)}
               className="w-full py-2 px-3 flex items-center justify-between bg-bg-surface hover:bg-bg-surface-hover border border-border rounded-lg transition-colors text-sm font-medium"
             >
