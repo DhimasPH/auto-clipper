@@ -196,6 +196,7 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "output_dir": output_dir or hist_meta.get("output_dir", ""),
         "title": hist_meta.get("title", ""),
         "max_clips": max_clips,
+        "enable_hook": enable_hook,
         "is_gaming_video": hist_meta.get("is_gaming_video", False),
         "status": "PENDING",
         "progress": "",
@@ -843,7 +844,7 @@ def _run_rerender_job(job_id: str):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto"):
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", enable_hook: bool = False):
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -878,6 +879,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "quality": "best",
         "title": job_record.get("metadata", {}).get("title", ""),
         "max_clips": max_clips,
+        "enable_hook": enable_hook,
         "status": "QUEUED",
         "progress": "Menyiapkan AI Koreksi...",
         "clips": [],
@@ -1225,7 +1227,7 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     if metadata.get("highlights") and job.get("mode") == "ai":
         metadata["ai_job"] = True
         
-    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model", "canvas_config", "subtitle_config"]:
+    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "enable_hook", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model", "canvas_config", "subtitle_config"]:
         if key in job:
             metadata[key] = job[key]
 
@@ -1352,6 +1354,7 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "quality": hist_meta.get("quality", "best"),
         "title": hist_meta.get("title", ""),
         "enable_broll": hist_meta.get("enable_broll", False),
+        "enable_hook": hist_meta.get("enable_hook", False),
         "pexels_api_key": hist_meta.get("pexels_api_key", ""),
         "max_clips": hist_meta.get("max_clips", 0),
         "is_gaming_video": hist_meta.get("is_gaming_video", False),
