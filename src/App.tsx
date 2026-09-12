@@ -90,6 +90,7 @@ export default function App() {
   const [burnSubtitles, setBurnSubtitles] = useState(true);
   const [title, setTitle] = useState("");
   const [enableBroll, setEnableBroll] = useState(false);
+  const [enableHook, setEnableHook] = useState(false);
   const [maxClips, setMaxClips] = useState(0);
   const [isGamingVideo, setIsGamingVideo] = useState(false);
   const pexelsApiKey = apiKeys["pexels"] || "";
@@ -139,6 +140,7 @@ export default function App() {
     quality,
     title,
     enableBroll,
+    enableHook,
     pexelsApiKey,
     notify,
     closeHistory: () => {},
@@ -216,6 +218,8 @@ export default function App() {
     setTitle,
     enableBroll,
     setEnableBroll,
+    enableHook,
+    setEnableHook,
     maxClips,
     setMaxClips,
     isGamingVideo,

@@ -27,6 +27,7 @@ export interface ClipJobParams {
   quality: string;
   title: string;
   enableBroll: boolean;
+  enableHook: boolean;
   pexelsApiKey: string;
   notify: (text: string, kind?: ToastKind) => void;
   closeHistory: () => void;
@@ -34,6 +35,8 @@ export interface ClipJobParams {
   isGamingVideo: boolean;
   whisperModel: string;
 }
+
+export type CreateJobParams = ClipJobParams;
 
 /**
  * Owns the async job lifecycle: create/rerender/rerun-AI requests, status
@@ -200,6 +203,7 @@ export function useClipJobs(p: ClipJobParams) {
         quality: p.quality,
         title: p.title,
         enable_broll: p.enableBroll,
+        enable_hook: p.enableHook,
         pexels_api_key: p.pexelsApiKey,
         max_clips: p.maxClips,
         custom_base_url: p.customBaseUrl,

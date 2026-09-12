@@ -28,6 +28,8 @@ interface GenerateFormProps {
   setTitle: Dispatch<SetStateAction<string>>;
   enableBroll: boolean;
   setEnableBroll: Dispatch<SetStateAction<boolean>>;
+  enableHook?: boolean;
+  setEnableHook?: (v: boolean) => void;
   maxClips: number;
   setMaxClips: Dispatch<SetStateAction<number>>;
   isGamingVideo: boolean;
@@ -53,6 +55,8 @@ export default function GenerateForm({
   setTitle,
   enableBroll,
   setEnableBroll,
+  enableHook: propEnableHook,
+  setEnableHook: propSetEnableHook,
   maxClips,
   setMaxClips,
   isGamingVideo,
@@ -63,6 +67,8 @@ export default function GenerateForm({
 }: GenerateFormProps) {
   const { t } = useTranslation();
   const ctx = useContext(AppContext);
+  const enableHook = propEnableHook !== undefined ? propEnableHook : (ctx?.enableHook ?? false);
+  const setEnableHook = propSetEnableHook ?? ctx?.setEnableHook ?? (() => {});
   const [availHeights, setAvailHeights] = useState<number[]>([]);
   const [probing, setProbing] = useState(false);
 
@@ -323,6 +329,18 @@ export default function GenerateForm({
               </div>
             </div>
             <ToggleSwitch checked={enableBroll} onChange={setEnableBroll} />
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-gray-50/50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-700/50">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Tambahkan Hook Otomatis
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Menduplikasi 3-5 detik momen menarik di awal video sebagai Hook pemancing perhatian.
+              </span>
+            </div>
+            <ToggleSwitch checked={enableHook} onChange={setEnableHook} />
           </div>
           
           {/* Gaming Video Toggle */}
