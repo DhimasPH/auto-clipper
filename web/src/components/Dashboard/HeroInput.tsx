@@ -50,9 +50,10 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   const [whisperModel, setWhisperModel] = useState<string>("small");
   const [language, setLanguage] = useState<string>("auto");
   const [maxClips, setMaxClips] = useState<number>(0);
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(true);
   const [isBrowserOpen, setIsBrowserOpen] = useState<boolean>(false);
   const [burnSubtitles, setBurnSubtitles] = useState<boolean>(true);
+  const [enableHook, setEnableHook] = useState<boolean>(false);
 
   // New Structured Configs
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
@@ -78,6 +79,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         if (parsed.language) setLanguage(parsed.language);
         if (parsed.maxClips !== undefined) setMaxClips(parsed.maxClips);
         if (parsed.burnSubtitles !== undefined) setBurnSubtitles(parsed.burnSubtitles);
+        if (parsed.enableHook !== undefined) setEnableHook(parsed.enableHook);
         if (parsed.canvasConfig) setCanvasConfig(parsed.canvasConfig);
         if (parsed.subtitleConfig) setSubtitleConfig(parsed.subtitleConfig);
         if (parsed.trackingMode) setTrackingMode(parsed.trackingMode);
@@ -109,6 +111,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
           language,
           maxClips,
           burnSubtitles,
+          enableHook,
           canvasConfig,
           subtitleConfig,
           trackingMode,
@@ -117,7 +120,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
     } catch {
       // Ignore
     }
-  }, [url, title, outputStyle, whisperModel, language, maxClips, burnSubtitles, canvasConfig, subtitleConfig, trackingMode]);
+  }, [url, title, outputStyle, whisperModel, language, maxClips, burnSubtitles, enableHook, canvasConfig, subtitleConfig, trackingMode]);
 
   const validateUrl = (testUrl: string): boolean => {
     const clean = testUrl.trim();
@@ -168,6 +171,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
       aspect_ratio: aspectRatio,
       caption_style: subtitleConfig.style,
       burn_subs: burnSubtitles,
+      enable_hook: enableHook,
       quality: "best",
       whisper_model: whisperModel,
       language: language === "auto" ? "" : language,
@@ -326,6 +330,23 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         <ToggleSwitch
           checked={burnSubtitles}
           onChange={setBurnSubtitles}
+          disabled={isSubmitting}
+        />
+      </div>
+
+      {/* Auto Hook Toggle */}
+      <div className="pt-3 pb-1 flex items-center justify-between border-t border-border mt-3">
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold text-text-primary">
+            Tambahkan Hook Otomatis
+          </span>
+          <span className="text-xs text-text-secondary">
+            Duplikasi 3-5 detik momen menarik di awal video
+          </span>
+        </div>
+        <ToggleSwitch
+          checked={enableHook}
+          onChange={setEnableHook}
           disabled={isSubmitting}
         />
       </div>
