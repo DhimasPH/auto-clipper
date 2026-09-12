@@ -2,6 +2,13 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.15.0] - 2026-09-12
+
+### Added
+- **AI Video Hook**: Fitur baru untuk secara otomatis menduplikasi momen paling menarik (3-5 detik) ke bagian paling awal video sebagai "Hook", lengkap dengan efek transisi *glitch* secara otomatis.
+- **Hook Configuration**: Toggle untuk mengaktifkan AI Video Hook pada Desktop dan Cloud UI.
+
+
 ## [1.14.0] - 2026-08-13
 
 ### Added
