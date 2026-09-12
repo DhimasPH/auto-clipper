@@ -85,18 +85,16 @@ def probe_formats(url: str) -> list:
     base_ydl_opts = {
         'quiet': True, 'no_warnings': True, 'skip_download': True,
         'logger': _SilentLogger(),
-        'extractor_args': {'youtube': ['player_client=android', 'player_skip=web']},
     }
     
 
-    browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', None]
+    clients_to_try = ['ios', 'tv', 'web_creator', 'android']
     info = None
     last_error = None
     
-    for browser in browsers_to_try:
+    for client in clients_to_try:
         ydl_opts = dict(base_ydl_opts)
-        if browser:
-            ydl_opts['cookiesfrombrowser'] = (browser,)
+        ydl_opts['extractor_args'] = {'youtube': [f'player_client={client}', 'player_skip=web']}
             
         sink = io.StringIO()
         try:
