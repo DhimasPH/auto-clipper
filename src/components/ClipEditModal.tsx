@@ -16,6 +16,7 @@ interface Props {
   initialAspectRatio?: string;
   initialCanvasConfig?: CanvasConfig;
   initialSubtitleConfig?: SubtitleConfig;
+  initialTrackingMode?: string;
   initialBurnSubs?: boolean;
   onClose: () => void;
   onRerenderStart: (newJobId: string) => void;
@@ -23,7 +24,7 @@ interface Props {
 
 export const ClipEditModal: React.FC<Props> = ({
   jobId, clipIndex, clipTitle, initialAspectRatio = "9:16", initialCanvasConfig,
-  initialSubtitleConfig, initialBurnSubs = true, onClose, onRerenderStart
+  initialSubtitleConfig, initialTrackingMode = "auto", initialBurnSubs = true, onClose, onRerenderStart
 }) => {
   const { t } = useTranslation();
   const [words, setWords] = useState<any[]>([]);
@@ -34,6 +35,7 @@ export const ClipEditModal: React.FC<Props> = ({
   const [emptyReason, setEmptyReason] = useState<string | null>(null);
 
   const [aspectRatio, setAspectRatio] = useState(initialAspectRatio);
+  const [trackingMode, setTrackingMode] = useState(initialTrackingMode);
   const [burnSubs, setBurnSubs] = useState(initialBurnSubs);
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(initialCanvasConfig || DEFAULT_CANVAS_CONFIG);
   const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(initialSubtitleConfig || DEFAULT_SUBTITLE_CONFIG);
@@ -145,6 +147,7 @@ export const ClipEditModal: React.FC<Props> = ({
       const payload = {
         words,
         aspect_ratio: aspectRatio,
+        tracking_mode: trackingMode,
         caption_style: subtitleConfig.style,
         burn_subs: burnSubs,
         canvas_config: canvasConfig,
@@ -372,10 +375,26 @@ export const ClipEditModal: React.FC<Props> = ({
                   { label: t("history.sub_no"), value: "no" },
                 ]}
               />
+              {['9:16', '4:5', '1:1'].includes(aspectRatio) && (
+                <Select
+                  label="Tracking Mode"
+                  value={trackingMode}
+                  onChange={(e) => setTrackingMode(e.target.value)}
+                  options={[
+                    { label: 'Auto Face Tracking', value: 'auto' },
+                    { label: 'Center Crop (Static)', value: 'center' },
+                  ]}
+                />
+              )}
             </div>
             {burnSubs && (
               <div className="mb-4">
-                <SubtitleConfigControls config={subtitleConfig} onChange={setSubtitleConfig} showModeSwitch={true} />
+                <SubtitleConfigControls
+                  config={subtitleConfig}
+                  onChange={setSubtitleConfig}
+                  showModeSwitch={true}
+                  aspectRatio={aspectRatio}
+                />
               </div>
             )}
             {aspectRatio === "16:9" && (

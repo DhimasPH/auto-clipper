@@ -406,6 +406,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
           }
           initialCanvasConfig={activeEditClip.job.metadata?.canvas_config || DEFAULT_CANVAS_CONFIG}
           initialSubtitleConfig={activeEditClip.job.metadata?.subtitle_config || DEFAULT_SUBTITLE_CONFIG}
+          initialTrackingMode={activeEditClip.job.metadata?.tracking_mode || "auto"}
           onClose={() => setActiveEditClip(null)}
           onRerenderStart={(newJobId) => {
             setActiveEditClip(null);

@@ -15,6 +15,7 @@ interface ClipEditModalProps {
   initialOutputStyle?: OutputStyle;
   initialSubtitleConfig?: SubtitleConfig;
   initialCanvasConfig?: CanvasConfig;
+  initialTrackingMode?: string;
   onClose: () => void;
   onRerenderStart: (newJobId: string) => void;
 }
@@ -26,6 +27,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   initialOutputStyle = "face_crop",
   initialSubtitleConfig = DEFAULT_SUBTITLE_CONFIG,
   initialCanvasConfig = DEFAULT_CANVAS_CONFIG,
+  initialTrackingMode = "auto",
   onClose,
   onRerenderStart,
 }) => {
@@ -36,6 +38,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   const [outputStyle, setOutputStyle] = useState<OutputStyle>(initialOutputStyle);
   const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(initialSubtitleConfig);
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(initialCanvasConfig);
+  const [trackingMode, setTrackingMode] = useState<string>(initialTrackingMode);
   const [burnSubtitles, setBurnSubtitles] = useState<boolean>(true);
   
   const [originalWords, setOriginalWords] = useState<any[]>([]);
@@ -119,6 +122,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
         caption_style: subtitleConfig.style,
         canvas_config: canvasConfig,
         subtitle_config: subtitleConfig,
+        tracking_mode: trackingMode,
         burn_subs: burnSubtitles,
       };
 
@@ -274,6 +278,41 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                   setCanvasConfig(prev => ({ ...prev, enabled: val === "canvas_blur" }));
                 }} disabled={saving} />
                 
+                {/* Tracking Mode Options for Portrait */}
+                {["face_crop", "canvas_blur", "square"].includes(outputStyle) && (
+                  <div className="pt-2 space-y-2">
+                    <label className="text-sm font-semibold text-text-primary">
+                      Face Tracking Mode
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setTrackingMode("auto")}
+                        disabled={saving}
+                        className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                          trackingMode === "auto"
+                            ? "border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500/30"
+                            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        } disabled:opacity-50`}
+                      >
+                        <span className="text-sm">Auto Face Tracking</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTrackingMode("center")}
+                        disabled={saving}
+                        className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                          trackingMode === "center"
+                            ? "border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500/30"
+                            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        } disabled:opacity-50`}
+                      >
+                        <span className="text-sm">Center Crop</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
                 {outputStyle === "canvas_blur" && (
                   <CanvasConfigControls config={canvasConfig} onChange={setCanvasConfig} showModeSwitch={false} />
                 )}
@@ -289,7 +328,12 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                 </div>
 
                 {burnSubtitles && (
-                  <SubtitleConfigControls config={subtitleConfig} onChange={setSubtitleConfig} showModeSwitch={true} />
+                  <SubtitleConfigControls
+                    config={subtitleConfig}
+                    onChange={setSubtitleConfig}
+                    showModeSwitch={true}
+                    aspectRatio={outputStyle === "square" ? "1:1" : outputStyle === "landscape" || (!canvasConfig.enabled && outputStyle === "canvas_blur") ? "16:9" : "9:16"}
+                  />
                 )}
               </div>
             </>

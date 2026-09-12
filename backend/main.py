@@ -330,6 +330,7 @@ class CreateJobRequest(BaseModel):
     extra_prompt: str = ""
     title: str = ""
     enable_broll: bool = False
+    enable_hook: bool = False
     pexels_api_key: str = ""
     max_clips: int = 0
     custom_base_url: str = ""
@@ -339,6 +340,7 @@ class CreateJobRequest(BaseModel):
     model: str = ""
     canvas_config: Optional[CanvasConfig] = None
     subtitle_config: Optional[dict] = None
+    tracking_mode: str = "auto"
 
 class SaveFileRequest(BaseModel):
     src: str
@@ -390,7 +392,7 @@ def api_rerender_job(job_id: str, req: CreateJobRequest):
     try:
         from backend.jobs import create_rerender_job
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
-        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config)
+        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, tracking_mode=req.tracking_mode)
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -406,7 +408,8 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
             job_id, req.provider, req.api_key.strip(),
             req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
             req.custom_base_url.strip(), req.custom_model_name.strip(), req.whisper_model,
-            req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config
+            req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, enable_hook=req.enable_hook,
+            tracking_mode=req.tracking_mode
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
@@ -493,6 +496,7 @@ class RerenderClipRequest(BaseModel):
     burn_subs: bool
     canvas_config: dict = None
     subtitle_config: dict = None
+    tracking_mode: str = "auto"
 
 @app.post("/jobs/{job_id}/clips/{clip_index}/rerender")
 async def api_rerender_clip(job_id: str, clip_index: int, req: RerenderClipRequest):
@@ -505,7 +509,8 @@ async def api_rerender_clip(job_id: str, clip_index: int, req: RerenderClipReque
         caption_style=req.caption_style,
         burn_subs=req.burn_subs,
         canvas_config=req.canvas_config,
-        subtitle_config=req.subtitle_config
+        subtitle_config=req.subtitle_config,
+        tracking_mode=req.tracking_mode
     )
     return {"status": "success", "job_id": new_job_id}
 
@@ -672,7 +677,8 @@ def api_create_job(req: CreateJobRequest):
         req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
         req.title.strip(), req.enable_broll, req.pexels_api_key.strip(), req.max_clips,
         req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video,
-        req.whisper_model, req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config
+        req.whisper_model, req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config,
+        tracking_mode=req.tracking_mode
     )
     return {"status": "success", "job_id": job_id}
 
@@ -821,6 +827,7 @@ class ManualJobRequest(BaseModel):
     whisper_model: str = "small"
     canvas_config: Optional[CanvasConfig] = None
     subtitle_config: Optional[dict] = None
+    tracking_mode: str = "auto"
 
 
 @app.post("/jobs/manual")
@@ -838,7 +845,8 @@ def api_create_manual_job(req: ManualJobRequest):
         job_id = create_manual_job(
             req.url.strip(), req.clips, req.aspect_ratio, req.caption_style,
             req.burn_subs, req.output_dir, req.quality, req.title.strip(), req.is_gaming_video,
-            req.whisper_model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config
+            req.whisper_model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config,
+            tracking_mode=req.tracking_mode
         )
         return {"status": "success", "job_id": job_id}
     except Exception as e:

@@ -22,6 +22,10 @@ export interface SubtitleConfig {
   // Watermark
   watermark_text?: string;
   watermark_opacity?: number;
+
+  // Posisi (Persentase)
+  position_x?: number;
+  position_y?: number;
 }
 
 export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfig = {
@@ -40,6 +44,8 @@ export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfig = {
   animation_pop: false,
   watermark_text: "",
   watermark_opacity: 0.5,
+  position_x: 50,
+  position_y: 85,
 };
 
 export const SUBTITLE_PRESETS: Record<string, { label_key: string; config: Partial<SubtitleConfig> }> = {

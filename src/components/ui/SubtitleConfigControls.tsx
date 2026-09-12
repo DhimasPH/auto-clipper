@@ -7,6 +7,7 @@ interface SubtitleConfigControlsProps {
   config: SubtitleConfig;
   onChange: (config: SubtitleConfig) => void;
   showModeSwitch?: boolean;
+  aspectRatio?: string;
 }
 
 const COLOR_PRESETS = [
@@ -32,6 +33,7 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
   config = DEFAULT_SUBTITLE_CONFIG,
   onChange,
   showModeSwitch = true,
+  aspectRatio = "9:16",
 }) => {
   const { t } = useTranslation();
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -54,6 +56,9 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
 
   const watermarkText = config.watermark_text || "";
   const watermarkOpacity = config.watermark_opacity !== undefined ? config.watermark_opacity : 0.5;
+
+  const positionX = config.position_x !== undefined ? config.position_x : 50;
+  const positionY = config.position_y !== undefined ? config.position_y : 85;
 
   const applyPreset = (presetConfig: Partial<SubtitleConfig>) => {
     onChange({ ...config, ...presetConfig });
@@ -185,12 +190,17 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
             <span>{t("subtitle_custom.preview_title", "Pratinjau Langsung Subtitle (Live Preview)")}</span>
           </div>
 
-          <div className="relative w-full min-h-[120px] py-8 rounded-xl bg-gradient-to-br from-slate-900 via-neutral-950 to-zinc-900 border border-border flex items-center justify-center px-4 overflow-hidden shadow-inner">
+          <div 
+            className="relative w-full rounded-xl bg-gradient-to-br from-slate-900 via-neutral-950 to-zinc-900 border border-border overflow-hidden shadow-inner mx-auto max-w-[280px]"
+            style={{ aspectRatio: aspectRatio.replace(':', '/') }}
+          >
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:12px_12px]" />
 
             <div
-              className="relative text-center px-4 py-2 transition-all duration-200"
+              className="absolute text-center px-4 transition-all duration-200 w-full"
               style={{
+                top: `${positionY}%`,
+                left: `${positionX}%`,
                 fontFamily: fontFamily,
                 fontWeight: fontWeight === "bold" ? 700 : 400,
                 fontStyle: isItalic ? "italic" : "normal",
@@ -199,7 +209,7 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
                 color: textColor,
                 WebkitTextStroke: `${outlineWidth}px ${outlineColor}`,
                 textShadow: shadowDepth > 0 ? `0px ${shadowDepth}px ${shadowDepth*2}px ${shadowColor}` : "none",
-                transform: styleMode === "single_word" && animationPop ? "scale(1.1)" : "scale(1)",
+                transform: `translate(-50%, -100%) ${styleMode === "single_word" && animationPop ? "scale(1.1)" : "scale(1)"}`,
               }}
             >
               {styleMode === "single_word" ? (
@@ -333,6 +343,45 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
                   >
                     {t("subtitle_custom.weight_bold", "Tebal (Bold)")}
                   </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Position Controls */}
+            <div className="space-y-2 pt-2 border-t border-border/50">
+              <label className="text-label text-text-secondary font-medium">
+                {t("subtitle_custom.position_title", "Posisi Subtitle")}
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-xs text-text-secondary mb-1">
+                    <span>{t("subtitle_custom.position_y", "Vertikal (Atas/Bawah)")}</span>
+                    <span>{positionY}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="95"
+                    step="1"
+                    value={positionY}
+                    onChange={(e) => onChange({ ...config, position_y: parseInt(e.target.value) })}
+                    className="w-full accent-accent cursor-pointer"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-xs text-text-secondary mb-1">
+                    <span>{t("subtitle_custom.position_x", "Horizontal (Kiri/Kanan)")}</span>
+                    <span>{positionX}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="90"
+                    step="1"
+                    value={positionX}
+                    onChange={(e) => onChange({ ...config, position_x: parseInt(e.target.value) })}
+                    className="w-full accent-accent cursor-pointer"
+                  />
                 </div>
               </div>
             </div>

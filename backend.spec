@@ -3,7 +3,9 @@ import os
 import sys
 from PyInstaller.utils.hooks import collect_all
 
-datas = []
+datas = [
+    ('backend/assets', 'backend/assets'),
+]
 binaries = []
 hiddenimports = [
     'google',
@@ -64,6 +66,7 @@ for pkg in [
     'yt_dlp',
     'requests',
     'certifi',
+    'mediapipe',
 ]:
     try:
         d, b, h = collect_all(pkg)

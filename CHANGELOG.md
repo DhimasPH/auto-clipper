@@ -2,6 +2,24 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.15.0] - 2026-09-12
+
+### Added
+- **Clipper Cloud Web Architecture**: Merilis antarmuka Web UI murni (`web/`) untuk akses browser yang terintegrasi dengan Google Colab backend dan dukungan GPU Cloudflare tunnel.
+- **Unified Dashboard & Job History**: Implementasi UI dashboard utama, sistem manajemen riwayat job via SQLite, serta History List interaktif untuk memonitor dan memutar ulang hasil klip.
+- **Advanced Subtitle Editor (ClipEditModal)**: Fitur koreksi subtitle per-kata (word-level adjustments) langsung di dalam browser yang didukung dengan fitur koreksi tata bahasa berbasis AI.
+- **Google Drive Integration**: Menambahkan antarmuka *GDrive Browser* untuk mengelola, memilih, dan mengunduh video sumber langsung dari Google Drive.
+- **Custom Font Bundling**: Mem-bundle font kustom (seperti Roboto dan Bebas) ke dalam aset proyek dan integrasi FFmpeg secara otomatis yang dapat dipilih melalui komponen FontSelector baru.
+- **AI Video Hook**: Fitur baru untuk secara otomatis menduplikasi momen paling menarik (3-5 detik) ke bagian paling awal video sebagai "Hook", lengkap dengan efek transisi *glitch* secara otomatis.
+- **Hook Configuration**: Toggle untuk mengaktifkan AI Video Hook pada pengaturan Desktop dan Cloud UI.
+
+### Changed
+- **Backend Job Management**: Refaktor infrastruktur job backend untuk mengakomodasi mode Web/Cloud, pemrosesan unduhan asinkron `yt-dlp`, fitur *rerender* per-klip, dan API helper terpadu.
+
+### Fixed
+- **UI & Accessibility**: Perbaikan berbagai *bug* layout, *edge-case* parsing JSON/URL, pencegahan kebocoran *event listener* (Escape key), serta peningkatan aksesibilitas (a11y) di seluruh Modal antarmuka Web.
+
+
 ## [1.14.0] - 2026-08-13
 
 ### Added

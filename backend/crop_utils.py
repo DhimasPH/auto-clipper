@@ -126,29 +126,11 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
     """Sample face positions at periodic intervals across a clip window.
 
     Returns a list of (relative_time_s, x_center_ratio) tuples.
-
-    Robustness measures against shaky / imperfect detection:
-      * Multi-cascade fallback — when the frontal detector misses a frame we
-        retry with the alt2 and profile cascades before giving up, so a head
-        turn or slight angle doesn't drop the face entirely.
-      * Outlier rejection — a single-frame detection that jumps far from the
-        median position (a false positive) is discarded and forward-filled, so
-        one bad frame can't yank the crop across the screen.
-    Missing detections are forward-filled or default to 0.5.
+    Now uses MediaPipe Face Mesh to track the active speaker via Mouth Aspect Ratio (MAR).
     """
-    cascade_files = [
-        'haarcascade_frontalface_default.xml',
-        'haarcascade_frontalface_alt2.xml',
-        'haarcascade_profileface.xml',
-    ]
-    cascades = []
-    for name in cascade_files:
-        c = cv2.CascadeClassifier(cv2.data.haarcascades + name)
-        if not c.empty():
-            cascades.append(c)
-    if not cascades:
-        return [(0.0, 0.5)]
-
+    import mediapipe as mp
+    import numpy as np
+    
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         cap.release()
@@ -163,8 +145,17 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
     half_window = (frame_h * 9 / 16) / frame_w / 2 if (frame_w and frame_h) else 0.28
     lo, hi = half_window, 1.0 - half_window
 
-    # Pass 1: collect raw detections (x_center or None when nothing was found).
-    raw: list[tuple[float, float | None]] = []
+    mp_face_mesh = mp.solutions.face_mesh
+    face_mesh = mp_face_mesh.FaceMesh(
+        static_image_mode=False,
+        max_num_faces=5,
+        refine_landmarks=True,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5
+    )
+
+    raw_frames = []
+    
     for i in range(num_samples):
         if should_cancel and should_cancel():
             break
@@ -173,36 +164,86 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
         cap.set(cv2.CAP_PROP_POS_MSEC, abs_t * 1000.0)
         ret, frame = cap.read()
         if not ret:
-            raw.append((rel_t, None))
+            raw_frames.append((rel_t, []))
             continue
-
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        detected_x = None
-        for cascade in cascades:
-            faces = cascade.detectMultiScale(gray, 1.1, 4)
-            if len(faces) > 0:
-                x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
-                detected_x = (x + w / 2) / frame.shape[1]
-                break
-        raw.append((rel_t, detected_x))
+            
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = face_mesh.process(rgb_frame)
+        
+        frame_faces = []
+        if results.multi_face_landmarks:
+            for face_landmarks in results.multi_face_landmarks:
+                xs = [lm.x for lm in face_landmarks.landmark]
+                cx = sum(xs) / len(xs)
+                
+                # Inner lip landmarks: 13 (upper), 14 (lower), 78 (left), 308 (right)
+                p13 = np.array([face_landmarks.landmark[13].x, face_landmarks.landmark[13].y])
+                p14 = np.array([face_landmarks.landmark[14].x, face_landmarks.landmark[14].y])
+                p78 = np.array([face_landmarks.landmark[78].x, face_landmarks.landmark[78].y])
+                p308 = np.array([face_landmarks.landmark[308].x, face_landmarks.landmark[308].y])
+                
+                mar = np.linalg.norm(p13 - p14) / (np.linalg.norm(p78 - p308) + 1e-6)
+                frame_faces.append({'cx': cx, 'mar': mar})
+                
+        raw_frames.append((rel_t, frame_faces))
 
     cap.release()
+    face_mesh.close()
 
-    # Pass 2: reject outliers that sit far from the median of valid detections.
-    OUTLIER_THRESHOLD = 0.30
-    valid_xs = sorted(x for _, x in raw if x is not None)
-    if valid_xs:
-        median_x = valid_xs[len(valid_xs) // 2]
-        raw = [
-            (t, x if (x is not None and abs(x - median_x) <= OUTLIER_THRESHOLD) else None)
-            for t, x in raw
-        ]
+    if not raw_frames:
+        return [(0.0, 0.5)]
 
-    # Pass 3: clamp in-frame and forward-fill any gaps.
+    # Group faces into "tracks" by proximity to find the active speaker
+    tracks = []
+    for rel_t, faces in raw_frames:
+        for face in faces:
+            matched = False
+            for track in tracks:
+                # If X center is within 10% screen width, assume it's the same person
+                if abs(track['last_cx'] - face['cx']) < 0.1:
+                    track['mars'].append(face['mar'])
+                    track['cxs'].append(face['cx'])
+                    track['last_cx'] = face['cx']
+                    matched = True
+                    break
+            if not matched:
+                tracks.append({
+                    'mars': [face['mar']],
+                    'cxs': [face['cx']],
+                    'last_cx': face['cx']
+                })
+
+    # Find the track with the highest total MAR variance
+    best_track_cx = 0.5
+    if tracks:
+        valid_tracks = [t for t in tracks if len(t['mars']) > 1]
+        if valid_tracks:
+            best_track = max(valid_tracks, key=lambda t: np.var(t['mars']))
+            best_track_cx = np.median(best_track['cxs'])
+        else:
+            best_track = max(tracks, key=lambda t: len(t['cxs']))
+            best_track_cx = np.median(best_track['cxs'])
+
+    # Pass 3: Clamp in-frame and output trajectory
+    # For a stable track, we can just use the active speaker's median X, OR
+    # build a dynamic trajectory if they move around.
+    # Since we want to follow them but not jump to other people, we filter raw_frames to only
+    # include detections close to the best_track_cx.
+    
     trajectory = []
-    last_valid_x = 0.5
-    for rel_t, x in raw:
-        if x is not None:
+    last_valid_x = best_track_cx
+    for rel_t, faces in raw_frames:
+        # Find face closest to our active speaker
+        speaker_face = None
+        min_dist = 0.15
+        for face in faces:
+            dist = abs(face['cx'] - last_valid_x)
+            if dist < min_dist:
+                speaker_face = face
+                min_dist = dist
+                
+        if speaker_face:
+            x = speaker_face['cx']
             clamped_center = max(lo, min(hi, x)) if lo <= hi else x
             last_valid_x = clamped_center
             trajectory.append((rel_t, clamped_center))
@@ -496,6 +537,8 @@ def normalize_subtitle_config(raw_config: dict = None, legacy_style: str = "stan
         "animation_pop": bool(raw_config.get("animation_pop", False)),
         "watermark_text": str(raw_config.get("watermark_text", "")),
         "watermark_opacity": float(raw_config.get("watermark_opacity", 0.5)),
+        "position_x": int(raw_config.get("position_x", 50)),
+        "position_y": int(raw_config.get("position_y", 85)),
     }
 
 
@@ -586,6 +629,14 @@ def srt_to_ass(srt_text: str, width: int, height: int, custom_margin_v: int = No
         if not raw_text:
             continue
         text = raw_text.upper() if is_uppercase else raw_text
+        
+        pos_x = cfg.get("position_x", 50)
+        pos_y = cfg.get("position_y", 85)
+        if pos_x != 50 or pos_y != 85:
+            x_px = int(width * pos_x / 100)
+            y_px = int(height * pos_y / 100)
+            text = f"{{\\pos({x_px},{y_px})}}{text}"
+            
         events.append(
             f"Dialogue: 0,{_fmt_ass_ts(st)},{_fmt_ass_ts(et)},Default,,0,0,0,,{text}"
         )
@@ -719,6 +770,13 @@ def words_to_single_word_ass(words: list, width: int, height: int, clip_start: f
         if use_pop:
             text = r"{\t(0,50,\fscx120\fscy120)\t(50,150,\fscx100\fscy100)}" + text
 
+        pos_x = cfg.get("position_x", 50)
+        pos_y = cfg.get("position_y", 85)
+        if pos_x != 50 or pos_y != 85:
+            x_px = int(width * pos_x / 100)
+            y_px = int(height * pos_y / 100)
+            text = f"{{\\pos({x_px},{y_px})}}{text}"
+
         events.append(
             f"Dialogue: 0,{_fmt_ass_ts(w_start)},{_fmt_ass_ts(w_end)},Default,,0,0,0,,{text}"
         )
@@ -832,6 +890,14 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
                     parts.append(word_text)
 
             full_text = " ".join(parts)
+            
+            pos_x = cfg.get("position_x", 50)
+            pos_y = cfg.get("position_y", 85)
+            if pos_x != 50 or pos_y != 85:
+                x_px = int(width * pos_x / 100)
+                y_px = int(height * pos_y / 100)
+                full_text = f"{{\\pos({x_px},{y_px})}}{full_text}"
+                
             events.append(
                 f"Dialogue: 0,{_fmt_ass_ts(w_start)},{_fmt_ass_ts(w_end)},Default,,0,0,0,,{full_text}"
             )
@@ -919,6 +985,14 @@ def words_to_standard_ass(words: list, width: int, height: int, clip_start: floa
             c_end = chunk[-1]["end"]
             sentence = " ".join(w["word"] for w in chunk)
             text = sentence.upper() if is_uppercase else sentence
+            
+            pos_x = cfg.get("position_x", 50)
+            pos_y = cfg.get("position_y", 85)
+            if pos_x != 50 or pos_y != 85:
+                x_px = int(width * pos_x / 100)
+                y_px = int(height * pos_y / 100)
+                text = f"{{\\pos({x_px},{y_px})}}{text}"
+                
             events.append(
                 f"Dialogue: 0,{_fmt_ass_ts(c_start)},{_fmt_ass_ts(c_end)},Default,,0,0,0,,{text}"
             )
@@ -1190,7 +1264,7 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                      end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16",
                      register_proc=None, should_cancel=None, broll_path: str = None,
                      layout: dict = None, canvas_config: dict = None,
-                     subtitle_config: dict = None) -> str:
+                     subtitle_config: dict = None, tracking_mode: str = "auto") -> str:
     """Crop to 9:16 (or chosen ratio), trim to [start, end], scale to standard dimensions,
     and optionally burn subtitles with custom typography and zero-overlap single-word pop.
     Supports canvas conversion (blur, color, image backgrounds with scaling) for 16:9 sources.
@@ -1256,13 +1330,18 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
         if layout is None:
             if should_cancel and should_cancel():
                 raise RuntimeError("Dibatalkan oleh pengguna.")
-            raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel)
-            if should_cancel and should_cancel():
-                raise RuntimeError("Dibatalkan oleh pengguna.")
-            # Deadband first (lock out micro-jitter), then EMA smoothing turns any
-            # larger repositioning into a gentle pan.
-            stabilized = apply_deadband_filter(raw_traj, deadband=0.08)
-            trajectory = smooth_trajectory(stabilized, alpha=0.25)
+            
+            if tracking_mode == "center":
+                trajectory = [(0.0, 0.5)]
+            else:
+                raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel)
+                if should_cancel and should_cancel():
+                    raise RuntimeError("Dibatalkan oleh pengguna.")
+                # Deadband first (lock out micro-jitter), then EMA smoothing turns any
+                # larger repositioning into a gentle pan.
+                stabilized = apply_deadband_filter(raw_traj, deadband=0.08)
+                trajectory = smooth_trajectory(stabilized, alpha=0.25)
+                
             crop_filter = build_dynamic_crop_filter(aspect_ratio, trajectory, clip_duration=duration)
         else:
             cx = (layout.get("face_center") or (0.5, 0.5))[0]

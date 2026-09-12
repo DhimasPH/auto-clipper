@@ -61,6 +61,8 @@ export const HeroInput: React.FC<HeroInputProps> = ({
     style: "viral_pop" as any, // Set default
   });
 
+  const [trackingMode, setTrackingMode] = useState<"auto" | "center">("auto");
+
   const [urlError, setUrlError] = useState<string | null>(null);
 
   // Load drafts from localStorage
@@ -78,6 +80,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         if (parsed.burnSubtitles !== undefined) setBurnSubtitles(parsed.burnSubtitles);
         if (parsed.canvasConfig) setCanvasConfig(parsed.canvasConfig);
         if (parsed.subtitleConfig) setSubtitleConfig(parsed.subtitleConfig);
+        if (parsed.trackingMode) setTrackingMode(parsed.trackingMode);
       }
     } catch {
       // Ignore
@@ -108,12 +111,13 @@ export const HeroInput: React.FC<HeroInputProps> = ({
           burnSubtitles,
           canvasConfig,
           subtitleConfig,
+          trackingMode,
         })
       );
     } catch {
       // Ignore
     }
-  }, [url, title, outputStyle, whisperModel, language, maxClips, burnSubtitles, canvasConfig, subtitleConfig]);
+  }, [url, title, outputStyle, whisperModel, language, maxClips, burnSubtitles, canvasConfig, subtitleConfig, trackingMode]);
 
   const validateUrl = (testUrl: string): boolean => {
     const clean = testUrl.trim();
@@ -170,6 +174,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
       max_clips: maxClips,
       canvas_config: canvasConfig,
       subtitle_config: subtitleConfig,
+      tracking_mode: trackingMode,
     };
 
     onSubmit(payload);
@@ -268,6 +273,41 @@ export const HeroInput: React.FC<HeroInputProps> = ({
           disabled={isSubmitting}
         />
       </div>
+
+      {/* Tracking Mode Options for Portrait */}
+      {["face_crop", "canvas_blur", "square"].includes(outputStyle) && (
+        <div className="pt-4 border-t border-border space-y-2">
+          <label className="text-sm font-semibold text-text-primary">
+            Face Tracking Mode
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setTrackingMode("auto")}
+              className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                trackingMode === "auto"
+                  ? "border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500/30"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+            >
+              <span className="text-sm">Auto Face Tracking</span>
+              <span className="text-xs text-slate-500 font-normal text-center">AI mengikuti wajah pembicara utama</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTrackingMode("center")}
+              className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                trackingMode === "center"
+                  ? "border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500/30"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+            >
+              <span className="text-sm">Center Crop</span>
+              <span className="text-xs text-slate-500 font-normal text-center">Statis di tengah video (tanpa pergerakan AI)</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Canvas Config Controls */}
       {outputStyle === "canvas_blur" && (

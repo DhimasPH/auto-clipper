@@ -72,6 +72,7 @@ export default function App() {
   const [aspectRatio, setAspectRatio] = useState<
     "1:1" | "4:5" | "9:16" | "16:9"
   >("9:16");
+  const [trackingMode, setTrackingMode] = useState<"auto" | "center">("auto");
   const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke" | "single_word">(
     "single_word",
   );
@@ -89,6 +90,7 @@ export default function App() {
   const [burnSubtitles, setBurnSubtitles] = useState(true);
   const [title, setTitle] = useState("");
   const [enableBroll, setEnableBroll] = useState(false);
+  const [enableHook, setEnableHook] = useState(false);
   const [maxClips, setMaxClips] = useState(0);
   const [isGamingVideo, setIsGamingVideo] = useState(false);
   const pexelsApiKey = apiKeys["pexels"] || "";
@@ -129,6 +131,7 @@ export default function App() {
     customModelName,
     model: selectedModel,
     aspectRatio,
+    trackingMode,
     captionStyle: subtitleConfig.style,
     burnSubtitles,
     canvasConfig,
@@ -137,6 +140,7 @@ export default function App() {
     quality,
     title,
     enableBroll,
+    enableHook,
     pexelsApiKey,
     notify,
     closeHistory: () => {},
@@ -189,6 +193,8 @@ export default function App() {
     setLocalFile,
     aspectRatio,
     setAspectRatio,
+    trackingMode,
+    setTrackingMode,
     captionStyle: subtitleConfig.style,
     setCaptionStyle: (style: "standard" | "karaoke") => {
       setCaptionStyle(style);
@@ -212,6 +218,8 @@ export default function App() {
     setTitle,
     enableBroll,
     setEnableBroll,
+    enableHook,
+    setEnableHook,
     maxClips,
     setMaxClips,
     isGamingVideo,

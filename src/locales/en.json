@@ -387,7 +387,10 @@
     "preview_karaoke_text_before": "MAKE YOUR CONTENT GO",
     "preview_karaoke_highlight": "VIRAL",
     "preview_karaoke_text_after": "TODAY",
-    "preview_standard_text": "Make your videos more engaging and accessible for everyone!"
+    "preview_standard_text": "Make your videos more engaging and accessible for everyone!",
+    "position_title": "Subtitle Position",
+    "position_x": "Horizontal (Left/Right)",
+    "position_y": "Vertical (Top/Bottom)"
   },
   "subtitle_preset": {
     "classic": "Classic (Standard)",
