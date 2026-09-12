@@ -1273,7 +1273,7 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
         "status": "PENDING",
         "progress": "Melanjutkan perenderan...",
         "cancelled": False,
-        "clips": [],
+        "clips": hist.get("result_clips", []),
         "failed": 0,
         "error": None,
         "source_path": hist_meta["source_video"]
@@ -1358,7 +1358,7 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "status": "QUEUED",
         "progress": "Melanjutkan pemrosesan...",
         "cancelled": False,
-        "clips": [],
+        "clips": hist.get("result_clips", []),
         "failed": 0,
         "error": None,
         "metadata": hist_meta

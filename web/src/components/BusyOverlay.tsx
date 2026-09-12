@@ -42,27 +42,6 @@ export const BusyOverlay: React.FC = () => {
 
   if (!isRunning) return null;
 
-  // Calculate percentage
-  let displayPct = 0;
-  const match = ctx?.progress?.match(/(\d+)%/);
-  if (match) {
-    displayPct = Math.min(99, parseInt(match[1], 10));
-  } else if (ctx?.status === "DOWNLOADING") {
-    displayPct = Math.min(30, 10 + Math.floor(elapsedSeconds / 5));
-  } else if (ctx?.status === "TRANSCRIBING") {
-    // start at 40, max at 65, 1% every 12 seconds
-    displayPct = Math.min(65, 40 + Math.floor(elapsedSeconds / 12));
-  } else if (ctx?.status === "CROPPING" || ctx?.status === "PROCESSING") {
-    displayPct = Math.min(95, 65 + Math.floor(elapsedSeconds / 8));
-  } else if (ctx?.status === "PENDING" || ctx?.status === "QUEUED") {
-    displayPct = 5;
-  } else {
-    displayPct = Math.min(90, 10 + Math.floor(elapsedSeconds / 10));
-  }
-
-  const estimatedTotal = displayPct > 0 ? (elapsedSeconds * 100) / displayPct : 0;
-  const estimatedRemaining = Math.max(0, Math.floor(estimatedTotal - elapsedSeconds));
-
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     const secs = s % 60;
@@ -124,26 +103,9 @@ export const BusyOverlay: React.FC = () => {
           </div>
         </div>
 
-        {/* Progress Bar & Percentage */}
-        <div className="space-y-2 bg-bg-surface/50 p-4 rounded-2xl border border-border/70">
-          <div className="flex justify-between text-xs font-semibold">
-            <span className="text-text-secondary">Progress</span>
-            <span className="text-purple-600 font-bold">{displayPct}%</span>
-          </div>
-
-          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-border/50">
-            <div
-              className="h-full bg-gradient-to-r from-purple-600 to-pink-500 rounded-full transition-all duration-300 ease-out"
-              style={{ width: `${displayPct}%` }}
-            />
-          </div>
-
-          <div className="flex justify-between text-[11px] text-text-secondary pt-1 font-mono">
-            <span>⏳ Berjalan: {formatTime(elapsedSeconds)}</span>
-            <span>
-              Estimasi: {displayPct > 0 ? formatTime(estimatedRemaining) : "Menghitung..."}
-            </span>
-          </div>
+        {/* Timer */}
+        <div className="flex justify-center text-[12px] font-semibold text-text-secondary">
+          <span>⏳ Berjalan: {formatTime(elapsedSeconds)}</span>
         </div>
 
         {/* Warning Note */}

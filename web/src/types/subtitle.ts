@@ -22,6 +22,10 @@ export interface SubtitleConfig {
   // Watermark
   watermark_text?: string;
   watermark_opacity?: number;
+
+  // Posisi (Persentase)
+  position_x?: number;
+  position_y?: number;
 }
 
 export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfig = {

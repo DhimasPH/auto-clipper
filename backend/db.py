@@ -49,6 +49,21 @@ def init_db():
         cursor.execute("ALTER TABLE history ADD COLUMN metadata TEXT")
     conn.commit()
     conn.close()
+    
+    fix_stuck_jobs()
+
+def fix_stuck_jobs():
+    """Convert any in-progress jobs to ERROR so the user can resume them if the backend crashed."""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    in_progress_statuses = ("DOWNLOADING", "TRANSCRIBING", "CROPPING", "QUEUED", "PENDING")
+    
+    placeholders = ",".join(["?"] * len(in_progress_statuses))
+    cursor.execute(f"UPDATE history SET status='ERROR' WHERE status IN ({placeholders})", in_progress_statuses)
+    if cursor.rowcount > 0:
+        log_error("fix_stuck_jobs", f"Fixed {cursor.rowcount} stuck jobs to ERROR state.")
+    conn.commit()
+    conn.close()
 
 def save_history(job_id: str, url: str, status: str, clips: list, metadata: dict = None):
     conn = sqlite3.connect(get_db_path())
