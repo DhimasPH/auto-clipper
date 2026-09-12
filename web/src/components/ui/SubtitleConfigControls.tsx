@@ -41,7 +41,7 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
   showModeSwitch = true,
   aspectRatio = "9:16",
 }) => {
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(true);
 
   const styleMode = config.style || "single_word";
   const highlightColor = config.highlight_color || "#FFE600";
