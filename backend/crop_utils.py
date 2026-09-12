@@ -128,7 +128,7 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
     Returns a list of (relative_time_s, x_center_ratio) tuples.
     Now uses MediaPipe Face Mesh to track the active speaker via Mouth Aspect Ratio (MAR).
     """
-    import mediapipe as mp
+    import mediapipe.python.solutions.face_mesh as mp_face_mesh
     import numpy as np
     
     cap = cv2.VideoCapture(video_path)
@@ -145,7 +145,6 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
     half_window = (frame_h * 9 / 16) / frame_w / 2 if (frame_w and frame_h) else 0.28
     lo, hi = half_window, 1.0 - half_window
 
-    mp_face_mesh = mp.solutions.face_mesh
     face_mesh = mp_face_mesh.FaceMesh(
         static_image_mode=False,
         max_num_faces=5,
