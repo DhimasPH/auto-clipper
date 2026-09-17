@@ -1,6 +1,6 @@
 import React from "react";
 import { HeroInput } from "../components/Dashboard/HeroInput";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RotateCcw } from "lucide-react";
 import { AppContext } from "../App";
 
 export const WorkspacePage: React.FC = () => {
@@ -30,7 +30,22 @@ export const WorkspacePage: React.FC = () => {
             Task Failed
           </h4>
           <p className="text-text-primary text-sm whitespace-pre-wrap">{ctx.error}</p>
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            {(ctx.activeJob?.id || ctx.jobId) && (
+              <button
+                onClick={async () => {
+                  try {
+                    await ctx.resumeJob(ctx.activeJob?.id || ctx.jobId);
+                  } catch (err: any) {
+                    console.error("Resume failed:", err);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Lanjutkan (Resume)
+              </button>
+            )}
             <button
               onClick={ctx.handleResetToNewJob}
               className="px-3 py-1.5 bg-bg-elevated hover:bg-bg-surface text-xs font-medium rounded-lg transition-colors border border-border"

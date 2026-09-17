@@ -145,6 +145,40 @@ export async function apiGetJob(jobId: string): Promise<JobResponse> {
   }
 }
 
+export async function apiResumeJob(
+  jobId: string,
+  payload?: {
+    api_key?: string;
+    provider?: string;
+    custom_base_url?: string;
+    custom_model_name?: string;
+    whisper_model?: string;
+    model?: string;
+  }
+): Promise<{ status: string; job_id: string; message?: string }> {
+  const safeId = encodeURIComponent(jobId);
+  try {
+    return await apiFetch<{ status: string; job_id: string; message?: string }>(
+      `/jobs/${safeId}/resume`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      }
+    );
+  } catch (err: any) {
+    if (err.status === 404) {
+      return await apiFetch<{ status: string; job_id: string; message?: string }>(
+        `/api/jobs/${safeId}/resume`,
+        {
+          method: "POST",
+          body: JSON.stringify(payload || {}),
+        }
+      );
+    }
+    throw err;
+  }
+}
+
 export async function apiResumeManualJob(
   jobId: string,
   jsonPayload: string

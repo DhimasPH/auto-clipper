@@ -294,3 +294,48 @@ def test_create_rerender_clip_job(tmp_path, monkeypatch):
         assert active["burn_subs"] is True
     finally:
         jobs.active_jobs.pop(job_id, None)
+
+
+def test_get_job_from_history_returns_error_message(monkeypatch):
+    history_record = {
+        "id": "job-err-123",
+        "url": "https://youtu.be/test",
+        "status": "ERROR",
+        "result_clips": [],
+        "metadata": {
+            "error": "Proses terhenti karena backend Google Colab ter-restart (misal: OOM / restart session). Anda dapat melanjutkan (resume) proses ini."
+        }
+    }
+    monkeypatch.setattr("backend.db.get_history", lambda j_id: history_record if j_id == "job-err-123" else None)
+    
+    # Ensure it is not in active_jobs
+    jobs.active_jobs.pop("job-err-123", None)
+    
+    loaded = jobs.get_job("job-err-123")
+    assert loaded is not None
+    assert loaded["id"] == "job-err-123"
+    assert loaded["status"] == "ERROR"
+    assert "ter-restart" in loaded["error"]
+    assert loaded["progress"] == loaded["error"]
+
+
+def test_create_resume_job_allows_url_when_source_video_none(monkeypatch):
+    history_record = {
+        "id": "job-no-src",
+        "url": "https://youtu.be/fallback",
+        "status": "ERROR",
+        "result_clips": [],
+        "metadata": {
+            "source_video": None,  # Crashed before download finished
+            "title": "Fallback Project"
+        }
+    }
+    monkeypatch.setattr("backend.db.get_history", lambda j_id: history_record if j_id == "job-no-src" else None)
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: None)
+    monkeypatch.setattr("threading.Thread.start", lambda self: None)
+    
+    # Should not raise ValueError even though source_video is None, because url exists
+    new_id = jobs.create_resume_job("job-no-src")
+    assert new_id is not None
+    jobs.active_jobs.pop(new_id, None)
+

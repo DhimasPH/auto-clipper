@@ -23,7 +23,7 @@ export default function BusyOverlay() {
   }, [ctx?.isRunning]);
 
   useEffect(() => {
-    if (ctx?.status === 'TRANSCRIBING') {
+    if (ctx?.status === 'TRANSCRIBING' || ctx?.status === 'ANALYZING') {
       const rot = setInterval(() => {
         setRotateIdx((prev) => (prev + 1) % 4);
       }, 4500);
@@ -34,7 +34,7 @@ export default function BusyOverlay() {
   if (!ctx || !ctx.isRunning) return null;
 
   let displayPct = ctx.progressPct;
-  if (ctx.status === 'TRANSCRIBING') {
+  if (ctx.status === 'TRANSCRIBING' || ctx.status === 'ANALYZING') {
     // start at 45, max at 58, 1% every 15 seconds
     displayPct = Math.min(58, 45 + Math.floor(elapsedSeconds / 15));
   }
@@ -53,7 +53,7 @@ export default function BusyOverlay() {
     if (elapsedSeconds > 1200) return t('busy.wait_20m', "Sabar adalah kunci. Video kamu hampir siap!");
     if (elapsedSeconds > 600) return t('busy.wait_10m', "Sabar yaa, lagi proses nih...");
     
-    if (ctx.status === 'TRANSCRIBING') {
+    if (ctx.status === 'TRANSCRIBING' || ctx.status === 'ANALYZING') {
       const messages = [
         t('busy.rotate_1', 'Mengekstrak audio video...'),
         t('busy.rotate_2', 'AI sedang membuat transkrip otomatis...'),
