@@ -228,7 +228,7 @@ Gunakan metode ini jika Anda sudah memiliki domain pribadi (contoh: `domainanda.
    - **Domain:** Pilih domain Anda yang aktif di Cloudflare (misal: `domainanda.com`)
    - **Path:** *(Biarkan kosong)*
    - **Type:** `HTTP`
-   - **URL:** `localhost:8000`
+   - **URL:** `127.0.0.1:8000` *(PENTING: Gunakan `127.0.0.1:8000`, JANGAN ketik `localhost:8000` agar cloudflared tidak mencoba dial IPv6 `[::1]` yang menyebabkan error connection refused).*
 6. Klik **Save hostname**. Publik URL backend Anda sekarang adalah: `https://be-clipper.domainanda.com`.
 7. Tempel token yang disalin ke kolom `CLOUDFLARE_TUNNEL_TOKEN` di notebook Colab.
 
@@ -448,6 +448,22 @@ sequenceDiagram
   2. Hapus subfolder job proyek lama yang sudah selesai diunduh ke HP.
   3. **Jangan menghapus** file `history.db` jika Anda ingin tetap mempertahankan daftar riwayat klip di aplikasi web.
   4. Kosongkan *Trash / Sampah* di Google Drive Anda untuk membebaskan ruang penyimpanan secara permanen.
+
+---
+
+### Kendala 6: Cloudflared Error "Unable to reach the origin service ... dial tcp [::1]:8000: connect: connection refused"
+* **Penyebab:**
+  1. Di Cloudflare Zero Trust Dashboard, Service URL diset ke `localhost:8000`. Di Linux (Google Colab), `localhost` otomatis me-resolve ke alamat IPv6 loopback `[::1]`. Karena Uvicorn secara default hanya mengikat (*bind*) ke antarmuka IPv4 (`0.0.0.0:8000` / `127.0.0.1:8000`), koneksi IPv6 `[::1]` langsung ditolak (*connection refused*) oleh kernel.
+  2. Server FastAPI/Uvicorn belum selesai booting saat tunnel mulai menerima traffic, atau proses Uvicorn terhenti.
+* **Solusi:**
+  1. Buka [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/) $\rightarrow$ **Networks** $\rightarrow$ **Tunnels** $\rightarrow$ pilih tunnel Anda $\rightarrow$ **Configure** $\rightarrow$ tab **Public Hostname**.
+  2. Klik **Edit** pada hostname backend Anda (misal: `be-clipper.domainanda.com`).
+  3. Ubah kolom **URL** dari `localhost:8000` menjadi **`127.0.0.1:8000`**, lalu klik **Save hostname**.
+  4. Untuk memverifikasi apakah server backend di Colab sudah benar-benar hidup, jalankan perintah ini di sel Colab baru:
+     ```bash
+     !curl -I http://127.0.0.1:8000/health
+     ```
+     Jika mengembalikan `HTTP/1.1 200 OK` dengan status JSON `{"status": "ok"}`, server Anda telah aktif dan siap menerima request!
 
 ---
 

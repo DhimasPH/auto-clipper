@@ -14,6 +14,7 @@ from backend.colab_api import (
     start_cloudflared,
     start_uvicorn,
     terminate_processes,
+    wait_for_server_ready,
 )
 
 
@@ -155,6 +156,17 @@ def test_terminate_processes():
     proc2.kill.assert_called_once()
 
 
+def test_wait_for_server_ready_success():
+    with patch("socket.create_connection", return_value=MagicMock()):
+        assert wait_for_server_ready("0.0.0.0", 8000, timeout=1.0) is True
+
+
+def test_wait_for_server_ready_timeout():
+    with patch("socket.create_connection", side_effect=ConnectionRefusedError()):
+        with patch("time.sleep", return_value=None):
+            assert wait_for_server_ready("127.0.0.1", 8000, timeout=0.1) is False
+
+
 def test_run_server_lifecycle():
     polls = [None, 0]
 
@@ -173,8 +185,9 @@ def test_run_server_lifecycle():
     mock_cf.pid = 5002
 
     with patch("backend.colab_api.start_uvicorn", return_value=mock_api):
-        with patch("backend.colab_api.start_cloudflared", return_value=mock_cf):
-            with patch("time.sleep", return_value=None):
-                code = run_server(["--cloudflare-token", "token-xyz", "--workspace", "/tmp/ws"])
-                assert code == 0
-                mock_cf.terminate.assert_called()
+        with patch("backend.colab_api.wait_for_server_ready", return_value=True):
+            with patch("backend.colab_api.start_cloudflared", return_value=mock_cf):
+                with patch("time.sleep", return_value=None):
+                    code = run_server(["--cloudflare-token", "token-xyz", "--workspace", "/tmp/ws"])
+                    assert code == 0
+                    mock_cf.terminate.assert_called()

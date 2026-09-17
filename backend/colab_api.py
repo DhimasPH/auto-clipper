@@ -106,6 +106,20 @@ def start_uvicorn(host: str, port: int) -> subprocess.Popen:
     return subprocess.Popen(cmd, env=os.environ.copy())
 
 
+def wait_for_server_ready(host: str, port: int, timeout: float = 20.0) -> bool:
+    """Wait until uvicorn server is accepting TCP connections."""
+    import socket
+    start_time = time.time()
+    test_host = "127.0.0.1" if host in ("0.0.0.0", "", "::") else host
+    while time.time() - start_time < timeout:
+        try:
+            with socket.create_connection((test_host, port), timeout=1.0):
+                return True
+        except (socket.error, ConnectionRefusedError, OSError):
+            time.sleep(0.5)
+    return False
+
+
 def start_cloudflared(token: str) -> Optional[subprocess.Popen]:
     """Spawn cloudflared tunnel subprocess if token is provided."""
     if not token or not token.strip():
@@ -208,6 +222,15 @@ def run_server(args: Optional[List[str]] = None) -> int:
 
     api_proc = start_uvicorn(parsed.host, parsed.port)
     running_procs.append(api_proc)
+
+    print(f"[Auto Clipper Colab] Waiting for API server to become ready on port {parsed.port}...")
+    if wait_for_server_ready(parsed.host, parsed.port, timeout=25.0):
+        print(f"[Auto Clipper Colab] API server is listening and ready on port {parsed.port}!")
+    else:
+        if api_proc.poll() is not None:
+            print(f"[Auto Clipper Colab] ERROR: Uvicorn process failed to start (exit code {api_proc.returncode})", file=sys.stderr)
+        else:
+            print(f"[Auto Clipper Colab] Warning: API server took longer than 25s to respond.", file=sys.stderr)
 
     cf_proc = start_cloudflared(parsed.cloudflare_token)
     if cf_proc:
