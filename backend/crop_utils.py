@@ -176,8 +176,17 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
                 raw_frames.append((rel_t, []))
                 continue
                 
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            fh, fw = frame.shape[:2]
+            if fw > 640:
+                small_w = 640
+                small_h = int(fh * (640 / fw))
+                small_frame = cv2.resize(frame, (small_w, small_h))
+            else:
+                small_frame = frame
+                
+            rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
             results = face_mesh.process(rgb_frame)
+            del frame, small_frame, rgb_frame
             
             frame_faces = []
             if results.multi_face_landmarks:
@@ -273,11 +282,22 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
             trajectory.append((rel_t, last_valid_x))
             continue
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        fh, fw = frame.shape[:2]
+        if fw > 640:
+            small_w = 640
+            small_h = int(fh * (640 / fw))
+            small_frame = cv2.resize(frame, (small_w, small_h))
+        else:
+            small_w = fw
+            small_frame = frame
+
+        gray = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
+        del frame, small_frame
         faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+        del gray
         if len(faces) > 0:
             x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
-            raw_center = (x + w / 2) / frame.shape[1]
+            raw_center = (x + w / 2) / small_w
             if lo <= hi:
                 clamped_center = max(lo, min(hi, raw_center))
             else:

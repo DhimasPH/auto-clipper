@@ -283,4 +283,38 @@ def test_transcribe_with_faster_whisper_vad_fallback_on_error():
         assert mock_model.transcribe.call_count == 2
 
 
+def test_transcribe_with_faster_whisper_cuda_dll_fallback_to_cpu():
+    from backend.ai_utils import transcribe_with_faster_whisper
+    from unittest.mock import MagicMock, patch
+
+    mock_seg = MagicMock()
+    mock_seg.start = 0.0
+    mock_seg.end = 2.0
+    mock_seg.text = "CPU fallback text"
+    mock_seg.words = []
+
+    mock_gpu_model = MagicMock()
+    def gpu_side_effect(path, word_timestamps=False, vad_filter=True):
+        def err_gen():
+            raise RuntimeError("Library cublas64_12.dll is not found or cannot be loaded")
+            yield
+        return err_gen(), MagicMock()
+    mock_gpu_model.transcribe.side_effect = gpu_side_effect
+
+    mock_cpu_model = MagicMock()
+    mock_cpu_model.transcribe.return_value = ([mock_seg], MagicMock())
+
+    def model_factory(model_size, device="auto", compute_type="default"):
+        if device == "auto" or device == "cuda":
+            return mock_gpu_model
+        return mock_cpu_model
+
+    with patch("faster_whisper.WhisperModel", side_effect=model_factory):
+        res = transcribe_with_faster_whisper("dummy.mp3", karaoke=False)
+        assert "CPU fallback text" in res
+        assert mock_gpu_model.transcribe.call_count == 1
+        assert mock_cpu_model.transcribe.call_count == 1
+
+
+
 

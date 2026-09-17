@@ -151,13 +151,13 @@ def gpu_keep_alive() -> None:
             return
         
         print("[Auto Clipper Colab] Starting GPU keep-alive thread to prevent Colab timeout...")
-        # Allocate a persistent ~400MB tensor to keep GPU Memory Utilization > 0%
-        persistent_tensor = torch.ones((10000, 10000), device="cuda")
+        # Allocate a small ~4MB tensor to keep GPU context alive without wasting VRAM
+        persistent_tensor = torch.ones((1000, 1000), device="cuda")
         
         while True:
-            # Perform a minor operation on the persistent tensor
-            _ = persistent_tensor * 1.01
-            time.sleep(15)  # Pulse every 15 seconds
+            # Perform a lightweight in-place operation on the persistent tensor
+            persistent_tensor.add_(0.001)
+            time.sleep(20)  # Pulse every 20 seconds
     except ImportError:
         print("[Auto Clipper Colab] GPU Keep-Alive skipped: torch not installed.", file=sys.stderr)
     except Exception as e:

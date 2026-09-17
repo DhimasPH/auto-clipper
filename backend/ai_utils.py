@@ -515,14 +515,48 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
         # Add NVIDIA pip packages to DLL path if they exist
         try:
             import nvidia.cublas
-            import nvidia.cudnn
-            os.add_dll_directory(os.path.join(os.path.dirname(nvidia.cublas.__file__), "bin"))
-            os.add_dll_directory(os.path.join(os.path.dirname(nvidia.cudnn.__file__), "bin"))
+            for sub in ["bin", "lib"]:
+                p = os.path.join(os.path.dirname(nvidia.cublas.__file__), sub)
+                if os.path.isdir(p):
+                    os.add_dll_directory(p)
         except Exception:
             pass
 
+        try:
+            import nvidia.cudnn
+            for sub in ["bin", "lib"]:
+                p = os.path.join(os.path.dirname(nvidia.cudnn.__file__), sub)
+                if os.path.isdir(p):
+                    os.add_dll_directory(p)
+        except Exception:
+            pass
+
+        # Check CUDA_PATH env vars and standard CUDA Toolkit paths
+        for env_k, env_v in os.environ.items():
+            if env_k.startswith("CUDA_PATH") and os.path.isdir(env_v):
+                bin_p = os.path.join(env_v, "bin")
+                if os.path.isdir(bin_p):
+                    try:
+                        os.add_dll_directory(bin_p)
+                    except Exception:
+                        pass
+
+        cuda_base = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA"
+        if os.path.isdir(cuda_base):
+            try:
+                for entry in os.listdir(cuda_base):
+                    bin_p = os.path.join(cuda_base, entry, "bin")
+                    if os.path.isdir(bin_p):
+                        os.add_dll_directory(bin_p)
+            except Exception:
+                pass
+
     selected_model = model_size or "small"
     from faster_whisper import WhisperModel
+
+    def _is_cuda_dll_error(err: Exception) -> bool:
+        msg = str(err).lower()
+        return any(k in msg for k in ["cublas", "cudnn", "cuda", "curand", "cusparse", "out of memory", "not found or cannot be loaded"])
 
     def _run_transcription(target_model, vad: bool):
         segments_gen, info = target_model.transcribe(audio_path, word_timestamps=karaoke, vad_filter=vad)
@@ -543,12 +577,17 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
         except Exception as e_vad:
             if is_cancelled and is_cancelled():
                 raise
+            if _is_cuda_dll_error(e_vad):
+                raise e_vad
             log_error("ai_utils.transcribe_local_whisper", f"VAD transcription failed ({e_vad}). Retrying without VAD filter.")
             segments = _run_transcription(model, vad=False)
     except Exception as e:
         if is_cancelled and is_cancelled():
             raise
-        log_error("ai_utils.transcribe_local_whisper", f"Warning: GPU/Auto Transcription failed ({e}). Falling back to CPU.")
+        if _is_cuda_dll_error(e):
+            log_app(f"CUDA/cuBLAS library missing or GPU unavailable ({e}). Gracefully falling back to CPU transcription.")
+        else:
+            log_error("ai_utils.transcribe_local_whisper", f"Warning: GPU/Auto Transcription failed ({e}). Falling back to CPU.")
         try:
             model = WhisperModel(selected_model, device="cpu", compute_type="default")
         except Exception as e_cpu:
@@ -563,6 +602,20 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
             log_error("ai_utils.transcribe_local_whisper", f"CPU VAD transcription failed ({e_vad_cpu}). Retrying without VAD filter.")
             segments = _run_transcription(model, vad=False)
     
+    # Clean up model and free memory immediately before returning
+    try:
+        del model
+    except Exception:
+        pass
+    import gc
+    gc.collect()
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
+
     if karaoke:
         words_data = []
         segments_data = []

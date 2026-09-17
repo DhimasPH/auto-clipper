@@ -2,6 +2,21 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.15.4] - 2026-09-17
+
+### Fixed
+- **Google Colab OOM & Process Crash (-9)**:
+  - Mengimplementasikan *explicit memory release* (`del model`, `gc.collect()`, `torch.cuda.empty_cache()`) seketika setelah transkripsi Whisper selesai, membebaskan 1-3 GB RAM/VRAM sebelum proses rendering klip dimulai.
+  - Melakukan downscale resolusi frame (lebar 640px) pada deteksi wajah MediaPipe FaceMesh & OpenCV Haar Cascade, menghemat pemakaian RAM hingga 90% tanpa menurunkan akurasi tracking normalisasi.
+  - Mengurangi pemakaian VRAM pada fungsi penjaga GPU (*GPU Keep-Alive*) dari 400 MB menjadi 4 MB.
+  - Menambahkan siklus pembersihan memori (`gc.collect()`) di setiap iterasi rendering klip video.
+- **Cloudflare Tunnel IPv6 Loopback Rejection**:
+  - Memperbaiki kegagalan koneksi `dial tcp [::1]:8000: connect: connection refused` dengan memperbarui konfigurasi origin service Cloudflare Tunnel menjadi `127.0.0.1:8000`.
+  - Menambahkan mekanisme *readiness probe* `wait_for_server_ready` di `backend/colab_api.py` agar Cloudflared hanya dijalankan setelah server FastAPI Uvicorn terverifikasi aktif membuka port.
+- **Desktop Windows CUDA 12 DLL Fallback**:
+  - Menambahkan pemindaian otomatis direktori instalasi standar NVIDIA CUDA Toolkit di Windows (`CUDA_PATH` dan `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.x\bin`) ke `os.add_dll_directory()`.
+  - Memisahkan error ketiadaan pustaka CUDA (`cublas64_12.dll is not found`) dari error VAD filter sehingga sistem tidak lagi mencoba retry VAD pada GPU yang rusak dan langsung beralih (*fallback*) ke mode CPU secara instan dan bersih.
+
 ## [1.15.0] - 2026-09-12
 
 ### Added

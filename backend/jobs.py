@@ -538,6 +538,10 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                 save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
             except Exception as db_e:
                 log_error("save_history_in_loop", db_e)
+
+            # Reclaim RAM between clips to prevent OOM
+            import gc
+            gc.collect()
         except Exception as e:
             if is_cancelled():
                 _finalize_job(job_id, "CANCELLED", metadata)
@@ -680,6 +684,10 @@ def _run_manual_job(job_id: str):
                     save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
                 except Exception as db_e:
                     log_error("save_history_in_loop", db_e)
+
+                # Reclaim RAM between clips to prevent OOM
+                import gc
+                gc.collect()
             except Exception as e:
                 if is_cancelled():
                     _finalize_job(job_id, "CANCELLED", metadata)
@@ -819,6 +827,10 @@ def _run_rerender_job(job_id: str):
                     save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
                 except Exception as db_e:
                     log_error("save_history_in_loop", db_e)
+
+                # Reclaim RAM between clips to prevent OOM
+                import gc
+                gc.collect()
             except Exception as e:
                 if job.get("cancelled", False):
                     _finalize_job(job_id, "CANCELLED", metadata)
@@ -1022,6 +1034,10 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
                 except Exception as db_e:
                     log_error("save_history_in_loop", db_e)
+
+                # Reclaim RAM between clips to prevent OOM
+                import gc
+                gc.collect()
             except Exception as e:
                 if job.get("cancelled", False):
                     _finalize_job(job_id, "CANCELLED", metadata)
