@@ -11,6 +11,7 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file in
   - Menambahkan endpoint client `apiResumeJob` dan tombol aksi **"Lanjutkan (Resume)"** pada Web UI (`web/`) di kartu error Workspace dan halaman History agar pengguna dapat melanjutkan pemrosesan video yang terputus langsung dari artefak lokal/Drive tanpa mengulang dari awal.
   - Menambahkan fallback re-download otomatis pada fungsi resume jika file video belum selesai diunduh sebelum restart terjadi.
   - Menyelaraskan Desktop UI (`src/lib/history.ts`, `src/hooks/useClipJobs.ts`, `src/components/BusyOverlay.tsx`) dengan dukungan status `ANALYZING` dan aktivasi tombol resume berbasis URL jika file lokal belum tersimpan.
+  - Memperbaiki `create_resume_job` agar mempertahankan provider `"manual"` (mode tanpa BYOK API Key) dan tidak memaksakan fallback ke `"gemini"` yang menyebabkan error `No API key was provided`. Alur resume manual kini otomatis melanjutkan transkripsi lokal dan beralih ke status `AWAITING_MANUAL`.
 
 ## [1.15.4] - 2026-09-17
 
