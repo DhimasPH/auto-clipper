@@ -339,3 +339,60 @@ def test_create_resume_job_allows_url_when_source_video_none(monkeypatch):
     assert new_id is not None
     jobs.active_jobs.pop(new_id, None)
 
+
+def test_create_resume_job_preserves_manual_provider(monkeypatch):
+    history_record = {
+        "id": "job-manual-1",
+        "url": "https://youtu.be/sample",
+        "status": "ERROR",
+        "result_clips": [],
+        "metadata": {
+            "source_video": "/tmp/sample.mp4",
+            "provider": "manual",
+            "title": "Manual Project"
+        }
+    }
+    monkeypatch.setattr("backend.db.get_history", lambda j_id: history_record if j_id == "job-manual-1" else None)
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: None)
+    monkeypatch.setattr("threading.Thread.start", lambda self: None)
+
+    new_id = jobs.create_resume_job("job-manual-1")
+    assert new_id is not None
+    assert jobs.active_jobs[new_id]["provider"] == "manual"
+    jobs.active_jobs.pop(new_id, None)
+
+
+def test_run_resume_job_manual_provider_transitions_to_awaiting_manual(tmp_path, monkeypatch):
+    src = tmp_path / "source.mp4"
+    src.write_bytes(b"dummy")
+    sub = tmp_path / "subtitles.srt"
+    sub.write_text("1\n00:00:00,000 --> 00:00:05,000\nHello world\n", encoding="utf-8")
+
+    metadata = {
+        "source_video": str(src),
+        "subtitle_path": str(sub),
+        "title": "Manual Project",
+        "provider": "manual"
+    }
+    job_id = "test-resume-manual-run"
+    jobs.active_jobs[job_id] = {
+        "id": job_id,
+        "url": "https://youtu.be/sample",
+        "provider": "manual",
+        "api_key": "",
+        "status": "QUEUED",
+        "cancelled": False,
+        "clips": [],
+        "metadata": metadata
+    }
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: None)
+    monkeypatch.setattr("backend.video_utils.get_video_duration", lambda p: 10.0)
+    monkeypatch.setattr("backend.ai_utils.generate_manual_prompt", lambda t, **k: "PROMPT_TEXT")
+
+    try:
+        jobs._run_resume_job(job_id)
+        assert jobs.active_jobs[job_id]["status"] == "AWAITING_MANUAL"
+        assert metadata.get("manual_prompt") == "PROMPT_TEXT"
+    finally:
+        jobs.active_jobs.pop(job_id, None)
+

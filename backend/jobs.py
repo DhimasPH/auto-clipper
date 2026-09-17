@@ -1490,10 +1490,12 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
     job_id = str(uuid.uuid4())
     
     hist_provider = hist_meta.get("provider")
-    if not hist_provider or hist_provider in ("manual_ai", "manual"):
-        provider = fallback_provider or "gemini"
-    else:
+    if fallback_provider:
+        provider = fallback_provider
+    elif hist_provider:
         provider = hist_provider
+    else:
+        provider = "manual"
 
     active_jobs[job_id] = {
         "id": job_id,
@@ -1568,6 +1570,7 @@ def _run_resume_job(job_id: str):
             else:
                 raise ValueError("Video lokal tidak ditemukan. Silakan proses dari awal.")
 
+        ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
         subtitle_path = metadata.get("subtitle_path")
         has_subtitle = subtitle_path and os.path.exists(subtitle_path)
 
@@ -1583,6 +1586,56 @@ def _run_resume_job(job_id: str):
         if metadata.get("highlights"):
             highlights = metadata["highlights"]
             log_app(f"[{job_id}] Menggunakan highlight yang tersimpan ({len(highlights)} klip), melanjutkan perenderan...")
+        elif job["provider"] in ("manual_ai", "manual"):
+            from backend.ai_utils import build_srt_from_segments, generate_manual_prompt
+            import json
+
+            # If manual prompt already exists and subtitle is present, resume directly into awaiting manual
+            if metadata.get("manual_prompt") and has_subtitle:
+                job["status"] = "AWAITING_MANUAL"
+                _finalize_job(job_id, "AWAITING_MANUAL", metadata)
+                return
+
+            is_karaoke = (job.get("caption_style") == "karaoke")
+            predicted_subtitle_path = subtitle_path or os.path.join(ws["subtitles_dir"], "subtitles.words.json" if is_karaoke else "subtitles.srt")
+
+            if has_subtitle and os.path.getsize(subtitle_path) > 0:
+                job["progress"] = "Membaca subtitle yang sudah ada..."
+                log_app(f"[{job_id}] Membaca subtitle yang sudah ada: {subtitle_path}")
+                if subtitle_path.endswith(".json"):
+                    with open(subtitle_path, "r", encoding="utf-8") as f:
+                        transcript_data = json.load(f)
+                    srt_segments = [{"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} for s in transcript_data.get("segments", [])]
+                    transcript_text = build_srt_from_segments(srt_segments)
+                else:
+                    with open(subtitle_path, "r", encoding="utf-8") as f:
+                        transcript_text = f.read()
+            else:
+                from backend.ai_utils import transcribe_with_faster_whisper, extract_audio
+                audio_path = os.path.join(ws["source_dir"], "source_audio.mp3")
+                job["status"] = "TRANSCRIBING"
+                job["progress"] = "Mengekstrak audio..."
+                extract_audio(source_video, audio_path, register_proc=lambda p: _register_proc(job, p))
+
+                job["progress"] = "Mentranskripsi audio (Lokal)..."
+                transcript = transcribe_with_faster_whisper(audio_path, karaoke=True, is_cancelled=is_cancelled, model_size=job.get("whisper_model", "small"))
+
+                subtitle_path = os.path.join(ws["subtitles_dir"], "subtitles.words.json")
+                with open(subtitle_path, "w", encoding="utf-8") as f:
+                    json.dump(transcript, f)
+                srt_segments = [{"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} for s in transcript.get("segments", [])]
+                transcript_text = build_srt_from_segments(srt_segments)
+                metadata["subtitle_path"] = subtitle_path
+
+            job["progress"] = "Membuat prompt manual..."
+            manual_prompt = generate_manual_prompt(transcript_text, extra_prompt=metadata.get("extra_prompt", ""), limit=limit)
+            metadata["manual_prompt"] = manual_prompt
+            job["status"] = "AWAITING_MANUAL"
+
+            _finalize_job(job_id, "AWAITING_MANUAL", metadata)
+            return
+        elif not job.get("api_key") and job["provider"] != "custom":
+            raise ValueError(f"API key untuk provider '{job['provider']}' tidak ditemukan. Harap sertakan API key untuk melanjutkan.")
         elif has_subtitle:
             job["status"] = "TRANSCRIBING"
             log_app(f"[{job_id}] TRANSCRIBING (Resuming)")
