@@ -17,9 +17,15 @@ export const HistoryPage: React.FC = () => {
       </header>
 
       <HistoryList
-        onResume={(id) => {
-          ctx.startPolling(id);
-          navigate("/");
+        onResume={async (id) => {
+          try {
+            await ctx.resumeJob(id);
+            navigate("/");
+          } catch (err: any) {
+            console.error("Failed to resume job:", err);
+            ctx.startPolling(id);
+            navigate("/");
+          }
         }}
         onResumeManual={(id, manualPrompt) => {
           ctx.stopPolling();

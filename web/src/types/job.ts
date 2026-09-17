@@ -7,6 +7,7 @@ export type JobStatus =
   | "QUEUED"
   | "DOWNLOADING"
   | "TRANSCRIBING"
+  | "ANALYZING"
   | "AWAITING_MANUAL"
   | "CROPPING"
   | "PROCESSING"

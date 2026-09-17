@@ -47,7 +47,7 @@ export function useClipJobs(p: ClipJobParams) {
   const { notify } = p;
 
   const [status, setStatus] = useState<
-    "IDLE" | "GENERATING" | "DOWNLOADING" | "TRANSCRIBING" | "CROPPING" | "DONE" | "ERROR"
+    "IDLE" | "GENERATING" | "DOWNLOADING" | "TRANSCRIBING" | "ANALYZING" | "CROPPING" | "DONE" | "ERROR"
   >("IDLE");
   const [errorMsg, setErrorMsg] = useState("");
   const [progress, setProgress] = useState("");
@@ -426,13 +426,15 @@ export function useClipJobs(p: ClipJobParams) {
       ? 15
       : status === "TRANSCRIBING"
         ? 45
-        : status === "CROPPING"
-          ? totalClips
-            ? 60 + Math.round((clips.length / totalClips) * 35)
-            : 60
-          : status === "DONE"
-            ? 100
-            : 0;
+        : status === "ANALYZING"
+          ? 55
+          : status === "CROPPING"
+            ? totalClips
+              ? 60 + Math.round((clips.length / totalClips) * 35)
+              : 60
+            : status === "DONE"
+              ? 100
+              : 0;
 
   useEffect(() => {
     if (isRunning) {

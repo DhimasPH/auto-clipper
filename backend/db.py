@@ -30,7 +30,7 @@ def get_db_path():
     return os.path.join(get_app_data_dir(), "history.db")
 
 def init_db():
-    conn = sqlite3.connect(get_db_path())
+    conn = sqlite3.connect(get_db_path(), timeout=30.0)
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS history (
@@ -54,26 +54,45 @@ def init_db():
 
 def fix_stuck_jobs():
     """Convert any in-progress jobs to ERROR so the user can resume them if the backend crashed."""
-    conn = sqlite3.connect(get_db_path())
+    conn = sqlite3.connect(get_db_path(), timeout=30.0)
     cursor = conn.cursor()
-    in_progress_statuses = ("DOWNLOADING", "TRANSCRIBING", "CROPPING", "QUEUED", "PENDING")
+    in_progress_statuses = ("DOWNLOADING", "TRANSCRIBING", "ANALYZING", "CROPPING", "QUEUED", "PENDING")
     
     placeholders = ",".join(["?"] * len(in_progress_statuses))
-    cursor.execute(f"UPDATE history SET status='ERROR' WHERE status IN ({placeholders})", in_progress_statuses)
-    if cursor.rowcount > 0:
-        log_error("fix_stuck_jobs", f"Fixed {cursor.rowcount} stuck jobs to ERROR state.")
+    cursor.execute(f"SELECT id, metadata FROM history WHERE status IN ({placeholders})", in_progress_statuses)
+    rows = cursor.fetchall()
+    for row in rows:
+        job_id, meta_str = row[0], row[1]
+        try:
+            meta = json.loads(meta_str) if meta_str else {}
+        except Exception:
+            meta = {}
+        if not meta.get("error"):
+            meta["error"] = "Proses terhenti karena backend Google Colab ter-restart (misal: OOM / restart session). Anda dapat melanjutkan (resume) proses ini."
+        cursor.execute("UPDATE history SET status='ERROR', metadata=? WHERE id=?", (json.dumps(meta), job_id))
+    if rows:
+        log_error("fix_stuck_jobs", f"Fixed {len(rows)} stuck jobs to ERROR state.")
     conn.commit()
     conn.close()
 
 def save_history(job_id: str, url: str, status: str, clips: list, metadata: dict = None):
-    conn = sqlite3.connect(get_db_path())
+    conn = sqlite3.connect(get_db_path(), timeout=30.0)
     cursor = conn.cursor()
     created_at = datetime.now().isoformat()
-    clips_json = json.dumps(clips)
-    meta_json = json.dumps(metadata) if metadata else None
+    clips_json = json.dumps(clips) if clips is not None else "[]"
+    meta_json = json.dumps(metadata) if metadata is not None else None
     
-    cursor.execute("SELECT id FROM history WHERE id=?", (job_id,))
-    if cursor.fetchone():
+    cursor.execute("SELECT id, result_clips, metadata FROM history WHERE id=?", (job_id,))
+    existing = cursor.fetchone()
+    if existing:
+        ex_clips, ex_meta = existing[1], existing[2]
+        # Preserve existing metadata if current call passed None
+        if meta_json is None and ex_meta is not None:
+            meta_json = ex_meta
+        # Preserve existing clips if current call passed empty list and existing had clips
+        if (not clips) and ex_clips:
+            clips_json = ex_clips
+
         cursor.execute("""
             UPDATE history 
             SET status=?, result_clips=?, metadata=?
@@ -89,7 +108,7 @@ def save_history(job_id: str, url: str, status: str, clips: list, metadata: dict
     conn.close()
 
 def get_all_history():
-    conn = sqlite3.connect(get_db_path())
+    conn = sqlite3.connect(get_db_path(), timeout=30.0)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM history ORDER BY created_at DESC")
@@ -109,7 +128,7 @@ def get_all_history():
     return history
 
 def get_history(job_id: str) -> dict:
-    conn = sqlite3.connect(get_db_path())
+    conn = sqlite3.connect(get_db_path(), timeout=30.0)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM history WHERE id=?", (job_id,))
@@ -177,7 +196,7 @@ def safe_remove_dir(dir_path: str, retries: int = 3, delay: float = 0.15) -> boo
 
 
 def delete_history(job_id: str):
-    conn = sqlite3.connect(get_db_path())
+    conn = sqlite3.connect(get_db_path(), timeout=30.0)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT result_clips, metadata FROM history WHERE id=?", (job_id,))

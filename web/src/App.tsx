@@ -36,6 +36,7 @@ function MainApp() {
     isPolling,
     activeJob,
     createAndStartJob,
+    resumeJob,
     resumeJobWithJson,
     cancelCurrentJob,
     resetJob,
@@ -96,11 +97,13 @@ function MainApp() {
 
   const contextValue = {
     resetKey,
+    jobId,
     activeJob,
     isLoading,
     isPolling,
     isRunning,
     handleHeroSubmit,
+    resumeJob,
     error,
     status,
     progress,

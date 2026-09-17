@@ -2,6 +2,16 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.15.5] - 2026-09-17
+
+### Fixed
+- **Google Colab Restart 404 & Loss of Job State**:
+  - Mengimplementasikan *multi-stage milestone persistence* ke SQLite (`history.db`) seketika saat job dibuat (`PENDING`) dan di setiap fase transisi (`DOWNLOADING`, `TRANSCRIBING`, `ANALYZING`, `CROPPING`), sehingga backend tidak lagi mengembalikan status 404 saat Google Colab me-restart engine/session.
+  - Memperbarui `fix_stuck_jobs` untuk mendeteksi seluruh proses terputus (termasuk status `ANALYZING`) dan menyuntikkan pesan error deskriptif pada metadata.
+  - Menambahkan endpoint client `apiResumeJob` dan tombol aksi **"Lanjutkan (Resume)"** pada Web UI (`web/`) di kartu error Workspace dan halaman History agar pengguna dapat melanjutkan pemrosesan video yang terputus langsung dari artefak lokal/Drive tanpa mengulang dari awal.
+  - Menambahkan fallback re-download otomatis pada fungsi resume jika file video belum selesai diunduh sebelum restart terjadi.
+  - Menyelaraskan Desktop UI (`src/lib/history.ts`, `src/hooks/useClipJobs.ts`, `src/components/BusyOverlay.tsx`) dengan dukungan status `ANALYZING` dan aktivasi tombol resume berbasis URL jika file lokal belum tersimpan.
+
 ## [1.15.4] - 2026-09-17
 
 ### Fixed

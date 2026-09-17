@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { JobStatus, JobResponse, Clip, CreateJobPayload } from "../types/job";
-import { apiGetJob, apiCreateJob, apiResumeManualJob, apiCancelJob } from "../api";
+import { apiGetJob, apiCreateJob, apiResumeJob, apiResumeManualJob, apiCancelJob } from "../api";
 
 export const STORAGE_ACTIVE_JOB_KEY = "ac_active_job_id";
 
@@ -20,6 +20,7 @@ export interface UseJobPollingReturn {
   resetJob: () => void;
   cancelCurrentJob: () => Promise<void>;
   createAndStartJob: (payload: CreateJobPayload) => Promise<string>;
+  resumeJob: (targetJobId?: string) => Promise<string>;
   resumeJobWithJson: (jsonPayload: string) => Promise<string>;
   fetchJobNow: (id?: string) => Promise<JobResponse | null>;
 }
@@ -178,6 +179,38 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
     [startPolling]
   );
 
+  const resumeJob = useCallback(
+    async (targetJobId?: string): Promise<string> => {
+      const currentId = targetJobId || activeJobIdRef.current;
+      if (!currentId) {
+        throw new Error("No active job to resume");
+      }
+
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await apiResumeJob(currentId);
+        if (res.status === "success" && res.job_id) {
+          const resumedJobId = res.job_id;
+          setJobId(resumedJobId);
+          setStatus("PENDING");
+          setProgress("Melanjutkan pemrosesan...");
+          startPolling(resumedJobId);
+          return resumedJobId;
+        } else {
+          throw new Error(res.message || "Gagal melanjutkan job");
+        }
+      } catch (err: any) {
+        const msg = err?.message || "Gagal menghubungi server untuk melanjutkan job";
+        setError(msg);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [startPolling]
+  );
+
   const resumeJobWithJson = useCallback(
     async (jsonPayload: string): Promise<string> => {
       const currentId = activeJobIdRef.current;
@@ -257,6 +290,7 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
     resetJob,
     cancelCurrentJob,
     createAndStartJob,
+    resumeJob,
     resumeJobWithJson,
     fetchJobNow,
   };

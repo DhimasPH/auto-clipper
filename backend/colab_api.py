@@ -83,6 +83,14 @@ def setup_environment(workspace: str, api_token: Optional[str] = None) -> None:
         os.environ["AUTO_CLIPPER_WEB_TOKEN"] = api_token
         os.environ["API_SECRET_TOKEN"] = api_token
 
+    if workspace.startswith("/content/drive") and not os.path.isdir("/content/drive/MyDrive"):
+        print(
+            "[Auto Clipper Colab] ⚠️ PERINGATAN: Direktori Google Drive '/content/drive/MyDrive' belum terhubung (mounted)!\n"
+            "  Data video dan riwayat database (history.db) akan tersimpan di disk sementara dan HILANG jika Colab restart.\n"
+            "  Harap jalankan Step 1 (drive.mount('/content/drive')) terlebih dahulu agar data tersimpan permanen.",
+            file=sys.stderr,
+        )
+
     try:
         os.makedirs(workspace, exist_ok=True)
         print(f"[Auto Clipper Colab] Workspace directory initialized at: {workspace}")

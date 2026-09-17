@@ -92,6 +92,34 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         raise ValueError("Judul Proyek wajib diisi.")
     check_title_uniqueness(title)
     job_id = str(uuid.uuid4())
+    metadata = {
+        "provider": provider,
+        "api_key": api_key,
+        "custom_base_url": custom_base_url,
+        "custom_model_name": custom_model_name,
+        "whisper_model": whisper_model or "small",
+        "model": model,
+        "mode": "ai",
+        "aspect_ratio": aspect_ratio,
+        "canvas_config": canvas_config,
+        "subtitle_config": subtitle_config,
+        "tracking_mode": tracking_mode,
+        "caption_style": caption_style,
+        "burn_subs": burn_subs,
+        "output_dir": output_dir,
+        "quality": quality,
+        "title": title,
+        "enable_broll": enable_broll,
+        "enable_hook": enable_hook,
+        "pexels_api_key": pexels_api_key,
+        "max_clips": max_clips,
+        "is_gaming_video": is_gaming_video,
+        "raw_video": None,
+        "source_video": None,
+        "subtitle_path": None,
+        "words_path": None,
+        "highlights": []
+    }
     active_jobs[job_id] = {
         "id": job_id,
         "url": url,
@@ -121,8 +149,13 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "cancelled": False,
         "clips": [],
         "failed": 0,
-        "error": None
+        "error": None,
+        "metadata": metadata
     }
+    try:
+        save_history(job_id, url, "PENDING", [], metadata)
+    except Exception as db_e:
+        log_error("jobs.create_job_save_history", db_e)
     threading.Thread(target=_run_job, args=(job_id,), daemon=True).start()
     return job_id
 
@@ -141,6 +174,31 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         raise ValueError("Judul Proyek wajib diisi.")
     check_title_uniqueness(title)
     job_id = str(uuid.uuid4())
+    metadata = {
+        "provider": "manual",
+        "whisper_model": whisper_model or "small",
+        "mode": "manual",
+        "manual_clips": clips or [],
+        "aspect_ratio": aspect_ratio,
+        "canvas_config": canvas_config,
+        "subtitle_config": subtitle_config,
+        "tracking_mode": tracking_mode,
+        "caption_style": caption_style,
+        "burn_subs": burn_subs,
+        "output_dir": output_dir,
+        "quality": quality,
+        "title": title,
+        "enable_broll": False,
+        "enable_hook": enable_hook,
+        "pexels_api_key": "",
+        "max_clips": 0,
+        "is_gaming_video": is_gaming_video,
+        "raw_video": None,
+        "source_video": None,
+        "subtitle_path": None,
+        "words_path": None,
+        "highlights": []
+    }
     active_jobs[job_id] = {
         "id": job_id,
         "url": url,
@@ -168,7 +226,12 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         "clips": [],
         "failed": 0,
         "error": None,
+        "metadata": metadata
     }
+    try:
+        save_history(job_id, url, "PENDING", [], metadata)
+    except Exception as db_e:
+        log_error("jobs.create_manual_job_save_history", db_e)
     threading.Thread(target=_run_manual_job, args=(job_id,), daemon=True).start()
     return job_id
 
@@ -207,6 +270,10 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "metadata": hist_meta,
         "original_clips": hist.get("result_clips", [])
     }
+    try:
+        save_history(job_id, hist["url"], "PENDING", [], hist_meta)
+    except Exception as db_e:
+        log_error("jobs.create_rerender_job_save_history", db_e)
     threading.Thread(target=_run_rerender_job, args=(job_id,), daemon=True).start()
     return job_id
 
@@ -216,13 +283,20 @@ def get_job(job_id: str) -> dict:
         from backend.db import get_history
         hist = get_history(job_id)
         if hist:
+            meta = hist.get("metadata", {}) or {}
+            status = hist.get("status", "DONE")
+            err_msg = meta.get("error") if isinstance(meta, dict) else None
+            if status == "ERROR" and not err_msg:
+                err_msg = "Proses terhenti karena backend Google Colab ter-restart (misal: OOM / restart session). Anda dapat melanjutkan (resume) proses ini."
             job = {
                 "id": job_id,
                 "url": hist.get("url", ""),
-                "status": hist.get("status", "DONE"),
-                "progress": "Dimuat dari histori",
+                "status": status,
+                "progress": "Dimuat dari histori" if status != "ERROR" else (err_msg or "Terjadi kesalahan"),
                 "clips": hist.get("result_clips", []),
-                "metadata": hist.get("metadata", {})
+                "metadata": meta,
+                "error": err_msg,
+                "failed": 0
             }
     return job
 
@@ -269,12 +343,17 @@ def _run_job(job_id: str):
             _finalize_job(job_id, "CANCELLED")
             return
             
-        metadata = {}
+        metadata = job.get("metadata", {})
         job["metadata"] = metadata
         ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
         # 1. DOWNLOAD OR LOCAL FILE
         job["status"] = "DOWNLOADING"
         log_app(f"[{job_id}] " + str("DOWNLOADING"))
+        try:
+            from backend.db import save_history
+            save_history(job_id, job["url"], "DOWNLOADING", job["clips"], metadata)
+        except Exception as db_e:
+            log_error("jobs.downloading_save_history", db_e)
         
         def is_cancelled():
             return job.get("cancelled", False)
@@ -304,6 +383,8 @@ def _run_job(job_id: str):
         # Remember the real source path so re-render/re-run works for BOTH
         # downloads and local uploads (was previously hardcoded in _finalize_job).
         job["source_path"] = output_path
+        metadata["source_video"] = output_path
+        metadata["source_path"] = output_path
         
         if job["cancelled"]:
             _finalize_job(job_id, "CANCELLED")
@@ -318,6 +399,11 @@ def _run_job(job_id: str):
         log_app(f"[{job_id}] " + str("TRANSCRIBING"))
         job["progress"] = f"Menganalisis video dengan {job['provider']}..."
         log_app(f"[{job_id}] " + str(f"Menganalisis video dengan {job['provider']}..."))
+        try:
+            from backend.db import save_history
+            save_history(job_id, job["url"], "TRANSCRIBING", job["clips"], metadata)
+        except Exception as db_e:
+            log_error("jobs.transcribing_save_history", db_e)
 
         is_karaoke = (job["caption_style"] == "karaoke")
         
@@ -407,6 +493,11 @@ def _run_job(job_id: str):
 def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str, subtitle_path: str, is_cancelled: callable, limit: int = 0):
     job["status"] = "CROPPING"
     log_app(f"[{job_id}] " + str("CROPPING"))
+    try:
+        from backend.db import save_history
+        save_history(job_id, job.get("url", ""), "CROPPING", job.get("clips", []), metadata)
+    except Exception as db_e:
+        log_error("jobs.initial_cropping_save_history", db_e)
     
     ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
     try:
@@ -565,7 +656,7 @@ def _run_manual_job(job_id: str):
     import time
     job = active_jobs[job_id]
     job["start_time"] = time.time()
-    metadata = {}
+    metadata = job.get("metadata", {})
     job["metadata"] = metadata
     try:
         def is_cancelled():
@@ -579,6 +670,12 @@ def _run_manual_job(job_id: str):
         # 1. Resolve source (local upload or download).
         job["status"] = "DOWNLOADING"
         log_app(f"[{job_id}] " + str("DOWNLOADING"))
+        try:
+            from backend.db import save_history
+            save_history(job_id, job["url"], "DOWNLOADING", job["clips"], metadata)
+        except Exception as db_e:
+            log_error("jobs.manual_downloading_save_history", db_e)
+
         if job["url"].startswith("local:"):
             job["progress"] = "Mempersiapkan video lokal..."
             log_app(f"[{job_id}] " + str("Mempersiapkan video lokal..."))
@@ -595,6 +692,8 @@ def _run_manual_job(job_id: str):
         if not os.path.exists(source_path):
             raise ValueError("Video sumber tidak ditemukan.")
         job["source_path"] = source_path
+        metadata["source_video"] = source_path
+        metadata["source_path"] = source_path
 
         clips = job.get("manual_clips", [])
         if not clips:
@@ -614,6 +713,12 @@ def _run_manual_job(job_id: str):
             log_app(f"[{job_id}] " + str("TRANSCRIBING"))
             job["progress"] = "Membuat subtitle otomatis..."
             log_app(f"[{job_id}] " + str("Membuat subtitle otomatis..."))
+            try:
+                from backend.db import save_history
+                save_history(job_id, job["url"], "TRANSCRIBING", job["clips"], metadata)
+            except Exception as db_e:
+                log_error("jobs.manual_transcribing_save_history", db_e)
+
             from backend.ai_utils import transcribe_with_faster_whisper
             from backend.video_utils import extract_audio
             import json as _json
@@ -623,6 +728,7 @@ def _run_manual_job(job_id: str):
             subtitle_path = os.path.join(ws["subtitles_dir"], "subtitles.words.json")
             with open(subtitle_path, "w", encoding="utf-8") as f:
                 _json.dump(transcript_data, f)
+            metadata["subtitle_path"] = subtitle_path
 
         # 3. Detect layout once (gaming split-screen auto-detect, 9:16 only).
         job_layout = None
@@ -637,6 +743,11 @@ def _run_manual_job(job_id: str):
         # 4. Crop each user-selected range.
         job["status"] = "CROPPING"
         log_app(f"[{job_id}] " + str("CROPPING"))
+        try:
+            from backend.db import save_history
+            save_history(job_id, job["url"], "CROPPING", job["clips"], metadata)
+        except Exception as db_e:
+            log_error("jobs.manual_cropping_save_history", db_e)
         
         rendered_count = len(job.get("clips", []))
         
@@ -902,6 +1013,11 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "extra_prompt": extra_prompt,
         "metadata_ref": metadata
     }
+    try:
+        from backend.db import save_history
+        save_history(new_job_id, job_record.get("url", "local:"), "QUEUED", [], metadata)
+    except Exception as db_e:
+        log_error("jobs.create_rerun_ai_job_save_history", db_e)
     
     t = threading.Thread(target=_run_rerun_ai_job, args=(new_job_id, source_video, metadata))
     t.start()
@@ -921,6 +1037,11 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         log_app(f"[{job_id}] " + str("TRANSCRIBING"))
         job["progress"] = f"Menganalisis ulang dengan {job['provider']}..."
         log_app(f"[{job_id}] " + str(f"Menganalisis ulang dengan {job['provider']}..."))
+        try:
+            from backend.db import save_history
+            save_history(job_id, job["url"], "TRANSCRIBING", job["clips"], metadata)
+        except Exception as db_e:
+            log_error("jobs.rerun_transcribing_save_history", db_e)
         
         is_karaoke = (job["caption_style"] == "karaoke")
         extra_prompt = job.get("extra_prompt", "")
@@ -957,6 +1078,11 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             
         job["status"] = "CROPPING"
         log_app(f"[{job_id}] " + str("CROPPING"))
+        try:
+            from backend.db import save_history
+            save_history(job_id, job["url"], "CROPPING", job["clips"], metadata)
+        except Exception as db_e:
+            log_error("jobs.rerun_cropping_save_history", db_e)
         
         try:
             from backend.crop_utils import to_seconds
@@ -1296,30 +1422,45 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
         "error": None,
         "source_path": hist_meta["source_video"]
     }
+    try:
+        from backend.db import save_history
+        save_history(job_id, hist["url"], "PENDING", hist.get("result_clips", []), hist_meta)
+    except Exception as db_e:
+        log_error("jobs.resume_manual_job_save_history", db_e)
     
     # Parse payload
     from backend.ai_utils import _parse_highlights
     parsed = _parse_highlights(json_payload)
     if not parsed:
         raise ValueError("Format JSON payload tidak valid atau kosong.")
-        
-    hist_meta["highlights"] = parsed
-    
+
     import threading
-    threading.Thread(target=_run_manual_resume_job, args=(job_id, hist_meta), daemon=True).start()
+    threading.Thread(target=_run_manual_resume_job, args=(job_id, parsed), daemon=True).start()
     return job_id
 
-def _run_manual_resume_job(job_id: str, metadata: dict):
+def _run_manual_resume_job(job_id: str, parsed_highlights: list):
     import time
     job = active_jobs[job_id]
     job["start_time"] = time.time()
     
+    from backend.db import get_history
+    hist = get_history(job_id)
+    metadata = hist.get("metadata", {})
+    job["metadata"] = metadata
     try:
         def is_cancelled():
             return job.get("cancelled", False)
-            
-        output_path = metadata.get("source_video")
+
+        if is_cancelled():
+            _finalize_job(job_id, "CANCELLED", metadata)
+            return
+
+        ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
+        source_path = metadata.get("source_video")
         subtitle_path = metadata.get("subtitle_path")
+        output_path = source_path
+        
+        metadata["highlights"] = parsed_highlights
         
         # Manual paste: user explicitly chose these highlights, skip auto-limit
         limit = 0
@@ -1339,11 +1480,14 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     from backend.db import get_history
     hist = get_history(history_id)
-    if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
-        raise ValueError("Video sumber tidak ditemukan di histori.")
+    if not hist:
+        raise ValueError("Histori pekerjaan tidak ditemukan.")
+    hist_meta = hist.get("metadata", {}) or {}
+    source_video = hist_meta.get("source_video")
+    if not source_video and not hist.get("url"):
+        raise ValueError("Video sumber atau URL video tidak ditemukan di histori.")
 
     job_id = str(uuid.uuid4())
-    hist_meta = hist.get("metadata", {})
     
     hist_provider = hist_meta.get("provider")
     if not hist_provider or hist_provider in ("manual_ai", "manual"):
@@ -1382,6 +1526,11 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "error": None,
         "metadata": hist_meta
     }
+    try:
+        from backend.db import save_history
+        save_history(job_id, hist["url"], "QUEUED", hist.get("result_clips", []), hist_meta)
+    except Exception as db_e:
+        log_error("jobs.create_resume_job_save_history", db_e)
     import threading
     threading.Thread(target=_run_resume_job, args=(job_id,), daemon=True).start()
     return job_id
@@ -1396,9 +1545,28 @@ def _run_resume_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
 
-        source_video = metadata["source_video"]
-        if not os.path.exists(source_video):
-            raise ValueError("Video lokal tidak ditemukan. Silakan proses dari awal.")
+        def is_cancelled():
+            return job.get("cancelled", False)
+
+        source_video = metadata.get("source_video")
+        if not source_video or not os.path.exists(source_video):
+            if job.get("url") and not job["url"].startswith("local:"):
+                ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
+                output_path = os.path.join(ws["source_dir"], "source_video.mp4")
+                job["status"] = "DOWNLOADING"
+                job["progress"] = "Mengunduh ulang video sumber..."
+                log_app(f"[{job_id}] Mengunduh ulang video sumber...")
+                try:
+                    from backend.db import save_history
+                    save_history(job_id, job["url"], "DOWNLOADING", job["clips"], metadata)
+                except Exception as db_e:
+                    log_error("jobs.resume_downloading_save_history", db_e)
+                download_youtube_video(job["url"], output_path, job.get("quality", "best"), is_cancelled=is_cancelled)
+                source_video = output_path
+                metadata["source_video"] = source_video
+                metadata["source_path"] = source_video
+            else:
+                raise ValueError("Video lokal tidak ditemukan. Silakan proses dari awal.")
 
         subtitle_path = metadata.get("subtitle_path")
         has_subtitle = subtitle_path and os.path.exists(subtitle_path)

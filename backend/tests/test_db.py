@@ -138,5 +138,53 @@ def test_get_app_data_dir_default(monkeypatch, tmp_path):
     assert "AutoClipper" in res2
 
 
+def test_fix_stuck_jobs_marks_in_progress_with_error_message(monkeypatch, tmp_path):
+    _use_tmp_db(monkeypatch, tmp_path)
+    
+    # Save jobs in different in-progress states
+    db.save_history("job-dl", "https://youtu.be/dl", "DOWNLOADING", [], {"source_video": "/tmp/v.mp4"})
+    db.save_history("job-trans", "https://youtu.be/trans", "TRANSCRIBING", [], {"source_video": "/tmp/v.mp4"})
+    db.save_history("job-anal", "https://youtu.be/anal", "ANALYZING", [], {"source_video": "/tmp/v.mp4"})
+    db.save_history("job-crop", "https://youtu.be/crop", "CROPPING", [], {"highlights": [{"start": 0}]})
+    db.save_history("job-done", "https://youtu.be/done", "DONE", [{"path": "/tmp/c.mp4"}], {})
+
+    db.fix_stuck_jobs()
+
+    # In-progress jobs should become ERROR with explanatory error message in metadata
+    for jid in ["job-dl", "job-trans", "job-anal", "job-crop"]:
+        row = db.get_history(jid)
+        assert row["status"] == "ERROR"
+        assert "ter-restart" in row["metadata"]["error"]
+
+    # DONE job should stay DONE
+    done_row = db.get_history("job-done")
+    assert done_row["status"] == "DONE"
+
+
+def test_save_history_preserves_metadata_when_none(monkeypatch, tmp_path):
+    _use_tmp_db(monkeypatch, tmp_path)
+    initial_meta = {"provider": "gemini", "title": "My Title"}
+    db.save_history("job-meta", "https://youtu.be/m", "DOWNLOADING", [], initial_meta)
+
+    # Update with metadata=None
+    db.save_history("job-meta", "https://youtu.be/m", "TRANSCRIBING", [], None)
+    row = db.get_history("job-meta")
+    assert row["status"] == "TRANSCRIBING"
+    assert row["metadata"]["provider"] == "gemini"
+    assert row["metadata"]["title"] == "My Title"
+
+
+def test_save_history_preserves_clips_when_empty(monkeypatch, tmp_path):
+    _use_tmp_db(monkeypatch, tmp_path)
+    clips = [{"path": "/x/clip1.mp4", "description": "Clip 1"}]
+    db.save_history("job-clips", "https://youtu.be/c", "CROPPING", clips, {"title": "Test"})
+
+    # Update with empty clips list (e.g. intermediate save without passing clips)
+    db.save_history("job-clips", "https://youtu.be/c", "CROPPING", [], {"title": "Test", "step": 2})
+    row = db.get_history("job-clips")
+    assert len(row["result_clips"]) == 1
+    assert row["result_clips"][0]["path"] == "/x/clip1.mp4"
+
+
 
 
