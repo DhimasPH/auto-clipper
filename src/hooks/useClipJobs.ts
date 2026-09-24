@@ -421,20 +421,6 @@ export function useClipJobs(p: ClipJobParams) {
   };
 
   const isRunning = !!activeJobId || status === "GENERATING";
-  const progressPct =
-    status === "DOWNLOADING"
-      ? 15
-      : status === "TRANSCRIBING"
-        ? 45
-        : status === "ANALYZING"
-          ? 55
-          : status === "CROPPING"
-            ? totalClips
-              ? 60 + Math.round((clips.length / totalClips) * 35)
-              : 60
-            : status === "DONE"
-              ? 100
-              : 0;
 
   useEffect(() => {
     if (isRunning) {
@@ -446,7 +432,7 @@ export function useClipJobs(p: ClipJobParams) {
 
   return {
     status, progress, errorMsg, clips, failedCount,
-    isRunning, progressPct, historyVersion, activeJobId,
+    isRunning, historyVersion, activeJobId,
     handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, startManualResumePolling, cancelJob, resetJobState,
   };
 }
