@@ -52,7 +52,6 @@ export function useClipJobs(p: ClipJobParams) {
   const [errorMsg, setErrorMsg] = useState("");
   const [progress, setProgress] = useState("");
   const [clips, setClips] = useState<Clip[]>([]);
-  const [totalClips, setTotalClips] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [jobOrigin, setJobOrigin] = useState<"workspace" | "history">("workspace");
@@ -168,7 +167,6 @@ export function useClipJobs(p: ClipJobParams) {
     setErrorMsg("");
     setProgress("");
     setClips([]);
-    setTotalClips(0);
     setFailedCount(0);
     setJobOrigin("workspace");
 
@@ -237,7 +235,6 @@ export function useClipJobs(p: ClipJobParams) {
     setErrorMsg("");
     setProgress("");
     setClips([]);
-    setTotalClips(manualClips.length);
     setFailedCount(0);
     setJobOrigin("workspace");
 
@@ -408,7 +405,6 @@ export function useClipJobs(p: ClipJobParams) {
     setProgress("");
     setActiveJobId(null);
     setFailedCount(0);
-    setTotalClips(0);
   };
 
   const startManualResumePolling = (jobId: string) => {
