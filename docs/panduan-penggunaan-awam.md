@@ -109,5 +109,8 @@ Setelah mesin dan remote siap, Anda cukup menggunakan HP setiap harinya.
 **6. Google Drive saya kepenuhan, apa yang harus dihapus?**
 **J:** Buka Google Drive, masuk ke folder `AutoClipperData` -> `projects`. Anda boleh menghapus folder video lama yang sudah di-download ke HP. **Sangat Penting:** Jangan pernah menghapus file `history.db`! File ini adalah buku catatan riwayat video Anda di HP.
 
+**7. Muncul Error 403 saat memasukkan link YouTube?**
+**J:** Ini berarti pihak YouTube sedang memblokir akses pengunduhan otomatis dari mesin. Solusinya, jangan pakai link YouTube. Anda bisa mengunduh videonya terlebih dahulu lalu pakai menu **Video Lokal** di aplikasi, atau simpan saja videonya di Google Drive Anda.
+
 ---
 Selamat membuat konten viral dengan mudah! 🚀
