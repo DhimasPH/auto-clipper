@@ -2,6 +2,12 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.15.6] - 2026-09-24
+
+### Changed
+- **Loading UI Refactor**: Menghapus bar persentase (progress slider) fiktif pada layar loading (BusyOverlay) yang sering disalahpahami berhenti (stuck) di 50%. Menggantinya dengan ikon loading berputar statis (*indeterminate spinner*) dengan detail langkah aktual dari backend dan timer durasi waktu berjalan.
+- **Documentation**: Menambahkan buku panduan baru versi non-teknis / awam (`docs/panduan-penggunaan-awam.md`) untuk pengoperasian sistem Auto Clipper Cloud melalui perangkat *smartphone*, yang memuat dukungan dua tipe tunnel (Ngrok & Cloudflare) beserta panduan penanganan masalah (*troubleshooting*) yang lebih komprehensif.
+
 ## [1.15.5] - 2026-09-17
 
 ### Fixed

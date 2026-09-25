@@ -33,15 +33,6 @@ export default function BusyOverlay() {
 
   if (!ctx || !ctx.isRunning) return null;
 
-  let displayPct = ctx.progressPct;
-  if (ctx.status === 'TRANSCRIBING' || ctx.status === 'ANALYZING') {
-    // start at 45, max at 58, 1% every 15 seconds
-    displayPct = Math.min(58, 45 + Math.floor(elapsedSeconds / 15));
-  }
-
-  const estimatedTotal = displayPct > 0 ? (elapsedSeconds * 100) / displayPct : 0;
-  const estimatedRemaining = Math.max(0, Math.floor(estimatedTotal - elapsedSeconds));
-
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     const secs = s % 60;
@@ -76,21 +67,8 @@ export default function BusyOverlay() {
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-caption text-text-secondary font-medium">
-            <span>{t('busy.progress', 'Progress')}</span>
-            <span>{displayPct}%</span>
-          </div>
-          <div className="w-full h-2 bg-surface-raised rounded-full overflow-hidden">
-            <div
-              className="h-full bg-accent transition-all duration-300 ease-out rounded-full animate-pulse"
-              style={{ width: `${displayPct}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-caption text-text-secondary pt-1">
-            <span>{t('busy.elapsed', '⏳ Waktu berjalan:')} {formatTime(elapsedSeconds)}</span>
-            <span>{t('busy.estimated', 'Estimasi sisa:')} {displayPct > 0 ? formatTime(estimatedRemaining) : t('busy.calculating', 'Menghitung...')}</span>
-          </div>
+        <div className="flex justify-center text-[12px] font-semibold text-text-secondary">
+          <span>{t('busy.elapsed', '⏳ Waktu berjalan:')} {formatTime(elapsedSeconds)}</span>
         </div>
 
         <p className="text-caption text-text-secondary">

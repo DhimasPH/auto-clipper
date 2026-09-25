@@ -908,18 +908,64 @@ def _run_rerender_job(job_id: str):
                     clip_subtitle = custom_sub
 
             try:
-                result_path = crop_to_vertical(
-                    output_path, clip_output, seg["start_time"], seg["end_time"],
-                    subtitle_path=clip_subtitle if job.get("burn_subs", True) else None,
-                    aspect_ratio=job["aspect_ratio"],
-                    register_proc=lambda p: _register_proc(job, p),
-                    should_cancel=lambda: job.get("cancelled", False),
-                    broll_path=broll_path,
-                    layout=job_layout,
-                    canvas_config=job.get("canvas_config"),
-                    subtitle_config=job.get("subtitle_config"),
-                    tracking_mode=job.get("tracking_mode", "auto")
-                )
+                if job.get("enable_hook") and "hook_start" in seg and "hook_end" in seg:
+                    import subprocess
+                    job["progress"] = f"Merender Hook klip {i+1}..."
+                    log_app(f"[{job_id}] " + str(job["progress"]))
+                    hook_output = os.path.normpath(os.path.join(ws["clips_dir"], f"{ws['safe_title']}_hook_{i+1}.mp4"))
+                    main_output = os.path.normpath(os.path.join(ws["clips_dir"], f"{ws['safe_title']}_main_{i+1}.mp4"))
+                    
+                    crop_to_vertical(
+                        output_path, hook_output, seg["hook_start"], seg["hook_end"],
+                        subtitle_path=clip_subtitle if job.get("burn_subs", True) else None,
+                        aspect_ratio=job["aspect_ratio"],
+                        register_proc=lambda p: _register_proc(job, p),
+                        should_cancel=lambda: job.get("cancelled", False),
+                        broll_path=None,
+                        layout=job_layout,
+                        canvas_config=job.get("canvas_config"),
+                        subtitle_config=job.get("subtitle_config"),
+                        tracking_mode=job.get("tracking_mode", "auto")
+                    )
+                    
+                    crop_to_vertical(
+                        output_path, main_output, seg["start_time"], seg["end_time"],
+                        subtitle_path=clip_subtitle if job.get("burn_subs", True) else None,
+                        aspect_ratio=job["aspect_ratio"],
+                        register_proc=lambda p: _register_proc(job, p),
+                        should_cancel=lambda: job.get("cancelled", False),
+                        broll_path=broll_path,
+                        layout=job_layout,
+                        canvas_config=job.get("canvas_config"),
+                        subtitle_config=job.get("subtitle_config"),
+                        tracking_mode=job.get("tracking_mode", "auto")
+                    )
+                    
+                    job["progress"] = f"Menggabungkan Hook untuk klip {i+1}..."
+                    log_app(f"[{job_id}] " + str(job["progress"]))
+                    transition_asset = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "glitch_transition.mp4")
+                    concat_cmd = [
+                        "ffmpeg", "-y", "-i", hook_output, "-i", transition_asset, "-i", main_output, 
+                        "-filter_complex", "[0:v]setsar=1[v0];[1:v]setsar=1,scale=1080:1920[v1];[2:v]setsar=1[v2];[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[v][a]", 
+                        "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-c:a", "aac", clip_output
+                    ]
+                    subprocess.run(concat_cmd, check=True)
+                    if os.path.exists(hook_output): os.remove(hook_output)
+                    if os.path.exists(main_output): os.remove(main_output)
+                    result_path = clip_output
+                else:
+                    result_path = crop_to_vertical(
+                        output_path, clip_output, seg["start_time"], seg["end_time"],
+                        subtitle_path=clip_subtitle if job.get("burn_subs", True) else None,
+                        aspect_ratio=job["aspect_ratio"],
+                        register_proc=lambda p: _register_proc(job, p),
+                        should_cancel=lambda: job.get("cancelled", False),
+                        broll_path=broll_path,
+                        layout=job_layout,
+                        canvas_config=job.get("canvas_config"),
+                        subtitle_config=job.get("subtitle_config"),
+                        tracking_mode=job.get("tracking_mode", "auto")
+                    )
 
                 job["clips"].append({
                     "path": result_path,
@@ -1289,16 +1335,58 @@ def _run_rerender_clip_job(new_job_id: str):
             )
             temp_output = os.path.join(ws["clips_dir"], f"clip_{clip_index}_{uuid.uuid4().hex[:6]}.mp4")
 
-        result_path = crop_to_vertical(
-            source_path, temp_output, start_t, end_t,
-            subtitle_path=custom_subtitle_path,
-            aspect_ratio=job["aspect_ratio"],
-            should_cancel=lambda: job.get("cancelled", False),
-            layout=job_layout,
-            canvas_config=job.get("canvas_config"),
-            subtitle_config=job.get("subtitle_config"),
-            tracking_mode=job.get("tracking_mode", "auto")
-        )
+        enable_hook = metadata.get("enable_hook", False)
+        seg = metadata.get("highlights", [])[clip_index] if clip_index < len(metadata.get("highlights", [])) else {}
+        if enable_hook and "hook_start" in seg and "hook_end" in seg:
+            import subprocess
+            job["progress"] = "Re-rendering hook..."
+            hook_output = os.path.normpath(os.path.join(ws["clips_dir"], f"clip_{clip_index}_hook_{uuid.uuid4().hex[:6]}.mp4"))
+            main_output = os.path.normpath(os.path.join(ws["clips_dir"], f"clip_{clip_index}_main_{uuid.uuid4().hex[:6]}.mp4"))
+            
+            crop_to_vertical(
+                source_path, hook_output, seg["hook_start"], seg["hook_end"],
+                subtitle_path=custom_subtitle_path,
+                aspect_ratio=job["aspect_ratio"],
+                should_cancel=lambda: job.get("cancelled", False),
+                layout=job_layout,
+                canvas_config=job.get("canvas_config"),
+                subtitle_config=job.get("subtitle_config"),
+                tracking_mode=job.get("tracking_mode", "auto")
+            )
+            
+            crop_to_vertical(
+                source_path, main_output, start_t, end_t,
+                subtitle_path=custom_subtitle_path,
+                aspect_ratio=job["aspect_ratio"],
+                should_cancel=lambda: job.get("cancelled", False),
+                layout=job_layout,
+                canvas_config=job.get("canvas_config"),
+                subtitle_config=job.get("subtitle_config"),
+                tracking_mode=job.get("tracking_mode", "auto")
+            )
+            
+            job["progress"] = "Menggabungkan Hook..."
+            transition_asset = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "glitch_transition.mp4")
+            concat_cmd = [
+                "ffmpeg", "-y", "-i", hook_output, "-i", transition_asset, "-i", main_output, 
+                "-filter_complex", "[0:v]setsar=1[v0];[1:v]setsar=1,scale=1080:1920[v1];[2:v]setsar=1[v2];[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[v][a]", 
+                "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-c:a", "aac", temp_output
+            ]
+            subprocess.run(concat_cmd, check=True)
+            if os.path.exists(hook_output): os.remove(hook_output)
+            if os.path.exists(main_output): os.remove(main_output)
+            result_path = temp_output
+        else:
+            result_path = crop_to_vertical(
+                source_path, temp_output, start_t, end_t,
+                subtitle_path=custom_subtitle_path,
+                aspect_ratio=job["aspect_ratio"],
+                should_cancel=lambda: job.get("cancelled", False),
+                layout=job_layout,
+                canvas_config=job.get("canvas_config"),
+                subtitle_config=job.get("subtitle_config"),
+                tracking_mode=job.get("tracking_mode", "auto")
+            )
 
         # Atomic replace: move temp to final path
         final_path = original_path or result_path
@@ -1411,6 +1499,7 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
         "quality": hist_meta.get("quality", "best"),
         "whisper_model": hist_meta.get("whisper_model", "small"),
         "enable_broll": hist_meta.get("enable_broll", False),
+        "enable_hook": hist_meta.get("enable_hook", False),
         "pexels_api_key": hist_meta.get("pexels_api_key", ""),
         "max_clips": hist_meta.get("max_clips", 0),
         "is_gaming_video": hist_meta.get("is_gaming_video", False),
