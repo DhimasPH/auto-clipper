@@ -221,7 +221,7 @@ export const PromptJsonModal: React.FC<{
              <button 
                 onClick={handleFinalSubmit}
                 disabled={isSubmitting || !!error || inputJson.trim() === ""}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white shadow-md shadow-purple-500/25 disabled:opacity-50 transition-all"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm disabled:opacity-50 transition-all"
              >
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
                 Resume Job
@@ -232,3 +232,4 @@ export const PromptJsonModal: React.FC<{
     </div>
   );
 };
+

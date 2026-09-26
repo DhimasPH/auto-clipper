@@ -23,13 +23,12 @@ export const WorkspacePage: React.FC = () => {
       />
 
       {ctx.error && (
-        <div className="mt-4 p-4 rounded-xl bg-error/10 border border-error/20 flex flex-col gap-2 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-1 h-full bg-error" />
-          <h4 className="text-error font-bold text-sm flex items-center gap-2">
+        <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-200 flex flex-col gap-2">
+          <h4 className="text-red-700 font-bold text-sm flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
             Task Failed
           </h4>
-          <p className="text-text-primary text-sm whitespace-pre-wrap">{ctx.error}</p>
+          <p className="text-red-600 text-sm whitespace-pre-wrap">{ctx.error}</p>
           <div className="mt-2 flex items-center gap-2 flex-wrap">
             {(ctx.activeJob?.id || ctx.jobId) && (
               <button
@@ -60,7 +59,6 @@ export const WorkspacePage: React.FC = () => {
         <div className="mt-4 p-4 rounded-2xl bg-bg-surface border border-border shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-success" />
               <span className="text-sm font-semibold text-text-primary capitalize">
                 Status: {ctx.status.toLowerCase().replace(/_/g, ' ')}
               </span>

@@ -348,7 +348,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
           <button 
             onClick={handleSaveRerender} 
             disabled={saving || loading}
-            className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-purple-500/25 transition-all flex items-center gap-2"
+            className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all flex items-center gap-2"
           >
             {saving && <RefreshCcw className="w-4 h-4 animate-spin" />}
             Save & Rerender
@@ -358,3 +358,4 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
     </div>
   );
 };
+

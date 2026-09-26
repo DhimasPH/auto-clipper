@@ -3,7 +3,6 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  ArrowRight,
   ShieldCheck,
   AlertCircle,
 } from "lucide-react";
@@ -123,34 +122,33 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 animate-mesh text-gray-900 w-full relative">
-      <div className="w-full max-w-md bg-white/95 rounded-[2.5rem] shadow-2xl overflow-hidden p-6 sm:p-8 flex flex-col items-center relative z-10">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-bg-primary text-gray-900 w-full relative">
+      <div className="w-full max-w-md bg-white rounded-[2rem] shadow-xl overflow-hidden p-6 sm:p-8 flex flex-col items-center relative z-10 border border-border">
         <div className="flex flex-col items-center mb-8 animate-fade-in-up">
           <img
             src="/character.png"
             alt="Faceless 3D Character"
-            className="w-32 h-32 object-cover mb-2 animate-float drop-shadow-xl rounded-full"
+            className="w-32 h-32 object-cover mb-2 drop-shadow-lg rounded-full"
           />
           <img
             src="/logo.png"
             alt="Auto Clipper Logo"
-            className="w-16 h-16 rounded-full object-cover shadow-md ring-2 ring-gray-50 mb-4 -mt-6 z-10"
+            className="w-16 h-16 rounded-full object-cover shadow-sm ring-1 ring-border mb-4 -mt-6 z-10 bg-white"
           />
-          <h1 className="text-3xl font-extrabold mb-1 text-center tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 animate-gradient-x">
+          <h1 className="text-3xl font-extrabold mb-1 text-center tracking-tight text-text-primary">
             Auto Clipper
           </h1>
-          <p className="text-gray-500 text-center text-sm font-medium">
-            The smartest way to automate your video clips.
+          <p className="text-text-secondary text-center text-sm font-medium">
+            Automated video clipping and transcription.
           </p>
         </div>
 
         <div className="w-full mb-6">
           <button
             onClick={() => setIsLoginModalOpen(true)}
-            className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 ease-out animate-fade-in-up flex items-center justify-center gap-2"
+            className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-sm hover:-translate-y-0.5 transition-all duration-200 ease-out flex items-center justify-center gap-2"
           >
             Login to Workspace
-            <ArrowRight className="w-5 h-5" />
           </button>
         </div>
 
@@ -394,7 +392,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
               <button
                 type="submit"
                 disabled={isVerifying || !token.trim()}
-                className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-purple-500/30 flex items-center justify-center gap-2"
+                className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm"
               >
                 {isVerifying ? (
                   <>
@@ -402,10 +400,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
                     <span>Verifying...</span>
                   </>
                 ) : (
-                  <>
-                    <span>Unlock</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
+                  <span>Unlock</span>
                 )}
               </button>
             </form>

@@ -154,7 +154,7 @@ export const ResultsModal: React.FC<{
              ) : (
                <div /> /* Placeholder to maintain flex-between layout */
              )}
-             <button onClick={() => { onClose(); if(onResetApp) onResetApp(); }} className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white shadow-md shadow-purple-500/25 transition-all">
+             <button onClick={() => { onClose(); if(onResetApp) onResetApp(); }} className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-all">
                 Start New Job <ArrowRight className="w-4 h-4" />
              </button>
           </div>
@@ -163,3 +163,4 @@ export const ResultsModal: React.FC<{
     </div>
   );
 };
+

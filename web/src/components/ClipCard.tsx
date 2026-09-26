@@ -1,5 +1,5 @@
 import React from "react";
-import { Download, Sparkles, Pencil } from "lucide-react";
+import { Download, Sparkles, Pencil, Star } from "lucide-react";
 import { getVideoStreamUrl, getDownloadUrl } from "../api";
 
 export interface ClipCardProps {
@@ -13,6 +13,7 @@ export interface ClipCardProps {
     subs?: boolean;
     social?: any;
     v?: number;
+    score?: number;
   };
   index: number;
   jobId: string;
@@ -55,9 +56,17 @@ export const ClipCard: React.FC<ClipCardProps> = ({
 
       {/* Info & Description */}
       <div className="flex flex-col flex-1 min-h-0">
-        <h4 className="font-bold text-text-primary text-sm truncate mb-1" title={title}>
-          {title}
-        </h4>
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h4 className="font-bold text-text-primary text-sm truncate" title={title}>
+            {title}
+          </h4>
+          {clip.score && (
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold shrink-0">
+              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+              <span>{clip.score}/10</span>
+            </div>
+          )}
+        </div>
         <p className="text-xs text-text-secondary leading-relaxed line-clamp-2 mb-3">
           {description || "No description provided."}
         </p>
@@ -84,7 +93,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
               title="Correct Subtitle & Rerender"
             >
               <Pencil className="w-3.5 h-3.5" />
-              <span className="truncate">Koreksi Subtitle</span>
+              <span className="truncate">Correct Subtitles</span>
             </button>
           )}
 
