@@ -1,7 +1,7 @@
 {
   "name": "auto-clipper",
   "private": true,
-  "version": "1.15.6",
+  "version": "1.16.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -78,3 +78,4 @@
     "ffmpeg-static": "^5.3.0"
   }
 }
+
