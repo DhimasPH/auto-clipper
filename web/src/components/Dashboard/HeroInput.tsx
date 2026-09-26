@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import {
   Link as LinkIcon,
   Sparkles,
-  ArrowRight,
   Clipboard,
   XCircle,
   Sliders,
@@ -190,7 +189,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full bg-white border border-border rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl shadow-slate-200/50 space-y-5 sm:space-y-6">
+    <form onSubmit={handleSubmit} className="w-full bg-white border border-border rounded-xl sm:rounded-2xl p-4 sm:p-8 shadow-sm space-y-5 sm:space-y-6">
       {/* Video URL Input Section */}
       <div className="space-y-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
@@ -296,11 +295,11 @@ export const HeroInput: React.FC<HeroInputProps> = ({
               className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
                 trackingMode === "auto"
                   ? "border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500/30"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                  : "border-border bg-white text-text-secondary hover:border-slate-300"
               }`}
             >
               <span className="text-sm">Auto Face Tracking</span>
-              <span className="text-xs text-slate-500 font-normal text-center">AI mengikuti wajah pembicara utama</span>
+              <span className="text-xs text-text-tertiary font-normal text-center">AI tracks the primary speaker's face</span>
             </button>
             <button
               type="button"
@@ -308,11 +307,11 @@ export const HeroInput: React.FC<HeroInputProps> = ({
               className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
                 trackingMode === "center"
                   ? "border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500/30"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                  : "border-border bg-white text-text-secondary hover:border-slate-300"
               }`}
             >
               <span className="text-sm">Center Crop</span>
-              <span className="text-xs text-slate-500 font-normal text-center">Statis di tengah video (tanpa pergerakan AI)</span>
+              <span className="text-xs text-text-tertiary font-normal text-center">Static center (no AI tracking)</span>
             </button>
           </div>
         </div>
@@ -343,10 +342,10 @@ export const HeroInput: React.FC<HeroInputProps> = ({
       <div className="pt-3 pb-1 flex items-center justify-between border-t border-border mt-3">
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-text-primary">
-            Tambahkan Hook Otomatis
+            Auto Hook
           </span>
           <span className="text-xs text-text-secondary">
-            Duplikasi 3-5 detik momen menarik di awal video
+            Duplicate 3-5 seconds of engaging moments to the start
           </span>
         </div>
         <ToggleSwitch
@@ -363,7 +362,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
             Gaming Video
           </span>
           <span className="text-xs text-text-secondary">
-            Gunakan mode Split-screen otomatis untuk mendeteksi facecam streamer
+            Auto-detect streamer facecam and use split-screen mode
           </span>
         </div>
         <ToggleSwitch
@@ -388,11 +387,11 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="w-full px-4 py-3 flex items-center justify-between text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
+          className="w-full px-4 py-3 flex items-center justify-between text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors border-0"
         >
           <div className="flex items-center gap-2">
             <Sliders className="w-4 h-4 text-purple-600" />
-            <span>Advanced Transcription Settings</span>
+            <span>Transcription Settings</span>
           </div>
           <span className="text-[11px] text-text-tertiary font-mono">
             {showAdvanced ? "Hide options ▲" : "Show options ▼"}
@@ -405,14 +404,14 @@ export const HeroInput: React.FC<HeroInputProps> = ({
             <div className="space-y-1.5">
               <label htmlFor="project-title" className="font-medium text-text-secondary flex items-center gap-1.5">
                 <Film className="w-3.5 h-3.5 text-text-tertiary" />
-                <span>Project Name / Title (Optional)</span>
+                <span>Project Title (Optional)</span>
               </label>
               <input
                 id="project-title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Give your clip project a memorable name..."
+                placeholder="e.g. Podcast Episode 5"
                 className="w-full px-3.5 py-2 bg-bg-surface/50 border border-border rounded-lg text-text-primary placeholder:text-text-tertiary focus:outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
               />
             </div>
@@ -429,11 +428,11 @@ export const HeroInput: React.FC<HeroInputProps> = ({
                   onChange={(e) => setLanguage(e.target.value)}
                   className="w-full px-3 py-2 bg-bg-surface/50 border border-border rounded-lg text-text-primary focus:outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
                 >
-                  <option value="auto">🌍 Auto Detect (Whisper VAD)</option>
-                  <option value="id">🇮🇩 Indonesian (Bahasa)</option>
-                  <option value="en">🇺🇸 English</option>
-                  <option value="es">🇪🇸 Spanish</option>
-                  <option value="ja">🇯🇵 Japanese</option>
+                  <option value="auto">Auto Detect (Whisper VAD)</option>
+                  <option value="id">Indonesian (Bahasa)</option>
+                  <option value="en">English</option>
+                  <option value="es">Spanish</option>
+                  <option value="ja">Japanese</option>
                 </select>
               </div>
 
@@ -447,9 +446,9 @@ export const HeroInput: React.FC<HeroInputProps> = ({
                   onChange={(e) => setWhisperModel(e.target.value)}
                   className="w-full px-3 py-2 bg-bg-surface/50 border border-border rounded-lg text-text-primary focus:outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
                 >
-                  <option value="small">⚡ small (Fastest, High Accuracy)</option>
-                  <option value="medium">🎯 medium (Balanced for Podcast)</option>
-                  <option value="large-v3">💎 large-v3 (Maximum Accuracy)</option>
+                  <option value="small">small (Fastest, High Accuracy)</option>
+                  <option value="medium">medium (Balanced for Podcast)</option>
+                  <option value="large-v3">large-v3 (Maximum Accuracy)</option>
                 </select>
               </div>
 
@@ -475,12 +474,11 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         )}
       </div>
 
-      {/* Action Button */}
       <div className="pt-2">
         <button
           type="submit"
           disabled={isSubmitting || !url.trim()}
-          className="w-full py-3.5 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm rounded-2xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25"
+          className="w-full py-3 sm:py-3.5 px-4 sm:px-6 bg-purple-600 hover:bg-purple-700 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-sm"
         >
           {isSubmitting ? (
             <>
@@ -490,8 +488,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
           ) : (
             <>
               <Sparkles className="w-4 h-4" />
-              <span>Transcribe & Generate AI Prompt</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>Transcribe & Generate</span>
             </>
           )}
         </button>

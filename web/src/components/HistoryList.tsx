@@ -269,7 +269,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                       onResume(job.id);
                     }
                   }}
-                  className="flex items-center px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 rounded-xl transition-all shadow-sm shadow-purple-500/20"
+                  className="flex items-center px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-all shadow-sm"
                 >
                   <Play className="w-3.5 h-3.5 mr-1.5" />
                   {job.status === "AWAITING_MANUAL" ? "Edit Prompt / JSON" : "Rerun from JSON"}
@@ -355,7 +355,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                   <button
                     onClick={() => handleRerenderSubmit(job.id)}
                     disabled={isSubmittingPanel}
-                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold rounded-xl transition-all shadow-md shadow-purple-500/20 disabled:opacity-50 text-xs sm:text-sm"
+                    className="w-full py-2.5 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all shadow-sm disabled:opacity-50 text-xs sm:text-sm"
                   >
                     {isSubmittingPanel ? "Submitting..." : "Submit Rerender All"}
                   </button>
@@ -378,7 +378,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                 <button
                   onClick={() => handleAiCorrectSubmit(job.id)}
                   disabled={isSubmittingPanel || !extraPrompt.trim()}
-                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold rounded-xl transition-all shadow-md shadow-purple-500/20 disabled:opacity-50 text-xs sm:text-sm"
+                  className="w-full py-2.5 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all shadow-sm disabled:opacity-50 text-xs sm:text-sm"
                 >
                   {isSubmittingPanel ? "Submitting..." : "Submit AI Correction"}
                 </button>

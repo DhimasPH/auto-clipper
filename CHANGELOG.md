@@ -2,6 +2,14 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.16.0] - 2026-09-26
+
+### Added
+- **AI Virality Score**: Menambahkan metrik potensi keterlibatan penonton / *virality score* (1-10) untuk setiap rekomendasi highlight dari AI. Skor ini juga ditampilkan secara visual (*badge*) di atas setiap kartu klip hasil.
+
+### Changed
+- **Antislop UI Refactor**: Mendesain ulang antarmuka (Web dan Desktop) untuk membersihkan gradien dekoratif (*slop*), bayangan berlebihan, perputaran animasi tanpa henti (seperti *ping* status), dan simbol *emoji* tidak penting di dalam komponen interaktif. Antarmuka kini tampil lebih datar (*flat*), solid, bersih, profesional, serta tata letak kata (copywriting) dibuat faktual sesuai panduan *antislop*.
+
 ## [1.15.6] - 2026-09-24
 
 ### Changed
@@ -299,3 +307,4 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file in
 ## [1.3.2] - Previous Version
 
 _(Catatan historis untuk versi sebelumnya sebelum changelog ini diinisiasi)_
+

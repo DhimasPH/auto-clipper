@@ -19,7 +19,7 @@ export const AppLayout: React.FC = () => {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <span className="font-extrabold text-base text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-pink-500 to-red-500">
+            <span className="font-extrabold text-base text-text-primary">
               Auto Clipper
             </span>
             <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Auto Clipper",
-  "version": "1.15.6",
+  "version": "1.16.0",
   "identifier": "com.autoclipper.app",
   "build": {
     "frontendDist": "../dist",
@@ -66,3 +66,4 @@
     }
   }
 }
+

@@ -112,6 +112,7 @@ SOCIAL_PROMPT_TEMPLATE = (
     "Return a JSON object with a 'highlights' key holding an array of objects. "
     "Each object must have 'start_time', 'end_time', 'hook_start', 'hook_end' (all in HH:MM:SS.mmm format), "
     "'description_en' (in English), 'description_id' (in Indonesian), "
+    "'score' (Integer 1-10 rating virality/engagement potential), "
     "and 'broll_query_en' (STRICTLY 1-2 visual English words, e.g. 'coding man', 'fast car').\n"
     "ALSO, include a nested 'social' object with the following keys:\n"
     "- 'titles_en': Array of 3 English titles (Clickbait, Educational, Minimalist)\n"

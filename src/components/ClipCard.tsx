@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Download, Folder, Sparkles, Pencil } from "lucide-react";
+import { Download, Folder, Sparkles, Pencil, Star } from "lucide-react";
 import { Button } from "./ui/Button";
 import { open } from "@tauri-apps/plugin-shell";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -31,6 +31,7 @@ export interface Clip {
   subs: boolean;
   v: number;
   social?: SocialData;
+  score?: number;
 }
 
 interface ClipCardProps {
@@ -72,9 +73,17 @@ export default function ClipCard({
         />
       </div>
         <div className="flex flex-col flex-1">
-        <h3 className="text-body font-bold text-text-primary mb-2">
-          {t('clip.title_ai', { num: index + 1 })}
-        </h3>
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="text-body font-bold text-text-primary">
+            {t('clip.title_ai', { num: index + 1 })}
+          </h3>
+          {clip.score && (
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold shrink-0">
+              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+              <span>{clip.score}/10</span>
+            </div>
+          )}
+        </div>
         <p className="text-caption text-text-secondary leading-relaxed mb-4 flex-1">
           {currentDescription}
         </p>
