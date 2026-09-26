@@ -407,6 +407,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
           initialCanvasConfig={activeEditClip.job.metadata?.canvas_config || DEFAULT_CANVAS_CONFIG}
           initialSubtitleConfig={activeEditClip.job.metadata?.subtitle_config || DEFAULT_SUBTITLE_CONFIG}
           initialTrackingMode={activeEditClip.job.metadata?.tracking_mode || "auto"}
+          initialFaceTrackingEngine={activeEditClip.job.metadata?.face_tracking_engine || "haar"}
           onClose={() => setActiveEditClip(null)}
           onRerenderStart={(newJobId) => {
             setActiveEditClip(null);

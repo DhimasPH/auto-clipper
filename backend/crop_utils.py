@@ -122,7 +122,7 @@ def detect_primary_face_center(video_path: str, start_time=None, end_time=None) 
     return center
 
 
-def sample_face_trajectory(video_path: str, start_time: float, end_time: float, interval: float = 0.5, should_cancel = None) -> list[tuple[float, float]]:
+def sample_face_trajectory(video_path: str, start_time: float, end_time: float, interval: float = 0.5, should_cancel = None, engine: str = "haar") -> list[tuple]:
     """Sample face positions at periodic intervals across a clip window.
 
     Attempts to use MediaPipe Face Mesh for high-accuracy tracking (via Mouth Aspect Ratio).
@@ -150,6 +150,8 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
 
     # Try MediaPipe Face Mesh
     try:
+        if engine != "mediapipe":
+            raise ValueError("Skipping MediaPipe")
         import mediapipe as mp
         # Some versions of mediapipe hide solutions if initialization fails (e.g. tensorflow missing)
         if not hasattr(mp, 'solutions'):
@@ -200,7 +202,13 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
                     p308 = np.array([face_landmarks.landmark[308].x, face_landmarks.landmark[308].y])
                     
                     mar = np.linalg.norm(p13 - p14) / (np.linalg.norm(p78 - p308) + 1e-6)
-                    frame_faces.append({'cx': cx, 'mar': mar})
+                    
+                    # Estimate face width (cheek to cheek)
+                    p234 = np.array([face_landmarks.landmark[234].x, face_landmarks.landmark[234].y])
+                    p454 = np.array([face_landmarks.landmark[454].x, face_landmarks.landmark[454].y])
+                    w = float(np.linalg.norm(p234 - p454))
+                    
+                    frame_faces.append({'cx': cx, 'mar': mar, 'w': w})
                     
             raw_frames.append((rel_t, frame_faces))
 
@@ -236,6 +244,7 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
                     best_track_cx = np.median(best_track['cxs'])
 
             last_valid_x = best_track_cx
+            last_valid_w = 0.16
             for rel_t, faces in raw_frames:
                 speaker_face = None
                 min_dist = 0.15
@@ -247,11 +256,13 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
                         
                 if speaker_face:
                     x = speaker_face['cx']
+                    w = speaker_face['w']
                     clamped_center = max(lo, min(hi, x)) if lo <= hi else x
                     last_valid_x = clamped_center
-                    trajectory.append((rel_t, clamped_center))
+                    last_valid_w = w
+                    trajectory.append((rel_t, clamped_center, w))
                 else:
-                    trajectory.append((rel_t, last_valid_x))
+                    trajectory.append((rel_t, last_valid_x, last_valid_w))
 
             if trajectory:
                 cap.release()
@@ -268,6 +279,7 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
         return [(0.0, 0.5)]
         
     last_valid_x = 0.5
+    last_valid_w = 0.16
     # Reset capture position
     cap.set(cv2.CAP_PROP_POS_MSEC, start_time * 1000.0)
     
@@ -279,7 +291,7 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
         cap.set(cv2.CAP_PROP_POS_MSEC, abs_t * 1000.0)
         ret, frame = cap.read()
         if not ret:
-            trajectory.append((rel_t, last_valid_x))
+            trajectory.append((rel_t, last_valid_x, last_valid_w))
             continue
 
         fh, fw = frame.shape[:2]
@@ -298,17 +310,19 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
         if len(faces) > 0:
             x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
             raw_center = (x + w / 2) / small_w
+            w_ratio = w / small_w
             if lo <= hi:
                 clamped_center = max(lo, min(hi, raw_center))
             else:
                 clamped_center = raw_center
             last_valid_x = clamped_center
-            trajectory.append((rel_t, clamped_center))
+            last_valid_w = w_ratio
+            trajectory.append((rel_t, clamped_center, w_ratio))
         else:
-            trajectory.append((rel_t, last_valid_x))
+            trajectory.append((rel_t, last_valid_x, last_valid_w))
 
     cap.release()
-    return trajectory if trajectory else [(0.0, 0.5)]
+    return trajectory if trajectory else [(0.0, 0.5, 0.16)]
 
 
 
@@ -331,21 +345,25 @@ def smooth_trajectory(trajectory: list[tuple[float, float]], alpha: float = 0.25
     return smoothed
 
 
-def apply_deadband_filter(raw_trajectory: list[tuple[float, float]], deadband: float = 0.08) -> list[tuple[float, float]]:
-    """Lock the crop position until the subject moves beyond ``deadband``.
-
+def apply_deadband_filter(raw_trajectory: list[tuple], default_deadband: float = 0.08) -> list[tuple[float, float]]:
+    """Lock the crop position until the subject moves beyond a deadband.
+    
     Small, jittery face movements (breathing, micro-shifts while a speaker sits
     still) would otherwise make the crop window wobble frame to frame. We hold
     an anchor position and only let it follow the face once the face has moved
-    further than ``deadband`` (as a fraction of frame width) from that anchor —
-    then the anchor snaps to the new spot. Downstream EMA smoothing turns each
-    snap into a gentle pan rather than a hard jump.
+    further than the deadband.
+
+    If the tuple provides a face width ratio (t, x, w), the deadband is dynamically
+    set to a fraction of the face width to adapt to how close the subject is.
     """
     if not raw_trajectory:
         return [(0.0, 0.5)]
     result = []
     anchor = raw_trajectory[0][1]
-    for t, x in raw_trajectory:
+    for pt in raw_trajectory:
+        t = pt[0]
+        x = pt[1]
+        deadband = (pt[2] * 0.5) if len(pt) >= 3 else default_deadband
         if abs(x - anchor) >= deadband:
             anchor = x
         result.append((t, anchor))
@@ -1324,7 +1342,8 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                      end_time: str, subtitle_path: str = None, aspect_ratio: str = "9:16",
                      register_proc=None, should_cancel=None, broll_path: str = None,
                      layout: dict = None, canvas_config: dict = None,
-                     subtitle_config: dict = None, tracking_mode: str = "auto") -> str:
+                     subtitle_config: dict = None, tracking_mode: str = "auto",
+                     engine: str = "haar") -> str:
     """Crop to 9:16 (or chosen ratio), trim to [start, end], scale to standard dimensions,
     and optionally burn subtitles with custom typography and zero-overlap single-word pop.
     Supports canvas conversion (blur, color, image backgrounds with scaling) for 16:9 sources.
@@ -1394,12 +1413,12 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             if tracking_mode == "center":
                 trajectory = [(0.0, 0.5)]
             else:
-                raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel)
+                raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel, engine=engine)
                 if should_cancel and should_cancel():
                     raise RuntimeError("Dibatalkan oleh pengguna.")
                 # Deadband first (lock out micro-jitter), then EMA smoothing turns any
                 # larger repositioning into a gentle pan.
-                stabilized = apply_deadband_filter(raw_traj, deadband=0.08)
+                stabilized = apply_deadband_filter(raw_traj, default_deadband=0.08)
                 trajectory = smooth_trajectory(stabilized, alpha=0.25)
                 
             crop_filter = build_dynamic_crop_filter(aspect_ratio, trajectory, clip_duration=duration)

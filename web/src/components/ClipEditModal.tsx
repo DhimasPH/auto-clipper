@@ -16,6 +16,7 @@ interface ClipEditModalProps {
   initialSubtitleConfig?: SubtitleConfig;
   initialCanvasConfig?: CanvasConfig;
   initialTrackingMode?: string;
+  initialFaceTrackingEngine?: string;
   onClose: () => void;
   onRerenderStart: (newJobId: string) => void;
 }
@@ -28,6 +29,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   initialSubtitleConfig = DEFAULT_SUBTITLE_CONFIG,
   initialCanvasConfig = DEFAULT_CANVAS_CONFIG,
   initialTrackingMode = "auto",
+  initialFaceTrackingEngine = "haar",
   onClose,
   onRerenderStart,
 }) => {
@@ -39,6 +41,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
   const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(initialSubtitleConfig);
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(initialCanvasConfig);
   const [trackingMode, setTrackingMode] = useState<string>(initialTrackingMode);
+  const [faceTrackingEngine, setFaceTrackingEngine] = useState<string>(initialFaceTrackingEngine);
   const [burnSubtitles, setBurnSubtitles] = useState<boolean>(true);
   
   const [originalWords, setOriginalWords] = useState<any[]>([]);
@@ -123,6 +126,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
         canvas_config: canvasConfig,
         subtitle_config: subtitleConfig,
         tracking_mode: trackingMode,
+        face_tracking_engine: faceTrackingEngine,
         burn_subs: burnSubtitles,
       };
 
@@ -280,6 +284,7 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                 
                 {/* Tracking Mode Options for Portrait */}
                 {["face_crop", "canvas_blur", "square"].includes(outputStyle) && (
+                  <>
                   <div className="pt-2 space-y-2">
                     <label className="text-sm font-semibold text-text-primary">
                       Face Tracking Mode
@@ -311,6 +316,43 @@ export const ClipEditModal: React.FC<ClipEditModalProps> = ({
                       </button>
                     </div>
                   </div>
+
+                  {trackingMode === "auto" && (
+                    <div className="pt-2 space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">
+                        Face Tracking Engine
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setFaceTrackingEngine("haar")}
+                          disabled={saving}
+                          className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                            faceTrackingEngine === "haar"
+                              ? "border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500/30"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                          } disabled:opacity-50`}
+                        >
+                          <span className="text-sm">Haar Cascade</span>
+                          <span className="text-xs text-slate-500 font-normal text-center">Faster (Default)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFaceTrackingEngine("mediapipe")}
+                          disabled={saving}
+                          className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                            faceTrackingEngine === "mediapipe"
+                              ? "border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500/30"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                          } disabled:opacity-50`}
+                        >
+                          <span className="text-sm">MediaPipe AI</span>
+                          <span className="text-xs text-slate-500 font-normal text-center">Smoother, needs better hardware</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
                 )}
                 
                 {outputStyle === "canvas_blur" && (

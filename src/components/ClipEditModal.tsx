@@ -17,6 +17,7 @@ interface Props {
   initialCanvasConfig?: CanvasConfig;
   initialSubtitleConfig?: SubtitleConfig;
   initialTrackingMode?: string;
+  initialFaceTrackingEngine?: string;
   initialBurnSubs?: boolean;
   onClose: () => void;
   onRerenderStart: (newJobId: string) => void;
@@ -24,7 +25,7 @@ interface Props {
 
 export const ClipEditModal: React.FC<Props> = ({
   jobId, clipIndex, clipTitle, initialAspectRatio = "9:16", initialCanvasConfig,
-  initialSubtitleConfig, initialTrackingMode = "auto", initialBurnSubs = true, onClose, onRerenderStart
+  initialSubtitleConfig, initialTrackingMode = "auto", initialFaceTrackingEngine = "haar", initialBurnSubs = true, onClose, onRerenderStart
 }) => {
   const { t } = useTranslation();
   const [words, setWords] = useState<any[]>([]);
@@ -36,6 +37,7 @@ export const ClipEditModal: React.FC<Props> = ({
 
   const [aspectRatio, setAspectRatio] = useState(initialAspectRatio);
   const [trackingMode, setTrackingMode] = useState(initialTrackingMode);
+  const [faceTrackingEngine, setFaceTrackingEngine] = useState(initialFaceTrackingEngine);
   const [burnSubs, setBurnSubs] = useState(initialBurnSubs);
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(initialCanvasConfig || DEFAULT_CANVAS_CONFIG);
   const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(initialSubtitleConfig || DEFAULT_SUBTITLE_CONFIG);
@@ -148,6 +150,7 @@ export const ClipEditModal: React.FC<Props> = ({
         words,
         aspect_ratio: aspectRatio,
         tracking_mode: trackingMode,
+        face_tracking_engine: faceTrackingEngine,
         caption_style: subtitleConfig.style,
         burn_subs: burnSubs,
         canvas_config: canvasConfig,
@@ -376,15 +379,28 @@ export const ClipEditModal: React.FC<Props> = ({
                 ]}
               />
               {['9:16', '4:5', '1:1'].includes(aspectRatio) && (
-                <Select
-                  label="Tracking Mode"
-                  value={trackingMode}
-                  onChange={(e) => setTrackingMode(e.target.value)}
-                  options={[
-                    { label: 'Auto Face Tracking', value: 'auto' },
-                    { label: 'Center Crop (Static)', value: 'center' },
-                  ]}
-                />
+                <>
+                  <Select
+                    label="Tracking Mode"
+                    value={trackingMode}
+                    onChange={(e) => setTrackingMode(e.target.value)}
+                    options={[
+                      { label: 'Auto Face Tracking', value: 'auto' },
+                      { label: 'Center Crop (Static)', value: 'center' },
+                    ]}
+                  />
+                  {trackingMode === 'auto' && (
+                    <Select
+                      label="Face Tracking Engine"
+                      value={faceTrackingEngine}
+                      onChange={(e) => setFaceTrackingEngine(e.target.value)}
+                      options={[
+                        { label: 'Haar Cascade (Default)', value: 'haar' },
+                        { label: 'MediaPipe AI', value: 'mediapipe' },
+                      ]}
+                    />
+                  )}
+                </>
               )}
             </div>
             {burnSubs && (

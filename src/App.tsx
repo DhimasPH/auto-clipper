@@ -73,11 +73,16 @@ export default function App() {
     "1:1" | "4:5" | "9:16" | "16:9"
   >("9:16");
   const [trackingMode, setTrackingMode] = useState<"auto" | "center">("auto");
+  const [faceTrackingEngine, setFaceTrackingEngine] = useState<"haar" | "mediapipe">(() => (localStorage.getItem("ac_face_engine") as any) || "haar");
   const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke" | "single_word">(
     "single_word",
   );
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
   const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(DEFAULT_SUBTITLE_CONFIG);
+
+  useEffect(() => {
+    localStorage.setItem("ac_face_engine", faceTrackingEngine);
+  }, [faceTrackingEngine]);
 
   useEffect(() => {
     localStorage.setItem("ac_provider", provider);
@@ -131,6 +136,7 @@ export default function App() {
     model: selectedModel,
     aspectRatio,
     trackingMode,
+    faceTrackingEngine,
     captionStyle: subtitleConfig.style,
     burnSubtitles,
     canvasConfig,
@@ -194,6 +200,8 @@ export default function App() {
     setAspectRatio,
     trackingMode,
     setTrackingMode,
+    faceTrackingEngine,
+    setFaceTrackingEngine,
     captionStyle: subtitleConfig.style,
     setCaptionStyle: (style: "standard" | "karaoke") => {
       setCaptionStyle(style);

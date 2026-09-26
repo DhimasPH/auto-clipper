@@ -46,7 +46,7 @@ def _fake_proc(returncode):
 
 @patch('backend.crop_utils.is_nvenc_available', return_value=False)
 @patch('backend.crop_utils.subprocess.Popen')
-@patch('backend.crop_utils.sample_face_trajectory', return_value=[(0.0, 0.5)])
+@patch('backend.crop_utils.sample_face_trajectory', return_value=[(0.0, 0.5, 0.16)])
 @patch('backend.crop_utils.detect_primary_face_center')
 def test_crop_to_vertical(mock_detect, mock_sample, mock_popen, mock_nvenc):
     mock_detect.return_value = 0.5
@@ -59,7 +59,7 @@ def test_crop_to_vertical(mock_detect, mock_sample, mock_popen, mock_nvenc):
 
 @patch('backend.crop_utils.is_nvenc_available', return_value=False)
 @patch('backend.crop_utils.subprocess.Popen')
-@patch('backend.crop_utils.sample_face_trajectory', return_value=[(0.0, 0.5)])
+@patch('backend.crop_utils.sample_face_trajectory', return_value=[(0.0, 0.5, 0.16)])
 @patch('backend.crop_utils.detect_primary_face_center')
 def test_crop_falls_back_when_subtitles_fail(mock_detect, mock_sample, mock_popen, mock_nvenc, tmp_path):
     """If the subtitle burn fails, a plain crop should still be produced."""
@@ -254,14 +254,14 @@ def test_words_to_single_word_ass_cumulative_and_continuous():
 def test_smooth_trajectory_ema():
     from backend.crop_utils import smooth_trajectory
     # If all points are static, output remains static
-    raw = [(0.0, 0.5), (0.5, 0.5), (1.0, 0.5)]
+    raw = [(0.0, 0.5, 0.2), (0.5, 0.5, 0.2), (1.0, 0.5, 0.2)]
     smoothed = smooth_trajectory(raw, alpha=0.3)
     assert len(smoothed) == 3
     assert smoothed[0][1] == 0.5
     assert smoothed[2][1] == 0.5
 
     # Sudden jump gets smoothed out by EMA
-    jump_raw = [(0.0, 0.2), (0.5, 0.8), (1.0, 0.8)]
+    jump_raw = [(0.0, 0.2, 0.2), (0.5, 0.8, 0.2), (1.0, 0.8, 0.2)]
     jump_smoothed = smooth_trajectory(jump_raw, alpha=0.3)
     # At t=0.5, value should be 0.3 * 0.8 + 0.7 * 0.2 = 0.38
     assert abs(jump_smoothed[1][1] - 0.38) < 1e-4
@@ -269,7 +269,7 @@ def test_smooth_trajectory_ema():
 
 def test_build_dynamic_crop_filter():
     from backend.crop_utils import build_dynamic_crop_filter
-    trajectory = [(0.0, 0.3), (1.0, 0.7)]
+    trajectory = [(0.0, 0.3, 0.2), (1.0, 0.7, 0.2)]
     
     # 9:16 aspect ratio
     filter_expr = build_dynamic_crop_filter("9:16", trajectory, clip_duration=1.0)
@@ -278,7 +278,7 @@ def test_build_dynamic_crop_filter():
     assert "if(lte(t" in filter_expr or "lerp" in filter_expr or "iw*" in filter_expr
 
     # Single point or static fallback
-    static_filter = build_dynamic_crop_filter("9:16", [(0.0, 0.5)], clip_duration=1.0)
+    static_filter = build_dynamic_crop_filter("9:16", [(0.0, 0.5, 0.2)], clip_duration=1.0)
     assert static_filter == "crop=trunc(ih*9/16/2)*2:ih:iw*0.5-ih*9/32:0"
 
 
@@ -290,7 +290,7 @@ def test_sample_face_trajectory():
 @patch('backend.crop_utils.subprocess.Popen')
 @patch('backend.crop_utils.sample_face_trajectory')
 def test_crop_to_vertical_uses_dynamic_trajectory(mock_traj, mock_popen, mock_nvenc):
-    mock_traj.return_value = [(0.0, 0.2), (1.0, 0.8)]
+    mock_traj.return_value = [(0.0, 0.2, 0.2), (1.0, 0.8, 0.2)]
     mock_popen.return_value = _fake_proc(0)
 
     res = crop_to_vertical("in.mp4", "out.mp4", "00:00:00", "00:00:05", aspect_ratio="9:16")
@@ -311,9 +311,9 @@ def test_crop_to_vertical_uses_dynamic_trajectory(mock_traj, mock_popen, mock_nv
 
 def test_apply_deadband_filter_locks_and_follows():
     from backend.crop_utils import apply_deadband_filter
-    traj = [(0, 0.50), (1, 0.52), (2, 0.49), (3, 0.70), (4, 0.71)]
-    out = apply_deadband_filter(traj, deadband=0.08)
-    xs = [round(x, 2) for _, x in out]
+    traj = [(0, 0.50, 0.2), (1, 0.52, 0.2), (2, 0.49, 0.2), (3, 0.70, 0.2), (4, 0.71, 0.2)]
+    out = apply_deadband_filter(traj, default_deadband=0.08)
+    xs = [round(x, 2) for _, x, _ in out]
     # Micro-jitter within the deadband stays locked on the first anchor.
     assert xs[:3] == [0.5, 0.5, 0.5]
     # A move beyond the deadband makes the anchor follow, and stays there.
@@ -322,13 +322,13 @@ def test_apply_deadband_filter_locks_and_follows():
 
 def test_apply_deadband_filter_empty_default():
     from backend.crop_utils import apply_deadband_filter
-    assert apply_deadband_filter([]) == [(0.0, 0.5)]
+    assert apply_deadband_filter([]) == [(0.0, 0.5, 0.16)]
 
 
 def test_build_dynamic_crop_filter_static_when_under_3pct():
     from backend.crop_utils import build_dynamic_crop_filter
     # Variation < 3% of frame width -> steady static crop (no lerp expression).
-    traj = [(0.0, 0.50), (0.5, 0.515), (1.0, 0.505)]
+    traj = [(0.0, 0.50, 0.2), (0.5, 0.515, 0.2), (1.0, 0.505, 0.2)]
     f = build_dynamic_crop_filter("9:16", traj, clip_duration=1.0)
     assert "if(lte(t" not in f
     assert f.startswith("crop=trunc(ih*9/16/2)*2:ih:iw*0.5")

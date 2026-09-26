@@ -84,7 +84,7 @@ def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") ->
     }
 
 
-def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", enable_hook: bool = False) -> str:
+def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -104,6 +104,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "canvas_config": canvas_config,
         "subtitle_config": subtitle_config,
         "tracking_mode": tracking_mode,
+        "face_tracking_engine": face_tracking_engine,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -134,6 +135,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "canvas_config": canvas_config,
         "subtitle_config": subtitle_config,
         "tracking_mode": tracking_mode,
+        "face_tracking_engine": face_tracking_engine,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -161,7 +163,7 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
 
 
 def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption_style: str = "standard",
-                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", enable_hook: bool = False) -> str:
+                      burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
     """Manual clipper job: cut user-chosen ranges, no AI highlight selection.
 
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
@@ -183,6 +185,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         "canvas_config": canvas_config,
         "subtitle_config": subtitle_config,
         "tracking_mode": tracking_mode,
+        "face_tracking_engine": face_tracking_engine,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -211,6 +214,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         "canvas_config": canvas_config,
         "subtitle_config": subtitle_config,
         "tracking_mode": tracking_mode,
+        "face_tracking_engine": face_tracking_engine,
         "caption_style": caption_style,
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -236,7 +240,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
     return job_id
 
 
-def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", enable_hook: bool = False) -> str:
+def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -570,7 +574,8 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                     layout=job_layout,
                     canvas_config=job.get("canvas_config"),
                     subtitle_config=job.get("subtitle_config"),
-                    tracking_mode=job.get("tracking_mode", "auto")
+                    tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
                 )
                 
                 crop_to_vertical(
@@ -583,7 +588,8 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                     layout=job_layout,
                     canvas_config=job.get("canvas_config"),
                     subtitle_config=job.get("subtitle_config"),
-                    tracking_mode=job.get("tracking_mode", "auto")
+                    tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
                 )
                 
                 job["progress"] = f"Menggabungkan Hook untuk klip {i+1}..."
@@ -608,7 +614,8 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                     layout=job_layout,
                     canvas_config=job.get("canvas_config"),
                     subtitle_config=job.get("subtitle_config"),
-                    tracking_mode=job.get("tracking_mode", "auto")
+                    tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
                 )
 
             # Append to clips
@@ -777,7 +784,8 @@ def _run_manual_job(job_id: str):
                     layout=job_layout,
                     canvas_config=job.get("canvas_config"),
                     subtitle_config=job.get("subtitle_config"),
-                    tracking_mode=job.get("tracking_mode", "auto")
+                    tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
                 )
                 job["clips"].append({
                     "path": result_path,
@@ -925,7 +933,8 @@ def _run_rerender_job(job_id: str):
                         layout=job_layout,
                         canvas_config=job.get("canvas_config"),
                         subtitle_config=job.get("subtitle_config"),
-                        tracking_mode=job.get("tracking_mode", "auto")
+                        tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
                     )
                     
                     crop_to_vertical(
@@ -938,7 +947,8 @@ def _run_rerender_job(job_id: str):
                         layout=job_layout,
                         canvas_config=job.get("canvas_config"),
                         subtitle_config=job.get("subtitle_config"),
-                        tracking_mode=job.get("tracking_mode", "auto")
+                        tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
                     )
                     
                     job["progress"] = f"Menggabungkan Hook untuk klip {i+1}..."
@@ -964,7 +974,8 @@ def _run_rerender_job(job_id: str):
                         layout=job_layout,
                         canvas_config=job.get("canvas_config"),
                         subtitle_config=job.get("subtitle_config"),
-                        tracking_mode=job.get("tracking_mode", "auto")
+                        tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
                     )
 
                 job["clips"].append({
@@ -1013,7 +1024,7 @@ def _run_rerender_job(job_id: str):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", enable_hook: bool = False):
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False):
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -1186,7 +1197,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     layout=job_layout,
                     canvas_config=job.get("canvas_config"),
                     subtitle_config=job.get("subtitle_config"),
-                    tracking_mode=job.get("tracking_mode", "auto")
+                    tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
                 )
                 
                 job["clips"].append({
@@ -1235,7 +1247,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         job["error"] = str(e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, aspect_ratio: str, caption_style: str, burn_subs: bool, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto"):
+def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, aspect_ratio: str, caption_style: str, burn_subs: bool, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar"):
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -1254,6 +1266,7 @@ def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, a
         "canvas_config": canvas_config,
         "subtitle_config": subtitle_config,
         "tracking_mode": tracking_mode,
+        "face_tracking_engine": face_tracking_engine,
         "status": "QUEUED",
         "progress": "Queued...",
         "clips": [],
@@ -1351,7 +1364,8 @@ def _run_rerender_clip_job(new_job_id: str):
                 layout=job_layout,
                 canvas_config=job.get("canvas_config"),
                 subtitle_config=job.get("subtitle_config"),
-                tracking_mode=job.get("tracking_mode", "auto")
+                tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
             )
             
             crop_to_vertical(
@@ -1362,7 +1376,8 @@ def _run_rerender_clip_job(new_job_id: str):
                 layout=job_layout,
                 canvas_config=job.get("canvas_config"),
                 subtitle_config=job.get("subtitle_config"),
-                tracking_mode=job.get("tracking_mode", "auto")
+                tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
             )
             
             job["progress"] = "Menggabungkan Hook..."
@@ -1385,7 +1400,8 @@ def _run_rerender_clip_job(new_job_id: str):
                 layout=job_layout,
                 canvas_config=job.get("canvas_config"),
                 subtitle_config=job.get("subtitle_config"),
-                tracking_mode=job.get("tracking_mode", "auto")
+                tracking_mode=job.get("tracking_mode", "auto"),
+                engine=job.get("face_tracking_engine", "haar")
             )
 
         # Atomic replace: move temp to final path

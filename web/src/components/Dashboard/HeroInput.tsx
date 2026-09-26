@@ -64,6 +64,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   });
 
   const [trackingMode, setTrackingMode] = useState<"auto" | "center">("auto");
+  const [faceTrackingEngine, setFaceTrackingEngine] = useState<"haar" | "mediapipe">("haar");
 
   const [urlError, setUrlError] = useState<string | null>(null);
 
@@ -85,6 +86,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
         if (parsed.canvasConfig) setCanvasConfig(parsed.canvasConfig);
         if (parsed.subtitleConfig) setSubtitleConfig(parsed.subtitleConfig);
         if (parsed.trackingMode) setTrackingMode(parsed.trackingMode);
+        if (parsed.faceTrackingEngine) setFaceTrackingEngine(parsed.faceTrackingEngine);
       }
     } catch {
       // Ignore
@@ -118,12 +120,13 @@ export const HeroInput: React.FC<HeroInputProps> = ({
           canvasConfig,
           subtitleConfig,
           trackingMode,
+          faceTrackingEngine,
         })
       );
     } catch {
       // Ignore
     }
-  }, [url, title, outputStyle, whisperModel, language, maxClips, burnSubtitles, enableHook, isGamingVideo, canvasConfig, subtitleConfig, trackingMode]);
+  }, [url, title, outputStyle, whisperModel, language, maxClips, burnSubtitles, enableHook, isGamingVideo, canvasConfig, subtitleConfig, trackingMode, faceTrackingEngine]);
 
   const validateUrl = (testUrl: string): boolean => {
     const clean = testUrl.trim();
@@ -284,6 +287,7 @@ export const HeroInput: React.FC<HeroInputProps> = ({
 
       {/* Tracking Mode Options for Portrait */}
       {["face_crop", "canvas_blur", "square"].includes(outputStyle) && (
+        <>
         <div className="pt-4 border-t border-border space-y-2">
           <label className="text-sm font-semibold text-text-primary">
             Face Tracking Mode
@@ -315,6 +319,41 @@ export const HeroInput: React.FC<HeroInputProps> = ({
             </button>
           </div>
         </div>
+
+        {trackingMode === "auto" && (
+          <div className="pt-2 space-y-2">
+            <label className="text-sm font-semibold text-text-primary">
+              Face Tracking Engine
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setFaceTrackingEngine("haar")}
+                className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                  faceTrackingEngine === "haar"
+                    ? "border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500/30"
+                    : "border-border bg-white text-text-secondary hover:border-slate-300"
+                }`}
+              >
+                <span className="text-sm">Haar Cascade</span>
+                <span className="text-xs text-text-tertiary font-normal text-center">Faster, compatible with all devices (Default)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFaceTrackingEngine("mediapipe")}
+                className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                  faceTrackingEngine === "mediapipe"
+                    ? "border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500/30"
+                    : "border-border bg-white text-text-secondary hover:border-slate-300"
+                }`}
+              >
+                <span className="text-sm">MediaPipe AI</span>
+                <span className="text-xs text-text-tertiary font-normal text-center">Smoother & more stable, needs better hardware</span>
+              </button>
+            </div>
+          </div>
+        )}
+        </>
       )}
 
       {/* Canvas Config Controls */}
