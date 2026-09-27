@@ -191,10 +191,27 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
           </div>
 
           <div 
-            className="relative w-full rounded-xl bg-gradient-to-br from-slate-900 via-neutral-950 to-zinc-900 border border-border overflow-hidden shadow-inner mx-auto max-w-[280px]"
-            style={{ aspectRatio: aspectRatio.replace(':', '/') }}
+            className="relative w-full rounded-xl border border-border overflow-hidden shadow-inner mx-auto max-w-[280px]"
+            style={{ 
+              aspectRatio: aspectRatio.replace(':', '/'),
+              backgroundColor: '#e5e7eb', // Tailwind gray-200
+              backgroundImage: 'conic-gradient(#9ca3af 90deg, transparent 90deg 180deg, #9ca3af 180deg 270deg, transparent 270deg)', // Tailwind gray-400
+              backgroundSize: '24px 24px'
+            }}
           >
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:12px_12px]" />
+            <div className="absolute inset-0 bg-black/10" /> {/* Subtle overlay to reduce contrast slightly */}
+            <style>{`
+              @keyframes karaoke-pop {
+                0% { transform: scale(1); }
+                15% { transform: scale(1.2); }
+                100% { transform: scale(1); }
+              }
+              .animate-karaoke-pop {
+                display: inline-block;
+                animation: karaoke-pop 1.5s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
+                transform-origin: center;
+              }
+            `}</style>
 
             <div
               className="absolute text-center px-4 transition-all duration-200 w-full"
@@ -209,17 +226,23 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
                 color: textColor,
                 WebkitTextStroke: `${outlineWidth}px ${outlineColor}`,
                 textShadow: shadowDepth > 0 ? `0px ${shadowDepth}px ${shadowDepth*2}px ${shadowColor}` : "none",
-                transform: `translate(-50%, -100%) ${styleMode === "single_word" && animationPop ? "scale(1.1)" : "scale(1)"}`,
+                transform: `translate(-50%, -100%)`,
               }}
             >
               {styleMode === "single_word" ? (
-                <span className="text-white" style={{ color: highlightColor }}>
+                <span 
+                  className={`text-white transition-transform ${animationPop ? "animate-karaoke-pop" : ""}`} 
+                  style={{ color: highlightColor }}
+                >
                   {t("subtitle_custom.preview_single_word_text", "VIRAL")}
                 </span>
               ) : styleMode === "karaoke" ? (
                 <div className="flex items-center justify-center gap-1.5 flex-wrap">
                   <span>{t("subtitle_custom.preview_karaoke_text_before", "BUAT KONTEN JADI LEBIH")}</span>
-                  <span style={{ color: highlightColor }}>
+                  <span 
+                    className={`transition-transform ${animationPop ? "animate-karaoke-pop" : ""}`}
+                    style={{ color: highlightColor }}
+                  >
                     {t("subtitle_custom.preview_karaoke_highlight", "VIRAL")}
                   </span>
                   <span>{t("subtitle_custom.preview_karaoke_text_after", "SEKARANG")}</span>

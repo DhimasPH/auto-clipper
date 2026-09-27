@@ -874,6 +874,7 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
     bold_val = -1 if cfg.get("font_weight") == "bold" else 0
     italic_val = -1 if cfg.get("italic") else 0
     is_uppercase = cfg.get("uppercase", False)
+    use_pop = cfg.get("animation_pop", False)
 
     ass_text_color = hex_to_ass_style_color(cfg.get("text_color", "#FFFFFF"))
     ass_highlight_color = hex_to_ass_style_color(cfg.get("highlight_color", "#FFE600"))
@@ -963,7 +964,12 @@ def words_to_karaoke_ass(words: list, width: int, height: int, clip_start: float
             for wj, cw in enumerate(chunk):
                 word_text = cw["word"].upper() if is_uppercase else cw["word"]
                 if wj == wi:
-                    parts.append(r"{\c" + ass_highlight_color + r"}" + word_text + r"{\c" + ass_text_color + r"}")
+                    prefix = r"{\c" + ass_highlight_color + r"}"
+                    suffix = r"{\c" + ass_text_color + r"}"
+                    if use_pop:
+                        prefix += r"{\t(0,50,\fscx120\fscy120)\t(50,150,\fscx100\fscy100)}"
+                        suffix += r"{\fscx100\fscy100}"
+                    parts.append(prefix + word_text + suffix)
                 else:
                     parts.append(word_text)
 
