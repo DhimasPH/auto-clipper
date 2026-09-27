@@ -42,6 +42,7 @@ export interface Clip {
   end: string;
   subs?: boolean;
   social?: ClipSocialKit;
+  score?: number;
   v?: number;
 }
 
@@ -61,6 +62,7 @@ export interface JobMetadata {
   whisper_model?: string;
   language?: string;
   tracking_mode?: string;
+  face_tracking_engine?: string;
 }
 
 export interface JobResponse {
@@ -98,4 +100,5 @@ export interface CreateJobPayload {
   canvas_config?: CanvasConfig;
   subtitle_config?: SubtitleConfig;
   tracking_mode?: string;
+  face_tracking_engine?: string;
 }

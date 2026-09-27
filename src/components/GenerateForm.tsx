@@ -264,6 +264,38 @@ export default function GenerateForm({
           </div>
         )}
 
+        {["9:16", "4:5", "1:1"].includes(aspectRatio) && ctx?.trackingMode === "auto" && ctx?.setFaceTrackingEngine && (
+          <div className="pt-1 space-y-2">
+            <label className="text-label text-text-secondary">
+              Face Tracking Engine
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => ctx.setFaceTrackingEngine("haar")}
+                className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                  ctx.faceTrackingEngine === "haar"
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-border bg-bg-surface text-text-secondary hover:border-border-active hover:text-text-primary"
+                }`}
+              >
+                <span className="text-sm">Haar Cascade</span>
+                <span className="text-xs text-text-muted font-normal text-center">Lebih ringan, kompatibel untuk semua PC (Default)</span>
+              </button>
+              <button
+                onClick={() => ctx.setFaceTrackingEngine("mediapipe")}
+                className={`py-3 px-3 rounded-xl border transition-colors flex flex-col items-center gap-1 font-medium ${
+                  ctx.faceTrackingEngine === "mediapipe"
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-border bg-bg-surface text-text-secondary hover:border-border-active hover:text-text-primary"
+                }`}
+              >
+                <span className="text-sm">MediaPipe AI</span>
+                <span className="text-xs text-text-muted font-normal text-center">Lebih stabil & halus, butuh spek PC lebih tinggi</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Canvas Options for Landscape 16:9 */}
         {aspectRatio === "16:9" && ctx?.canvasConfig && (
           <div className="pt-3">

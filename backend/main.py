@@ -341,6 +341,7 @@ class CreateJobRequest(BaseModel):
     canvas_config: Optional[CanvasConfig] = None
     subtitle_config: Optional[dict] = None
     tracking_mode: str = "auto"
+    face_tracking_engine: str = "haar"
 
 class SaveFileRequest(BaseModel):
     src: str
@@ -497,6 +498,7 @@ class RerenderClipRequest(BaseModel):
     canvas_config: dict = None
     subtitle_config: dict = None
     tracking_mode: str = "auto"
+    face_tracking_engine: str = "haar"
 
 @app.post("/jobs/{job_id}/clips/{clip_index}/rerender")
 async def api_rerender_clip(job_id: str, clip_index: int, req: RerenderClipRequest):
@@ -828,6 +830,7 @@ class ManualJobRequest(BaseModel):
     canvas_config: Optional[CanvasConfig] = None
     subtitle_config: Optional[dict] = None
     tracking_mode: str = "auto"
+    face_tracking_engine: str = "haar"
 
 
 @app.post("/jobs/manual")

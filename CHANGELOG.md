@@ -2,6 +2,13 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.16.1] - 2026-09-27
+
+### Fixed
+- **Karaoke Pop Animation**: Memperbaiki animasi *zoom* (pop) pada mode teks *Karaoke* di *Live Preview* antarmuka pengguna agar selaras dengan hasil *render* backend. Animasi kini menggunakan CSS keyframes yang ringan, responsif, dan representatif. Latar belakang *Live Preview* juga diubah menjadi pola papan catur (*checkerboard*) agar terlihat kontras pada warna apa pun.
+- **Backend ASS Generator**: Menambahkan efek tag ASS \t *scaling* spesifik pada kata yang di-highlight saat opsi animasi Pop diaktifkan pada mode *Karaoke*.
+
+
 ## [1.16.0] - 2026-09-26
 
 ### Added
@@ -307,4 +314,5 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file in
 ## [1.3.2] - Previous Version
 
 _(Catatan historis untuk versi sebelumnya sebelum changelog ini diinisiasi)_
+
 
