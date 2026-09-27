@@ -42,6 +42,7 @@ export interface Clip {
   end: string;
   subs?: boolean;
   social?: ClipSocialKit;
+  score?: number;
   v?: number;
 }
 

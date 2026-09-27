@@ -628,6 +628,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                 "end": seg["end_time"],
                 "subs": bool(subtitle_path),
                 "social": seg.get("social", {}),
+                "score": seg.get("score"),
                 "v": 0
             })
             
@@ -987,6 +988,7 @@ def _run_rerender_job(job_id: str):
                     "end": seg["end_time"],
                     "subs": bool(subtitle_path),
                     "social": seg.get("social", {}),
+                    "score": seg.get("score"),
                     "v": 0
                 })
                 
@@ -1210,6 +1212,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     "end": seg["end_time"],
                     "subs": bool(subtitle_path),
                     "social": seg.get("social", {}),
+                    "score": seg.get("score"),
                     "v": 0
                 })
                 
