@@ -553,6 +553,26 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
                 pass
 
     selected_model = model_size or "small"
+
+    # Robust fallback for PyAV metadata_errors (Fixes Colab crashes on older PyAV versions)
+    try:
+        import av
+        if getattr(av, '_patched_for_metadata_errors', None) is None:
+            _orig_open = av.open
+            def _safe_av_open(*args, **kwargs):
+                if 'metadata_errors' in kwargs:
+                    try:
+                        return _orig_open(*args, **kwargs)
+                    except TypeError as e:
+                        if 'metadata_errors' in str(e):
+                            kwargs.pop('metadata_errors')
+                            return _orig_open(*args, **kwargs)
+                        raise
+                return _orig_open(*args, **kwargs)
+            av.open = _safe_av_open
+            av._patched_for_metadata_errors = True
+    except ImportError:
+        pass
     from faster_whisper import WhisperModel
 
     def _is_cuda_dll_error(err: Exception) -> bool:
