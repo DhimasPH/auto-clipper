@@ -2,6 +2,14 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.17.0] - 2026-10-01
+
+### Added
+- **Web Frontend**: Menginisialisasi antarmuka Web murni (Cloud UI) menggunakan ekosistem React 18, Vite, dan Tailwind CSS untuk melengkapi pengalaman pengguna di luar Desktop/Tauri.
+
+### Fixed
+- **Colab/Cloud Transcriber**: Memperbaiki masalah *crash* tak terduga (*TypeError*) pada `faster-whisper` di Google Colab dengan mengunci (pin) dependensi library PyAV (`av>=11.0.0`).
+
 ## [1.16.1] - 2026-09-27
 
 ### Fixed
