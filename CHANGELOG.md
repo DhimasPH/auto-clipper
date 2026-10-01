@@ -2,6 +2,12 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.17.1] - 2026-10-01
+
+### Fixed
+- **Robust Colab Transcriber**: Menambahkan penangkal (*monkey-patch*) pada kode internal `ai_utils` untuk memastikan `faster-whisper` kebal terhadap masalah `metadata_errors` di lingkungan (environment) Google Colab dengan versi PyAV (`av`) yang tertinggal atau terkunci di memori.
+- **Colab Notebook Updater**: Menyesuaikan mekanisme Colab Notebook agar otomatis melakukan sinkronisasi (`git pull`) kode terbaru jika folder *repository* sudah eksis dari sesi sebelumnya, mencegah *stale code*.
+
 ## [1.17.0] - 2026-10-01
 
 ### Added
