@@ -97,6 +97,15 @@ def setup_environment(workspace: str, api_token: Optional[str] = None) -> None:
     except Exception as e:
         print(f"[Auto Clipper Colab] Warning: Could not create workspace directory '{workspace}': {e}", file=sys.stderr)
 
+    # Inject CUDA 12 library paths for ctranslate2 / Whisper GPU fallback
+    try:
+        import nvidia.cublas.lib
+        import nvidia.cudnn.lib
+        cuda_paths = f"{os.path.dirname(nvidia.cublas.lib.__file__)}:{os.path.dirname(nvidia.cudnn.lib.__file__)}"
+        os.environ["LD_LIBRARY_PATH"] = cuda_paths + ":" + os.environ.get("LD_LIBRARY_PATH", "")
+    except Exception:
+        os.environ["LD_LIBRARY_PATH"] = "/usr/local/cuda/lib64:" + os.environ.get("LD_LIBRARY_PATH", "")
+
 
 def start_uvicorn(host: str, port: int) -> subprocess.Popen:
     """Spawn the FastAPI application via uvicorn subprocess."""
