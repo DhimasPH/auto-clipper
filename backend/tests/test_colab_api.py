@@ -191,3 +191,26 @@ def test_run_server_lifecycle():
                     code = run_server(["--cloudflare-token", "token-xyz", "--workspace", "/tmp/ws"])
                     assert code == 0
                     mock_cf.terminate.assert_called()
+
+
+def test_colab_notebook_step3_avoids_force_upgrading_colab_packages():
+    """Guard against passing -U/--upgrade to requirements.txt in Colab notebook,
+    which force-upgrades google-auth, requests, and opentelemetry-api and conflicts
+    with google-colab pre-installed packages."""
+    import json
+    from pathlib import Path
+
+    nb_path = Path(__file__).resolve().parents[2] / "Auto_Clipper_Colab.ipynb"
+    with open(nb_path, "r", encoding="utf-8") as f:
+        nb = json.load(f)
+
+    step3_cells = [
+        cell for cell in nb.get("cells", [])
+        if cell.get("metadata", {}).get("id") == "step3_code"
+    ]
+    assert len(step3_cells) == 1
+    source_lines = "".join(step3_cells[0].get("source", []))
+
+    assert "pip install -r backend/requirements.txt" in source_lines
+    assert "pip install -U -r backend/requirements.txt" not in source_lines
+    assert "pip install --upgrade -r backend/requirements.txt" not in source_lines
