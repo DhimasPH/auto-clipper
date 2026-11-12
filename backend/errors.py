@@ -146,6 +146,23 @@ ERROR_CODES = {
         ),
         "actions": ["resume"],
     },
+    "PUBLISH_FAILED": {
+        "title": "Klip belum tersimpan ke folder penyimpanan",
+        "message": (
+            "Klip sudah selesai dibuat, tetapi gagal disalin ke folder penyimpanan. "
+            "Di Google Colab folder itu adalah Google Drive, jadi periksa apakah Google Drive masih terhubung "
+            "dan masih punya ruang kosong. "
+            "Setelah itu tekan Lanjutkan. Klip yang sudah jadi tidak dibuat ulang, hanya disalin."
+        ),
+        "title_en": "Clips were not saved to the storage folder",
+        "message_en": (
+            "The clips are finished, but copying them to the storage folder failed. "
+            "On Google Colab that folder is Google Drive, so check that Google Drive is still connected "
+            "and still has free space. "
+            "Then press Resume. Finished clips are not made again, only copied."
+        ),
+        "actions": ["resume"],
+    },
     "AI_KEY_INVALID": {
         "title": "Kunci API ditolak",
         "message": (

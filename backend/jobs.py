@@ -7,8 +7,9 @@ import os
 from backend.video_utils import download_youtube_video
 from backend.ai_utils import process_with_openai, process_with_gemini, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
 from backend.crop_utils import crop_to_vertical
+from backend import workspace
 from backend.db import save_history, get_app_data_dir
-from backend.errors import to_app_error
+from backend.errors import AppError, to_app_error
 from backend.job_queue import JobQueue
 from backend.logger import log_app, log_error
 from backend.stage_timer import collect_timings, set_context, stage
@@ -152,7 +153,10 @@ def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") ->
     else:
         base_dir = os.path.join(get_app_data_dir(), "projects")
 
-    project_dir = os.path.join(base_dir, safe_title)
+    # library_dir is where the finished project is kept. With AUTO_CLIPPER_WORK_DIR
+    # the job works on that faster disk instead and publishes its results.
+    library_dir = os.path.join(base_dir, safe_title)
+    project_dir = workspace.work_project_dir(safe_title) or library_dir
     source_dir = os.path.join(project_dir, "source")
     subtitles_dir = os.path.join(project_dir, "subtitles")
     clips_dir = os.path.join(project_dir, "clips")
@@ -170,7 +174,46 @@ def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") ->
         "clips_dir": clips_dir,
         "broll_dir": broll_dir,
         "safe_title": safe_title,
+        "library_dir": library_dir,
     }
+
+
+def _publish(job: dict, metadata: dict, final: bool = False) -> list:
+    """Copy finished clips and subtitles from the work dir to the library.
+
+    Called after every clip, not only at the end, so history never points at a
+    clip that disappears with the work disk and a resumed job finds its
+    transcript and rendered clips in the library. Without AUTO_CLIPPER_WORK_DIR
+    the files are already there and this does nothing. Never raises; returns
+    the errors.
+    """
+    if not workspace.get_work_dir():
+        return []
+    try:
+        ws = get_project_workspace(
+            job.get("title") or metadata.get("title", ""),
+            job.get("output_dir") or metadata.get("output_dir", ""),
+            job.get("id", ""),
+        )
+        failures = workspace.publish(ws, job.get("clips", []), metadata, final=final,
+                                     job_id=job.get("id", ""), url=job.get("url", ""))
+        if final:
+            warnings = workspace.library_warnings()
+            if warnings:
+                job["warnings"] = metadata["warnings"] = warnings
+            else:
+                job.pop("warnings", None)
+                metadata.pop("warnings", None)
+        return failures
+    except Exception as e:
+        log_error("jobs.publish", e)
+        return [e]
+
+
+def _publish_error(exc: Exception) -> AppError:
+    """A full disk keeps its own message; anything else is 'copy to the library failed'."""
+    err = to_app_error(exc)
+    return err if err.code != "UNKNOWN" else AppError("PUBLISH_FAILED", technical=str(exc) or type(exc).__name__)
 
 
 @_serialized
@@ -593,6 +636,7 @@ def _run_job(job_id: str):
 def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str, subtitle_path: str, is_cancelled: callable, limit: int = 0):
     job["status"] = "CROPPING"
     log_app(f"[{job_id}] " + str("CROPPING"))
+    _publish(job, metadata)  # the transcript, so a resumed job finds it
     try:
         from backend.db import save_history
         save_history(job_id, job.get("url", ""), "CROPPING", job.get("clips", []), metadata)
@@ -730,6 +774,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                 "v": 0
             })
             
+            _publish(job, metadata)
             try:
                 from backend.db import save_history
                 save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
@@ -851,6 +896,7 @@ def _run_manual_job(job_id: str):
         # 4. Crop each user-selected range.
         job["status"] = "CROPPING"
         log_app(f"[{job_id}] " + str("CROPPING"))
+        _publish(job, metadata)
         try:
             from backend.db import save_history
             save_history(job_id, job["url"], "CROPPING", job["clips"], metadata)
@@ -900,6 +946,7 @@ def _run_manual_job(job_id: str):
                     "v": 0,
                 })
                 
+                _publish(job, metadata)
                 try:
                     from backend.db import save_history
                     save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
@@ -1096,6 +1143,7 @@ def _run_rerender_job(job_id: str):
                     "v": 0
                 })
                 
+                _publish(job, metadata)
                 try:
                     from backend.db import save_history
                     save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
@@ -1242,6 +1290,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             
         job["status"] = "CROPPING"
         log_app(f"[{job_id}] " + str("CROPPING"))
+        _publish(job, metadata)
         try:
             from backend.db import save_history
             save_history(job_id, job["url"], "CROPPING", job["clips"], metadata)
@@ -1322,6 +1371,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     "v": 0
                 })
                 
+                _publish(job, metadata)
                 try:
                     from backend.db import save_history
                     save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
@@ -1424,14 +1474,15 @@ def _run_rerender_clip_job(new_job_id: str):
         if not source_path or not os.path.exists(source_path):
             raise ValueError(f"Source video not found: {source_path}")
 
+        ws = get_project_workspace(
+            metadata.get("title", parent_job_id),
+            output_dir=metadata.get("output_dir", ""),  # FIX: use metadata output_dir
+            job_id=parent_job_id
+        )
+
         # Write custom words to a temporary json in proper workspace
         custom_subtitle_path = None
         if job["burn_subs"] and job["custom_words"]:
-            ws = get_project_workspace(
-                metadata.get("title", parent_job_id),
-                output_dir=metadata.get("output_dir", ""),  # FIX: use metadata output_dir
-                job_id=parent_job_id
-            )
             os.makedirs(ws["subtitles_dir"], exist_ok=True)
             custom_subtitle_path = os.path.join(ws["subtitles_dir"], f"clip_{clip_index}_custom.words.json")
             with open(custom_subtitle_path, "w", encoding="utf-8") as f:
@@ -1449,14 +1500,12 @@ def _run_rerender_clip_job(new_job_id: str):
         # Render to TEMP file first, then atomic replace
         job["progress"] = "Re-rendering clip..."
 
-        if original_path:
-            temp_output = original_path + ".tmp.mp4"
+        # With a work dir the clip is re-rendered there and then published over
+        # the library copy; without one render_path is the original path.
+        render_path = workspace.work_path(ws, original_path) if original_path else None
+        if render_path:
+            temp_output = render_path + ".tmp.mp4"
         else:
-            ws = get_project_workspace(
-                metadata.get("title", parent_job_id),
-                output_dir=metadata.get("output_dir", ""),
-                job_id=parent_job_id
-            )
             temp_output = os.path.join(ws["clips_dir"], f"clip_{clip_index}_{uuid.uuid4().hex[:6]}.mp4")
 
         enable_hook = metadata.get("enable_hook", False)
@@ -1517,10 +1566,17 @@ def _run_rerender_clip_job(new_job_id: str):
             )
 
         # Atomic replace: move temp to final path
-        final_path = original_path or result_path
+        final_path = render_path or result_path
         if result_path != final_path:
             os.replace(result_path, final_path)
             result_path = final_path
+
+        # D.10: history must keep the edited subtitle, so it goes to the library with the clip.
+        rendered = {"path": result_path, "custom_subtitle_path": custom_subtitle_path}
+        failures = workspace.publish(ws, [rendered], {})
+        if failures:
+            raise _publish_error(failures[0])
+        result_path, custom_subtitle_path = rendered["path"], rendered["custom_subtitle_path"]
 
         # FIX: Re-read history from DB to avoid race condition
         # (another rerender_clip thread might have saved in between)
@@ -1565,12 +1621,23 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     if job.get("cancelled", False):
         status = "CANCELLED"
 
+    if metadata is None:
+        metadata = {}
+
+    if status in _FINISHED:
+        # Publish before the status changes, so the UI never sees DONE with
+        # clips that are still only on the work disk.
+        set_context()
+        failures = _publish(job, metadata, final=(status == "DONE"))
+        if failures and status == "DONE":
+            # The clips are rendered but not in the library. Resume skips the
+            # rendered clips and retries only the copy.
+            _record_error(job, _publish_error(failures[0]))
+            status = "ERROR"
+
     job["status"] = status
     log_app(f"[{job_id}] " + str(status))
 
-    if metadata is None:
-        metadata = {}
-        
     if "start_time" in job:
         metadata["duration_seconds"] = int(time.time() - job["start_time"])
     metadata["title"] = job.get("title", "")

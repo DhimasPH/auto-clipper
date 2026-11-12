@@ -97,6 +97,63 @@ def test_setup_environment_handles_dir_error():
         assert os.environ.get("AUTO_CLIPPER_CLOUD_MODE") == "1"
 
 
+# --- AUTO_CLIPPER_WORK_DIR ------------------------------------------------------
+
+def test_work_dir_is_not_set_by_default(monkeypatch):
+    monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
+    assert parse_args([]).work_dir == ""
+
+
+def test_work_dir_from_env_and_cli(monkeypatch):
+    monkeypatch.setenv("AUTO_CLIPPER_WORK_DIR", "/content/work")
+    assert parse_args([]).work_dir == "/content/work"
+    assert parse_args(["--work-dir", "/content/other"]).work_dir == "/content/other"
+
+
+def test_setup_environment_exports_and_creates_the_work_dir(tmp_path, monkeypatch):
+    monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
+    work = str(tmp_path / "work")
+    setup_environment(str(tmp_path / "ws"), api_token="t", work_dir=work)
+
+    assert os.environ.get("AUTO_CLIPPER_WORK_DIR") == work
+    assert os.path.isdir(work)
+    assert os.environ.get("AUTO_CLIPPER_WORKSPACE") == str(tmp_path / "ws")  # the library is unchanged
+
+
+def test_setup_environment_without_work_dir_leaves_none_set(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTO_CLIPPER_WORK_DIR", "/stale/from/shell")
+    setup_environment(str(tmp_path / "ws"), api_token="t")
+    assert "AUTO_CLIPPER_WORK_DIR" not in os.environ
+
+    setup_environment(str(tmp_path / "ws"), api_token="t", work_dir="   ")
+    assert "AUTO_CLIPPER_WORK_DIR" not in os.environ
+
+
+def test_work_dir_on_google_drive_is_warned_about(tmp_path, capsys):
+    with patch("os.makedirs"):
+        setup_environment(str(tmp_path / "ws"), api_token="t", work_dir="/content/drive/MyDrive/work")
+    err = capsys.readouterr().err
+    assert "PERINGATAN" in err and "WARNING" in err
+
+
+def test_run_server_passes_the_work_dir_to_the_server_process(tmp_path, monkeypatch):
+    monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
+    work = str(tmp_path / "work")
+    seen = {}
+
+    def fake_uvicorn(host, port):
+        seen["work_dir"] = os.environ.get("AUTO_CLIPPER_WORK_DIR")
+        proc = MagicMock()
+        proc.poll.return_value = 0
+        proc.returncode = 0
+        return proc
+
+    with patch("backend.colab_api.start_uvicorn", side_effect=fake_uvicorn),             patch("backend.colab_api.wait_for_server_ready", return_value=True),             patch("backend.colab_api.start_cloudflared", return_value=None),             patch("time.sleep", return_value=None):
+        run_server(["--workspace", str(tmp_path / "ws"), "--work-dir", work])
+
+    assert seen["work_dir"] == work
+
+
 def test_start_uvicorn():
     with patch("subprocess.Popen") as mock_popen:
         mock_proc = MagicMock()

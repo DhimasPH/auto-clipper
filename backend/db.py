@@ -270,6 +270,10 @@ def delete_history(job_id: str):
                 
                 if not ws_in_use:
                     safe_remove_dir(project_ws)
+                    # With a work dir the published copy is a second folder.
+                    library_ws = ws.get("library_dir")
+                    if library_ws and library_ws != project_ws:
+                        safe_remove_dir(library_ws)
         except Exception as e:
             log_error("db.delete_history", f"Failed to clean project workspace: {e}")
 

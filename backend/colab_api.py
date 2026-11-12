@@ -36,6 +36,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         or ""
     )
     env_workspace = os.environ.get("AUTO_CLIPPER_WORKSPACE") or DEFAULT_WORKSPACE
+    env_work_dir = os.environ.get("AUTO_CLIPPER_WORK_DIR") or ""
     env_host = os.environ.get("HOST") or DEFAULT_HOST
     env_port = int(os.environ.get("PORT") or DEFAULT_PORT)
 
@@ -59,6 +60,16 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help=f"Path to persistent project workspace (default: {DEFAULT_WORKSPACE} or env AUTO_CLIPPER_WORKSPACE)",
     )
     parser.add_argument(
+        "--work-dir",
+        dest="work_dir",
+        default=env_work_dir,
+        help=(
+            "Fast local folder for files a job needs only while it runs (source video, audio, renders), "
+            "e.g. /content/work. Finished clips are copied to --workspace. "
+            "Default: env AUTO_CLIPPER_WORK_DIR, else unset (work inside --workspace)."
+        ),
+    )
+    parser.add_argument(
         "--host",
         default=env_host,
         help=f"Host address to bind uvicorn server (default: {DEFAULT_HOST})",
@@ -73,10 +84,34 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
-def setup_environment(workspace: str, api_token: Optional[str] = None) -> None:
+def setup_work_dir(work_dir: Optional[str]) -> None:
+    """Export the work dir to the server process, or make sure none is set."""
+    work_dir = (work_dir or "").strip()
+    if not work_dir:
+        os.environ.pop("AUTO_CLIPPER_WORK_DIR", None)
+        return
+
+    os.environ["AUTO_CLIPPER_WORK_DIR"] = work_dir
+    if work_dir.replace("\\", "/").startswith("/content/drive"):
+        print(
+            "[Auto Clipper Colab] PERINGATAN: folder kerja berada di Google Drive, jadi proses tetap lambat. "
+            "Pakai folder lokal seperti /content/work.\n"
+            "  WARNING: the work dir is on Google Drive, so processing stays slow. "
+            "Use a local folder such as /content/work.",
+            file=sys.stderr,
+        )
+    try:
+        os.makedirs(work_dir, exist_ok=True)
+        print(f"[Auto Clipper Colab] Work directory initialized at: {work_dir}")
+    except Exception as e:
+        print(f"[Auto Clipper Colab] Warning: Could not create work directory '{work_dir}': {e}", file=sys.stderr)
+
+
+def setup_environment(workspace: str, api_token: Optional[str] = None, work_dir: Optional[str] = None) -> None:
     """Configure environment variables for cloud mode and prepare workspace directory."""
     os.environ["AUTO_CLIPPER_CLOUD_MODE"] = "1"
     os.environ["AUTO_CLIPPER_WORKSPACE"] = workspace
+    setup_work_dir(work_dir)
 
     if api_token:
         os.environ["AUTO_CLIPPER_DEV_TOKEN"] = api_token
@@ -209,7 +244,7 @@ def run_server(args: Optional[List[str]] = None) -> int:
     """Main execution loop for Colab entrypoint."""
     parsed = parse_args(args)
 
-    setup_environment(parsed.workspace, parsed.api_token)
+    setup_environment(parsed.workspace, parsed.api_token, parsed.work_dir)
 
     running_procs: List[subprocess.Popen] = []
     shutdown_initiated = False
