@@ -361,3 +361,16 @@ def test_job_cancelled_while_waiting_is_not_reported_as_blocked(healthy, monkeyp
 
     assert jobs.active_jobs[job_id]["status"] == "CANCELLED"
     assert not jobs.active_jobs[job_id].get("error_info")
+
+
+def test_job_cancelled_just_before_its_turn_does_no_work_and_is_not_blocked(healthy, monkeypatch, no_db):
+    monkeypatch.setattr(preflight, "_ffmpeg_path", lambda: None)
+    job_id = "cancelled-at-the-door"
+    jobs.active_jobs[job_id] = {"id": job_id, "url": "local:x", "status": "CANCELLED", "cancelled": True, "clips": []}
+    ran = []
+
+    jobs._run_queued(job_id, lambda jid: ran.append(jid), ())
+
+    assert ran == []
+    assert jobs.active_jobs[job_id]["status"] == "CANCELLED"
+    assert not jobs.active_jobs[job_id].get("error_info")

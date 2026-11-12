@@ -44,7 +44,7 @@ def _start_job(job_id: str, run_fn, *args) -> None:
 def _run_queued(job_id: str, run_fn, args: tuple) -> None:
     """Runs on the job's thread once it holds the heavy slot."""
     job = active_jobs.get(job_id)
-    if job is None or job.get("cancelled"):
+    if job is None:
         return
     from backend.preflight import blocking_error
     blocker = blocking_error()
