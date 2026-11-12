@@ -176,6 +176,84 @@ ERROR_CODES = {
         ),
         "actions": [],
     },
+    # Reasons an uploaded cookies.txt is turned away (backend/cookies.py).
+    "COOKIES_EMPTY": {
+        "title": "File cookies kosong",
+        "message": (
+            "File yang diunggah tidak berisi cookies satu pun. "
+            "Kemungkinan ekspor dari browser gagal atau file yang dipilih salah. "
+            "Buka YouTube di browser, login dengan akun cadangan, ekspor ulang cookies.txt, lalu unggah lagi."
+        ),
+        "title_en": "The cookies file is empty",
+        "message_en": (
+            "The uploaded file does not contain any cookies. "
+            "The export from the browser may have failed, or the wrong file was picked. "
+            "Open YouTube in your browser, log in with a spare account, export cookies.txt again, then upload it."
+        ),
+        "actions": ["upload_cookies"],
+    },
+    "COOKIES_INVALID_FORMAT": {
+        "title": "File ini bukan cookies.txt yang bisa dibaca",
+        "message": (
+            "Aplikasi tidak bisa membaca file yang diunggah sebagai cookies. "
+            "File harus berupa cookies.txt hasil ekspor browser (format Netscape), "
+            "bukan JSON, gambar, atau teks yang disalin tempel. "
+            "Ekspor ulang dari browser dengan pilihan format cookies.txt, lalu unggah lagi."
+        ),
+        "title_en": "This file is not a readable cookies.txt",
+        "message_en": (
+            "The app could not read the uploaded file as cookies. "
+            "It must be a cookies.txt exported from the browser (Netscape format), "
+            "not JSON, an image, or copied and pasted text. "
+            "Export it again from the browser with the cookies.txt format selected, then upload it."
+        ),
+        "actions": ["upload_cookies"],
+    },
+    "COOKIES_NO_YOUTUBE": {
+        "title": "Tidak ada cookies YouTube di file ini",
+        "message": (
+            "File cookies terbaca, tetapi tidak berisi cookies dari youtube.com. "
+            "Kemungkinan ekspor dilakukan saat tab yang terbuka bukan YouTube. "
+            "Buka youtube.com, login dengan akun cadangan, ekspor cookies dari tab itu, lalu unggah lagi."
+        ),
+        "title_en": "This file has no YouTube cookies",
+        "message_en": (
+            "The cookies file could be read, but it has no cookies from youtube.com. "
+            "The export was probably made while a tab other than YouTube was open. "
+            "Open youtube.com, log in with a spare account, export the cookies from that tab, then upload it."
+        ),
+        "actions": ["upload_cookies"],
+    },
+    "COOKIES_EXPIRED": {
+        "title": "Cookies YouTube sudah kedaluwarsa",
+        "message": (
+            "Semua cookies YouTube di file ini sudah melewati masa berlakunya, jadi YouTube tidak menerimanya lagi. "
+            "Cookies punya batas waktu, dan file ini diekspor terlalu lama yang lalu. "
+            "Login lagi ke YouTube dengan akun cadangan, ekspor cookies.txt yang baru, lalu unggah."
+        ),
+        "title_en": "The YouTube cookies have expired",
+        "message_en": (
+            "Every YouTube cookie in this file is past its expiry date, so YouTube no longer accepts them. "
+            "Cookies have a time limit, and this file was exported too long ago. "
+            "Log in to YouTube again with a spare account, export a new cookies.txt, then upload it."
+        ),
+        "actions": ["upload_cookies"],
+    },
+    "COOKIES_TOO_LARGE": {
+        "title": "File cookies terlalu besar",
+        "message": (
+            "File yang diunggah lebih besar dari 1 MB, jauh di atas ukuran file cookies yang wajar. "
+            "Kemungkinan file yang dipilih salah. "
+            "Pilih file cookies.txt hasil ekspor dari browser, lalu unggah lagi."
+        ),
+        "title_en": "The cookies file is too large",
+        "message_en": (
+            "The uploaded file is larger than 1 MB, far more than a cookies file needs. "
+            "The wrong file was probably picked. "
+            "Choose the cookies.txt file exported from your browser, then upload it."
+        ),
+        "actions": ["upload_cookies"],
+    },
     "UNKNOWN": {
         "title": "Proses gagal",
         "message": (

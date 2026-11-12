@@ -323,6 +323,33 @@ def api_download_whisper_model(req: DownloadWhisperModelRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 
+@app.get("/api/settings/cookies")
+def api_get_cookies():
+    """Whether a cookies.txt is stored and still usable. Cookie values are never returned."""
+    from backend.cookies import get_status
+    return {"status": "success", "cookies": get_status()}
+
+
+@app.post("/api/settings/cookies")
+def api_upload_cookies(file: UploadFile = File(...)):
+    """Validate and store the user's cookies.txt for the downloader, replacing any earlier one."""
+    from backend.cookies import MAX_COOKIES_BYTES, save_cookies
+    from backend.errors import AppError
+    try:
+        # One byte past the limit is enough to tell the file is too large.
+        return {"status": "success", "cookies": save_cookies(file.file.read(MAX_COOKIES_BYTES + 1))}
+    except AppError as e:
+        info = e.to_dict()
+        return JSONResponse(status_code=400, content={"status": "error", "message": info["message"], "error_info": info})
+
+
+@app.delete("/api/settings/cookies")
+def api_delete_cookies():
+    from backend.cookies import delete_cookies, get_status
+    delete_cookies()
+    return {"status": "success", "cookies": get_status()}
+
+
 class CanvasConfig(BaseModel):
     enabled: bool = False
     background_type: str = "blur"      # "blur" | "color" | "image"

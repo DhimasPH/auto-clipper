@@ -98,8 +98,18 @@ EXPECTED_CODES = {
 }
 
 
+# Reasons an uploaded cookies.txt is turned away (backend/cookies.py).
+COOKIE_CODES = {
+    "COOKIES_EMPTY", "COOKIES_INVALID_FORMAT", "COOKIES_NO_YOUTUBE", "COOKIES_EXPIRED", "COOKIES_TOO_LARGE",
+}
+
+
 def test_catalog_has_every_code_from_the_spec():
     assert EXPECTED_CODES <= set(ERROR_CODES)
+
+
+def test_catalog_has_every_cookie_upload_code():
+    assert COOKIE_CODES <= set(ERROR_CODES)
 
 
 # Terms a non-technical user should never have to read on the main screen.
@@ -107,7 +117,7 @@ JARGON = ["po token", "fuse", "oom", "nvenc", "ctranslate2", "cuda", "yt-dlp", "
           "exception", "stderr", "http error", "errno"]
 
 
-@pytest.mark.parametrize("code", sorted(EXPECTED_CODES))
+@pytest.mark.parametrize("code", sorted(EXPECTED_CODES | COOKIE_CODES))
 def test_every_code_has_plain_text_in_both_languages(code):
     info = AppError(code).to_dict()
     for field in ("title", "message", "title_en", "message_en"):

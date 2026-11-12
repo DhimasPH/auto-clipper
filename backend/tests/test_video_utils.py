@@ -144,3 +144,109 @@ def test_probe_formats_returns_sorted_unique_heights(mock_ytdl):
     assert heights == [2160, 1080, 720, 480]
     _, kwargs = inst.extract_info.call_args
     assert kwargs.get("download") is False
+
+
+# --- cookies.txt reaches yt-dlp ------------------------------------------------
+
+@pytest.fixture
+def cookie_store(tmp_path, monkeypatch):
+    """An empty app data directory, so a stored cookies.txt never leaks between tests."""
+    from backend import cookies
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", str(tmp_path / "appdata"))
+    monkeypatch.setattr(cookies, "_copy_dir", lambda: str(tmp_path / "copies"))
+    return cookies
+
+
+def _store_cookies(cookies):
+    import time
+    expires = int(time.time()) + 86400
+    cookies.save_cookies(
+        f"# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t{expires}\tSAPISID\tS3CRET\n".encode()
+    )
+
+
+def _record_cookiefiles(mock_ytdl):
+    """Capture the cookie file each YoutubeDL was built with, read while it still exists."""
+    seen = []
+
+    def build(opts):
+        path = opts.get("cookiefile")
+        content = None
+        if path:
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+        seen.append((path, content))
+        return mock_ytdl.return_value
+
+    mock_ytdl.side_effect = build
+    return seen
+
+
+@patch('backend.video_utils.yt_dlp.YoutubeDL')
+def test_download_passes_a_copy_of_the_stored_cookies_to_yt_dlp(mock_ytdl, cookie_store, tmp_path):
+    import os
+    _store_cookies(cookie_store)
+    seen = _record_cookiefiles(mock_ytdl)
+
+    download_youtube_video("https://youtu.be/x", str(tmp_path / "video.mp4"))
+
+    assert len(seen) == 1
+    path, content = seen[0]
+    assert "\tSAPISID\tS3CRET" in content
+    assert os.path.abspath(path) != os.path.abspath(cookie_store.get_cookies_path())
+    assert not os.path.exists(path)  # the copy is gone once the download returns
+    assert os.path.exists(cookie_store.get_cookies_path())
+
+
+@patch('backend.video_utils.yt_dlp.YoutubeDL')
+def test_download_has_no_cookiefile_option_when_none_is_stored(mock_ytdl, cookie_store, tmp_path):
+    download_youtube_video("https://youtu.be/x", str(tmp_path / "video.mp4"))
+
+    opts = mock_ytdl.call_args[0][0]
+    assert "cookiefile" not in opts
+
+
+@patch('backend.video_utils.yt_dlp.YoutubeDL')
+def test_every_download_attempt_uses_the_cookie_file(mock_ytdl, cookie_store, tmp_path):
+    from yt_dlp.utils import DownloadError
+    from backend.errors import AppError
+    _store_cookies(cookie_store)
+    seen = _record_cookiefiles(mock_ytdl)
+    mock_ytdl.return_value.__enter__.return_value.download.side_effect = DownloadError(
+        "ERROR: [youtube] x: Sign in to confirm you’re not a bot."
+    )
+
+    with pytest.raises(AppError):
+        download_youtube_video("https://youtu.be/x", str(tmp_path / "video.mp4"))
+
+    assert len(seen) > 1
+    assert all(content and "\tSAPISID\t" in content for _, content in seen)
+    assert len({path for path, _ in seen}) == 1
+
+
+@patch('backend.video_utils.yt_dlp.YoutubeDL')
+def test_probe_passes_a_copy_of_the_stored_cookies_to_yt_dlp(mock_ytdl, cookie_store):
+    import os
+    from backend.video_utils import probe_formats
+    _store_cookies(cookie_store)
+    seen = _record_cookiefiles(mock_ytdl)
+    mock_ytdl.return_value.__enter__.return_value.extract_info.return_value = {"formats": [{"height": 720}]}
+
+    assert probe_formats("https://youtu.be/x") == [720]
+
+    assert len(seen) == 1
+    path, content = seen[0]
+    assert "\tSAPISID\tS3CRET" in content
+    assert os.path.abspath(path) != os.path.abspath(cookie_store.get_cookies_path())
+    assert not os.path.exists(path)
+
+
+@patch('backend.video_utils.yt_dlp.YoutubeDL')
+def test_probe_has_no_cookiefile_option_when_none_is_stored(mock_ytdl, cookie_store):
+    from backend.video_utils import probe_formats
+    mock_ytdl.return_value.__enter__.return_value.extract_info.return_value = {"formats": [{"height": 720}]}
+
+    assert probe_formats("https://youtu.be/x") == [720]
+
+    opts = mock_ytdl.call_args[0][0]
+    assert "cookiefile" not in opts
