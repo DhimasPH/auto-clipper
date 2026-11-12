@@ -43,7 +43,7 @@
     "dynamic_broll": "Dynamic B-Roll",
     "dynamic_broll_desc": "Automatically add illustration videos (Pexels API)",
     "video_quality_label": "Video Quality (Download)",
-    "quality_best": "Best (Auto)",
+    "quality_best": "Auto (up to 1080p)",
     "max_clips_label": "Max Clips",
     "max_clips_auto": "Auto (Based on duration)",
     "probing": "Checking...",

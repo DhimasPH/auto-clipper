@@ -358,25 +358,27 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
 
 
 
-def smooth_trajectory(trajectory: list[tuple[float, float]], alpha: float = 0.25) -> list[tuple[float, float]]:
-    """Smooth a time-series of (t, x) coordinates using Exponential Moving Average (EMA)."""
+def smooth_trajectory(trajectory: list[tuple], alpha: float = 0.25) -> list[tuple]:
+    """Smooth the x of (t, x) or (t, x, w) points with an Exponential Moving Average (EMA).
+
+    Anything after x (the face width) is passed through unchanged.
+    """
     if not trajectory:
         return [(0.0, 0.5)]
     if len(trajectory) == 1:
         return list(trajectory)
 
-    smoothed = []
+    smoothed = [tuple(trajectory[0])]
     current_val = trajectory[0][1]
-    smoothed.append((trajectory[0][0], current_val))
 
-    for t, x in trajectory[1:]:
-        current_val = alpha * x + (1.0 - alpha) * current_val
-        smoothed.append((t, current_val))
+    for pt in trajectory[1:]:
+        current_val = alpha * pt[1] + (1.0 - alpha) * current_val
+        smoothed.append((pt[0], current_val, *pt[2:]))
 
     return smoothed
 
 
-def apply_deadband_filter(raw_trajectory: list[tuple], default_deadband: float = 0.08) -> list[tuple[float, float]]:
+def apply_deadband_filter(raw_trajectory: list[tuple], default_deadband: float = 0.08) -> list[tuple]:
     """Lock the crop position until the subject moves beyond a deadband.
     
     Small, jittery face movements (breathing, micro-shifts while a speaker sits
@@ -386,9 +388,10 @@ def apply_deadband_filter(raw_trajectory: list[tuple], default_deadband: float =
 
     If the tuple provides a face width ratio (t, x, w), the deadband is dynamically
     set to a fraction of the face width to adapt to how close the subject is.
+    The width is kept on the returned points.
     """
     if not raw_trajectory:
-        return [(0.0, 0.5)]
+        return [(0.0, 0.5, 0.16)]
     result = []
     anchor = raw_trajectory[0][1]
     for pt in raw_trajectory:
@@ -397,7 +400,7 @@ def apply_deadband_filter(raw_trajectory: list[tuple], default_deadband: float =
         deadband = (pt[2] * 0.5) if len(pt) >= 3 else default_deadband
         if abs(x - anchor) >= deadband:
             anchor = x
-        result.append((t, anchor))
+        result.append((t, anchor, *pt[2:]))
     return result
 
 
@@ -1194,8 +1197,8 @@ def _build_lerp_expr(trajectory: list[tuple[float, float]]) -> str:
 
     def _build_bst(start_idx: int, end_idx: int) -> str:
         if start_idx == end_idx - 1:
-            t0, x0 = trajectory[start_idx]
-            t1, x1 = trajectory[end_idx]
+            t0, x0 = trajectory[start_idx][:2]
+            t1, x1 = trajectory[end_idx][:2]
             dt = t1 - t0
             if dt <= 0:
                 return f"{x1:.4f}"
@@ -1226,7 +1229,7 @@ def build_dynamic_crop_filter(aspect_ratio: str, trajectory: list[tuple[float, f
 
     # If the subject barely moves across the whole clip (< 3% of frame width),
     # a static crop is steadier than a dynamic one that chases sub-pixel noise.
-    xs = [x for _, x in trajectory]
+    xs = [pt[1] for pt in trajectory]
     if max(xs) - min(xs) < 0.03:
         # Anchor on the median so a stray endpoint doesn't bias the static frame.
         mid = sorted(xs)[len(xs) // 2]

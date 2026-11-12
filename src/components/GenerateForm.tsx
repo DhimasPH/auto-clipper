@@ -405,7 +405,7 @@ export default function GenerateForm({
             options={
               availHeights.length > 0
                 ? [
-                    { label: t("main.quality_best", "Best (Otomatis)"), value: "best" },
+                    { label: t("main.quality_best", "Otomatis (hingga 1080p)"), value: "best" },
                     ...availHeights.map((h) => {
                       let label = `${h}p`;
                       if (h >= 2160) label = "2160p (4K)";
@@ -414,7 +414,7 @@ export default function GenerateForm({
                     }),
                   ]
                 : [
-                    { label: t("main.quality_best", "Best (Otomatis)"), value: "best" },
+                    { label: t("main.quality_best", "Otomatis (hingga 1080p)"), value: "best" },
                     { label: "2160p (4K)", value: "2160p" },
                     { label: "1440p (2K)", value: "1440p" },
                     { label: "1080p", value: "1080p" },

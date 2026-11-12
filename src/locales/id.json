@@ -43,7 +43,7 @@
     "dynamic_broll": "Dynamic B-Roll",
     "dynamic_broll_desc": "Otomatis tambahkan video ilustrasi (Pexels API)",
     "video_quality_label": "Kualitas Video (Download)",
-    "quality_best": "Best (Otomatis)",
+    "quality_best": "Otomatis (hingga 1080p)",
     "max_clips_label": "Batas Maksimal Klip",
     "max_clips_auto": "Auto (Sesuai durasi)",
     "probing": "Mengecek...",

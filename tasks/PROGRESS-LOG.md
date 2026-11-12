@@ -18,7 +18,7 @@ Catatan teknis: Claude tidak bisa membaca persentase kuota. Pemilik yang menyebu
 2. Baca entri terakhir di bawah, lalu `tasks/roadmap-todo.md`.
 3. Jalankan `pytest backend/tests`. Catat hasilnya sebagai baseline sesi itu.
 4. Lanjutkan task pertama yang belum `[x]`, dengan TDD dan aturan di `.agents/AGENTS.md`.
-5. Python tidak ada di PATH Git Bash di mesin pemilik. Cari interpreter (`py -3`, PowerShell `Get-Command python,py`) atau venv yang dibuat agen sebelumnya.
+5. Python untuk tes: venv di `C:\Users\dhima\projects\ac-venv` (Python 3.12, di luar repo). Jalankan tes dengan `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q`. `python` di PATH hanya shortcut Microsoft Store, jangan dipakai.
 
 ## Entri
 
@@ -67,3 +67,33 @@ Langkah pertama sesi berikutnya, berurutan:
 3. Kembali ke branch ini, jalankan `pytest backend/tests`, dan bandingkan dengan baseline.
 4. Periksa T0.5 lebih dulu (`backend/crop_utils.py`, `backend/tests/test_crop_utils.py`): pastikan ada tes yang membuktikan `FaceMesh.close()` dipanggil saat exception dan ada `log_error` saat mediapipe gagal.
 5. Setelah itu selesaikan T0.7, lalu centang task yang benar-benar hijau satu per satu.
+
+### 2026-11-12 · T0.1–T0.7 diverifikasi dengan tes nyata
+
+Lingkungan: Python 3.12.10 dipasang lewat winget (lingkup pengguna), venv di `C:\Users\dhima\projects\ac-venv`, `pip install -r backend/requirements.txt` berhasil (mediapipe dan faster-whisper ikut terpasang).
+
+Hasil tes:
+
+| Kondisi | Hasil |
+|---|---|
+| Baseline `072164d` (sebelum SP0) | 150 lulus, 5 gagal |
+| Branch saat sesi dimulai (`b3e08dd`) | 326 lulus, 6 gagal |
+| Branch setelah perbaikan sesi ini | **332 lulus, 0 gagal** |
+
+Yang diperbaiki di sesi ini:
+
+- 5 kegagalan lama di `test_crop_utils.py` (sudah ada di baseline, bukan dari SP0): `smooth_trajectory`, `apply_deadband_filter`, dan `build_dynamic_crop_filter` sekarang menerima titik `(t, x, lebar)` yang memang dihasilkan `sample_face_trajectory`, dan lebar wajah ikut diteruskan.
+- 1 tes merah T0.7 yang ditinggalkan agen: job yang dibatalkan saat mengantre tidak lagi diberi `error_info` preflight (`jobs._run_queued`).
+- T0.6: label UI "Best (Otomatis)" diganti "Otomatis (hingga 1080p)" (id dan en) agar sesuai arti barunya.
+
+Status task: T0.1, T0.3, T0.4, T0.5, T0.6, T0.7 dicentang `[x]`. T0.2 `[~]`: skrip dan tesnya lulus, pengukuran di Colab masih menunggu pemilik `[!]`.
+
+Catatan jujur:
+
+- Perubahan ±478 baris di `crop_utils.py` bukan soal CRLF. Tanpa whitespace tinggal ±212 baris, sisanya indentasi karena kode dibungkus `try/finally`.
+- Kriteria T0.7 "tidak ada fallback GPU/NVENC yang diam-diam" dipenuhi lewat peringatan preflight dan `whisper_device`/`encoder` di timings. Tampilannya di UI baru ada di T0.12.
+- Build frontend (`src/`, `web/`) belum dijalankan di sesi ini. Perubahan frontend hanya teks label.
+- `pip` memasang `opencv-contrib-python` 5.x (dibawa mediapipe) berdampingan dengan `opencv-python-headless` 4.x. Tes lulus, tetapi perlu diperhatikan saat build PyInstaller.
+- `backend/metadata.py:211` masih membuat thread langsung. Itu di luar cakupan T0.4 (hanya `jobs.py`), dicatat untuk ditinjau.
+
+Langkah berikutnya: Fase 3, mulai T0.8 (workspace lokal dan publish ke Drive).

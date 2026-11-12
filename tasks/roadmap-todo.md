@@ -14,33 +14,33 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 
 ### Fase 1: Ukur dulu
 
-- [ ] **T0.1 Instrumentasi waktu per tahap** (`stage_timer`)
+- [x] **T0.1 Instrumentasi waktu per tahap** (`stage_timer`)
   - Catat durasi dan RAM puncak untuk unduh, ekstrak audio, transkripsi, analisis AI, tracking, render per klip, publish. Simpan di `metadata["timings"]`, tulis ke log, sertakan `whisper_device`, `encoder`, `tracking_engine_used`.
   - Selesai bila: tidak ada perubahan perilaku pipeline, uji unit lulus, tidak ada `print()` ke stdout.
   - File: `backend/stage_timer.py` (baru), `backend/jobs.py`, `backend/tests/test_stage_timer.py`.
-- [ ] **T0.2 Skrip benchmark dan pengukuran dasar** · bergantung T0.1 · `[!]` butuh sesi Colab pemilik
+- [~] **T0.2 Skrip benchmark dan pengukuran dasar** · bergantung T0.1 · `[!]` butuh sesi Colab pemilik
   - `scripts/benchmark_pipeline.py` plus sel Colab opsional yang mencetak tabel waktu dan RAM.
   - Selesai bila: angka dasar video 30 menit tercatat di spec bagian 7 (kolom "Sebelum"), termasuk apakah GPU dan NVENC aktif di Colab.
 
 ### Fase 2: Stabilitas (tidak menunggu angka)
 
-- [ ] **T0.3 Error terstruktur** (`AppError`, `classify_download_error`)
+- [x] **T0.3 Error terstruktur** (`AppError`, `classify_download_error`)
   - Kode error awal sesuai spec 4.7, judul dan pesan i18n (id dan en) dalam bahasa awam, `job["error_info"]` terisi.
   - Selesai bila: setiap kode punya uji pemetaan dari contoh error yt-dlp nyata, dan pesan lolos cek "apa, kenapa, harus apa".
   - File: `backend/errors.py` (baru), `backend/video_utils.py`, `backend/jobs.py`, `backend/tests/test_errors.py`.
-- [ ] **T0.4 Antrean job** (`job_queue`) · bergantung T0.1
+- [x] **T0.4 Antrean job** (`job_queue`) · bergantung T0.1
   - Satu slot berat, `AUTO_CLIPPER_MAX_HEAVY_JOBS`, `queue_position`, pembatalan saat mengantre, Resume ganda ditolak.
   - Selesai bila: dua job berurutan tidak pernah menjalankan tahap berat bersamaan (diuji), semua titik pembuatan thread di `jobs.py` melewati antrean.
   - File: `backend/job_queue.py` (baru), `backend/jobs.py`, `backend/tests/test_job_queue.py`.
-- [ ] **T0.5 Perbaikan mediapipe**
+- [x] **T0.5 Perbaikan mediapipe**
   - `FaceMesh` dibuat sekali dan ditutup di `finally`, fallback dicatat dengan alasan, `tracking_engine_used` tercatat, tidak ada pengulangan sampling tanpa alasan.
   - Selesai bila: uji membuktikan `close()` dipanggil saat exception, dan kegagalan mediapipe menghasilkan entri `log_error`.
   - File: `backend/crop_utils.py`, `backend/tests/test_crop_utils.py`.
-- [ ] **T0.6 Batas format unduhan**
+- [x] **T0.6 Batas format unduhan**
   - Default "terbaik" menjadi H.264 mp4 ≤1080p, opsi lebih tinggi tetap tersedia.
   - Selesai bila: uji `quality_to_format` mencakup semua label, dan UI tidak menyesatkan soal arti "terbaik".
   - File: `backend/video_utils.py`, `backend/tests/test_video_utils.py`.
-- [ ] **T0.7 Pengecekan awal** (`preflight`, `GET /api/preflight`)
+- [x] **T0.7 Pengecekan awal** (`preflight`, `GET /api/preflight`)
   - GPU, NVENC, FFmpeg, disk, RAM, Drive, Deno, versi yt-dlp. Level `ok|warn|block` dengan pesan awam.
   - Selesai bila: tiap pemeriksaan diuji dengan mock, `block` menghentikan job dengan `AppError`, dan tidak ada fallback GPU/NVENC yang diam-diam.
   - File: `backend/preflight.py` (baru), `backend/main.py`, `backend/tests/test_preflight.py`.
