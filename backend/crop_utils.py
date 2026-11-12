@@ -5,6 +5,7 @@ import subprocess
 import traceback
 import math
 from backend.logger import log_error, log_app
+from backend.stage_timer import stage
 
 FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
 
@@ -122,13 +123,155 @@ def detect_primary_face_center(video_path: str, start_time=None, end_time=None) 
     return center
 
 
-def sample_face_trajectory(video_path: str, start_time: float, end_time: float, interval: float = 0.5, should_cancel = None, engine: str = "haar") -> list[tuple]:
+def _open_face_mesh():
+    """Create a MediaPipe FaceMesh, or raise when this mediapipe build has none."""
+    import mediapipe as mp
+    # Some versions of mediapipe hide solutions if initialization fails (e.g. tensorflow missing)
+    if not hasattr(mp, 'solutions'):
+        raise ImportError("MediaPipe 'solutions' attribute is missing")
+    return mp.solutions.face_mesh.FaceMesh(
+        static_image_mode=False,
+        max_num_faces=5,
+        refine_landmarks=True,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5
+    )
+
+
+def _close_face_mesh(face_mesh) -> None:
+    try:
+        face_mesh.close()
+    except Exception as e:
+        log_error("crop_utils.close_face_mesh", e)
+
+
+def _mediapipe_faces(face_mesh, small_frame) -> list:
+    """Faces in one frame as dicts: centre x, mouth aspect ratio, width (all 0..1)."""
+    import numpy as np
+
+    rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+    results = face_mesh.process(rgb_frame)
+    del rgb_frame
+
+    frame_faces = []
+    if results.multi_face_landmarks:
+        for face_landmarks in results.multi_face_landmarks:
+            xs = [lm.x for lm in face_landmarks.landmark]
+            cx = sum(xs) / len(xs)
+
+            p13 = np.array([face_landmarks.landmark[13].x, face_landmarks.landmark[13].y])
+            p14 = np.array([face_landmarks.landmark[14].x, face_landmarks.landmark[14].y])
+            p78 = np.array([face_landmarks.landmark[78].x, face_landmarks.landmark[78].y])
+            p308 = np.array([face_landmarks.landmark[308].x, face_landmarks.landmark[308].y])
+
+            mar = np.linalg.norm(p13 - p14) / (np.linalg.norm(p78 - p308) + 1e-6)
+
+            # Estimate face width (cheek to cheek)
+            p234 = np.array([face_landmarks.landmark[234].x, face_landmarks.landmark[234].y])
+            p454 = np.array([face_landmarks.landmark[454].x, face_landmarks.landmark[454].y])
+            w = float(np.linalg.norm(p234 - p454))
+
+            frame_faces.append({'cx': cx, 'mar': mar, 'w': w})
+    return frame_faces
+
+
+def _haar_faces(face_cascade, small_frame) -> list:
+    """The largest Haar face in one frame as a one-item list, or [] when none."""
+    small_w = small_frame.shape[1]
+    gray = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+    del gray
+    if len(faces) == 0:
+        return []
+    x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
+    return [{'cx': (x + w / 2) / small_w, 'w': w / small_w}]
+
+
+def _speaker_trajectory(raw_frames: list, lo: float, hi: float) -> list:
+    """Follow the face whose mouth moves the most (needs MediaPipe faces in every frame)."""
+    import numpy as np
+
+    trajectory = []
+    tracks = []
+    for rel_t, faces in raw_frames:
+        for face in faces:
+            matched = False
+            for track in tracks:
+                if abs(track['last_cx'] - face['cx']) < 0.1:
+                    track['mars'].append(face['mar'])
+                    track['cxs'].append(face['cx'])
+                    track['last_cx'] = face['cx']
+                    matched = True
+                    break
+            if not matched:
+                tracks.append({
+                    'mars': [face['mar']],
+                    'cxs': [face['cx']],
+                    'last_cx': face['cx']
+                })
+
+    best_track_cx = 0.5
+    if tracks:
+        valid_tracks = [t for t in tracks if len(t['mars']) > 1]
+        if valid_tracks:
+            best_track = max(valid_tracks, key=lambda t: np.var(t['mars']))
+            best_track_cx = np.median(best_track['cxs'])
+        else:
+            best_track = max(tracks, key=lambda t: len(t['cxs']))
+            best_track_cx = np.median(best_track['cxs'])
+
+    last_valid_x = best_track_cx
+    last_valid_w = 0.16
+    for rel_t, faces in raw_frames:
+        speaker_face = None
+        min_dist = 0.15
+        for face in faces:
+            dist = abs(face['cx'] - last_valid_x)
+            if dist < min_dist:
+                speaker_face = face
+                min_dist = dist
+
+        if speaker_face:
+            x = speaker_face['cx']
+            w = speaker_face['w']
+            clamped_center = max(lo, min(hi, x)) if lo <= hi else x
+            last_valid_x = clamped_center
+            last_valid_w = w
+            trajectory.append((rel_t, clamped_center, w))
+        else:
+            trajectory.append((rel_t, last_valid_x, last_valid_w))
+    return trajectory
+
+
+def _largest_face_trajectory(raw_frames: list, lo: float, hi: float) -> list:
+    """Follow the largest face per frame; hold the last position when none is found."""
+    trajectory = []
+    last_valid_x = 0.5
+    last_valid_w = 0.16
+    for rel_t, faces in raw_frames:
+        if faces:
+            face = max(faces, key=lambda f: f['w'])
+            raw_center = face['cx']
+            last_valid_x = max(lo, min(hi, raw_center)) if lo <= hi else raw_center
+            last_valid_w = face['w']
+        trajectory.append((rel_t, last_valid_x, last_valid_w))
+    return trajectory
+
+
+def sample_face_trajectory(video_path: str, start_time: float, end_time: float, interval: float = 0.5, should_cancel = None, engine: str = "haar", info: dict = None) -> list[tuple]:
     """Sample face positions at periodic intervals across a clip window.
 
-    Attempts to use MediaPipe Face Mesh for high-accuracy tracking (via Mouth Aspect Ratio).
-    Gracefully falls back to OpenCV Haar Cascade if MediaPipe fails to import or errors out.
+    ``engine="mediapipe"`` uses MediaPipe Face Mesh (speaker picked by Mouth
+    Aspect Ratio). If MediaPipe cannot start or fails on a frame, the reason is
+    logged and OpenCV Haar Cascade takes over from that frame on. Every sample
+    frame is decoded once, whichever engine ends up handling it.
+
+    ``info``, when given, receives ``engine_used`` ("mediapipe" or "haar") and,
+    after a fallback, ``fallback_reason``.
     """
-    import numpy as np
+    if info is None:
+        info = {}
+    info["engine_used"] = "haar"
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -142,31 +285,27 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
 
     duration = max(0.1, end_time - start_time)
     num_samples = max(2, int(duration / interval) + 1)
-    
+
     half_window = (frame_h * 9 / 16) / frame_w / 2 if (frame_w and frame_h) else 0.28
     lo, hi = half_window, 1.0 - half_window
 
-    trajectory = []
-
-    # Try MediaPipe Face Mesh
-    try:
-        if engine != "mediapipe":
-            raise ValueError("Skipping MediaPipe")
-        import mediapipe as mp
-        # Some versions of mediapipe hide solutions if initialization fails (e.g. tensorflow missing)
-        if not hasattr(mp, 'solutions'):
-            raise ImportError("MediaPipe 'solutions' attribute is missing")
-        mp_face_mesh = mp.solutions.face_mesh
-        
-        face_mesh = mp_face_mesh.FaceMesh(
-            static_image_mode=False,
-            max_num_faces=5,
-            refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+    def note_fallback(reason):
+        info["fallback_reason"] = str(reason)
+        log_error(
+            "crop_utils.sample_face_trajectory_mediapipe_fallback",
+            f"MediaPipe face tracking failed, using OpenCV Haar Cascade instead. Reason: {reason}",
         )
 
-        raw_frames = []
+    face_mesh = None
+    face_cascade = None
+    raw_frames = []
+    try:
+        if engine == "mediapipe":
+            try:
+                face_mesh = _open_face_mesh()
+            except Exception as e:
+                note_fallback(e)
+
         for i in range(num_samples):
             if should_cancel and should_cancel():
                 break
@@ -177,7 +316,7 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
             if not ret:
                 raw_frames.append((rel_t, []))
                 continue
-                
+
             fh, fw = frame.shape[:2]
             if fw > 640:
                 small_w = 640
@@ -185,143 +324,35 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
                 small_frame = cv2.resize(frame, (small_w, small_h))
             else:
                 small_frame = frame
-                
-            rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
-            results = face_mesh.process(rgb_frame)
-            del frame, small_frame, rgb_frame
-            
-            frame_faces = []
-            if results.multi_face_landmarks:
-                for face_landmarks in results.multi_face_landmarks:
-                    xs = [lm.x for lm in face_landmarks.landmark]
-                    cx = sum(xs) / len(xs)
-                    
-                    p13 = np.array([face_landmarks.landmark[13].x, face_landmarks.landmark[13].y])
-                    p14 = np.array([face_landmarks.landmark[14].x, face_landmarks.landmark[14].y])
-                    p78 = np.array([face_landmarks.landmark[78].x, face_landmarks.landmark[78].y])
-                    p308 = np.array([face_landmarks.landmark[308].x, face_landmarks.landmark[308].y])
-                    
-                    mar = np.linalg.norm(p13 - p14) / (np.linalg.norm(p78 - p308) + 1e-6)
-                    
-                    # Estimate face width (cheek to cheek)
-                    p234 = np.array([face_landmarks.landmark[234].x, face_landmarks.landmark[234].y])
-                    p454 = np.array([face_landmarks.landmark[454].x, face_landmarks.landmark[454].y])
-                    w = float(np.linalg.norm(p234 - p454))
-                    
-                    frame_faces.append({'cx': cx, 'mar': mar, 'w': w})
-                    
-            raw_frames.append((rel_t, frame_faces))
+            del frame
 
-        face_mesh.close()
-
-        if raw_frames:
-            tracks = []
-            for rel_t, faces in raw_frames:
-                for face in faces:
-                    matched = False
-                    for track in tracks:
-                        if abs(track['last_cx'] - face['cx']) < 0.1:
-                            track['mars'].append(face['mar'])
-                            track['cxs'].append(face['cx'])
-                            track['last_cx'] = face['cx']
-                            matched = True
-                            break
-                    if not matched:
-                        tracks.append({
-                            'mars': [face['mar']],
-                            'cxs': [face['cx']],
-                            'last_cx': face['cx']
-                        })
-
-            best_track_cx = 0.5
-            if tracks:
-                valid_tracks = [t for t in tracks if len(t['mars']) > 1]
-                if valid_tracks:
-                    best_track = max(valid_tracks, key=lambda t: np.var(t['mars']))
-                    best_track_cx = np.median(best_track['cxs'])
-                else:
-                    best_track = max(tracks, key=lambda t: len(t['cxs']))
-                    best_track_cx = np.median(best_track['cxs'])
-
-            last_valid_x = best_track_cx
-            last_valid_w = 0.16
-            for rel_t, faces in raw_frames:
-                speaker_face = None
-                min_dist = 0.15
-                for face in faces:
-                    dist = abs(face['cx'] - last_valid_x)
-                    if dist < min_dist:
-                        speaker_face = face
-                        min_dist = dist
-                        
-                if speaker_face:
-                    x = speaker_face['cx']
-                    w = speaker_face['w']
-                    clamped_center = max(lo, min(hi, x)) if lo <= hi else x
-                    last_valid_x = clamped_center
-                    last_valid_w = w
-                    trajectory.append((rel_t, clamped_center, w))
-                else:
-                    trajectory.append((rel_t, last_valid_x, last_valid_w))
-
-            if trajectory:
-                cap.release()
-                return trajectory
-                
-    except Exception as e:
-        # Graceful fallback to OpenCV Haar Cascade
-        pass
-
-    # OpenCV Haar Cascade Fallback
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    if face_cascade.empty():
+            faces = None
+            if face_mesh is not None:
+                try:
+                    faces = _mediapipe_faces(face_mesh, small_frame)
+                except Exception as e:
+                    note_fallback(e)
+                    _close_face_mesh(face_mesh)
+                    face_mesh = None
+            if faces is None:
+                if face_cascade is None:
+                    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                    if face_cascade.empty():
+                        return [(0.0, 0.5)]
+                faces = _haar_faces(face_cascade, small_frame)
+            del small_frame
+            raw_frames.append((rel_t, faces))
+    finally:
+        if face_mesh is not None:
+            _close_face_mesh(face_mesh)
         cap.release()
-        return [(0.0, 0.5)]
-        
-    last_valid_x = 0.5
-    last_valid_w = 0.16
-    # Reset capture position
-    cap.set(cv2.CAP_PROP_POS_MSEC, start_time * 1000.0)
-    
-    for i in range(num_samples):
-        if should_cancel and should_cancel():
-            break
-        rel_t = min(duration, i * interval)
-        abs_t = start_time + rel_t
-        cap.set(cv2.CAP_PROP_POS_MSEC, abs_t * 1000.0)
-        ret, frame = cap.read()
-        if not ret:
-            trajectory.append((rel_t, last_valid_x, last_valid_w))
-            continue
 
-        fh, fw = frame.shape[:2]
-        if fw > 640:
-            small_w = 640
-            small_h = int(fh * (640 / fw))
-            small_frame = cv2.resize(frame, (small_w, small_h))
-        else:
-            small_w = fw
-            small_frame = frame
+    if engine == "mediapipe" and "fallback_reason" not in info:
+        info["engine_used"] = "mediapipe"
+        trajectory = _speaker_trajectory(raw_frames, lo, hi)
+    else:
+        trajectory = _largest_face_trajectory(raw_frames, lo, hi)
 
-        gray = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
-        del frame, small_frame
-        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
-        del gray
-        if len(faces) > 0:
-            x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
-            raw_center = (x + w / 2) / small_w
-            w_ratio = w / small_w
-            if lo <= hi:
-                clamped_center = max(lo, min(hi, raw_center))
-            else:
-                clamped_center = raw_center
-            last_valid_x = clamped_center
-            last_valid_w = w_ratio
-            trajectory.append((rel_t, clamped_center, w_ratio))
-        else:
-            trajectory.append((rel_t, last_valid_x, last_valid_w))
-
-    cap.release()
     return trajectory if trajectory else [(0.0, 0.5, 0.16)]
 
 
@@ -1419,7 +1450,11 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
             if tracking_mode == "center":
                 trajectory = [(0.0, 0.5)]
             else:
-                raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel, engine=engine)
+                with stage("tracking") as tracking:
+                    tracking["tracking_engine_requested"] = engine
+                    track_info = {}
+                    raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel, engine=engine, info=track_info)
+                    tracking["tracking_engine_used"] = track_info.get("engine_used", engine)
                 if should_cancel and should_cancel():
                     raise RuntimeError("Dibatalkan oleh pengguna.")
                 # Deadband first (lock out micro-jitter), then EMA smoothing turns any
@@ -1561,39 +1596,67 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
     if should_cancel and should_cancel():
         raise RuntimeError("Dibatalkan oleh pengguna.")
 
-    ok, err = _run_ffmpeg(build_cmd(use_split=gaming), cwd=subtitle_cwd, register=register_proc)
+    with stage("render") as timing:
+        timing["encoder"] = "h264_nvenc" if is_nvenc_available() else "libx264"
+        ok, err = _run_ffmpeg(build_cmd(use_split=gaming), cwd=subtitle_cwd, register=register_proc)
 
-    # Gaming split-screen is best-effort: if the complex filter fails, retry with
-    # the plain centred crop so the job still produces a clip.
-    if not ok and gaming:
-        if should_cancel and should_cancel():
-            raise RuntimeError("Dibatalkan oleh pengguna.")
-        log_error("crop_utils.crop_to_vertical_split_fallback", f"split-screen ffmpeg failed, falling back to standard crop. Error: {err[-800:]}")
-        ok, err = _run_ffmpeg(build_cmd(use_split=False), cwd=subtitle_cwd, register=register_proc)
-
-    # If the user just cancelled, throw error.
-    if should_cancel and should_cancel():
-        raise RuntimeError("Dibatalkan oleh pengguna.")
-        
-    if not ok:
-        # If NVENC failed or complex filter encountered an error, retry with CPU libx264
-        if is_nvenc_available():
-            log_error("crop_utils.crop_to_vertical_nvenc_fallback", f"NVENC ffmpeg failed, falling back to CPU libx264. Error: {err[-800:]}")
-            ok, err = _run_ffmpeg(build_cmd(use_split=False, force_cpu=True), cwd=subtitle_cwd, register=register_proc)
-            if ok:
-                return output_path
-
-        # Fallback to plain crop if complex filter fails (e.g., subtitle issues)
-        if subtitle_vf is not None:
+        # Gaming split-screen is best-effort: if the complex filter fails, retry with
+        # the plain centred crop so the job still produces a clip.
+        if not ok and gaming:
             if should_cancel and should_cancel():
                 raise RuntimeError("Dibatalkan oleh pengguna.")
-            log_error("crop_utils.crop_to_vertical_complex_fallback", f"ffmpeg complex failed, falling back to plain crop. Error: {err[-800:]}")
-            fallback_cmd = [
+            log_error("crop_utils.crop_to_vertical_split_fallback", f"split-screen ffmpeg failed, falling back to standard crop. Error: {err[-800:]}")
+            ok, err = _run_ffmpeg(build_cmd(use_split=False), cwd=subtitle_cwd, register=register_proc)
+
+        # If the user just cancelled, throw error.
+        if should_cancel and should_cancel():
+            raise RuntimeError("Dibatalkan oleh pengguna.")
+        
+        if not ok:
+            timing["encoder"] = "libx264"
+            # If NVENC failed or complex filter encountered an error, retry with CPU libx264
+            if is_nvenc_available():
+                log_error("crop_utils.crop_to_vertical_nvenc_fallback", f"NVENC ffmpeg failed, falling back to CPU libx264. Error: {err[-800:]}")
+                ok, err = _run_ffmpeg(build_cmd(use_split=False, force_cpu=True), cwd=subtitle_cwd, register=register_proc)
+                if ok:
+                    return output_path
+
+            # Fallback to plain crop if complex filter fails (e.g., subtitle issues)
+            if subtitle_vf is not None:
+                if should_cancel and should_cancel():
+                    raise RuntimeError("Dibatalkan oleh pengguna.")
+                log_error("crop_utils.crop_to_vertical_complex_fallback", f"ffmpeg complex failed, falling back to plain crop. Error: {err[-800:]}")
+                fallback_cmd = [
+                    "ffmpeg", "-y",
+                    "-ss", f"{start_s:.3f}",
+                    "-i", input_path,
+                    "-t", f"{duration:.3f}",
+                    "-vf", subtitle_vf,
+                    "-c:v", "libx264",
+                    "-pix_fmt", "yuv420p",
+                    "-preset", "veryfast",
+                    "-c:a", "aac",
+                    "-movflags", "+faststart",
+                    output_path,
+                ]
+                ok2, err2 = _run_ffmpeg(fallback_cmd, cwd=subtitle_cwd, register=register_proc)
+                if should_cancel and should_cancel():
+                    raise RuntimeError("Dibatalkan oleh pengguna.")
+                if ok2:
+                    return output_path
+
+                # Final fallback: drop subtitles entirely and just crop+scale
+                log_error("crop_utils.crop_to_vertical_nosub_fallback", f"subtitle fallback also failed, trying without subtitles. Error: {err2[-800:]}")
+
+            # Last-resort: crop + scale only, no subtitles, CPU libx264
+            if should_cancel and should_cancel():
+                raise RuntimeError("Dibatalkan oleh pengguna.")
+            nosub_cmd = [
                 "ffmpeg", "-y",
                 "-ss", f"{start_s:.3f}",
                 "-i", input_path,
                 "-t", f"{duration:.3f}",
-                "-vf", subtitle_vf,
+                "-vf", f"{crop_filter},{scale_filter}" if crop_filter else scale_filter,
                 "-c:v", "libx264",
                 "-pix_fmt", "yuv420p",
                 "-preset", "veryfast",
@@ -1601,43 +1664,18 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                 "-movflags", "+faststart",
                 output_path,
             ]
-            ok2, err2 = _run_ffmpeg(fallback_cmd, cwd=subtitle_cwd, register=register_proc)
+            ok3, err3 = _run_ffmpeg(nosub_cmd, register=register_proc)
             if should_cancel and should_cancel():
                 raise RuntimeError("Dibatalkan oleh pengguna.")
-            if ok2:
-                return output_path
+            if not ok3:
+                raise RuntimeError(f"ffmpeg final fallback failed: {err3[-800:]}")
 
-            # Final fallback: drop subtitles entirely and just crop+scale
-            log_error("crop_utils.crop_to_vertical_nosub_fallback", f"subtitle fallback also failed, trying without subtitles. Error: {err2[-800:]}")
+        # Validate output file integrity if file exists on disk
+        if os.path.isfile(output_path) and os.path.getsize(output_path) == 0:
+            try:
+                os.remove(output_path)
+            except OSError:
+                pass
+            raise RuntimeError(f"FFmpeg produced an empty output file (0 bytes): {output_path}")
 
-        # Last-resort: crop + scale only, no subtitles, CPU libx264
-        if should_cancel and should_cancel():
-            raise RuntimeError("Dibatalkan oleh pengguna.")
-        nosub_cmd = [
-            "ffmpeg", "-y",
-            "-ss", f"{start_s:.3f}",
-            "-i", input_path,
-            "-t", f"{duration:.3f}",
-            "-vf", f"{crop_filter},{scale_filter}" if crop_filter else scale_filter,
-            "-c:v", "libx264",
-            "-pix_fmt", "yuv420p",
-            "-preset", "veryfast",
-            "-c:a", "aac",
-            "-movflags", "+faststart",
-            output_path,
-        ]
-        ok3, err3 = _run_ffmpeg(nosub_cmd, register=register_proc)
-        if should_cancel and should_cancel():
-            raise RuntimeError("Dibatalkan oleh pengguna.")
-        if not ok3:
-            raise RuntimeError(f"ffmpeg final fallback failed: {err3[-800:]}")
-
-    # Validate output file integrity if file exists on disk
-    if os.path.isfile(output_path) and os.path.getsize(output_path) == 0:
-        try:
-            os.remove(output_path)
-        except OSError:
-            pass
-        raise RuntimeError(f"FFmpeg produced an empty output file (0 bytes): {output_path}")
-
-    return output_path
+        return output_path

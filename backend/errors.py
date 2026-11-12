@@ -1,0 +1,283 @@
+"""Structured errors that the UI can show to a non-technical user.
+
+Every failure a user can act on gets a code. ``AppError.to_dict()`` is what the
+backend stores in ``job["error_info"]``:
+
+    {code, title, message, title_en, message_en, actions: [{id, label, label_en}], technical}
+
+``title``/``message`` are Indonesian (the default language of the app),
+``*_en`` are English. Each message says what happened, why, and what to do.
+The raw exception text goes in ``technical`` only.
+"""
+import errno
+
+_ACTIONS = {
+    "upload_cookies": ("Unggah cookies.txt", "Upload cookies.txt"),
+    "upload_video": ("Unggah file video", "Upload a video file"),
+    "retry": ("Coba lagi", "Try again"),
+    "resume": ("Lanjutkan", "Resume"),
+    "open_settings": ("Buka Pengaturan", "Open Settings"),
+}
+
+ERROR_CODES = {
+    "YT_SIGNIN_REQUIRED": {
+        "title": "YouTube meminta verifikasi",
+        "message": (
+            "YouTube meminta bukti login sebelum mengirim video ini. "
+            "Ini sering terjadi saat aplikasi berjalan di Google Colab, karena YouTube mencurigai permintaan dari server, "
+            "dan juga pada video dengan batasan umur. "
+            "Unggah file cookies.txt dari akun YouTube cadangan, atau unduh videonya sendiri lalu unggah filenya ke sini."
+        ),
+        "title_en": "YouTube asked for verification",
+        "message_en": (
+            "YouTube wants proof of a login before it sends this video. "
+            "This often happens when the app runs on Google Colab, because YouTube distrusts requests from servers, "
+            "and also with age-restricted videos. "
+            "Upload a cookies.txt file from a spare YouTube account, or download the video yourself and upload the file here."
+        ),
+        "actions": ["upload_cookies", "upload_video"],
+    },
+    "YT_RATE_LIMITED": {
+        "title": "YouTube membatasi unduhan untuk sementara",
+        "message": (
+            "YouTube menerima terlalu banyak permintaan dari alamat internet ini, jadi unduhan ditahan untuk sementara. "
+            "Tunggu hingga satu jam, lalu coba lagi. "
+            "Jika perlu lebih cepat, unduh videonya sendiri lalu unggah filenya ke sini."
+        ),
+        "title_en": "YouTube is limiting downloads for now",
+        "message_en": (
+            "YouTube received too many requests from this internet address, so it is holding downloads back for a while. "
+            "Wait up to an hour, then try again. "
+            "If you need it sooner, download the video yourself and upload the file here."
+        ),
+        "actions": ["retry", "upload_video"],
+    },
+    "VIDEO_UNAVAILABLE": {
+        "title": "Video tidak bisa diakses",
+        "message": (
+            "Video ini tidak bisa diunduh dari tautan tersebut. "
+            "Videonya mungkin privat, sudah dihapus, belum tayang, khusus anggota kanal, "
+            "atau tidak tersedia di negara tempat server berjalan. "
+            "Buka tautannya di browser tanpa login untuk memeriksa. "
+            "Jika Anda punya file videonya, unggah langsung ke sini."
+        ),
+        "title_en": "This video can't be accessed",
+        "message_en": (
+            "The video could not be downloaded from that link. "
+            "It may be private, deleted, not yet live, for channel members only, "
+            "or unavailable in the country where the server runs. "
+            "Open the link in a browser without logging in to check. "
+            "If you have the video file, upload it here."
+        ),
+        "actions": ["upload_video"],
+    },
+    "VIDEO_TOO_LONG": {
+        "title": "Video terlalu panjang",
+        "message": (
+            "Video ini lebih panjang dari yang sanggup diproses perangkat ini. "
+            "Semakin panjang video, semakin banyak memori dan waktu yang dibutuhkan. "
+            "Potong videonya menjadi beberapa bagian yang lebih pendek, lalu proses satu per satu."
+        ),
+        "title_en": "The video is too long",
+        "message_en": (
+            "This video is longer than this device can process. "
+            "Longer videos need more memory and time. "
+            "Cut the video into shorter parts and process them one at a time."
+        ),
+        "actions": ["upload_video"],
+    },
+    "OUT_OF_MEMORY": {
+        "title": "Memori perangkat habis",
+        "message": (
+            "Proses berhenti karena memori (RAM) perangkat tidak cukup untuk video ini. "
+            "Tutup aplikasi lain, pilih model subtitle yang lebih kecil, atau pakai pelacakan wajah mode standar. "
+            "Setelah itu tekan Lanjutkan. Bagian yang sudah selesai tidak diulang."
+        ),
+        "title_en": "The device ran out of memory",
+        "message_en": (
+            "The process stopped because the device does not have enough memory (RAM) for this video. "
+            "Close other apps, choose a smaller subtitle model, or use standard face tracking. "
+            "Then press Resume. Finished parts are not redone."
+        ),
+        "actions": ["resume"],
+    },
+    "NO_GPU_SLOW": {
+        "title": "GPU tidak aktif",
+        "message": (
+            "Aplikasi tidak menemukan GPU, jadi pembuatan subtitle memakai prosesor biasa dan berjalan jauh lebih lambat. "
+            "Di Google Colab, buka menu Runtime, pilih Change runtime type, pilih T4 GPU, lalu jalankan ulang notebook. "
+            "Di komputer tanpa kartu grafis NVIDIA, ini normal dan proses tetap berjalan."
+        ),
+        "title_en": "GPU is not active",
+        "message_en": (
+            "The app did not find a GPU, so it makes subtitles on the regular processor, which is much slower. "
+            "On Google Colab, open the Runtime menu, choose Change runtime type, pick T4 GPU, then run the notebook again. "
+            "On a computer without an NVIDIA graphics card this is normal and the process still works."
+        ),
+        "actions": [],
+    },
+    "DRIVE_NOT_MOUNTED": {
+        "title": "Google Drive belum terhubung",
+        "message": (
+            "Aplikasi tidak menemukan folder Google Drive, jadi klip hanya tersimpan di penyimpanan sementara Colab "
+            "dan hilang saat sesi berakhir. "
+            "Jalankan Langkah 1 di notebook untuk menghubungkan Google Drive, lalu jalankan ulang server."
+        ),
+        "title_en": "Google Drive is not connected",
+        "message_en": (
+            "The app did not find the Google Drive folder, so clips are saved only to Colab's temporary storage "
+            "and disappear when the session ends. "
+            "Run Step 1 in the notebook to connect Google Drive, then restart the server."
+        ),
+        "actions": [],
+    },
+    "DISK_FULL": {
+        "title": "Ruang penyimpanan penuh",
+        "message": (
+            "Proses berhenti karena tidak ada ruang kosong untuk menyimpan file video. "
+            "Hapus proyek lama atau file lain yang tidak dipakai. "
+            "Setelah itu tekan Lanjutkan."
+        ),
+        "title_en": "Storage is full",
+        "message_en": (
+            "The process stopped because there is no free space left to save video files. "
+            "Delete old projects or other files you no longer need. "
+            "Then press Resume."
+        ),
+        "actions": ["resume"],
+    },
+    "AI_KEY_INVALID": {
+        "title": "Kunci API ditolak",
+        "message": (
+            "Layanan AI menolak kunci API yang dipakai. "
+            "Kunci itu mungkin salah ketik, sudah dicabut, atau bukan milik layanan yang dipilih. "
+            "Periksa kunci di halaman Pengaturan, lalu tekan Lanjutkan."
+        ),
+        "title_en": "The API key was rejected",
+        "message_en": (
+            "The AI service rejected the API key. "
+            "The key may be mistyped, revoked, or issued by a different service than the one selected. "
+            "Check the key on the Settings page, then press Resume."
+        ),
+        "actions": ["open_settings", "resume"],
+    },
+    "FFMPEG_MISSING": {
+        "title": "Komponen pengolah video tidak ditemukan",
+        "message": (
+            "Aplikasi tidak menemukan FFmpeg, program yang dipakai untuk memotong dan merender video. "
+            "Tanpa program itu tidak ada klip yang bisa dibuat. "
+            "Di aplikasi desktop, pasang ulang Auto Clipper. Di Google Colab, jalankan ulang langkah instalasi di notebook."
+        ),
+        "title_en": "The video processing component is missing",
+        "message_en": (
+            "The app could not find FFmpeg, the program it uses to cut and render video. "
+            "No clip can be made without it. "
+            "In the desktop app, reinstall Auto Clipper. On Google Colab, run the notebook's install step again."
+        ),
+        "actions": [],
+    },
+    "UNKNOWN": {
+        "title": "Proses gagal",
+        "message": (
+            "Proses berhenti karena kesalahan yang belum dikenali aplikasi. "
+            "Tekan Lanjutkan untuk mencoba lagi dari bagian yang gagal. "
+            "Jika gagal lagi, buka Detail teknis, salin isinya, dan kirimkan ke pengembang."
+        ),
+        "title_en": "The process failed",
+        "message_en": (
+            "The process stopped because of an error the app does not recognise yet. "
+            "Press Resume to try again from the part that failed. "
+            "If it fails again, open Technical details, copy the text, and send it to the developer."
+        ),
+        "actions": ["resume"],
+    },
+}
+
+
+class AppError(Exception):
+    """An error with a code the UI knows how to present.
+
+    ``str(error)`` is the raw technical text, so code that still shows
+    ``job["error"]`` as a plain string keeps working.
+    """
+
+    def __init__(self, code: str, technical: str = ""):
+        self.code = code
+        self.technical = technical or ""
+        super().__init__(self.technical or ERROR_CODES.get(code, ERROR_CODES["UNKNOWN"])["message"])
+
+    def to_dict(self) -> dict:
+        entry = ERROR_CODES.get(self.code, ERROR_CODES["UNKNOWN"])
+        return {
+            "code": self.code,
+            "title": entry["title"],
+            "message": entry["message"],
+            "title_en": entry["title_en"],
+            "message_en": entry["message_en"],
+            "actions": [
+                {"id": action_id, "label": _ACTIONS[action_id][0], "label_en": _ACTIONS[action_id][1]}
+                for action_id in entry["actions"]
+            ],
+            "technical": self.technical,
+        }
+
+
+_DISK_FULL = ("no space left on device", "errno 28", "not enough space on the disk", "disk quota exceeded")
+_RATE_LIMITED = ("http error 429", "too many requests", "rate-limit", "rate limit", "try again later")
+_UNAVAILABLE = (
+    "private video", "video is private", "video unavailable", "video is unavailable",
+    "not available in your country", "not made this video available", "has been removed",
+    "has been terminated", "members-only", "live event will begin", "premieres in",
+    "this video is not available", "video does not exist",
+)
+_SIGNIN = (
+    "sign in to confirm", "not a bot", "confirm your age", "login required", "use --cookies",
+    "http error 403", "403: forbidden",
+)
+_OUT_OF_MEMORY = ("out of memory", "unable to allocate", "cannot allocate memory", "bad_alloc", "bad allocation")
+_AI_KEY = (
+    "incorrect api key", "invalid api key", "api key not valid", "api_key_invalid", "invalid_api_key",
+    "invalid x-api-key", "invalid authentication", "api key is invalid",
+)
+
+
+def _has(text: str, needles) -> bool:
+    return any(n in text for n in needles)
+
+
+def _wrap(code: str, exc: BaseException) -> AppError:
+    err = AppError(code, technical=str(exc) or type(exc).__name__)
+    err.__cause__ = exc
+    return err
+
+
+def classify_download_error(exc: BaseException) -> AppError:
+    """Map a yt-dlp failure to an AppError. Unrecognised errors become UNKNOWN."""
+    if isinstance(exc, AppError):
+        return exc
+    text = str(exc).lower()
+    # Order matters: a rate-limit notice also says "Video unavailable", and a
+    # private video also says "Sign in".
+    if _has(text, _DISK_FULL):
+        return _wrap("DISK_FULL", exc)
+    if _has(text, _RATE_LIMITED):
+        return _wrap("YT_RATE_LIMITED", exc)
+    if _has(text, _UNAVAILABLE):
+        return _wrap("VIDEO_UNAVAILABLE", exc)
+    if _has(text, _SIGNIN):
+        return _wrap("YT_SIGNIN_REQUIRED", exc)
+    return _wrap("UNKNOWN", exc)
+
+
+def to_app_error(exc: BaseException) -> AppError:
+    """Map any job failure to an AppError."""
+    if isinstance(exc, AppError):
+        return exc
+    text = str(exc).lower()
+    if isinstance(exc, MemoryError) or _has(text, _OUT_OF_MEMORY):
+        return _wrap("OUT_OF_MEMORY", exc)
+    if isinstance(exc, OSError) and exc.errno == errno.ENOSPC:
+        return _wrap("DISK_FULL", exc)
+    if _has(text, _AI_KEY):
+        return _wrap("AI_KEY_INVALID", exc)
+    return classify_download_error(exc)

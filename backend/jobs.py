@@ -1,3 +1,4 @@
+import functools
 import threading
 import re
 import uuid
@@ -7,9 +8,91 @@ from backend.video_utils import download_youtube_video
 from backend.ai_utils import process_with_openai, process_with_gemini, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
 from backend.crop_utils import crop_to_vertical
 from backend.db import save_history, get_app_data_dir
+from backend.errors import to_app_error
+from backend.job_queue import JobQueue
 from backend.logger import log_app, log_error
+from backend.stage_timer import collect_timings, set_context, stage
 
 active_jobs = {}
+
+# One heavy job at a time (AUTO_CLIPPER_MAX_HEAVY_JOBS). Every job thread is
+# started through _start_job, never with threading.Thread directly.
+job_queue = JobQueue()
+_FINISHED = ("DONE", "ERROR", "CANCELLED", "AWAITING_MANUAL")
+_create_lock = threading.RLock()
+
+
+def _serialized(create_fn):
+    """Make the "is anything running?" check and the job insert one atomic step."""
+    @functools.wraps(create_fn)
+    def wrapper(*args, **kwargs):
+        with _create_lock:
+            return create_fn(*args, **kwargs)
+    return wrapper
+
+
+def _start_job(job_id: str, run_fn, *args) -> None:
+    """Queue a job run. It waits here while another job holds the heavy slot."""
+    def on_wait(position):
+        job = active_jobs.get(job_id)
+        if job is not None and not job.get("cancelled"):
+            job["progress"] = "Menunggu giliran. Proses lain masih berjalan."
+
+    job_queue.submit(job_id, _run_queued, (job_id, run_fn, args), on_wait=on_wait)
+
+
+def _run_queued(job_id: str, run_fn, args: tuple) -> None:
+    """Runs on the job's thread once it holds the heavy slot."""
+    job = active_jobs.get(job_id)
+    if job is None or job.get("cancelled"):
+        return
+    from backend.preflight import blocking_error
+    blocker = blocking_error()
+    if blocker is None:
+        run_fn(job_id, *args)
+        return
+
+    # Missing FFmpeg or a full disk: stop before any work starts.
+    log_error(f"JOB {job_id} preflight", blocker, exc_info=False)
+    _record_error(job, blocker)
+    if job.get("type") == "rerender_clip":
+        job["status"] = "ERROR"  # clip re-renders have no history row of their own
+    else:
+        _finalize_job(job_id, "ERROR", job.get("metadata") or dict(job.get("metadata_ref") or {}))
+
+
+def _reject_if_still_processing(history_id: str) -> None:
+    """Refuse a second Resume for a project that is already queued or running."""
+    job = active_jobs.get(history_id)
+    running_itself = job is not None and job.get("status") not in _FINISHED
+    being_resumed = any(
+        j.get("resumed_from") == history_id and j.get("status") not in _FINISHED
+        for j in active_jobs.values()
+    )
+    if running_itself or being_resumed or job_queue.position(history_id) is not None:
+        raise ValueError("Proyek ini masih diproses. Tunggu sampai selesai, tidak perlu menekan Lanjutkan lagi.")
+
+# Fields that say which device really did the work; copied from the stage
+# timings to the top of the job metadata so the UI can show them.
+_DEVICE_FIELDS = ("whisper_device", "encoder", "tracking_engine_used")
+
+
+def _with_timings(run_fn):
+    """Collect the stage timings of one job run into job["timings"].
+
+    The list is shared with job["metadata"] when the job has one, so timings
+    reach history.db with every status save, not only at the end.
+    """
+    @functools.wraps(run_fn)
+    def wrapper(job_id, *args, **kwargs):
+        job = active_jobs[job_id]
+        timings = job.setdefault("timings", [])
+        if isinstance(job.get("metadata"), dict):
+            job["metadata"]["timings"] = timings
+        with collect_timings(timings):
+            return run_fn(job_id, *args, **kwargs)
+    return wrapper
+
 def _get_clip_limit(max_clips: int, duration_seconds: float) -> int:
     if max_clips > 0:
         return max_clips
@@ -22,6 +105,12 @@ def _get_clip_limit(max_clips: int, duration_seconds: float) -> int:
         return 10
     else:
         return 15
+
+
+def _record_error(job: dict, exc: Exception) -> None:
+    """Keep the raw text in job["error"] (old UI) and add the structured form."""
+    job["error"] = str(exc)
+    job["error_info"] = to_app_error(exc).to_dict()
 
 
 def get_temp_dir():
@@ -84,6 +173,7 @@ def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") ->
     }
 
 
+@_serialized
 def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
     if is_any_job_running():
         from fastapi import HTTPException
@@ -158,10 +248,11 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         save_history(job_id, url, "PENDING", [], metadata)
     except Exception as db_e:
         log_error("jobs.create_job_save_history", db_e)
-    threading.Thread(target=_run_job, args=(job_id,), daemon=True).start()
+    _start_job(job_id, _run_job)
     return job_id
 
 
+@_serialized
 def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption_style: str = "standard",
                       burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
     """Manual clipper job: cut user-chosen ranges, no AI highlight selection.
@@ -236,10 +327,11 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         save_history(job_id, url, "PENDING", [], metadata)
     except Exception as db_e:
         log_error("jobs.create_manual_job_save_history", db_e)
-    threading.Thread(target=_run_manual_job, args=(job_id,), daemon=True).start()
+    _start_job(job_id, _run_manual_job)
     return job_id
 
 
+@_serialized
 def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
     if is_any_job_running():
         from fastapi import HTTPException
@@ -278,7 +370,7 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         save_history(job_id, hist["url"], "PENDING", [], hist_meta)
     except Exception as db_e:
         log_error("jobs.create_rerender_job_save_history", db_e)
-    threading.Thread(target=_run_rerender_job, args=(job_id,), daemon=True).start()
+    _start_job(job_id, _run_rerender_job)
     return job_id
 
 def get_job(job_id: str) -> dict:
@@ -300,6 +392,7 @@ def get_job(job_id: str) -> dict:
                 "clips": hist.get("result_clips", []),
                 "metadata": meta,
                 "error": err_msg,
+                "error_info": meta.get("error_info") if isinstance(meta, dict) and status == "ERROR" else None,
                 "failed": 0
             }
     return job
@@ -321,6 +414,7 @@ def cancel_job(job_id: str):
         job["cancelled"] = True
         job["status"] = "CANCELLED"
         job["progress"] = "Proses dibatalkan oleh pengguna."
+        job_queue.cancel(job_id)
         # Actually terminate the ffmpeg render in progress, otherwise the
         # current clip keeps rendering to completion before the flag is seen.
         proc = job.get("_proc")
@@ -337,6 +431,7 @@ def cancel_job(job_id: str):
         except Exception as e:
             log_error("jobs.cancel_job_db", e)
 
+@_with_timings
 def _run_job(job_id: str):
     import time
     job = active_jobs[job_id]
@@ -370,7 +465,8 @@ def _run_job(job_id: str):
             output_path = os.path.join(ws["source_dir"], "source_video.mp4")
             if os.path.abspath(local_src) != os.path.abspath(output_path):
                 import shutil
-                shutil.copy2(local_src, output_path)
+                with stage("download", source="local"):
+                    shutil.copy2(local_src, output_path)
         else:
             job["progress"] = "Mengunduh video..."
             log_app(f"[{job_id}] " + str("Mengunduh video..."))
@@ -491,7 +587,7 @@ def _run_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", locals().get('metadata', {}))
             return
         log_error(f"JOB {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", locals().get('metadata', {}))
 
 def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str, subtitle_path: str, is_cancelled: callable, limit: int = 0):
@@ -528,6 +624,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
     rendered_count = len(job.get("clips", []))
 
     for i, seg in enumerate(segments):
+        set_context(clip=i + 1)
         if is_cancelled():
             _finalize_job(job_id, "CANCELLED", metadata)
             return
@@ -599,7 +696,8 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                     "-filter_complex", "[0:v]setsar=1[v0];[1:v]setsar=1,scale=1080:1920[v1];[2:v]setsar=1[v2];[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[v][a]", 
                     "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-c:a", "aac", clip_output
                 ]
-                subprocess.run(concat_cmd, check=True)
+                with stage("hook_concat"):
+                    subprocess.run(concat_cmd, check=True)
                 if os.path.exists(hook_output): os.remove(hook_output)
                 if os.path.exists(main_output): os.remove(main_output)
                 result_path = clip_output
@@ -660,6 +758,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
     metadata["is_gaming_video"] = job.get("is_gaming_video", False)
     _finalize_job(job_id, "DONE", metadata)
 
+@_with_timings
 def _run_manual_job(job_id: str):
     import time
     job = active_jobs[job_id]
@@ -691,7 +790,8 @@ def _run_manual_job(job_id: str):
             source_path = os.path.join(ws["source_dir"], "source_video.mp4")
             if os.path.abspath(local_src) != os.path.abspath(source_path):
                 import shutil
-                shutil.copy2(local_src, source_path)
+                with stage("download", source="local"):
+                    shutil.copy2(local_src, source_path)
         else:
             job["progress"] = "Mengunduh video..."
             log_app(f"[{job_id}] " + str("Mengunduh video..."))
@@ -760,6 +860,7 @@ def _run_manual_job(job_id: str):
         rendered_count = len(job.get("clips", []))
         
         for i, clip in enumerate(clips):
+            set_context(clip=i + 1)
             if is_cancelled():
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
@@ -831,10 +932,11 @@ def _run_manual_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
         log_error(f"MANUAL JOB {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)
 
 
+@_with_timings
 def _run_rerender_job(job_id: str):
     import time
     job = active_jobs[job_id]
@@ -881,6 +983,7 @@ def _run_rerender_job(job_id: str):
         rendered_count = len(job.get("clips", []))
 
         for i, seg in enumerate(segments):
+            set_context(clip=i + 1)
             if job.get("cancelled", False):
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
@@ -960,7 +1063,8 @@ def _run_rerender_job(job_id: str):
                         "-filter_complex", "[0:v]setsar=1[v0];[1:v]setsar=1,scale=1080:1920[v1];[2:v]setsar=1[v2];[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[v][a]", 
                         "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-c:a", "aac", clip_output
                     ]
-                    subprocess.run(concat_cmd, check=True)
+                    with stage("hook_concat"):
+                        subprocess.run(concat_cmd, check=True)
                     if os.path.exists(hook_output): os.remove(hook_output)
                     if os.path.exists(main_output): os.remove(main_output)
                     result_path = clip_output
@@ -1023,9 +1127,10 @@ def _run_rerender_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
         log_error(f"JOB RERENDER {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)
 
+@_serialized
 def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False):
     if is_any_job_running():
         from fastapi import HTTPException
@@ -1078,10 +1183,10 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
     except Exception as db_e:
         log_error("jobs.create_rerun_ai_job_save_history", db_e)
     
-    t = threading.Thread(target=_run_rerun_ai_job, args=(new_job_id, source_video, metadata))
-    t.start()
+    _start_job(new_job_id, _run_rerun_ai_job, source_video, metadata)
     return new_job_id
 
+@_with_timings
 def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
     import time
     job = active_jobs[job_id]
@@ -1163,6 +1268,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         rendered_count = len(job.get("clips", []))
 
         for i, seg in enumerate(segments):
+            set_context(clip=i + 1)
             if job.get("cancelled", False):
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
@@ -1247,9 +1353,10 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
         log_error(f"JOB RERUN AI {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)
 
+@_serialized
 def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, aspect_ratio: str, caption_style: str, burn_subs: bool, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar"):
     if is_any_job_running():
         from fastapi import HTTPException
@@ -1277,10 +1384,10 @@ def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, a
         "failed": 0,
         "error": None
     }
-    thread = threading.Thread(target=_run_rerender_clip_job, args=(new_job_id,), daemon=True)
-    thread.start()
+    _start_job(new_job_id, _run_rerender_clip_job)
     return new_job_id
 
+@_with_timings
 def _run_rerender_clip_job(new_job_id: str):
     import time
     import json
@@ -1293,6 +1400,7 @@ def _run_rerender_clip_job(new_job_id: str):
     try:
         job["status"] = "CROPPING"
         job["progress"] = "Preparing custom subtitle..."
+        set_context(clip=clip_index + 1)
 
         # Inline import — consistent with resume_manual_job pattern
         from backend.db import get_history
@@ -1390,7 +1498,8 @@ def _run_rerender_clip_job(new_job_id: str):
                 "-filter_complex", "[0:v]setsar=1[v0];[1:v]setsar=1,scale=1080:1920[v1];[2:v]setsar=1[v2];[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[v][a]", 
                 "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-c:a", "aac", temp_output
             ]
-            subprocess.run(concat_cmd, check=True)
+            with stage("hook_concat"):
+                subprocess.run(concat_cmd, check=True)
             if os.path.exists(hook_output): os.remove(hook_output)
             if os.path.exists(main_output): os.remove(main_output)
             result_path = temp_output
@@ -1438,7 +1547,7 @@ def _run_rerender_clip_job(new_job_id: str):
 
     except Exception as e:
         log_error(f"RERENDER CLIP JOB {new_job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         job["status"] = "ERROR"
         # Clean up temp file on error
         try:
@@ -1480,6 +1589,21 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
         if key in job:
             metadata[key] = job[key]
 
+    if status == "ERROR" and job.get("error"):
+        metadata["error"] = job["error"]
+        metadata["error_info"] = job.get("error_info")
+    else:
+        # A resumed job starts from the failed attempt's metadata.
+        metadata.pop("error", None)
+        metadata.pop("error_info", None)
+
+    if "timings" in job:
+        metadata["timings"] = job["timings"]
+        for entry in job["timings"]:
+            for field in _DEVICE_FIELDS:
+                if entry.get(field):
+                    metadata[field] = entry[field]
+
     if status in ["DONE", "ERROR", "CANCELLED", "AWAITING_MANUAL"]:
         try:
             from backend.db import save_history
@@ -1488,7 +1612,9 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
             log_error("jobs.save_history", e)
 
 
+@_serialized
 def resume_manual_job(history_id: str, json_payload: str) -> str:
+    _reject_if_still_processing(history_id)
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -1528,7 +1654,8 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
         "clips": hist.get("result_clips", []),
         "failed": 0,
         "error": None,
-        "source_path": hist_meta["source_video"]
+        "source_path": hist_meta["source_video"],
+        "timings": list(hist_meta.get("timings") or [])
     }
     try:
         from backend.db import save_history
@@ -1542,10 +1669,10 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
     if not parsed:
         raise ValueError("Format JSON payload tidak valid atau kosong.")
 
-    import threading
-    threading.Thread(target=_run_manual_resume_job, args=(job_id, parsed), daemon=True).start()
+    _start_job(job_id, _run_manual_resume_job, parsed)
     return job_id
 
+@_with_timings
 def _run_manual_resume_job(job_id: str, parsed_highlights: list):
     import time
     job = active_jobs[job_id]
@@ -1579,10 +1706,12 @@ def _run_manual_resume_job(job_id: str, parsed_highlights: list):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
         log_error(f"JOB RESUME {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)
 
+@_serialized
 def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_provider: str = None, fallback_custom_base_url: str = None, fallback_custom_model_name: str = None, fallback_whisper_model: str = None, fallback_model: str = None) -> str:
+    _reject_if_still_processing(history_id)
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -1629,6 +1758,7 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "max_clips": hist_meta.get("max_clips", 0),
         "is_gaming_video": hist_meta.get("is_gaming_video", False),
         "status": "QUEUED",
+        "resumed_from": history_id,
         "progress": "Melanjutkan pemrosesan...",
         "cancelled": False,
         "clips": hist.get("result_clips", []),
@@ -1641,10 +1771,10 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         save_history(job_id, hist["url"], "QUEUED", hist.get("result_clips", []), hist_meta)
     except Exception as db_e:
         log_error("jobs.create_resume_job_save_history", db_e)
-    import threading
-    threading.Thread(target=_run_resume_job, args=(job_id,), daemon=True).start()
+    _start_job(job_id, _run_resume_job)
     return job_id
 
+@_with_timings
 def _run_resume_job(job_id: str):
     import time
     job = active_jobs[job_id]
@@ -1759,25 +1889,26 @@ def _run_resume_job(job_id: str):
                 from backend.ai_utils import _with_retry, HIGHLIGHT_GUIDANCE, SOCIAL_PROMPT_TEMPLATE, _get_user_datetime_context, _parse_highlights
                 client = genai.Client(api_key=job["api_key"])
                 model_name = job.get("model")
+                with stage("ai_analysis"):
                 
-                video_file = _with_retry(lambda: client.files.upload(file=source_video), attempts=8)
-                while video_file.state.name == "PROCESSING":
-                    if is_cancelled(): raise Exception("Cancelled by user")
-                    time.sleep(2)
-                    video_file = _with_retry(lambda: client.files.get(name=video_file.name), attempts=8)
+                    video_file = _with_retry(lambda: client.files.upload(file=source_video), attempts=8)
+                    while video_file.state.name == "PROCESSING":
+                        if is_cancelled(): raise Exception("Cancelled by user")
+                        time.sleep(2)
+                        video_file = _with_retry(lambda: client.files.get(name=video_file.name), attempts=8)
                 
-                prompt = (
-                    "Watch this video and read the following accurate transcript. "
-                    f"{HIGHLIGHT_GUIDANCE}\n\nFind up to {limit} of the best highlights.\n\n"
-                    f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
-                    f"Transcript:\n{transcript_text}"
-                )
-                response = _with_retry(lambda: client.models.generate_content(
-                    model=model_name,
-                    contents=[video_file, prompt],
-                    config=types.GenerateContentConfig(response_mime_type="application/json")
-                ))
-                highlights = _parse_highlights(response.text)
+                    prompt = (
+                        "Watch this video and read the following accurate transcript. "
+                        f"{HIGHLIGHT_GUIDANCE}\n\nFind up to {limit} of the best highlights.\n\n"
+                        f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
+                        f"Transcript:\n{transcript_text}"
+                    )
+                    response = _with_retry(lambda: client.models.generate_content(
+                        model=model_name,
+                        contents=[video_file, prompt],
+                        config=types.GenerateContentConfig(response_mime_type="application/json")
+                    ))
+                    highlights = _parse_highlights(response.text)
             else:
                 base_url = None
                 model = "gpt-4o-mini"
@@ -1826,5 +1957,5 @@ def _run_resume_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
         log_error(f"JOB RESUME {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)

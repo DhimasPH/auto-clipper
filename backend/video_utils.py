@@ -7,7 +7,9 @@ import sys
 import time
 import shutil
 from pathlib import Path
+from backend.errors import classify_download_error
 from backend.logger import log_error
+from backend.stage_timer import stage
 
 
 def get_ffmpeg_path() -> str | None:
@@ -70,14 +72,32 @@ class DownloadCancelledError(Exception):
 def quality_to_format(quality: str) -> str:
     """yt-dlp format selector for a requested quality label.
 
-    Heights use '<=' so yt-dlp gracefully falls back to the best resolution at
-    or below the target when the exact one isn't available.
+    "best" (and any unknown label) means H.264 up to 1080p. YouTube also serves
+    AV1/VP9 up to 4K inside mp4, which decodes several times slower on a small
+    CPU and is not needed for 1080x1920 clips. 1440p and 2160p stay available
+    when asked for by name.
+
+    Every alternative is looser than the one before it and the list ends in
+    plain 'best', so a source without H.264, without m4a audio, or with nothing
+    at or below the cap still downloads.
     """
     caps = {"2160p": 2160, "1440p": 1440, "1080p": 1080, "720p": 720, "480p": 480}
-    h = caps.get(quality)
-    if h:
-        return f"bestvideo[height<={h}][ext=mp4]+bestaudio[ext=m4a]/best[height<={h}][ext=mp4]/best"
-    return 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+    h = caps.get(quality) or 1080
+    alternatives = []
+    if h <= 1080:
+        alternatives += [
+            f"bestvideo[vcodec^=avc1][height<={h}]+bestaudio[ext=m4a]",
+            f"bestvideo[vcodec^=avc1][height<={h}]+bestaudio",
+        ]
+    alternatives += [
+        f"bestvideo[height<={h}][ext=mp4]+bestaudio[ext=m4a]",
+        f"bestvideo[height<={h}]+bestaudio",
+        f"best[height<={h}][ext=mp4]",
+        f"best[height<={h}]",
+        "bestvideo+bestaudio",
+        "best",
+    ]
+    return "/".join(alternatives)
 
 
 def probe_formats(url: str) -> list:
@@ -106,7 +126,7 @@ def probe_formats(url: str) -> list:
             last_error = e
 
     if info is None and last_error:
-        raise last_error
+        raise classify_download_error(last_error) from last_error
 
     formats = (info or {}).get("formats", []) if isinstance(info, dict) else []
     heights = {f.get("height") for f in formats if isinstance(f, dict) and f.get("height")}
@@ -114,6 +134,11 @@ def probe_formats(url: str) -> list:
 
 
 def download_youtube_video(url: str, output_path: str, quality: str = "best", is_cancelled: callable = None) -> Path:
+    with stage("download"):
+        return _download_youtube_video(url, output_path, quality, is_cancelled)
+
+
+def _download_youtube_video(url: str, output_path: str, quality: str, is_cancelled: callable) -> Path:
     format_str = quality_to_format(quality)
 
     base_ydl_opts = {
@@ -182,7 +207,7 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
             break
             
     if not success and last_error:
-        raise last_error
+        raise classify_download_error(last_error) from last_error
 
     return Path(output_path)
 
@@ -207,12 +232,13 @@ def extract_audio(video_path: str, audio_path: str, register_proc: callable = No
         "-b:a", "64k",
         audio_path,
     ]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if register_proc:
-        register_proc(proc)
-    stdout, stderr = proc.communicate()
-    if proc.returncode != 0:
-        raise subprocess.CalledProcessError(proc.returncode, cmd, stdout, stderr)
+    with stage("extract_audio"):
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if register_proc:
+            register_proc(proc)
+        stdout, stderr = proc.communicate()
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd, stdout, stderr)
     return audio_path
 
 def get_video_duration(video_path: str) -> float:

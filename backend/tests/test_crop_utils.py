@@ -336,3 +336,224 @@ def test_build_dynamic_crop_filter_static_when_under_3pct():
 
 def test_sample_face_trajectory_rejects_outlier():
     pass
+
+
+# --- sample_face_trajectory: engines, fallback and cleanup -------------------
+
+import sys
+import types
+
+import numpy as np
+import pytest
+
+
+def _capture(frames=None, width=640, height=360):
+    """A cv2.VideoCapture stand-in that hands out black frames."""
+    cap = MagicMock()
+    cap.isOpened.return_value = True
+    props = {5: 25.0, 7: 250, 3: width, 4: height}  # FPS, FRAME_COUNT, WIDTH, HEIGHT
+    cap.get.side_effect = lambda prop: props.get(prop, 0)
+    if frames is None:
+        cap.read.side_effect = lambda: (True, np.zeros((height, width, 3), dtype=np.uint8))
+    else:
+        cap.read.side_effect = frames
+    return cap
+
+
+def _cascade(boxes):
+    cascade = MagicMock()
+    cascade.empty.return_value = False
+    cascade.detectMultiScale.return_value = boxes
+    return cascade
+
+
+def _landmarks(cx, mouth_open=0.02):
+    """468 face-mesh points centred on cx, 0.2 wide cheek to cheek."""
+    pts = [types.SimpleNamespace(x=cx, y=0.5) for _ in range(468)]
+    pts[13].y, pts[14].y = 0.5, 0.5 + mouth_open
+    pts[78].x, pts[308].x = cx - 0.05, cx + 0.05
+    pts[234].x, pts[454].x = cx - 0.1, cx + 0.1
+    return types.SimpleNamespace(landmark=pts)
+
+
+def _fake_mediapipe(process):
+    """A mediapipe module whose FaceMesh.process is the given callable."""
+    mesh = MagicMock()
+    mesh.process.side_effect = process
+    face_mesh_cls = MagicMock(return_value=mesh)
+    mp = types.SimpleNamespace(solutions=types.SimpleNamespace(face_mesh=types.SimpleNamespace(FaceMesh=face_mesh_cls)))
+    return mp, face_mesh_cls, mesh
+
+
+def _one_face(cx):
+    return lambda rgb: types.SimpleNamespace(multi_face_landmarks=[_landmarks(cx)])
+
+
+def test_haar_trajectory_follows_the_largest_face():
+    from backend.crop_utils import sample_face_trajectory
+    cap = _capture()
+    # 640-wide frame: box x=352..416 -> centre 0.6, width 0.1
+    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(10, 10, 20, 20), (352, 100, 64, 64)])):
+        traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar")
+
+    assert traj == [(0.0, 0.6, 0.1), (0.5, 0.6, 0.1), (1.0, 0.6, 0.1)]
+    assert cap.read.call_count == 3
+    cap.release.assert_called_once()
+
+
+def test_mediapipe_trajectory_follows_the_face():
+    from backend.crop_utils import sample_face_trajectory
+    cap = _capture()
+    mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.6))
+    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch.dict(sys.modules, {"mediapipe": mp}):
+        traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="mediapipe")
+
+    assert [t for t, _, _ in traj] == [0.0, 0.5, 1.0]
+    for _, x, w in traj:
+        assert x == pytest.approx(0.6)
+        assert w == pytest.approx(0.2)
+    assert cap.read.call_count == 3
+
+
+def test_face_mesh_is_created_once_and_closed_after_success():
+    from backend.crop_utils import sample_face_trajectory
+    mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.5))
+    info = {}
+    with patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
+         patch.dict(sys.modules, {"mediapipe": mp}):
+        sample_face_trajectory("v.mp4", 0.0, 2.0, interval=0.5, engine="mediapipe", info=info)
+
+    assert face_mesh_cls.call_count == 1
+    mesh.close.assert_called_once()
+    assert info["engine_used"] == "mediapipe"
+
+
+def test_face_mesh_is_closed_when_mediapipe_raises_and_the_reason_is_logged():
+    from backend.crop_utils import sample_face_trajectory
+
+    def process(rgb):
+        raise RuntimeError("calculator graph failed")
+
+    mp, face_mesh_cls, mesh = _fake_mediapipe(process)
+    cap = _capture()
+    info = {}
+    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
+         patch("backend.crop_utils.log_error") as mock_log, \
+         patch.dict(sys.modules, {"mediapipe": mp}):
+        traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="mediapipe", info=info)
+
+    mesh.close.assert_called_once()
+    assert mock_log.call_count == 1
+    logged = " ".join(str(a) for a in mock_log.call_args[0])
+    assert "calculator graph failed" in logged
+    assert info["engine_used"] == "haar"
+    assert "calculator graph failed" in info["fallback_reason"]
+    assert traj == [(0.0, 0.6, 0.1), (0.5, 0.6, 0.1), (1.0, 0.6, 0.1)]
+
+
+def test_frames_read_before_a_mediapipe_failure_are_not_read_again():
+    from backend.crop_utils import sample_face_trajectory
+    calls = {"n": 0}
+
+    def process(rgb):
+        calls["n"] += 1
+        if calls["n"] == 3:
+            raise RuntimeError("out of memory in graph")
+        return types.SimpleNamespace(multi_face_landmarks=[_landmarks(0.6)])
+
+    mp, face_mesh_cls, mesh = _fake_mediapipe(process)
+    cap = _capture()
+    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
+         patch("backend.crop_utils.log_error"), \
+         patch.dict(sys.modules, {"mediapipe": mp}):
+        traj = sample_face_trajectory("v.mp4", 0.0, 2.0, interval=0.5, engine="mediapipe")
+
+    # 5 samples, each frame decoded exactly once even though the engine changed at sample 3
+    assert cap.read.call_count == 5
+    assert [t for t, _, _ in traj] == [0.0, 0.5, 1.0, 1.5, 2.0]
+    for _, x, _ in traj:
+        assert x == pytest.approx(0.6)
+    mesh.close.assert_called_once()
+
+
+def test_missing_mediapipe_solutions_falls_back_with_a_logged_reason():
+    from backend.crop_utils import sample_face_trajectory
+    mp_without_solutions = types.SimpleNamespace(tasks=object())
+    cap = _capture()
+    info = {}
+    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
+         patch("backend.crop_utils.log_error") as mock_log, \
+         patch.dict(sys.modules, {"mediapipe": mp_without_solutions}):
+        traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="mediapipe", info=info)
+
+    assert mock_log.call_count == 1
+    assert info["engine_used"] == "haar"
+    assert "solutions" in info["fallback_reason"]
+    assert cap.read.call_count == 3
+    assert len(traj) == 3
+
+
+def test_haar_engine_does_not_touch_mediapipe_or_log_a_fallback():
+    from backend.crop_utils import sample_face_trajectory
+    mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.5))
+    info = {}
+    with patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([])), \
+         patch("backend.crop_utils.log_error") as mock_log, \
+         patch.dict(sys.modules, {"mediapipe": mp}):
+        sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar", info=info)
+
+    face_mesh_cls.assert_not_called()
+    mock_log.assert_not_called()
+    assert info == {"engine_used": "haar"}
+
+
+def test_face_mesh_and_capture_are_released_when_reading_frames_crashes():
+    from backend.crop_utils import sample_face_trajectory
+    mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.5))
+    frame = np.zeros((360, 640, 3), dtype=np.uint8)
+    cap = _capture(frames=[(True, frame), MemoryError("decoder ran out of memory")])
+    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch.dict(sys.modules, {"mediapipe": mp}):
+        with pytest.raises(MemoryError):
+            sample_face_trajectory("v.mp4", 0.0, 2.0, interval=0.5, engine="mediapipe")
+
+    mesh.close.assert_called_once()
+    cap.release.assert_called_once()
+
+
+def test_face_mesh_is_closed_when_tracking_is_cancelled():
+    from backend.crop_utils import sample_face_trajectory
+    mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.5))
+    with patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
+         patch.dict(sys.modules, {"mediapipe": mp}):
+        traj = sample_face_trajectory("v.mp4", 0.0, 2.0, interval=0.5, engine="mediapipe", should_cancel=lambda: True)
+
+    mesh.close.assert_called_once()
+    assert traj == [(0.0, 0.5, 0.16)]
+
+
+@patch('backend.crop_utils.is_nvenc_available', return_value=False)
+@patch('backend.crop_utils.subprocess.Popen')
+def test_crop_reports_the_tracking_engine_that_really_ran(mock_popen, mock_nvenc):
+    from backend.stage_timer import collect_timings
+    mock_popen.return_value = _fake_proc(0)
+
+    def fake_sample(path, start_time, end_time, interval, should_cancel, engine, info):
+        info["engine_used"] = "haar"
+        info["fallback_reason"] = "MediaPipe 'solutions' attribute is missing"
+        return [(0.0, 0.5, 0.16)]
+
+    timings = []
+    with patch("backend.crop_utils.sample_face_trajectory", side_effect=fake_sample):
+        with collect_timings(timings):
+            crop_to_vertical("in.mp4", "out.mp4", "00:00:00", "00:00:10", engine="mediapipe")
+
+    tracking = [t for t in timings if t["stage"] == "tracking"][0]
+    assert tracking["tracking_engine_requested"] == "mediapipe"
+    assert tracking["tracking_engine_used"] == "haar"

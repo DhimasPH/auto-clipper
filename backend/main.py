@@ -151,12 +151,25 @@ def api_probe(url: str):
         from backend.video_utils import probe_formats
         return {"status": "success", "heights": probe_formats(url.strip())}
     except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+        from backend.errors import classify_download_error
+        return JSONResponse(status_code=400, content={
+            "status": "error", "message": str(e), "error_info": classify_download_error(e).to_dict(),
+        })
 
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.get("/api/preflight")
+def api_preflight():
+    """Environment checks (FFmpeg, disk, memory, GPU, Drive, downloader) for the UI.
+
+    Each check is {id, level: ok|warn|block, title, message, title_en, message_en}.
+    """
+    from backend.preflight import run_preflight
+    return {"status": "success", "checks": run_preflight()}
 
 from fastapi import Query
 
@@ -686,8 +699,8 @@ def api_create_job(req: CreateJobRequest):
 
 @app.get("/jobs/{job_id}")
 def api_get_job(job_id: str):
-    from backend.jobs import get_job
-    job = get_job(job_id)
+    from backend import jobs
+    job = jobs.get_job(job_id)
     if not job:
         return JSONResponse(status_code=404, content={"status": "error", "message": "Job not found"})
     # Only return safe fields to frontend
@@ -695,9 +708,12 @@ def api_get_job(job_id: str):
         "id": job["id"],
         "status": job["status"],
         "progress": job["progress"],
+        # 0 = running, 1 = next in line, null = not in the queue (finished or from history)
+        "queue_position": jobs.job_queue.position(job_id),
         "clips": job["clips"],
         "failed": job.get("failed", 0),
         "error": job.get("error"),
+        "error_info": job.get("error_info"),
         "metadata": job.get("metadata", {})
     }
 
