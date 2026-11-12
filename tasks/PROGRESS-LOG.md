@@ -97,3 +97,14 @@ Catatan jujur:
 - `backend/metadata.py:211` masih membuat thread langsung. Itu di luar cakupan T0.4 (hanya `jobs.py`), dicatat untuk ditinjau.
 
 Langkah berikutnya: Fase 3, mulai T0.8 (workspace lokal dan publish ke Drive).
+
+### 2026-11-12 · Fase 3 dimulai: T0.8 dan T0.10 dikerjakan paralel
+
+Dua agen Fable (effort high) bekerja di worktree terpisah, keduanya bercabang dari `a214104`:
+
+| Task | Worktree | Branch |
+|---|---|---|
+| T0.8 workspace lokal + publish | `C:\Users\dhima\projects\ac-t08` | `sp0/t0.8-workspace` |
+| T0.10 `cookies.txt` | `C:\Users\dhima\projects\ac-t10` | `sp0/t0.10-cookies` |
+
+Jika sesi terputus sebelum entri berikutnya ditulis: periksa `git -C <worktree> status` dan `git log` di tiap worktree, jalankan tes di sana, lalu merge ke `feat/sp0-pipeline-stability` hanya jika hijau. Setelah merge, hapus worktree dengan `git worktree remove`. Belum ada task Fase 3 yang dicentang.
