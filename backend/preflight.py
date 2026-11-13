@@ -18,7 +18,7 @@ import shutil
 import sys
 
 from backend.errors import AppError, ERROR_CODES
-from backend.logger import get_app_data_dir, log_error
+from backend.logger import log_error
 
 DISK_BLOCK_GB = 1.0
 DISK_WARN_GB = 5.0
@@ -34,7 +34,15 @@ def _ffmpeg_path():
 
 
 def _free_disk_gb() -> float:
-    return shutil.disk_usage(get_app_data_dir()).free / 1024 ** 3
+    # The fullest of the disks a job writes to: with AUTO_CLIPPER_WORK_DIR the
+    # download and renders go to the work dir, the clips to the library.
+    from backend.workspace import free_disk_gb
+    return free_disk_gb()
+
+
+def _storage_dirs() -> list:
+    from backend.workspace import storage_dirs
+    return storage_dirs()
 
 
 def _available_ram_gb():
@@ -80,7 +88,11 @@ def _gpu_encoder_available() -> bool:
 
 
 def _cloud_drive_expected() -> bool:
-    """True when this is a Colab run whose workspace lives on Google Drive."""
+    """True when this is a Colab run whose library lives on Google Drive.
+
+    AUTO_CLIPPER_WORKSPACE is the library (where clips are kept). The work dir
+    (AUTO_CLIPPER_WORK_DIR) is a local disk and plays no part here.
+    """
     workspace = os.environ.get("AUTO_CLIPPER_WORKSPACE", "").replace("\\", "/")
     return bool(os.environ.get("AUTO_CLIPPER_CLOUD_MODE")) and workspace.startswith("/content/drive")
 
@@ -145,7 +157,7 @@ def check_ffmpeg() -> dict:
 def check_disk() -> dict:
     free = _free_disk_gb()
     free_id, free_en = _gb(free)
-    technical = f"free disk space {free:.2f} GB at {get_app_data_dir()}"
+    technical = f"free disk space {free:.2f} GB at {' and '.join(_storage_dirs())}"
     if free < DISK_BLOCK_GB:
         return _result(
             "disk", "block",
