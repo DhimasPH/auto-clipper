@@ -63,7 +63,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
   - Endpoint unggah, validasi (format Netscape, domain, masa berlaku), status, hapus. Dipakai oleh yt-dlp. File tidak pernah dikirim ke tempat lain.
   - Selesai bila: uji validasi untuk file valid, kosong, kedaluwarsa, dan bukan Netscape.
   - File: `backend/cookies.py` (baru), `backend/main.py`, `backend/video_utils.py`, `backend/tests/test_cookies.py`.
-- [ ] **T0.11 Strategi client yt-dlp dan Deno** · bergantung T0.3, T0.10
+- [x] **T0.11 Strategi client yt-dlp dan Deno** · bergantung T0.3, T0.10
   - Hentikan rotasi buta, urutan default lalu `web_embedded` dan `android_vr`, aktifkan komponen EJS, `classify_download_error` terintegrasi.
   - Selesai bila: uji membangun opsi yt-dlp untuk skenario dengan dan tanpa cookies, dengan dan tanpa Deno.
   - File: `backend/video_utils.py`, `backend/tests/test_video_utils.py`.

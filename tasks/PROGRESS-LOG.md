@@ -167,3 +167,23 @@ Belum terbukti tanpa Colab nyata: perilaku rename dan file `.part` di mount Driv
 Celah yang ditemukan, dijadikan task baru **T0.8b** (wajib sebelum T0.13 menyalakan work dir): video sumber tidak dipublikasikan, sehingga rerender/AI Koreksi/resume-manual/Resume unggahan gagal setelah work dir hilang; `/upload` masih menulis ke pustaka; `/video` tidak menyajikan file work dir. Field baru `job["warnings"]`/`metadata["warnings"]` belum ditampilkan frontend (masuk T0.12).
 
 Sedang berjalan: T0.11 di `C:\Users\dhima\projects\ac-t11`. Dimulai: T0.9 di `C:\Users\dhima\projects\ac-t09` (branch `sp0/t0.9-history-db`) dan T0.8b di `C:\Users\dhima\projects\ac-t08b` (branch `sp0/t0.8b-source-restore`).
+
+### 2026-11-13 · T0.11 selesai dan di-merge
+
+Tes setelah merge di branch utama: **486 lulus, 0 gagal**. T0.11 dicentang.
+
+Ringkasan: urutan percobaan `default yt-dlp → web_embedded → android_vr`, masing-masing sekali (dulu sampai 12 kali). Berhenti langsung untuk `VIDEO_UNAVAILABLE`, `YT_RATE_LIMITED`, `DISK_FULL`, dan untuk error sign-in bila cookies sudah dipakai. Bila Deno ada: `js_runtimes={'deno': {'path': ...}}` dan `remote_components=['ejs:github']` (dicek dari source yt-dlp 2026.10.26 terpasang). Error yang keluar selalu `AppError` berkode.
+
+Temuan penting: rotasi client lama **tidak pernah bekerja**. Bentuk `extractor_args` lama diabaikan yt-dlp, jadi kode lama mengulang permintaan default yang sama sampai 12 kali.
+
+Belum terbukti (butuh unduhan YouTube sungguhan, Deno tidak terpasang di mesin ini): apakah Deno + EJS menyelesaikan tantangan, apakah client cadangan lolos bot check, dan kecocokan teks error YouTube terkini dengan pengklasifikasi.
+
+Perlu keputusan pemilik `[!]`:
+
+4. `android_vr` di yt-dlp terpasang ternyata butuh PO Token (format di-403 sejak 2026.08.17), jadi cadangan ini lemah. `visionos` tidak butuh PO Token. Mengganti hanya satu baris di `PLAYER_CLIENT_ORDER`, tetapi spec menyebut `android_vr`.
+5. `remote_components=['ejs:github']` membuat yt-dlp mengunduh skrip solver dari GitHub saat berjalan (dicek hash, lalu di-cache). Alternatif: pasang paket `yt-dlp-ejs` di requirements, build PyInstaller, dan notebook (cocok di T0.13).
+6. Error sign-in saat cookies terpasang langsung menghentikan unduhan tanpa mencoba ulang secara anonim. Pengguna harus mengunggah ulang atau menghapus cookies. "HTTP Error 403" juga terklasifikasi sebagai sign-in, jadi ikut berhenti.
+
+Catatan untuk T0.13: Deno hanya dicari di PATH.
+
+Masih berjalan: T0.9 (`ac-t09`) dan T0.8b (`ac-t08b`).
