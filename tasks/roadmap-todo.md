@@ -55,7 +55,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
   - Snapshot lewat API backup SQLite dengan pembatasan frekuensi, pemulihan saat startup.
   - Selesai bila: uji pemulihan lulus, termasuk skenario runtime mati di tengah job lalu Resume.
   - File: `backend/db.py`, `backend/colab_api.py`, `backend/tests/test_db.py`.
-- [ ] **T0.10 Dukungan `cookies.txt`**
+- [x] **T0.10 Dukungan `cookies.txt`**
   - Endpoint unggah, validasi (format Netscape, domain, masa berlaku), status, hapus. Dipakai oleh yt-dlp. File tidak pernah dikirim ke tempat lain.
   - Selesai bila: uji validasi untuk file valid, kosong, kedaluwarsa, dan bukan Netscape.
   - File: `backend/cookies.py` (baru), `backend/main.py`, `backend/video_utils.py`, `backend/tests/test_cookies.py`.

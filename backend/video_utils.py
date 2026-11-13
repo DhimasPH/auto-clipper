@@ -7,6 +7,7 @@ import sys
 import time
 import shutil
 from pathlib import Path
+from backend.cookies import ytdlp_cookiefile
 from backend.errors import classify_download_error
 from backend.logger import log_error
 from backend.stage_timer import stage
@@ -102,11 +103,18 @@ def quality_to_format(quality: str) -> str:
 
 def probe_formats(url: str) -> list:
     """Available video heights for a URL, descending & unique, via yt-dlp."""
+    with ytdlp_cookiefile() as cookiefile:
+        return _probe_formats(url, cookiefile)
+
+
+def _probe_formats(url: str, cookiefile: str | None) -> list:
     base_ydl_opts = {
         'quiet': True, 'no_warnings': True, 'skip_download': True,
         'logger': _SilentLogger(),
     }
-    
+    if cookiefile:
+        base_ydl_opts['cookiefile'] = cookiefile
+
 
     clients_to_try = ['ios', 'tv', 'web_creator', 'android']
     info = None
@@ -134,11 +142,12 @@ def probe_formats(url: str) -> list:
 
 
 def download_youtube_video(url: str, output_path: str, quality: str = "best", is_cancelled: callable = None) -> Path:
-    with stage("download"):
-        return _download_youtube_video(url, output_path, quality, is_cancelled)
+    with stage("download"), ytdlp_cookiefile() as cookiefile:
+        return _download_youtube_video(url, output_path, quality, is_cancelled, cookiefile)
 
 
-def _download_youtube_video(url: str, output_path: str, quality: str, is_cancelled: callable) -> Path:
+def _download_youtube_video(url: str, output_path: str, quality: str, is_cancelled: callable,
+                            cookiefile: str | None = None) -> Path:
     format_str = quality_to_format(quality)
 
     base_ydl_opts = {
@@ -154,7 +163,9 @@ def _download_youtube_video(url: str, output_path: str, quality: str, is_cancell
     ffmpeg_loc = get_ffmpeg_path()
     if ffmpeg_loc:
         base_ydl_opts['ffmpeg_location'] = ffmpeg_loc
-    
+    if cookiefile:
+        base_ydl_opts['cookiefile'] = cookiefile
+
     if is_cancelled:
         def hook(d):
             if is_cancelled():

@@ -97,3 +97,61 @@ Catatan jujur:
 - `backend/metadata.py:211` masih membuat thread langsung. Itu di luar cakupan T0.4 (hanya `jobs.py`), dicatat untuk ditinjau.
 
 Langkah berikutnya: Fase 3, mulai T0.8 (workspace lokal dan publish ke Drive).
+
+### 2026-11-12 · Fase 3 dimulai: T0.8 dan T0.10 dikerjakan paralel
+
+Dua agen Fable (effort high) bekerja di worktree terpisah, keduanya bercabang dari `a214104`:
+
+| Task | Worktree | Branch |
+|---|---|---|
+| T0.8 workspace lokal + publish | `C:\Users\dhima\projects\ac-t08` | `sp0/t0.8-workspace` |
+| T0.10 `cookies.txt` | `C:\Users\dhima\projects\ac-t10` | `sp0/t0.10-cookies` |
+
+Jika sesi terputus sebelum entri berikutnya ditulis: periksa `git -C <worktree> status` dan `git log` di tiap worktree, jalankan tes di sana, lalu merge ke `feat/sp0-pipeline-stability` hanya jika hijau. Setelah merge, hapus worktree dengan `git worktree remove`. Belum ada task Fase 3 yang dicentang.
+
+### 2026-11-12 · T0.10 selesai dan di-merge (`0890bb0`)
+
+Tes setelah merge: **411 lulus, 0 gagal** (dijalankan ulang di branch utama, bukan hanya laporan agen). T0.10 dicentang.
+
+Ringkasan: `backend/cookies.py` menyimpan satu `cookies.txt` di `<app data>/cookies/cookies.txt`, memvalidasi (format Netscape, ada cookie youtube.com, belum kedaluwarsa, maksimal 1 MiB), dan memberi yt-dlp salinan sementara, bukan file aslinya. Endpoint: `GET/POST/DELETE /api/settings/cookies`. Lima kode error `COOKIES_*` (id dan en).
+
+Belum terbukti: unduhan sungguhan dengan cookies belum pernah dijalankan. Tes hanya membuktikan opsi diteruskan dan yt-dlp bisa memuat filenya.
+
+Perlu keputusan pemilik `[!]`:
+
+1. Di Colab, app data adalah Google Drive, jadi `cookies.txt` tersimpan di Drive pengguna (`AutoClipperData/cookies/`). Praktis karena bertahan antar sesi, tetapi bukan "lokal" seperti kata spec. Alternatif: simpan di work dir T0.8 dan unggah ulang tiap sesi.
+2. Celah lama di luar task ini: siapa pun yang memegang token API bisa membaca file di app data lewat `POST /save_file` dan `/video` (termasuk cookies). Perlu task pengerasan tersendiri.
+3. Belum ada ADR untuk cookies (AGENTS.md bagian H). Disarankan ditulis bersama T0.13.
+
+Catatan untuk T0.12: tampilkan `latest_expiry` (bukan `earliest_expiry`) dan beri peringatan bila `logged_in` bernilai false.
+
+T0.8 masih dikerjakan di `C:\Users\dhima\projects\ac-t08`. T0.11 dimulai di `C:\Users\dhima\projects\ac-t11` (branch `sp0/t0.11-ytdlp-clients`).
+
+### 2026-11-12 · berhenti karena kuota sesi 5 jam mencapai 86%
+
+Kedua agen dihentikan atas permintaan pemilik. Tidak ada yang memberi laporan akhir.
+
+Keadaan saat berhenti:
+
+| Bagian | Keadaan | Tes |
+|---|---|---|
+| Branch `feat/sp0-pipeline-stability` | T0.1, T0.3–T0.7, T0.10 selesai dan dicentang. T0.2 `[~]` | 411 lulus, 0 gagal |
+| T0.8, worktree `C:\Users\dhima\projects\ac-t08`, branch `sp0/t0.8-workspace` | **WIP, belum selesai, belum direview.** Di-commit sebagai `wip(sp0): T0.8 ...`. Menyentuh `workspace.py` (baru), `jobs.py`, `colab_api.py`, `db.py`, `errors.py`, `preflight.py` dan tesnya | 374 lulus, 0 gagal (bercabang dari `a214104`, jadi belum memuat T0.10) |
+| T0.11 | Agen baru sampai tahap membaca, **tidak ada perubahan**. Worktree dan branch-nya dihapus | - |
+
+Hijau di worktree T0.8 tidak berarti selesai: agen berhenti di tengah jalan, jadi mungkin ada perilaku yang belum diimplementasi atau belum diuji.
+
+Langkah sesi berikutnya, berurutan:
+
+1. Di `ac-t08`: baca `git show --stat HEAD` dan diff terhadap `a214104`, cocokkan dengan kriteria T0.8 di `roadmap-todo.md` dan spec 4.1 (semua file antara di work dir, publish atomik, path riwayat menunjuk ke pustaka, peringatan Drive, tahap `publish` di timings, opsi work dir di `colab_api.py`). Agen juga mengubah `db.py`: pastikan itu tidak melebar ke T0.9.
+2. Selesaikan yang kurang, lalu `git merge feat/sp0-pipeline-stability` ke dalam branch T0.8 (kemungkinan konflik kecil di `errors.py` dengan kode `COOKIES_*`), jalankan tes, baru merge ke branch utama dan centang T0.8.
+3. Mulai ulang T0.11 dari awal (brief-nya: urutan default yt-dlp lalu `web_embedded`, `android_vr`; berhenti lebih awal untuk error yang tidak bisa diperbaiki client lain; opsi Deno/EJS dicek dari source yt-dlp terpasang di venv, bukan dari ingatan; tes untuk empat skenario cookies × Deno).
+4. Setelah T0.8: T0.9 (`history.db` lokal + snapshot).
+
+Catatan teknis: opsi `isolation: worktree` pada tool Agent gagal di mesin ini dan malah bercabang dari `072164d`. Buat worktree manual dengan `git worktree add -b <branch> ..\<nama> HEAD` lalu arahkan agen ke path itu.
+
+Keputusan pemilik yang masih terbuka: lihat entri T0.10 di atas (lokasi cookies di Colab, celah `/save_file`, ADR cookies).
+
+### 2026-11-13 · sesi dilanjutkan
+
+Baseline sesi: 411 lulus, 0 gagal. Agen T0.8 dilanjutkan di `C:\Users\dhima\projects\ac-t08` (dari WIP `67b7814`). T0.11 dimulai ulang di `C:\Users\dhima\projects\ac-t11` (branch `sp0/t0.11-ytdlp-clients`, dari `9e67cb5`). Belum ada hasil. Jika terputus: periksa tiap worktree seperti entri sebelumnya.
