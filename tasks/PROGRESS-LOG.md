@@ -187,3 +187,22 @@ Perlu keputusan pemilik `[!]`:
 Catatan untuk T0.13: Deno hanya dicari di PATH.
 
 Masih berjalan: T0.9 (`ac-t09`) dan T0.8b (`ac-t08b`).
+
+### 2026-11-13 · berhenti karena kuota sesi 5 jam mencapai 80%
+
+Kedua agen dihentikan atas permintaan pemilik.
+
+| Bagian | Keadaan | Tes |
+|---|---|---|
+| Branch `feat/sp0-pipeline-stability` | T0.1, T0.3–T0.8, T0.10, T0.11 selesai dan dicentang. T0.2 `[~]` | 486 lulus, 0 gagal |
+| T0.8b, worktree `C:\Users\dhima\projects\ac-t08b`, branch `sp0/t0.8b-source-restore`, commit `28be378` | Agen sudah commit dengan pesan final tetapi **dihentikan sebelum melapor. Belum direview, belum di-merge, belum dicentang.** Bercabang dari `02f42de`, jadi belum memuat T0.11 | 470 lulus, 0 gagal |
+| T0.9 | Agen baru tahap membaca, **tidak ada perubahan**. Worktree dan branch dihapus | - |
+
+Langkah sesi berikutnya, berurutan:
+
+1. T0.8b: di `ac-t08b` baca `git show --stat HEAD` dan diff terhadap `02f42de`. Cocokkan dengan kriteria T0.8b di `roadmap-todo.md` (pulihkan video sumber untuk job URL, pesan awam bila unggahan hilang, `/upload` ke work dir, `/video` menyajikan work dir tanpa melebarkan akses lain, tanpa work dir perilaku tetap). Lalu `git merge feat/sp0-pipeline-stability` di worktree itu, jalankan tes, merge ke branch utama, centang.
+2. T0.9: mulai ulang dari awal. Brief: `history.db` di work dir hanya bila work dir aktif; snapshot ke pustaka lewat API backup SQLite, dibatasi frekuensinya tanpa kehilangan perubahan terakhir (terutama status DONE/ERROR); pulihkan saat startup; database lama di Drive harus terbaca tanpa langkah migrasi; kait di lapisan db agar `jobs.py` tidak berubah.
+3. T0.12 (kartu error, unggah cookies, "Detail waktu", `warnings`) di `src/` dan `web/`. Node 22 dan `node_modules` kedua frontend tersedia. Lihat catatan T0.10 (`latest_expiry`, `logged_in`) dan T0.8 (`warnings`).
+4. T0.13 (notebook, Deno, work dir, panduan, CHANGELOG, ADR cookies).
+
+Keputusan pemilik yang masih terbuka: nomor 1–3 di entri T0.10 dan nomor 4–6 di entri T0.11.
