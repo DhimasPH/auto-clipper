@@ -146,6 +146,23 @@ ERROR_CODES = {
         ),
         "actions": ["resume"],
     },
+    "UPLOAD_MISSING": {
+        "title": "File video yang diunggah sudah tidak ada",
+        "message": (
+            "Langkah ini memerlukan file video asli, tetapi file yang dulu Anda unggah sudah tidak tersimpan. "
+            "Di Google Colab, file unggahan terhapus saat sesi berakhir. "
+            "Klip yang sudah jadi tetap aman. "
+            "Untuk membuat atau mengubah klip lagi, unggah videonya sekali lagi sebagai proyek baru."
+        ),
+        "title_en": "The uploaded video file is gone",
+        "message_en": (
+            "This step needs the original video file, but the file you uploaded earlier is no longer stored. "
+            "On Google Colab, uploaded files are removed when the session ends. "
+            "Your finished clips are safe. "
+            "To make or change clips again, upload the video once more as a new project."
+        ),
+        "actions": ["upload_video"],
+    },
     "PUBLISH_FAILED": {
         "title": "Klip belum tersimpan ke folder penyimpanan",
         "message": (

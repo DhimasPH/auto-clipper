@@ -134,7 +134,8 @@ async def verify_token(request: Request, call_next):
 
 @app.post("/upload")
 def api_upload_video(file: UploadFile = File(...)):
-    temp_dir = os.path.abspath(os.path.join(get_app_data_dir(), "temp_downloads"))
+    from backend.workspace import uploads_dir
+    temp_dir = os.path.abspath(uploads_dir())
     os.makedirs(temp_dir, exist_ok=True)
     file_path = os.path.join(temp_dir, f"upload_{file.filename}")
     with open(file_path, "wb") as buffer:
@@ -915,6 +916,11 @@ def get_video(path: str, dl: int = 0, title: str = None):
         os.path.abspath(get_app_data_dir()),
         os.path.abspath(os.getcwd())
     ]
+    # A clip whose copy to the library failed is still on the work disk.
+    from backend.workspace import get_work_dir
+    work_dir = get_work_dir()
+    if work_dir:
+        safe_dirs.append(work_dir)
     if not any(os.path.commonpath([abs_path, safe_dir]) == safe_dir for safe_dir in safe_dirs):
         log_app(f"[video] Security error: Path traversal attempt: {abs_path}")
         return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
