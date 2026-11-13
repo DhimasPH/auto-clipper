@@ -4,7 +4,6 @@ import io
 import subprocess
 import os
 import sys
-import time
 import shutil
 from pathlib import Path
 from backend.cookies import ytdlp_cookiefile
@@ -101,6 +100,102 @@ def quality_to_format(quality: str) -> str:
     return "/".join(alternatives)
 
 
+# Each entry is tried once, in this order. None leaves the choice to yt-dlp,
+# which tracks the clients YouTube currently serves. The others are the
+# fallback from the SP0 spec (4.6), for when that selection is refused.
+PLAYER_CLIENT_ORDER = (None, "web_embedded", "android_vr")
+
+# yt-dlp drops these clients when the cookie file holds a login, which would
+# leave the attempt with no client at all. They run without the cookies.
+_CLIENTS_WITHOUT_COOKIE_SUPPORT = {"android_vr"}
+
+# Failures caused by the video, the internet address or the disk. They are the
+# same for every player client.
+_SAME_FOR_EVERY_CLIENT = {"VIDEO_UNAVAILABLE", "YT_RATE_LIMITED", "DISK_FULL"}
+
+# Lets yt-dlp fetch its challenge solver script (EJS) from the yt-dlp/ejs
+# GitHub releases and check it against the hash it ships. Only used when the
+# yt-dlp-ejs package is absent, and a plain "pip install yt-dlp" leaves it out.
+_EJS_REMOTE_COMPONENTS = ("ejs:github",)
+
+
+def ytdlp_attempt_options(base: dict, client: str | None, cookiefile: str | None, deno_path: str | None) -> dict:
+    """yt-dlp options for one attempt: ``base`` plus player client, cookies and Deno.
+
+    Pure, so every combination is testable without network or files.
+    """
+    opts = dict(base)
+    if client:
+        opts['extractor_args'] = {'youtube': {'player_client': [client]}}
+    if cookiefile and client not in _CLIENTS_WITHOUT_COOKIE_SUPPORT:
+        opts['cookiefile'] = cookiefile
+    # Without Deno neither option is set: yt-dlp then looks for a runtime on
+    # its own and otherwise keeps to the clients that need none.
+    if deno_path:
+        opts['js_runtimes'] = {'deno': {'path': deno_path}}
+        opts['remote_components'] = list(_EJS_REMOTE_COMPONENTS)
+    return opts
+
+
+def another_client_may_help(code: str, sent_cookies: bool) -> bool:
+    """Whether a failed attempt is worth following with the next player client."""
+    if code in _SAME_FOR_EVERY_CLIENT:
+        return False
+    if code == "YT_SIGNIN_REQUIRED":
+        # Without cookies another client is the only thing left to try. With
+        # cookies YouTube has turned down the account itself: yt-dlp's default
+        # selection for a login already includes web_embedded, android_vr
+        # cannot carry cookies, and every repeat puts the account at risk.
+        return not sent_cookies
+    return True
+
+
+def _deno_path() -> str | None:
+    """Where Deno is installed according to the preflight check, or None."""
+    try:
+        from backend import preflight
+        return preflight._deno_path()
+    except Exception as e:
+        # A download without Deno beats no download at all.
+        log_error("video_utils.deno_path", e)
+        return None
+
+
+def _run_ytdlp(base_opts: dict, cookiefile: str | None, run: callable, is_cancelled: callable = None):
+    """Call ``run(ydl)`` under each player client in turn and return the first result.
+
+    When every attempt fails, raises the AppError of the first failure with a
+    known code, so "sign in required" is not hidden by a vaguer error from a
+    fallback client. With no known code it is the last failure.
+    """
+    deno_path = _deno_path()
+    failure = None
+    for client in PLAYER_CLIENT_ORDER:
+        opts = ytdlp_attempt_options(base_opts, client, cookiefile, deno_path)
+        try:
+            # yt-dlp snapshots sys.stdout/stderr at construction and writes to
+            # them directly for some messages (e.g. deprecation notices),
+            # bypassing the logger. On a broken Windows child-process stream
+            # that flush raises OSError [Errno 22], so both streams go to an
+            # in-memory sink for the whole call.
+            sink = io.StringIO()
+            with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    return run(ydl)
+        except DownloadCancelledError:
+            raise
+        except Exception as e:
+            if is_cancelled and is_cancelled():
+                raise DownloadCancelledError("Download cancelled by user")
+            log_error(f"video_utils.ytdlp[{client or 'default'}]", e)
+            error = classify_download_error(e)
+            if failure is None or failure.code == "UNKNOWN":
+                failure = error
+            if not another_client_may_help(error.code, 'cookiefile' in opts):
+                break
+    raise failure
+
+
 def probe_formats(url: str) -> list:
     """Available video heights for a URL, descending & unique, via yt-dlp."""
     with ytdlp_cookiefile() as cookiefile:
@@ -112,29 +207,7 @@ def _probe_formats(url: str, cookiefile: str | None) -> list:
         'quiet': True, 'no_warnings': True, 'skip_download': True,
         'logger': _SilentLogger(),
     }
-    if cookiefile:
-        base_ydl_opts['cookiefile'] = cookiefile
-
-
-    clients_to_try = ['ios', 'tv', 'web_creator', 'android']
-    info = None
-    last_error = None
-    
-    for client in clients_to_try:
-        ydl_opts = dict(base_ydl_opts)
-        ydl_opts['extractor_args'] = {'youtube': [f'player_client={client}', 'player_skip=web']}
-            
-        sink = io.StringIO()
-        try:
-            with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
-            break
-        except Exception as e:
-            last_error = e
-
-    if info is None and last_error:
-        raise classify_download_error(last_error) from last_error
+    info = _run_ytdlp(base_ydl_opts, cookiefile, lambda ydl: ydl.extract_info(url, download=False))
 
     formats = (info or {}).get("formats", []) if isinstance(info, dict) else []
     heights = {f.get("height") for f in formats if isinstance(f, dict) and f.get("height")}
@@ -148,10 +221,8 @@ def download_youtube_video(url: str, output_path: str, quality: str = "best", is
 
 def _download_youtube_video(url: str, output_path: str, quality: str, is_cancelled: callable,
                             cookiefile: str | None = None) -> Path:
-    format_str = quality_to_format(quality)
-
     base_ydl_opts = {
-        'format': format_str,
+        'format': quality_to_format(quality),
         'outtmpl': output_path,
         'merge_output_format': 'mp4',
         'quiet': True,
@@ -163,8 +234,6 @@ def _download_youtube_video(url: str, output_path: str, quality: str, is_cancell
     ffmpeg_loc = get_ffmpeg_path()
     if ffmpeg_loc:
         base_ydl_opts['ffmpeg_location'] = ffmpeg_loc
-    if cookiefile:
-        base_ydl_opts['cookiefile'] = cookiefile
 
     if is_cancelled:
         def hook(d):
@@ -172,54 +241,7 @@ def _download_youtube_video(url: str, output_path: str, quality: str, is_cancell
                 raise DownloadCancelledError("Download cancelled by user")
         base_ydl_opts['progress_hooks'] = [hook]
 
-    # yt-dlp snapshots sys.stdout/stderr at construction and writes to them
-    # directly for some messages (e.g. deprecation notices), bypassing the
-    # logger. On a broken Windows child-process stream that flush raises
-    # OSError [Errno 22], so we redirect both streams to an in-memory sink for
-    # the whole call.
-    max_retries = 3
-    clients_to_try = ['ios', 'tv', 'web_creator', 'android']
-    
-    success = False
-    last_error = None
-    
-    for client in clients_to_try:
-        ydl_opts = dict(base_ydl_opts)
-        ydl_opts['extractor_args'] = {'youtube': [f'player_client={client}', 'player_skip=web']}
-            
-        for attempt in range(max_retries):
-            try:
-                sink = io.StringIO()
-                with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        ydl.download([url])
-                success = True
-                break
-            except Exception as e:
-                last_error = e
-                # If we were cancelled during download, don't retry and don't try other browsers
-                if is_cancelled and is_cancelled():
-                    raise DownloadCancelledError("Download cancelled by user")
-                
-                err_str = str(e).lower()
-                if "sign in to confirm" in err_str or "bot" in err_str or "unsupported browser" in err_str:
-                    break 
-                    
-                # Wait a bit before retrying, especially useful for 403 blocks
-                if attempt < max_retries - 1:
-                    wait_secs = 2 ** attempt
-                    end_t = time.time() + wait_secs
-                    while time.time() < end_t:
-                        if is_cancelled and is_cancelled():
-                            raise DownloadCancelledError("Download cancelled by user")
-                        time.sleep(min(0.2, max(0.0, end_t - time.time())))
-                    
-        if success:
-            break
-            
-    if not success and last_error:
-        raise classify_download_error(last_error) from last_error
-
+    _run_ytdlp(base_ydl_opts, cookiefile, lambda ydl: ydl.download([url]), is_cancelled)
     return Path(output_path)
 
 
