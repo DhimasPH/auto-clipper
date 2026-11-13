@@ -47,10 +47,14 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 
 ### Fase 3: Colab dan downloader
 
-- [ ] **T0.8 Workspace lokal dan publish ke Drive** · bergantung T0.1
+- [x] **T0.8 Workspace lokal dan publish ke Drive** · bergantung T0.1
   - `AUTO_CLIPPER_WORK_DIR`, publish atomik (nama sementara lalu rename), peringatan bila Drive tidak ter-mount.
   - Selesai bila: seluruh file antara berada di work dir, klip akhir muncul di pustaka setelah sukses, dan uji memakai direktori sementara.
   - File: `backend/colab_api.py`, `backend/jobs.py`, `backend/workspace.py` (baru), `backend/tests/test_workspace.py`.
+- [ ] **T0.8b Video sumber dan unggahan saat work dir aktif** · bergantung T0.8 · wajib sebelum T0.13
+  - Ditemukan saat T0.8: setelah work dir hilang (runtime Colab mati), "Rerender semua", render ulang per klip, AI Koreksi, resume-manual, dan Resume video unggahan gagal karena video sumber tidak ikut dipublikasikan. Unggahan (`/upload`) masih ditulis ke pustaka (Drive). `/video` tidak bisa menyajikan file di work dir.
+  - Selesai bila: alur di atas memulihkan video sumber (unduh ulang untuk job URL) atau memberi pesan awam yang jelas bila tidak mungkin (video unggahan yang sudah hilang), unggahan ditulis ke work dir, dan semuanya diuji dengan direktori sementara. Tanpa work dir perilaku tidak berubah.
+  - File: `backend/jobs.py`, `backend/main.py`, `backend/workspace.py`, `backend/tests/test_workspace.py`.
 - [ ] **T0.9 `history.db` lokal dengan snapshot ke Drive** · bergantung T0.8
   - Snapshot lewat API backup SQLite dengan pembatasan frekuensi, pemulihan saat startup.
   - Selesai bila: uji pemulihan lulus, termasuk skenario runtime mati di tengah job lalu Resume.

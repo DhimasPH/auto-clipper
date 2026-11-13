@@ -155,3 +155,15 @@ Keputusan pemilik yang masih terbuka: lihat entri T0.10 di atas (lokasi cookies 
 ### 2026-11-13 · sesi dilanjutkan
 
 Baseline sesi: 411 lulus, 0 gagal. Agen T0.8 dilanjutkan di `C:\Users\dhima\projects\ac-t08` (dari WIP `67b7814`). T0.11 dimulai ulang di `C:\Users\dhima\projects\ac-t11` (branch `sp0/t0.11-ytdlp-clients`, dari `9e67cb5`). Belum ada hasil. Jika terputus: periksa tiap worktree seperti entri sebelumnya.
+
+### 2026-11-13 · T0.8 selesai dan di-merge
+
+Tes setelah merge di branch utama: **454 lulus, 0 gagal**. T0.8 dicentang.
+
+Ringkasan: `AUTO_CLIPPER_WORK_DIR` (kosong = perilaku lama). `get_project_workspace` mengembalikan `library_dir` dan mengarahkan semua folder kerja ke work dir. `workspace.publish` menyalin klip, subtitle hasil edit, dan transkrip ke pustaka secara atomik (nama `.part` lalu rename) setelah setiap klip dan di akhir, lalu menulis `metadata.json` tanpa API key. Riwayat tidak pernah menunjuk ke klip di disk kerja. Publish gagal membuat job berakhir `ERROR` (`PUBLISH_FAILED` atau `DISK_FULL`), Resume hanya menyalin ulang. `colab_api.py` punya opsi `--work-dir` (belum default). Preflight disk memeriksa kedua disk.
+
+Belum terbukti tanpa Colab nyata: perilaku rename dan file `.part` di mount Drive, dan apakah work dir benar-benar mempercepat.
+
+Celah yang ditemukan, dijadikan task baru **T0.8b** (wajib sebelum T0.13 menyalakan work dir): video sumber tidak dipublikasikan, sehingga rerender/AI Koreksi/resume-manual/Resume unggahan gagal setelah work dir hilang; `/upload` masih menulis ke pustaka; `/video` tidak menyajikan file work dir. Field baru `job["warnings"]`/`metadata["warnings"]` belum ditampilkan frontend (masuk T0.12).
+
+Sedang berjalan: T0.11 di `C:\Users\dhima\projects\ac-t11`. Dimulai: T0.9 di `C:\Users\dhima\projects\ac-t09` (branch `sp0/t0.9-history-db`) dan T0.8b di `C:\Users\dhima\projects\ac-t08b` (branch `sp0/t0.8b-source-restore`).
