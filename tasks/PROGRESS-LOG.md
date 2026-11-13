@@ -151,3 +151,7 @@ Langkah sesi berikutnya, berurutan:
 Catatan teknis: opsi `isolation: worktree` pada tool Agent gagal di mesin ini dan malah bercabang dari `072164d`. Buat worktree manual dengan `git worktree add -b <branch> ..\<nama> HEAD` lalu arahkan agen ke path itu.
 
 Keputusan pemilik yang masih terbuka: lihat entri T0.10 di atas (lokasi cookies di Colab, celah `/save_file`, ADR cookies).
+
+### 2026-11-13 · sesi dilanjutkan
+
+Baseline sesi: 411 lulus, 0 gagal. Agen T0.8 dilanjutkan di `C:\Users\dhima\projects\ac-t08` (dari WIP `67b7814`). T0.11 dimulai ulang di `C:\Users\dhima\projects\ac-t11` (branch `sp0/t0.11-ytdlp-clients`, dari `9e67cb5`). Belum ada hasil. Jika terputus: periksa tiap worktree seperti entri sebelumnya.
