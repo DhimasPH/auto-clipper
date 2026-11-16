@@ -51,6 +51,14 @@ def work_project_dir(safe_title: str) -> Optional[str]:
     return os.path.join(work, "projects", safe_title) if work else None
 
 
+def uploads_dir() -> str:
+    """Where uploaded videos are written: the work dir when one is set, else the app data dir.
+
+    An upload is a source video, so it follows the same rule as a download.
+    """
+    return os.path.join(get_work_dir() or get_app_data_dir(), "temp_downloads")
+
+
 def _same(a: str, b: str) -> bool:
     return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
 

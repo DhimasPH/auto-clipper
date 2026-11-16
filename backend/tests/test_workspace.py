@@ -345,7 +345,7 @@ def _ai_job(job_id, url, **fields):
 @pytest.fixture
 def pipeline(monkeypatch):
     """Replace download, AI, render and the database with recording fakes."""
-    rec = {"saved": [], "crops": [], "downloads": [], "ai_calls": 0}
+    rec = {"saved": [], "crops": [], "downloads": [], "qualities": [], "ai_calls": 0}
 
     def fake_save(job_id, url, status, clips, metadata=None):
         rec["saved"].append({"id": job_id, "status": status, "clips": json.loads(json.dumps(clips)),
@@ -353,6 +353,7 @@ def pipeline(monkeypatch):
 
     def fake_download(url, output_path, quality="best", is_cancelled=None):
         rec["downloads"].append(output_path)
+        rec["qualities"].append(quality)
         with open(output_path, "wb") as f:
             f.write(b"downloaded source")
 
@@ -705,3 +706,264 @@ def test_drive_check_follows_the_library_not_the_work_dir(monkeypatch):
     monkeypatch.setenv("AUTO_CLIPPER_WORK_DIR", "/content/drive/MyDrive/tmp")
     monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", "/content/data")
     assert preflight._cloud_drive_expected() is False
+
+
+# --- the source video after the work disk is lost ------------------------------------
+
+URL = "https://youtu.be/abc"
+
+
+def _published_then_lost(pipeline, work, url=URL, **fields):
+    """A finished project in history, seen from a new session: the work disk is empty."""
+    history = _published_history(pipeline, _run(_ai_job("job-split", url, **fields)))
+    shutil.rmtree(work)
+    for key in ("downloads", "qualities", "crops"):
+        pipeline[key].clear()
+    pipeline["ai_calls"] = 0
+    return history
+
+
+def _rerender_all(history, job_id="job-rerender-all"):
+    jobs.active_jobs[job_id] = {
+        "id": job_id, "url": history["url"], "mode": "rerender", "aspect_ratio": "1:1", "burn_subs": True,
+        "output_dir": "", "title": TITLE, "max_clips": 0, "status": "PENDING", "progress": "", "cancelled": False,
+        "clips": [], "failed": 0, "error": None, "metadata": history["metadata"],
+        "original_clips": history["result_clips"],
+    }
+    jobs._run_rerender_job(job_id)
+    return jobs.active_jobs[job_id]
+
+
+def test_rerender_all_downloads_the_source_again_after_the_work_disk_is_lost(dirs, pipeline):
+    work, library = dirs
+    history = _published_then_lost(pipeline, work, quality="720")
+
+    job = _rerender_all(history)
+
+    assert job["status"] == "DONE", job.get("error")
+    assert len(pipeline["downloads"]) == 1 and _inside(pipeline["downloads"][0], work)
+    assert pipeline["qualities"] == ["720"]  # the quality the project was made with
+    assert pipeline["ai_calls"] == 0
+    assert all(os.path.exists(c["in"]) for c in pipeline["crops"])
+    assert all(_inside(c["path"], library) and os.path.exists(c["path"]) for c in job["clips"])
+
+
+def test_rerender_all_does_not_download_while_the_source_is_still_there(dirs, pipeline):
+    history = _published_history(pipeline, _run(_ai_job("job-split", URL)))
+    pipeline["downloads"].clear()
+
+    job = _rerender_all(history)
+
+    assert job["status"] == "DONE", job.get("error")
+    assert pipeline["downloads"] == []
+
+
+def test_clip_rerender_downloads_the_source_again_after_the_work_disk_is_lost(dirs, pipeline, monkeypatch):
+    work, library = dirs
+    history = _published_then_lost(pipeline, work)
+
+    job = _rerender_clip(monkeypatch, history, [{"word": "Halo", "start": 0.5, "end": 1.0}])
+
+    assert job["status"] == "DONE", job.get("error")
+    assert len(pipeline["downloads"]) == 1 and _inside(pipeline["downloads"][0], work)
+    assert len(pipeline["crops"]) == 1 and os.path.exists(pipeline["crops"][0]["in"])
+    saved = pipeline["saved"][-1]
+    assert _inside(saved["clips"][0]["path"], library)
+    assert _inside(saved["clips"][0]["custom_subtitle_path"], library)
+
+
+def test_a_second_clip_rerender_reuses_the_restored_source(dirs, pipeline, monkeypatch):
+    work, _ = dirs
+    history = _published_then_lost(pipeline, work)
+    words = [{"word": "Halo", "start": 0.5, "end": 1.0}]
+    _rerender_clip(monkeypatch, history, words)
+
+    job = _rerender_clip(monkeypatch, history, words)
+
+    assert job["status"] == "DONE", job.get("error")
+    assert len(pipeline["downloads"]) == 1
+
+
+def test_ai_koreksi_starts_and_restores_the_source_after_the_work_disk_is_lost(dirs, pipeline, monkeypatch):
+    work, library = dirs
+    history = _published_then_lost(pipeline, work)
+    monkeypatch.setattr("backend.db.get_history", lambda job_id: json.loads(json.dumps(history)))
+    # _run_rerun_ai_job imports the AI functions again inside the function.
+    monkeypatch.setattr("backend.ai_utils.process_with_openai", jobs.process_with_openai)
+    started = []
+    monkeypatch.setattr(jobs, "_start_job", lambda job_id, run_fn, *args: started.append((job_id, run_fn, args)))
+
+    new_id = jobs.create_rerun_ai_job("job-split", "openai", "sk-secret", "9:16", True, "", "lebih lucu")
+    job_id, run_fn, args = started[0]
+    run_fn(job_id, *args)
+    job = jobs.active_jobs[new_id]
+
+    assert job["status"] == "DONE", job.get("error")
+    assert len(pipeline["downloads"]) == 1 and _inside(pipeline["downloads"][0], work)
+    assert pipeline["ai_calls"] == 1
+    assert all(os.path.exists(c["in"]) for c in pipeline["crops"])
+    assert all(_inside(c["path"], library) and os.path.exists(c["path"]) for c in job["clips"])
+
+
+def test_resume_manual_restores_the_source_after_the_work_disk_is_lost(dirs, pipeline, monkeypatch):
+    work, library = dirs
+    history = _published_then_lost(pipeline, work)
+    waiting = {**history, "status": "AWAITING_MANUAL", "result_clips": []}
+    monkeypatch.setattr("backend.db.get_history", lambda job_id: json.loads(json.dumps(waiting)))
+    job_id = "job-split"
+    jobs.active_jobs[job_id] = _ai_job(job_id, URL, provider="manual_ai", source_path=waiting["metadata"]["source_video"])
+
+    jobs._run_manual_resume_job(job_id, [_seg(0)])
+    job = jobs.active_jobs[job_id]
+
+    assert job["status"] == "DONE", job.get("error")
+    assert len(pipeline["downloads"]) == 1 and _inside(pipeline["downloads"][0], work)
+    assert len(pipeline["crops"]) == 1 and os.path.exists(pipeline["crops"][0]["in"])
+    assert all(_inside(c["path"], library) for c in job["clips"])
+
+
+def test_resume_of_an_uploaded_video_copies_the_upload_again_when_it_still_exists(dirs, pipeline):
+    work, library = dirs
+    upload = library / "temp_downloads" / "upload_talk.mp4"  # uploaded before the work dir was turned on
+    upload.parent.mkdir(parents=True)
+    upload.write_bytes(b"uploaded source")
+    _run(_ai_job("job-first", f"local:{upload}"))
+    clips, metadata = _interrupted_after_first_clip(pipeline)
+    shutil.rmtree(work)
+    pipeline["crops"].clear()
+
+    job = _resume("job-resumed", clips, metadata, url=f"local:{upload}")
+
+    assert job["status"] == "DONE", job.get("error")
+    assert pipeline["downloads"] == []
+    source = pipeline["crops"][0]["in"]
+    assert _inside(source, work)
+    with open(source, "rb") as f:
+        assert f.read() == b"uploaded source"
+
+
+def _assert_asks_for_a_new_upload(job):
+    assert job["status"] == "ERROR"
+    info = job["error_info"]
+    assert info["code"] == "UPLOAD_MISSING"
+    assert "unggah" in info["message"].lower() and "upload" in info["message_en"].lower()
+    assert [a["id"] for a in info["actions"]] == ["upload_video"]
+
+
+def test_resume_of_an_uploaded_video_that_is_gone_asks_for_a_new_upload(dirs, pipeline):
+    work, _ = dirs
+    upload = work / "temp_downloads" / "upload_talk.mp4"  # uploads live on the work disk and go with it
+    upload.parent.mkdir(parents=True)
+    upload.write_bytes(b"uploaded source")
+    _run(_ai_job("job-first", f"local:{upload}"))
+    clips, metadata = _interrupted_after_first_clip(pipeline)
+    shutil.rmtree(work)
+    pipeline["crops"].clear()
+
+    job = _resume("job-resumed", clips, metadata, url=f"local:{upload}")
+
+    _assert_asks_for_a_new_upload(job)
+    assert pipeline["crops"] == [] and pipeline["downloads"] == []
+    assert pipeline["saved"][-1]["metadata"]["error_info"]["code"] == "UPLOAD_MISSING"
+
+
+def test_rerender_of_an_uploaded_video_that_is_gone_asks_for_a_new_upload(dirs, pipeline, monkeypatch):
+    work, _ = dirs
+    upload = work / "temp_downloads" / "upload_talk.mp4"
+    upload.parent.mkdir(parents=True)
+    upload.write_bytes(b"uploaded source")
+    history = _published_then_lost(pipeline, work, url=f"local:{upload}")
+
+    _assert_asks_for_a_new_upload(_rerender_all(history))
+    _assert_asks_for_a_new_upload(_rerender_clip(monkeypatch, history, [{"word": "Halo", "start": 0.5, "end": 1.0}]))
+    assert pipeline["crops"] == [] and pipeline["downloads"] == []
+
+
+def test_without_work_dir_a_missing_source_fails_exactly_as_before(tmp_path, monkeypatch, pipeline):
+    monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", str(tmp_path / "library"))
+    history = _published_history(pipeline, _run(_ai_job("job-plain", URL)))
+    os.remove(history["metadata"]["source_video"])
+    pipeline["downloads"].clear()
+
+    job = _rerender_all(history)
+    assert job["status"] == "ERROR"
+    assert job["error"] == "Video sumber tidak ditemukan di memori lokal. Silakan proses dari awal."
+
+    clip_job = _rerender_clip(monkeypatch, history, [{"word": "Halo", "start": 0.5, "end": 1.0}])
+    assert clip_job["status"] == "ERROR"
+    assert clip_job["error"].startswith("Source video not found: ")
+
+    monkeypatch.setattr("backend.db.get_history", lambda job_id: json.loads(json.dumps(history)))
+    with pytest.raises(ValueError, match="Source video tidak ditemukan lagi di memori lokal."):
+        jobs.create_rerun_ai_job("job-plain", "openai", "sk-secret", "9:16", True, "", "")
+
+    local = _resume("job-local", history["result_clips"], history["metadata"], url="local:" + str(tmp_path / "gone.mp4"))
+    assert local["status"] == "ERROR"
+    assert local["error"] == "Video lokal tidak ditemukan. Silakan proses dari awal."
+    assert pipeline["downloads"] == []
+
+
+# --- uploads and the clip player ---------------------------------------------------------
+
+@pytest.fixture
+def client():
+    from fastapi.testclient import TestClient
+    from backend import main
+    return TestClient(main.app)
+
+
+def test_upload_goes_to_the_work_dir_when_one_is_set(dirs, client):
+    work, library = dirs
+
+    r = client.post("/upload", files={"file": ("talk.mp4", b"uploaded source", "video/mp4")})
+
+    assert r.status_code == 200
+    url = r.json()["url"]
+    assert url.startswith("local:")
+    path = url[len("local:"):]
+    assert _inside(path, work)
+    with open(path, "rb") as f:
+        assert f.read() == b"uploaded source"
+    assert not (library / "temp_downloads").exists()
+
+
+def test_upload_without_work_dir_stays_in_the_app_data_folder(tmp_path, monkeypatch, client):
+    monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
+    library = tmp_path / "library"
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", str(library))
+
+    r = client.post("/upload", files={"file": ("talk.mp4", b"uploaded source", "video/mp4")})
+
+    assert r.json()["url"] == "local:" + str(library / "temp_downloads" / "upload_talk.mp4")
+    assert (library / "temp_downloads" / "upload_talk.mp4").read_bytes() == b"uploaded source"
+
+
+def test_video_endpoint_serves_a_clip_left_on_the_work_disk(dirs, client):
+    work, _ = dirs
+    clip = work / "projects" / TITLE / "clips" / "clip_1.mp4"
+    clip.parent.mkdir(parents=True)
+    clip.write_bytes(b"clip one")
+
+    r = client.get("/video", params={"path": str(clip)})
+
+    assert r.status_code == 200
+    assert r.content == b"clip one"
+
+
+def test_video_endpoint_still_refuses_files_outside_the_allowed_folders(dirs, client, tmp_path):
+    outside = tmp_path / "elsewhere" / "private.mp4"
+    outside.parent.mkdir()
+    outside.write_bytes(b"not ours")
+
+    assert client.get("/video", params={"path": str(outside)}).status_code == 403
+
+
+def test_video_endpoint_without_work_dir_does_not_serve_that_folder(tmp_path, monkeypatch, client):
+    monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", str(tmp_path / "library"))
+    clip = tmp_path / "work" / "clip_1.mp4"
+    clip.parent.mkdir()
+    clip.write_bytes(b"clip one")
+
+    assert client.get("/video", params={"path": str(clip)}).status_code == 403

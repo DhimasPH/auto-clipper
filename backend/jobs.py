@@ -216,6 +216,55 @@ def _publish_error(exc: Exception) -> AppError:
     return err if err.code != "UNKNOWN" else AppError("PUBLISH_FAILED", technical=str(exc) or type(exc).__name__)
 
 
+def _restore_source_video(job: dict, metadata: dict, url: str = "", project_id: str = "") -> str:
+    """The source video path, bringing the file back when the work dir was wiped.
+
+    Clips are published to the library but the source video is not, so in a new
+    Colab session history still points at a source that is gone. A URL job
+    downloads it again, an upload is copied again from the uploaded file, and
+    when that file is gone too the user is asked to upload it again. A source
+    that is still there is returned untouched, never fetched twice.
+
+    Without AUTO_CLIPPER_WORK_DIR this only returns metadata["source_video"];
+    each caller keeps its own "source not found" handling.
+    """
+    source = metadata.get("source_video")
+    if (source and os.path.exists(source)) or not workspace.get_work_dir():
+        return source
+
+    url = url or job.get("url") or ""
+    ws = get_project_workspace(
+        job.get("title") or metadata.get("title", ""),
+        job.get("output_dir") or metadata.get("output_dir", ""),
+        project_id or job.get("id", ""),
+    )
+    target = os.path.join(ws["source_dir"], "source_video.mp4")
+    if not os.path.exists(target):
+        if url.startswith("local:"):
+            upload = url[len("local:"):]
+            if not upload or not os.path.exists(upload):
+                raise AppError("UPLOAD_MISSING", technical=f"source video {source} and uploaded file {upload or '(none)'} no longer exist")
+            import shutil
+            job["progress"] = "Menyiapkan ulang video sumber..."
+            log_app(f"[{job.get('id', '')}] Menyalin ulang video unggahan ke folder kerja...")
+            with stage("download", source="local"):
+                shutil.copy2(upload, target)
+        elif url:
+            previous_status = job.get("status")
+            job["status"] = "DOWNLOADING"
+            job["progress"] = "Mengunduh ulang video sumber..."
+            log_app(f"[{job.get('id', '')}] Mengunduh ulang video sumber...")
+            download_youtube_video(url, target, metadata.get("quality") or job.get("quality") or "best",
+                                   is_cancelled=lambda: job.get("cancelled", False))
+            if job.get("status") == "DOWNLOADING":
+                job["status"] = previous_status
+        else:
+            return source
+
+    metadata["source_video"] = metadata["source_path"] = target
+    return target
+
+
 @_serialized
 def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
     if is_any_job_running():
@@ -994,7 +1043,7 @@ def _run_rerender_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
             
-        output_path = metadata["source_video"]
+        output_path = _restore_source_video(job, metadata)
         if not os.path.exists(output_path):
             raise ValueError("Video sumber tidak ditemukan di memori lokal. Silakan proses dari awal.")
             
@@ -1190,7 +1239,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
 
     metadata = job_record.get("metadata", {})
     source_video = metadata.get("source_video")
-    if not source_video or not os.path.exists(source_video):
+    if not source_video or (not os.path.exists(source_video) and not workspace.get_work_dir()):
         raise ValueError("Source video tidak ditemukan lagi di memori lokal.")
         
     new_job_id = str(uuid.uuid4())
@@ -1242,6 +1291,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
     metadata = dict(old_metadata) # clone
     try:
         if job["cancelled"]: return
+
+        source_video = _restore_source_video(job, metadata) or source_video
 
         ws = get_project_workspace(job.get("title") or old_metadata.get("title", ""), job.get("output_dir") or old_metadata.get("output_dir", ""), job_id)
 
@@ -1469,7 +1520,7 @@ def _run_rerender_clip_job(new_job_id: str):
         original_path = target_clip.get("path")
 
         metadata = history_data.get("metadata", {})
-        source_path = metadata.get("source_video")
+        source_path = _restore_source_video(job, metadata, url=history_data.get("url", ""), project_id=parent_job_id)
 
         if not source_path or not os.path.exists(source_path):
             raise ValueError(f"Source video not found: {source_path}")
@@ -1758,7 +1809,7 @@ def _run_manual_resume_job(job_id: str, parsed_highlights: list):
             return
 
         ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
-        source_path = metadata.get("source_video")
+        source_path = _restore_source_video(job, metadata)
         subtitle_path = metadata.get("subtitle_path")
         output_path = source_path
         
@@ -1855,7 +1906,7 @@ def _run_resume_job(job_id: str):
         def is_cancelled():
             return job.get("cancelled", False)
 
-        source_video = metadata.get("source_video")
+        source_video = _restore_source_video(job, metadata)
         if not source_video or not os.path.exists(source_video):
             if job.get("url") and not job["url"].startswith("local:"):
                 ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
