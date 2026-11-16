@@ -64,8 +64,9 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         dest="work_dir",
         default=env_work_dir,
         help=(
-            "Fast local folder for files a job needs only while it runs (source video, audio, renders), "
-            "e.g. /content/work. Finished clips are copied to --workspace. "
+            "Fast local folder for files a job needs only while it runs (source video, audio, renders) "
+            "and for history.db, e.g. /content/work. Finished clips and a snapshot of history.db are "
+            "copied to --workspace. "
             "Default: env AUTO_CLIPPER_WORK_DIR, else unset (work inside --workspace)."
         ),
     )
