@@ -209,7 +209,7 @@ Keputusan pemilik yang masih terbuka: nomor 1–3 di entri T0.10 dan nomor 4–6
 
 ### 2026-11-16 · T0.8b direview dan di-merge
 
-Baseline sesi: 486 lulus. Setelah merge T0.8b: lihat angka di commit ini (dijalankan di branch utama). T0.8b dicentang.
+Baseline sesi: 486 lulus. Setelah merge T0.8b: **502 lulus, 0 gagal** (dijalankan di branch utama). T0.8b dicentang.
 
 Ringkasan: `jobs._restore_source_video` dipakai oleh rerender semua, render ulang per klip, AI Koreksi, resume-manual, dan Resume. Bila work dir aktif dan video sumber hilang: job URL mengunduh ulang, unggahan disalin ulang dari file unggahannya, dan bila file itu juga hilang muncul `UPLOAD_MISSING` (id dan en). `/upload` menulis ke work dir bila aktif. `/video` boleh menyajikan file di work dir. Cache editor manual di `metadata.py` tidak dipindah (agen dihentikan sebelum melapor, jadi alasan pastinya tidak tercatat).
 
