@@ -1,5 +1,6 @@
 import type { CanvasConfig } from "./canvas";
 import type { SubtitleConfig } from "./subtitle";
+import type { ErrorInfo, JobWarning, StageTiming } from "./errorInfo";
 
 export type JobStatus =
   | "IDLE"
@@ -63,15 +64,28 @@ export interface JobMetadata {
   language?: string;
   tracking_mode?: string;
   face_tracking_engine?: string;
+  /** Set on failed jobs kept in history. */
+  error?: string | null;
+  error_info?: ErrorInfo | null;
+  /** Per-stage time and memory, and the devices that did the work. */
+  timings?: StageTiming[];
+  whisper_device?: string;
+  encoder?: string;
+  tracking_engine_used?: string;
+  /** Things the user must know about a finished job (e.g. Google Drive not connected). */
+  warnings?: JobWarning[];
 }
 
 export interface JobResponse {
   id: string;
   status: JobStatus;
   progress: string;
+  /** 0 = running, 1 = next in line, null = not in the queue. */
+  queue_position?: number | null;
   clips: Clip[];
   failed?: number;
   error?: string | null;
+  error_info?: ErrorInfo | null;
   metadata?: JobMetadata;
   created_at?: string;
 }
