@@ -16,6 +16,10 @@ With it, ``publish`` copies what must outlive the work disk (clips, subtitle
 files, a metadata file) into the library and repoints the job's clips and
 metadata at those copies. The source video is not copied: it is large, and a
 resumed job downloads it again.
+
+The job history (``history.db``) follows the same split: with a work dir the
+database is opened there and ``backend.db`` keeps a snapshot of it in the
+library. Logs and cookies stay in the app data dir.
 """
 import errno
 import json
