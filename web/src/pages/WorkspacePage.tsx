@@ -2,9 +2,17 @@ import React from "react";
 import { HeroInput } from "../components/Dashboard/HeroInput";
 import { AlertCircle, RotateCcw } from "lucide-react";
 import { AppContext } from "../App";
+import { ErrorCard } from "../components/ErrorCard";
+import { JobWarnings } from "../components/JobWarnings";
+import { TimingDetails } from "../components/TimingDetails";
+import { useErrorActions } from "../hooks/useErrorActions";
+import { useLang } from "../lib/lang";
+import { BTN_SECONDARY } from "../lib/ui";
 
 export const WorkspacePage: React.FC = () => {
   const ctx = React.useContext(AppContext);
+  const { t } = useLang();
+  const { handlers, labels } = useErrorActions({ jobId: ctx.activeJob?.id || ctx.jobId });
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto space-y-4 sm:space-y-6">
@@ -20,9 +28,19 @@ export const WorkspacePage: React.FC = () => {
         initialUrl={ctx.activeJob?.metadata?.source_video}
         isSubmitting={ctx.isLoading || ctx.isPolling}
         onSubmit={ctx.handleHeroSubmit}
+        driveBrowserRequested={ctx.driveBrowserRequested}
+        onDriveBrowserOpened={ctx.clearDriveBrowserRequest}
       />
 
-      {ctx.error && (
+      {ctx.error && ctx.errorInfo && (
+        <ErrorCard info={ctx.errorInfo} handlers={handlers} labels={labels} announce className="mt-4">
+          <button type="button" onClick={ctx.handleResetToNewJob} className={BTN_SECONDARY}>
+            {t("error.start_over")}
+          </button>
+        </ErrorCard>
+      )}
+
+      {ctx.error && !ctx.errorInfo && (
         <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-200 flex flex-col gap-2">
           <h4 className="text-red-700 font-bold text-sm flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
@@ -74,6 +92,12 @@ export const WorkspacePage: React.FC = () => {
           </div>
           {ctx.progress && (
             <p className="text-xs text-text-secondary font-mono mt-2 break-all">{ctx.progress}</p>
+          )}
+          {ctx.status === "DONE" && (
+            <>
+              <JobWarnings warnings={ctx.activeJob?.metadata?.warnings} className="mt-3" />
+              <TimingDetails metadata={ctx.activeJob?.metadata} className="mt-3" />
+            </>
           )}
         </div>
       )}

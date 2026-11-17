@@ -10,6 +10,8 @@ import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "../types/canvas";
 import { ClipCard } from "./ClipCard";
 import { ClipEditModal } from "./ClipEditModal";
 import { SocialKitModal } from "./SocialKitModal";
+import { JobReport } from "./JobReport";
+import { asErrorInfo, hasRerunAction } from "../lib/errorInfo";
 
 interface HistoryListProps {
   onResume: (jobId: string) => void;
@@ -223,6 +225,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
               )}
             </div>
 
+            <JobReport job={job} onResume={onResume} />
+
             {/* Generated Clips Carousel with Subtitle Correction Button (Persis Desktop) */}
             {clips && clips.length > 0 && (
               <div className="mt-2 mb-4 pt-4 border-t border-border">
@@ -276,7 +280,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({ onResume, onResumeManu
                 </button>
               )}
 
-              {isError && (
+              {/* The error card already has this button when the error offers "Coba lagi" or "Lanjutkan". */}
+              {isError && !hasRerunAction(asErrorInfo(job.metadata?.error_info)) && (
                 <button
                   onClick={() => onResume(job.id)}
                   className="flex items-center px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors shadow-sm"

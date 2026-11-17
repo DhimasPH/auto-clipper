@@ -49,6 +49,6 @@ export function translate(lang: Lang, key: string, vars?: Record<string, string 
 export type Translate = (key: string, vars?: Record<string, string | number>, fallback?: string) => string;
 
 export function useLang(): { lang: Lang; t: Translate } {
-  const lang = useSyncExternalStore(subscribe, getLang);
+  const lang = useSyncExternalStore(subscribe, getLang, getLang);
   return { lang, t: (key, vars, fallback) => translate(lang, key, vars, fallback) };
 }

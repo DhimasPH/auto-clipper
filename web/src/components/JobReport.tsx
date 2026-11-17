@@ -26,7 +26,7 @@ export const JobReport: React.FC<JobReportProps> = ({ job, onResume }) => {
         <ErrorCard info={info} handlers={handlers} labels={labels} className="mb-4" />
       ) : rawError ? (
         // Jobs that failed before structured errors existed only have the raw text.
-        <p className="text-sm text-red-600 whitespace-pre-wrap break-words m-0 mb-4">{rawError}</p>
+        <p className="text-sm text-red-600 whitespace-pre-wrap break-words mb-4">{rawError}</p>
       ) : null}
       <JobWarnings warnings={meta.warnings} className="mb-4" />
       <TimingDetails metadata={meta} className="mb-4" />
