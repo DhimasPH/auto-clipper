@@ -2,11 +2,13 @@ import React from "react";
 import {
   Scissors,
   Clock,
+  Settings,
   RefreshCw,
   X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { apiCheckHealth } from "../api";
+import { useLang } from "../lib/lang";
 
 export interface SidebarProps {
   isOpen?: boolean;
@@ -16,6 +18,7 @@ export interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
   const [status, setStatus] = React.useState<"connected" | "disconnected" | "reconnecting">("connected");
   const currentYear = new Date().getFullYear();
+  const { t } = useLang();
 
   const checkHealth = React.useCallback(async () => {
     try {
@@ -107,6 +110,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
         >
           <Clock className="w-5 h-5" />
           History
+        </NavLink>
+
+        <NavLink
+          to="/settings"
+          onClick={() => {
+            if (isMobile && onClose) onClose();
+          }}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-body font-medium transition-colors ${
+              isActive
+                ? "bg-purple-50 text-purple-700 font-semibold border-l-4 border-purple-600 shadow-sm"
+                : "text-text-secondary hover:text-text-primary hover:bg-bg-surface border-l-4 border-transparent"
+            }`
+          }
+        >
+          <Settings className="w-5 h-5" />
+          {t("nav.settings")}
         </NavLink>
       </nav>
 

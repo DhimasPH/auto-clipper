@@ -8,6 +8,7 @@ import { ManualDownloaderPage } from "./pages/ManualDownloaderPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { HelpPage } from "./pages/HelpPage";
 import Toasts from "./components/Toasts";
+import { CookiesModal } from "./components/CookiesModal";
 import { SplashScreen } from "./components/SplashScreen";
 import { LandingPage } from "./pages/LandingPage";
 
@@ -107,10 +108,19 @@ export default function App() {
   const [manualClips, setManualClips] = useState<any[]>([]);
   const [manualMeta, setManualMeta] = useState<any>(null);
 
+  // Cookies upload opened from an error card. `onRetry` runs the failed step again.
+  const [cookiesModal, setCookiesModal] = useState<{ onRetry?: () => void } | null>(null);
+  // Set by the "Unggah file video" action; the workspace form focuses its file input once.
+  const [pendingLocalUpload, setPendingLocalUpload] = useState(false);
+
   const {
     status,
     progress,
     errorMsg,
+    errorInfo,
+    failedJobId,
+    queuePosition,
+    jobMeta,
     clips,
     failedCount,
     isRunning,
@@ -232,6 +242,17 @@ export default function App() {
     isGamingVideo,
     setIsGamingVideo,
     errorMsg,
+    errorInfo,
+    failedJobId,
+    queuePosition,
+    jobMeta,
+    openCookies: (onRetry?: () => void) => setCookiesModal({ onRetry }),
+    pendingLocalUpload,
+    requestLocalUpload: () => {
+      setInputType("local");
+      setPendingLocalUpload(true);
+    },
+    clearPendingLocalUpload: () => setPendingLocalUpload(false),
     isRunning,
     status,
     progress,
@@ -259,6 +280,9 @@ export default function App() {
     <AppContext.Provider value={contextValue}>
       <HashRouter>
         <Toasts toasts={toasts} />
+        {cookiesModal && (
+          <CookiesModal onClose={() => setCookiesModal(null)} onRetry={cookiesModal.onRetry} />
+        )}
 
         {showLanding ? (
           <LandingPage onEnter={() => setShowLanding(false)} />

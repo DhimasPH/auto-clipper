@@ -1,4 +1,5 @@
 import type { CreateJobPayload, JobResponse } from "./types/job";
+import type { CookiesStatus } from "./types/errorInfo";
 
 export const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -366,6 +367,25 @@ export async function apiCreateClipRerenderJob(
     }
     throw err;
   }
+}
+
+/** Whether a cookies.txt is stored and still usable. Cookie values never leave the server. */
+export async function apiGetCookies(): Promise<CookiesStatus> {
+  const res = await apiFetch<{ cookies: CookiesStatus }>("/api/settings/cookies");
+  return res.cookies;
+}
+
+/** Stores a cookies.txt. A rejected file throws an ApiError whose `data.error_info` says why. */
+export async function apiUploadCookies(file: File): Promise<CookiesStatus> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await apiFetch<{ cookies: CookiesStatus }>("/api/settings/cookies", { method: "POST", body: form });
+  return res.cookies;
+}
+
+export async function apiDeleteCookies(): Promise<CookiesStatus> {
+  const res = await apiFetch<{ cookies: CookiesStatus }>("/api/settings/cookies", { method: "DELETE" });
+  return res.cookies;
 }
 
 export interface GDriveItem {

@@ -24,6 +24,9 @@ export interface HeroInputProps {
   initialUrl?: string;
   isSubmitting?: boolean;
   onSubmit: (payload: CreateJobPayload) => void;
+  /** True when an error card asked for the Google Drive browser to be opened. */
+  driveBrowserRequested?: boolean;
+  onDriveBrowserOpened?: () => void;
 }
 
 const STORAGE_DRAFT_INPUT = "ac_draft_hero_input";
@@ -41,6 +44,8 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   initialUrl = "",
   isSubmitting = false,
   onSubmit,
+  driveBrowserRequested = false,
+  onDriveBrowserOpened,
 }) => {
   const [url, setUrl] = useState<string>(initialUrl);
   const [title, setTitle] = useState<string>("");
@@ -67,6 +72,13 @@ export const HeroInput: React.FC<HeroInputProps> = ({
   const [faceTrackingEngine, setFaceTrackingEngine] = useState<"haar" | "mediapipe">("haar");
 
   const [urlError, setUrlError] = useState<string | null>(null);
+
+  // "Pick a video from Google Drive" on an error card opens the Drive browser here.
+  useEffect(() => {
+    if (!driveBrowserRequested) return;
+    setIsBrowserOpen(true);
+    onDriveBrowserOpened?.();
+  }, [driveBrowserRequested, onDriveBrowserOpened]);
 
   // Load drafts from localStorage
   useEffect(() => {
