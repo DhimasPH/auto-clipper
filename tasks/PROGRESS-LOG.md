@@ -225,3 +225,17 @@ Kemarin kedua agen mati karena kuota 5 jam habis, tanpa titik simpan terencana. 
 | T0.12 | `C:\Users\dhima\projects\ac-t12`, `sp0/t0.12-error-ui`, WIP `0c7089b` | Setengah jalan (komponen baru di `src/` dan `web/`). Build belum dijalankan | belum ada |
 
 Branch utama: 502 lulus, 0 gagal. Kedua agen dilanjutkan dari konteksnya. Jika terputus lagi: T0.9 tinggal direview dan di-merge; T0.12 lanjutkan dari WIP, jalankan `npm run build` di root dan `web/`, `npm run lint` di `web/`.
+
+### 2026-11-17 · T0.9 selesai dan di-merge
+
+Tes setelah merge di branch utama: **522 lulus, 0 gagal** (dijalankan dua kali berturut-turut karena ada tes berbasis timer; keduanya hijau). T0.9 dicentang.
+
+Ringkasan: bila work dir aktif, `history.db` ada di work dir dan snapshot ditulis ke `<pustaka>/history.db` (path lama, jadi database lama di Drive otomatis menjadi snapshot pertama, tanpa migrasi). Snapshot memakai API backup SQLite ke `.history.db.part` lalu rename. Perubahan tahap dibatasi sekali per 5 detik dengan satu penulisan susulan; status akhir (`DONE`, `ERROR`, `CANCELLED`, `AWAITING_MANUAL`) ditulis langsung. Gagal menulis hanya dicatat dan dicoba ulang. Saat startup: db lokal hilang → pulihkan dari snapshot; keduanya ada → lokal menang, job yang hanya ada di pustaka digabungkan. Tanpa work dir tidak ada yang berubah.
+
+Batasan yang diketahui: perubahan tahap ≤5 detik sebelum proses dimatikan paksa bisa tidak masuk snapshot (job tetap pulih di tahap sebelumnya); job yang dihapus bisa muncul lagi bila proses mati dalam ±5 detik setelah penghapusan; tiap snapshot menyalin seluruh database (ukuran dan lamanya belum diukur).
+
+Belum terbukti tanpa Colab nyata: `os.replace` dan file `.part` di mount Drive, apakah Drive sempat mengunggah snapshot sebelum runtime dimatikan, apakah `atexit` jalan saat uvicorn menerima SIGTERM, dan perilaku di Linux (semua tes dijalankan di Windows).
+
+Ditemukan, belum diperbaiki: log (`backend_error.log` dkk.), cache editor manual (`metadata.py`), `jobs.get_temp_dir()`, dan cookies masih di Drive. Tidak rusak, hanya masih membayar lambatnya Drive. Kandidat task SP3 atau lanjutan SP0.
+
+Masih berjalan: T0.12 di `ac-t12`. Dimulai: T0.13 di `C:\Users\dhima\projects\ac-t13` (branch `sp0/t0.13-notebook-docs`).
