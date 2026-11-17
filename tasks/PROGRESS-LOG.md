@@ -214,3 +214,14 @@ Baseline sesi: 486 lulus. Setelah merge T0.8b: **502 lulus, 0 gagal** (dijalanka
 Ringkasan: `jobs._restore_source_video` dipakai oleh rerender semua, render ulang per klip, AI Koreksi, resume-manual, dan Resume. Bila work dir aktif dan video sumber hilang: job URL mengunduh ulang, unggahan disalin ulang dari file unggahannya, dan bila file itu juga hilang muncul `UPLOAD_MISSING` (id dan en). `/upload` menulis ke work dir bila aktif. `/video` boleh menyajikan file di work dir. Cache editor manual di `metadata.py` tidak dipindah (agen dihentikan sebelum melapor, jadi alasan pastinya tidak tercatat).
 
 Dimulai: T0.9 di `C:\Users\dhima\projects\ac-t09` (branch `sp0/t0.9-history-db`) dan T0.12 di `C:\Users\dhima\projects\ac-t12` (branch `sp0/t0.12-error-ui`).
+
+### 2026-11-17 · sesi dilanjutkan setelah kuota habis (2026-11-16)
+
+Kemarin kedua agen mati karena kuota 5 jam habis, tanpa titik simpan terencana. Keadaan yang ditemukan:
+
+| Task | Worktree / branch | Keadaan | Tes |
+|---|---|---|---|
+| T0.9 | `C:\Users\dhima\projects\ac-t09`, `sp0/t0.9-history-db`, commit `9148834` | Agen sudah commit tetapi belum melapor. Belum direview, belum di-merge | 522 lulus, 0 gagal |
+| T0.12 | `C:\Users\dhima\projects\ac-t12`, `sp0/t0.12-error-ui`, WIP `0c7089b` | Setengah jalan (komponen baru di `src/` dan `web/`). Build belum dijalankan | belum ada |
+
+Branch utama: 502 lulus, 0 gagal. Kedua agen dilanjutkan dari konteksnya. Jika terputus lagi: T0.9 tinggal direview dan di-merge; T0.12 lanjutkan dari WIP, jalankan `npm run build` di root dan `web/`, `npm run lint` di `web/`.
