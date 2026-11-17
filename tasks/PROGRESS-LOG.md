@@ -239,3 +239,29 @@ Belum terbukti tanpa Colab nyata: `os.replace` dan file `.part` di mount Drive, 
 Ditemukan, belum diperbaiki: log (`backend_error.log` dkk.), cache editor manual (`metadata.py`), `jobs.get_temp_dir()`, dan cookies masih di Drive. Tidak rusak, hanya masih membayar lambatnya Drive. Kandidat task SP3 atau lanjutan SP0.
 
 Masih berjalan: T0.12 di `ac-t12`. Dimulai: T0.13 di `C:\Users\dhima\projects\ac-t13` (branch `sp0/t0.13-notebook-docs`).
+
+### 2026-11-17 · T0.12 di-merge, menunggu cek manual pemilik `[!]`
+
+Dijalankan di branch utama setelah merge: `npm run build` (root) exit 0, `npm run build` (`web/`) exit 0, `npm run lint` (`web/`) exit 0 dengan peringatan lama saja. Tidak ada file backend yang berubah (terakhir 522 lulus). T0.12 ditandai `[~]`, **bukan `[x]`**: kriterianya "dicek manual di kedua frontend untuk tiap kode error", dan tampilan belum pernah dibuka di browser atau dijalankan dengan backend hidup. Tidak ada test runner frontend, jadi tidak ada tes otomatis.
+
+Yang dibangun di `src/` dan `web/src/`: `ErrorCard` (judul dan pesan awam, tombol aksi, "Detail teknis" tertutup dengan tombol Salin), `CookiesPanel` + `CookiesModal` (peringatan akun cadangan, panduan 3 langkah, status "Berlaku sampai", hapus), `TimingDetails` ("Detail waktu" per tahap, total, perangkat), `JobWarnings`, posisi antrean di `BusyOverlay`. Web mendapat halaman Pengaturan baru (`/settings`) dan pemilih bahasa kecil yang hanya mencakup bagian baru.
+
+Pemetaan aksi: `upload_cookies` → modal cookies; `upload_video` → desktop: form "Local Video", web: penjelajah Google Drive (label "Pilih video dari Google Drive"); `retry`/`resume` → lanjutkan job; `open_settings` → desktop: Pengaturan, web: disembunyikan (web tidak punya pengaturan API key).
+
+Cek manual untuk pemilik:
+
+1. Simulasikan kode error: sementara tambahkan `from backend.errors import AppError; raise AppError("KODE", technical="test")` di awal `download_youtube_video` (`backend/video_utils.py`), mulai job URL, lalu hapus lagi. Kode: `YT_SIGNIN_REQUIRED`, `YT_RATE_LIMITED`, `VIDEO_UNAVAILABLE`, `VIDEO_TOO_LONG`, `UPLOAD_MISSING`, `OUT_OF_MEMORY`, `DISK_FULL`, `PUBLISH_FAILED`, `AI_KEY_INVALID`, `UNKNOWN`. Tiap kartu harus menampilkan judul dan pesan awam, tombol sesuai pemetaan di atas, dan "Detail teknis" yang tertutup.
+2. Panel cookies: unggah file kosong, JSON berganti nama `.txt`, cookies situs lain, cookies kedaluwarsa, file >1 MB (masing-masing harus muncul kartu error), lalu file valid (status hijau, "Berlaku sampai"), ekspor tanpa login (peringatan kuning), dan hapus.
+3. Setelah unggah cookies valid dari kartu error, tombol "Coba lagi sekarang" harus melanjutkan job.
+4. "Detail waktu" di hasil job dan di Riwayat. Job lama tanpa `error_info` harus tetap menampilkan teks mentah.
+5. Keyboard: Tab ke "Detail teknis"/"Detail waktu", Enter/Spasi membuka, Escape menutup modal cookies.
+6. Ganti bahasa sekali untuk memeriksa teks Inggris.
+
+Hal yang perlu dikonfirmasi pemilik:
+
+7. Panduan ekspor menyebut ekstensi "Get cookies.txt LOCALLY" sebagai contoh. Itu pilihan agen.
+8. Web: `upload_video` dipetakan ke penjelajah Google Drive, sementara pesan backend berkata "unggah filenya ke sini". Pesan `AI_KEY_INVALID` menyebut halaman Pengaturan yang di web tidak punya pengaturan API key.
+9. Hasil preflight (`GET /api/preflight`) belum ditampilkan di frontend mana pun. Job AI ulang dan render ulang satu klip belum menampilkan timings/warnings secara langsung.
+10. `ErrorCard` desktop memakai kelas palet (`bg-red-500/10`) karena kelas token tema (`bg-error/10`) tidak ter-compile di setup Tailwind ini; pemakaian lama kelas itu di tempat lain juga tidak menghasilkan latar.
+
+Masih berjalan: T0.13 di `ac-t13`.

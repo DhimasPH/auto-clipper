@@ -70,7 +70,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 
 ### Fase 4: Antarmuka dan dokumentasi
 
-- [ ] **T0.12 Kartu error generik dan unggah cookies** di `src/` dan `web/` · bergantung T0.3, T0.10
+- [~] **T0.12 Kartu error generik dan unggah cookies** di `src/` dan `web/` · bergantung T0.3, T0.10
   - Render `error_info`, tombol aksi, panduan 3 langkah ekspor cookies, peringatan akun cadangan, "Detail teknis" dan "Detail waktu" yang bisa dibuka, i18n id dan en.
   - Selesai bila: dicek manual di kedua frontend untuk tiap kode error, tanpa istilah teknis di layar utama.
 - [ ] **T0.13 Notebook Colab dan dokumentasi** · bergantung T0.8, T0.11
