@@ -265,3 +265,19 @@ Hal yang perlu dikonfirmasi pemilik:
 10. `ErrorCard` desktop memakai kelas palet (`bg-red-500/10`) karena kelas token tema (`bg-error/10`) tidak ter-compile di setup Tailwind ini; pemakaian lama kelas itu di tempat lain juga tidak menghasilkan latar.
 
 Masih berjalan: T0.13 di `ac-t13`.
+
+### 2026-11-17 · berhenti karena kuota sesi 5 jam mencapai 80%
+
+Agen T0.13 dihentikan atas permintaan pemilik, tanpa laporan.
+
+| Bagian | Keadaan | Tes |
+|---|---|---|
+| Branch `feat/sp0-pipeline-stability` | T0.1, T0.3–T0.11 (termasuk T0.8b) selesai dan dicentang. T0.2 `[~]` (menunggu Colab). T0.12 `[~]` (menunggu cek manual) | 522 lulus, 0 gagal; build `src/` dan `web/` exit 0 |
+| T0.13, worktree `C:\Users\dhima\projects\ac-t13`, branch `sp0/t0.13-notebook-docs` | **WIP, belum selesai, belum direview.** Baru menyentuh `Auto_Clipper_Colab.ipynb` (JSON valid) dan `scripts/colab_preflight.py` (baru). Bercabang dari `2cdbfb2`, jadi belum memuat T0.12 | 522 lulus, 0 gagal |
+
+Yang belum dikerjakan dari T0.13: tes notebook (work dir, Deno, preflight), `docs/panduan-penggunaan-awam.md`, `docs/tutorial-auto-clipper-cloud.md`, `CHANGELOG.md`, naik versi (sekarang `1.17.4`; CHANGELOG terakhir `1.17.1`, jangan mengarang entri yang hilang), ADR-012, pembaruan `.agents/AGENTS.md`. Belum diketahui apakah bagian notebook sudah lengkap.
+
+Langkah sesi berikutnya:
+
+1. Lanjutkan T0.13 di `ac-t13`: periksa diff notebook terhadap `2cdbfb2`, selesaikan sisanya, `git merge feat/sp0-pipeline-stability` di worktree (agar panduan bisa mengacu ke UI T0.12 yang sebenarnya), jalankan tes, merge, centang. Sel notebook tetap `[!]`: harus dijalankan pemilik di Colab bersih.
+2. Setelah itu sisa SP0 semuanya butuh pemilik: T0.2 dan T0.14 (pengukuran Colab), cek manual T0.12, T0.15 (keputusan gerbang), dan keputusan terbuka nomor 1–10 di entri-entri di atas.
