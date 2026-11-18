@@ -389,3 +389,12 @@ Status:
 - T0.15: tracking wajah 64 % dari waktu mesin. Menurut aturan gerbang di spec, pendekatan B (tracking satu-kali-baca) dijadwalkan. Menunggu keputusan pemilik.
 
 Catatan: klip 9 memakai crop statis di tengah (`iw*0.5`), kemungkinan wajah tidak terdeteksi. Ekspresi `crop` per klip sangat panjang (fungsi `if(lte(t,…))` bertingkat tiap 0,5 dtk); render tetap 0,36 × panjang klip, jadi bukan hambatan sekarang.
+
+---
+
+## 2026-11-18 · Keputusan gerbang; T0.16 dimulai
+
+- Pemilik menyetujui: T0.2 dianggap cukup (`[x]`), pendekatan B dijadwalkan (T0.15 `[x]`). Task baru **T0.16 Pelacakan wajah satu-kali-baca** ditambahkan di roadmap (`eee5978`).
+- T0.16 dikerjakan agen (fable, effort high) di worktree `C:\Users\dhima\projects\ac-t16`, branch `sp0/t0.16-single-read-tracking`, dari `eee5978`. Brief: ganti lompatan `POS_MSEC` per sampel dengan satu pipa FFmpeg berurutan (`-ss`/`-t`, pilih frame di titik sampel lama, skala 640, `rawvideo bgr24`), kontrak `info`/pembatalan/fallback MediaPipe tetap, fallback ke jalur lama bila FFmpeg gagal (dicatat), uji TDD + uji integrasi dengan FFmpeg bila ada, benchmark 1080p lokal lama vs baru.
+- Bila sesi terputus: cek `git -C ..\ac-t16 log --oneline -5` dan jalankan tes di worktree itu. Bila agen belum commit, lanjutkan dari isi worktree atau mulai ulang dengan brief yang sama.
+- Setelah merge, pemilik perlu mengukur ulang tracking di Colab (video yang sama), lalu `git push`.
