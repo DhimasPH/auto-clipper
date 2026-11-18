@@ -70,6 +70,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 11. **Snapshot `history.db`**: Hanya `backend/db.py` yang tahu soal snapshot. Status akhir job ditulis ke snapshot sebelum `save_history` kembali; perubahan lain dibatasi sekali per 5 detik. Jangan menulis langsung ke `<pustaka>/history.db` saat work dir aktif.
 12. **Error Terstruktur**: Kegagalan yang bisa ditindaklanjuti pengguna **WAJIB** dilempar/dicatat sebagai `AppError(code, technical=...)` dari `backend/errors.py`. Kode baru wajib punya `title`/`message` (id) dan `title_en`/`message_en` (en) berbahasa awam (apa, kenapa, harus apa) dan aksi dari `_ACTIONS`. Teks mentah hanya di `technical`. Frontend hanya merender `error_info` lewat `ErrorCard`, tidak menulis teks error sendiri.
 13. **Cookies Tidak Pernah Bocor**: Isi `cookies.txt` tidak boleh masuk log, pesan error, atau respons API. yt-dlp hanya menerima salinan kerja dari `cookies.ytdlp_cookiefile()`, tidak pernah file yang tersimpan.
+14. **Path dari Request Tidak Boleh Menyentuh File Privat**: Setiap endpoint yang membaca, menyajikan, menyalin, atau menulis file berdasarkan path dari request (`/video`, `/save_file` sumber dan tujuan, `/api/thumbnails`, `/api/extract-metadata`) **WAJIB** memanggil `path_guard.is_protected()` sebelum memeriksa keberadaan file, dan menjawab `path_guard.denied()` (403, `Access denied`). Yang dilindungi: folder `cookies/` dan folder salinan kerja cookies, semua file `history.db*` (termasuk `-wal`/`-shm`/`-journal`, snapshot, `.part`), dan log `backend_*.log`. Nama file unggahan selalu lewat `path_guard.safe_upload_name()`.
 
 ### F. Frontend, i18n & OS Integration (ADR-004, v1.7.0)
 1. Seluruh teks antarmuka **HARUS** mendukung multi-bahasa melalui `src/locales/id.json` dan `src/locales/en.json` (menggunakan library i18n).
@@ -111,6 +112,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `backend/preflight.py`: Pengecekan awal (`run_preflight`, `blocking_error`) di balik `GET /api/preflight`.
 - `backend/stage_timer.py`: Waktu dan RAM puncak per tahap ke `metadata["timings"]`.
 - `backend/cookies.py`: Validasi, penyimpanan, status, dan salinan kerja `cookies.txt` untuk yt-dlp.
+- `backend/path_guard.py`: Daftar tolak file privat (cookies, `history.db*`, log) untuk endpoint yang menerima path, dan pembersih nama file unggahan.
 - `backend/video_utils.py`: Unduhan yt-dlp (urutan client, cookies, Deno/EJS, format), ekstraksi audio.
 - `backend/colab_api.py`: Entry point Colab/cloud (`--workspace`, `--work-dir`, tunnel Cloudflare, GPU keep-alive).
 - `scripts/colab_preflight.py`: Mencetak hasil preflight dalam bahasa Indonesia di notebook Colab sebelum server menyala.
