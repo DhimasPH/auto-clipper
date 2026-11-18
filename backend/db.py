@@ -8,6 +8,7 @@ from contextlib import closing
 from datetime import datetime
 import sys
 from typing import Optional
+from backend.drive_mount import library_unavailable, local_dir, refuse_unmounted
 from backend.logger import log_error
 from backend.workspace import get_work_dir
 
@@ -36,6 +37,7 @@ def _app_data_path() -> str:
 
 def get_app_data_dir() -> str:
     app_dir = _app_data_path()
+    refuse_unmounted(app_dir)
     os.makedirs(app_dir, exist_ok=True)
     return app_dir
 
@@ -45,8 +47,13 @@ def get_db_path():
     """Where history.db is opened: the work dir when one is set, else the app data dir.
 
     The app data dir can be a network mount (Google Drive on Colab), where
-    SQLite is slow and a dropped connection can corrupt the file.
+    SQLite is slow and a dropped connection can corrupt the file. While that
+    Drive is not mounted the database stays on this machine
+    (``drive_mount.local_dir``, the work dir on Colab), and the library copy
+    is brought in once Drive is mounted.
     """
+    if library_unavailable():
+        return os.path.join(local_dir(), DB_NAME)
     return os.path.join(get_work_dir() or get_app_data_dir(), DB_NAME)
 
 
@@ -58,7 +65,10 @@ def get_snapshot_path() -> Optional[str]:
     without a work dir opens the latest snapshot.
     """
     # Only the path: every database call asks for it, and none of them may
-    # depend on the library being reachable.
+    # depend on the library being reachable. No snapshot while the library is
+    # on a Google Drive that is not mounted: writing it would create the folder.
+    if library_unavailable():
+        return None
     return os.path.join(_app_data_path(), DB_NAME) if get_work_dir() else None
 
 
@@ -219,6 +229,7 @@ class _Snapshot:
         # Under another name, then renamed: a reader of the library sees the
         # previous snapshot or the complete new one.
         tmp = _temp_name(self.target)
+        refuse_unmounted(self.target)  # Drive went away after this snapshot was set up
         os.makedirs(os.path.dirname(tmp), exist_ok=True)
         _discard(tmp)
         try:

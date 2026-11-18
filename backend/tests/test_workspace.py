@@ -504,19 +504,18 @@ def test_resume_does_not_download_again_while_the_work_disk_is_intact(dirs, pipe
     assert pipeline["ai_calls"] == 0
 
 
-def test_unmounted_drive_still_finishes_the_job_and_warns_in_both_languages(dirs, pipeline, monkeypatch):
-    _, library = dirs
-    monkeypatch.setattr(preflight, "_cloud_drive_expected", lambda: True)
-    monkeypatch.setattr(preflight, "_drive_mounted", lambda: False)
+def test_drive_warning_from_an_older_version_is_cleared_when_the_job_finishes(dirs, pipeline):
+    # Before T0.17 an unmounted Drive let the job finish with a DRIVE_NOT_MOUNTED
+    # warning. Now it blocks the job (test_drive_mount.py), and a project
+    # finished again drops the old warning.
+    old_warning = {"id": "drive", "level": "warn", "code": "DRIVE_NOT_MOUNTED"}
+    job = _ai_job("job-old-warning", "https://youtu.be/abc", warnings=[old_warning])
 
-    job = _run(_ai_job("job-nodrive", "https://youtu.be/abc"))
+    job = _run(job)
 
     assert job["status"] == "DONE", job.get("error")
-    assert all(_inside(c["path"], library) and os.path.exists(c["path"]) for c in job["clips"])
-    warnings = pipeline["saved"][-1]["metadata"]["warnings"]
-    assert [w["code"] for w in warnings] == ["DRIVE_NOT_MOUNTED"]
-    assert "Google Drive" in warnings[0]["message"] and "Google Drive" in warnings[0]["message_en"]
-    assert job["warnings"] == warnings
+    assert "warnings" not in job
+    assert "warnings" not in pipeline["saved"][-1]["metadata"]
 
 
 def test_job_whose_clips_cannot_be_published_ends_as_an_error_not_as_done(dirs, pipeline, monkeypatch):
@@ -700,7 +699,7 @@ def test_drive_check_follows_the_library_not_the_work_dir(monkeypatch):
 
     monkeypatch.setattr(preflight, "_drive_mounted", lambda: False)
     result = preflight.check_drive()
-    assert result["level"] == "warn" and result["code"] == "DRIVE_NOT_MOUNTED"
+    assert result["level"] == "block" and result["code"] == "DRIVE_NOT_MOUNTED"
 
     # A work dir on Drive does not make Drive the library.
     monkeypatch.setenv("AUTO_CLIPPER_WORK_DIR", "/content/drive/MyDrive/tmp")

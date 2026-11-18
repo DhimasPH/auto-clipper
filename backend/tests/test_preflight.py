@@ -138,10 +138,11 @@ def test_cpu_rendering_is_reported_not_hidden(healthy, monkeypatch):
     assert "prosesor" in r["message"]
 
 
-def test_unmounted_drive_warns_in_colab(healthy, monkeypatch):
+def test_unmounted_drive_blocks_in_colab(healthy, monkeypatch):
+    # Owner decision 2026-11-18 (T0.17): without the mount every clip would be lost, so no job starts.
     monkeypatch.setattr(preflight, "_drive_mounted", lambda: False)
     r = _by_id(preflight.run_preflight())["drive"]
-    assert r["level"] == "warn"
+    assert r["level"] == "block"
     assert r["code"] == "DRIVE_NOT_MOUNTED"
 
 
@@ -262,11 +263,24 @@ def test_blocking_error_is_an_app_error_with_the_check_code(healthy, monkeypatch
 
 
 def test_blocking_error_only_runs_the_checks_that_can_block(healthy, monkeypatch):
+    # The drive check can block since T0.17, so its probes now run before every
+    # job. They stay cheap: one environment variable and one os.path.ismount.
     called = []
-    for probe in ("_available_ram_gb", "_cuda_device_count", "_whisper_gpu_libs_missing", "_gpu_encoder_available", "_deno_path", "_downloader_version", "_drive_mounted"):
+    for probe in ("_available_ram_gb", "_cuda_device_count", "_whisper_gpu_libs_missing", "_gpu_encoder_available", "_deno_path", "_downloader_version"):
         monkeypatch.setattr(preflight, probe, lambda probe=probe: called.append(probe))
+    asked = []
+    monkeypatch.setattr(preflight, "_drive_mounted", lambda: asked.append("_drive_mounted") or True)
     assert preflight.blocking_error() is None
     assert called == []
+    assert asked == ["_drive_mounted"]
+
+
+def test_blocking_error_stops_a_job_when_drive_is_not_mounted(healthy, monkeypatch):
+    monkeypatch.setattr(preflight, "_drive_mounted", lambda: False)
+    err = preflight.blocking_error()
+    assert isinstance(err, AppError)
+    assert err.code == "DRIVE_NOT_MOUNTED"
+    assert "mount point" in err.technical
 
 
 # --- real probes on this machine: they must return, not raise -----------------

@@ -19,6 +19,7 @@ from typing import List, Optional
 
 
 DEFAULT_WORKSPACE = "/content/drive/MyDrive/AutoClipperData"
+DRIVE_ROOT = "/content/drive"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
 
@@ -86,7 +87,26 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
-def setup_work_dir(work_dir: Optional[str]) -> None:
+def _on_drive(path: str) -> bool:
+    """True when ``path`` is the Google Drive mount point or inside it."""
+    def norm(p):
+        return os.path.normcase(os.path.abspath(os.path.expanduser(p))).replace("\\", "/")
+    if not path or not path.strip():
+        return False
+    target, root = norm(path.strip()), norm(DRIVE_ROOT)
+    return target == root or target.startswith(root + "/")
+
+
+def _drive_missing(workspace: str) -> bool:
+    """True when the library is meant to be on Google Drive but Drive is not mounted.
+
+    Same rule as backend/drive_mount.py, which this script cannot import when it
+    is run as ``python backend/colab_api.py``.
+    """
+    return _on_drive(workspace) and not os.path.ismount(DRIVE_ROOT)
+
+
+def setup_work_dir(work_dir: Optional[str], drive_missing: bool = False) -> None:
     """Export the work dir to the server process, or make sure none is set."""
     work_dir = (work_dir or "").strip()
     if not work_dir:
@@ -94,7 +114,7 @@ def setup_work_dir(work_dir: Optional[str]) -> None:
         return
 
     os.environ["AUTO_CLIPPER_WORK_DIR"] = work_dir
-    if work_dir.replace("\\", "/").startswith("/content/drive"):
+    if _on_drive(work_dir):
         print(
             "[Auto Clipper Colab] PERINGATAN: folder kerja berada di Google Drive, jadi proses tetap lambat. "
             "Pakai folder lokal seperti /content/work.\n"
@@ -102,6 +122,8 @@ def setup_work_dir(work_dir: Optional[str]) -> None:
             "Use a local folder such as /content/work.",
             file=sys.stderr,
         )
+        if drive_missing:
+            return  # nothing is created under /content/drive before it is mounted
     try:
         os.makedirs(work_dir, exist_ok=True)
         print(f"[Auto Clipper Colab] Work directory initialized at: {work_dir}")
@@ -113,27 +135,32 @@ def setup_environment(workspace: str, api_token: Optional[str] = None, work_dir:
     """Configure environment variables for cloud mode and prepare workspace directory."""
     os.environ["AUTO_CLIPPER_CLOUD_MODE"] = "1"
     os.environ["AUTO_CLIPPER_WORKSPACE"] = workspace
-    setup_work_dir(work_dir)
+    drive_missing = _drive_missing(workspace)
+    setup_work_dir(work_dir, drive_missing)
 
     if api_token:
         os.environ["AUTO_CLIPPER_DEV_TOKEN"] = api_token
         os.environ["AUTO_CLIPPER_WEB_TOKEN"] = api_token
         os.environ["API_SECRET_TOKEN"] = api_token
 
-    # A folder under /content/drive can exist without a mount (we create it below).
-    if workspace.startswith("/content/drive") and not os.path.ismount("/content/drive"):
+    if drive_missing:
+        # Creating the library now would put it on the local disk, where it is
+        # lost with the runtime and makes the later drive.mount() refuse to run.
         print(
-            "[Auto Clipper Colab] ⚠️ PERINGATAN: Direktori Google Drive '/content/drive/MyDrive' belum terhubung (mounted)!\n"
-            "  Data video dan riwayat database (history.db) akan tersimpan di disk sementara dan HILANG jika Colab restart.\n"
-            "  Harap jalankan Step 1 (drive.mount('/content/drive')) terlebih dahulu agar data tersimpan permanen.",
+            "[Auto Clipper Colab] PERINGATAN: Google Drive belum terhubung. Server tetap menyala, "
+            "tetapi setiap proses video ditolak sampai Google Drive terhubung.\n"
+            "  Hentikan kotak ini, jalankan Langkah 1 (Hubungkan Google Drive), lalu jalankan lagi kotak ini.\n"
+            "  WARNING: Google Drive is not connected. The server still starts, "
+            "but every video job is refused until Google Drive is connected.\n"
+            "  Stop this box, run Step 1 (Hubungkan Google Drive), then run this box again.",
             file=sys.stderr,
         )
-
-    try:
-        os.makedirs(workspace, exist_ok=True)
-        print(f"[Auto Clipper Colab] Workspace directory initialized at: {workspace}")
-    except Exception as e:
-        print(f"[Auto Clipper Colab] Warning: Could not create workspace directory '{workspace}': {e}", file=sys.stderr)
+    else:
+        try:
+            os.makedirs(workspace, exist_ok=True)
+            print(f"[Auto Clipper Colab] Workspace directory initialized at: {workspace}")
+        except Exception as e:
+            print(f"[Auto Clipper Colab] Warning: Could not create workspace directory '{workspace}': {e}", file=sys.stderr)
 
     # CUDA 12 cuBLAS and cuDNN 9 for ctranslate2 (Whisper on the GPU), from the
     # nvidia-*-cu12 pip packages the notebook installs. Each package is added on

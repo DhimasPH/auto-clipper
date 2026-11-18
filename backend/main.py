@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from backend.db import init_db, get_all_history, delete_history, get_app_data_dir
 from backend.logger import log_error, get_log_content
+from backend.errors import AppError
 import os
 import sys
 import shutil
@@ -92,6 +93,14 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"status": "error", "message": f"Internal Server Error: {str(exc)}"}
     )
+
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    # A problem the user can fix (e.g. Google Drive not connected on Colab):
+    # answer with the error card instead of an internal server error.
+    log_error(f"FastAPI [{request.method} {request.url.path}]", exc, exc_info=False)
+    info = exc.to_dict()
+    return JSONResponse(status_code=400, content={"status": "error", "message": info["message"], "error_info": info})
 
 cors_regex = r"https?://([a-zA-Z0-9_.-]+\.)?localhost(:\d+)?|https?://127\.0\.0\.1(:\d+)?|tauri://.*|app://.*|https://clipper\.dhims\.web\.id|https://.*\.vercel\.app"
 custom_cors = os.environ.get("AUTO_CLIPPER_CORS_ORIGIN", "").strip()
