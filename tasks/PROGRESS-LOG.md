@@ -285,3 +285,40 @@ Langkah sesi berikutnya:
 ### 2026-11-18 · sesi dilanjutkan
 
 Baseline sesi: 522 lulus, 0 gagal. Agen T0.13 dilanjutkan di `C:\Users\dhima\projects\ac-t13` dari WIP `ba23f7b`, diminta merge branch utama dulu agar panduan mengacu ke UI T0.12 yang sebenarnya. Belum ada hasil. Jika terputus: periksa `git -C ..\ac-t13 status` dan `log`, commit WIP bila ada perubahan, lanjutkan.
+
+### 2026-11-18 · T0.13 di-merge; semua pekerjaan kode SP0 selesai
+
+Dijalankan di branch utama: **557 lulus, 0 gagal**; build `src/` dan `web/` exit 0; notebook valid JSON (11 sel). Versi kini **1.18.0** di semua tempat (termasuk `Cargo.toml`, lockfile, `file_version_info.txt`). T0.13 ditandai `[~]`: kriterianya "sel notebook berjalan dari awal sampai akhir di Colab bersih", dan itu belum pernah dijalankan.
+
+Isi T0.13: notebook memasang Deno (`curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh`, aman diulang, tidak menghentikan notebook bila gagal), memakai `AUTO_CLIPPER_WORK_DIR=/content/work`, dan menampilkan hasil pemeriksaan awal lewat `scripts/colab_preflight.py` sebelum server jalan. Klaim NVENC dihapus. Panduan awam, tutorial cloud, `CHANGELOG.md` (entri 1.18.0; 1.17.2–1.17.4 memang tidak pernah dicatat), ADR-012, dan `.agents/AGENTS.md` diperbarui.
+
+Diperbaiki sendiri setelah review (temuan agen T0.13):
+
+- Pemeriksaan Drive di `preflight.py` dan `colab_api.py` memakai `os.path.ismount("/content/drive")`. Sebelumnya memeriksa folder `/content/drive/MyDrive`, yang dibuat sendiri oleh backend saat Drive tidak ter-mount, sehingga peringatan `DRIVE_NOT_MOUNTED` tidak pernah muncul. 3 tes baru, terbukti gagal tanpa perbaikan.
+- Teks privasi cookies di web kini menyebut lokasi sebenarnya di Colab (Google Drive, `AutoClipperData/cookies`).
+
+Masih terbuka dari temuan T0.13 `[!]`:
+
+11. Bila backend dijalankan sebelum Drive di-mount, ia membuat folder `/content/drive/MyDrive/...` di disk lokal, dan `drive.mount` sesudahnya kemungkinan gagal karena titik mount tidak kosong. Belum diuji. Pilihan: backend menolak membuat folder di bawah `/content/drive` tanpa mount, atau cukup peringatan (sekarang sudah benar). Perlu keputusan karena spec bilang "job tetap berjalan".
+12. Jalur Ngrok (4B) menjalankan uvicorn langsung, tanpa GPU keep-alive milik `colab_api.py`. Sudah begitu sebelum SP0.
+13. `yt-dlp-ejs` tidak dipasang; Deno mengambil solver dari GitHub saat berjalan (terkait nomor 5).
+
+## Sisa SP0: semuanya butuh pemilik
+
+1. Jalankan notebook di Colab bersih (T4) mengikuti daftar cek di bawah, lalu ukur video 30 menit sebelum/sesudah (T0.2, T0.14) dan isi spec bagian 7.
+2. Cek manual T0.12 (daftar di entri 2026-11-17 "T0.12 di-merge").
+3. T0.15: keputusan gerbang pendekatan B berdasarkan angka T0.14.
+4. Keputusan terbuka nomor 1–13 di entri-entri di atas.
+5. Setelah itu: buka PR `feat/sp0-pipeline-stability` → `main`.
+
+Daftar cek Colab (dari agen T0.13, runtime T4 baru):
+
+1. Sel 1: Drive ter-mount, baris GPU "GPU T4 Aktif".
+2. Sel 2: berakhir "Deno terpasang (deno 2.x ...)"; jalankan lagi → "Deno sudah terpasang"; sel baru `!which deno` → `/usr/local/bin/deno`.
+3. Sel 3: pip selesai.
+4. Sel 4A atau 4B: sebelum log server muncul "PEMERIKSAAN AWAL AUTO CLIPPER" dengan Drive, YouTube helper, GPU OK. **Catat** apakah "Render memakai GPU" atau "[PERHATIAN] Render memakai prosesor" (menjawab temuan F8).
+5. Sel baru `!ls /content/work` → ada `history.db`; `AutoClipperData/history.db` di Drive tetap ada.
+6. Satu job URL pendek: video sumber ada di `/content/work/projects/<judul>/source/`; setelah selesai klip ada di Drive `AutoClipperData/projects/<judul>/clips/`, tanpa file `.part`; "Detail waktu" tampil.
+7. Job kedua saat yang pertama berjalan → "Menunggu giliran".
+8. Runtime → Disconnect and delete runtime, sambung lagi, jalankan sel 1–4: riwayat dan klip lama muncul; render ulang mengunduh ulang video sumber.
+9. Opsional: unggah `cookies.txt` akun cadangan di Pengaturan ("Berlaku sampai ..."); jalankan sel 4 tanpa sel 1 di runtime baru → "Google Drive belum terhubung".

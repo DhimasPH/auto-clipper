@@ -73,7 +73,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 - [~] **T0.12 Kartu error generik dan unggah cookies** di `src/` dan `web/` · bergantung T0.3, T0.10
   - Render `error_info`, tombol aksi, panduan 3 langkah ekspor cookies, peringatan akun cadangan, "Detail teknis" dan "Detail waktu" yang bisa dibuka, i18n id dan en.
   - Selesai bila: dicek manual di kedua frontend untuk tiap kode error, tanpa istilah teknis di layar utama.
-- [ ] **T0.13 Notebook Colab dan dokumentasi** · bergantung T0.8, T0.11
+- [~] **T0.13 Notebook Colab dan dokumentasi** · bergantung T0.8, T0.11
   - Pasang Deno, atur `AUTO_CLIPPER_WORK_DIR`, tampilkan hasil preflight, perbarui `docs/panduan-penggunaan-awam.md` dan `CHANGELOG.md`, naikkan versi.
   - Selesai bila: sel notebook berjalan dari awal sampai akhir di Colab bersih `[!]`.
 
