@@ -398,3 +398,13 @@ Catatan: klip 9 memakai crop statis di tengah (`iw*0.5`), kemungkinan wajah tida
 - T0.16 dikerjakan agen (fable, effort high) di worktree `C:\Users\dhima\projects\ac-t16`, branch `sp0/t0.16-single-read-tracking`, dari `eee5978`. Brief: ganti lompatan `POS_MSEC` per sampel dengan satu pipa FFmpeg berurutan (`-ss`/`-t`, pilih frame di titik sampel lama, skala 640, `rawvideo bgr24`), kontrak `info`/pembatalan/fallback MediaPipe tetap, fallback ke jalur lama bila FFmpeg gagal (dicatat), uji TDD + uji integrasi dengan FFmpeg bila ada, benchmark 1080p lokal lama vs baru.
 - Bila sesi terputus: cek `git -C ..\ac-t16 log --oneline -5` dan jalankan tes di worktree itu. Bila agen belum commit, lanjutkan dari isi worktree atau mulai ulang dengan brief yang sama.
 - Setelah merge, pemilik perlu mengukur ulang tracking di Colab (video yang sama), lalu `git push`.
+
+---
+
+## 2026-11-18 · T0.16 di-merge
+
+- Merge `5f91e77` (commit `96f84a5`, `9099326`, `a06bd0c`). `sample_face_trajectory` membaca potongan klip dengan satu proses FFmpeg (`-ss`/`-t`, `setpts` + `fps=…:round=up:start_time=0` agar frame terpilih sama dengan frame terdekat yang dulu diberikan seek OpenCV, `scale` 640, `rawvideo bgr24` ke pipa). Bila FFmpeg tidak ada, gagal, atau mengirim frame terpotong: sisa sampel dibaca dengan seek lama dan alasannya dicatat `log_error("crop_utils.sample_face_trajectory_ffmpeg_fallback")`. Klip yang sampai akhir video tercatat di `log_app` saja (perubahan saya, `a06bd0c`).
+- Tes: 592 lulus + 6 dilewati tanpa FFmpeg, 598 lulus dengan FFmpeg 6.1.1 (6 uji integrasi membandingkan jalur lama dan baru pada video sintetis 1080p, indeks frame sama).
+- Benchmark `scripts/benchmark_face_tracking.py` (saya ulang sendiri, video 1080p30 H.264 `-g 150`, jendela 80 dtk, Haar): lama 17,4 dtk, baru 3,3 dtk, 5,3×, sampel dan trajektori identik. Agen dengan 2 core: 74,0 dtk → 13,8 dtk (0,93 → 0,17 × panjang klip).
+- Belum diverifikasi: Colab/Linux dengan FFmpeg 4.4 dari apt (opsi yang dipakai seharusnya ada di 4.4; bila tidak, log berisi `sample_face_trajectory_ffmpeg_fallback` dan tracking selambat dulu, tidak rusak), MediaPipe dengan wajah sungguhan lewat jalur baru, build desktop.
+- Pemilik: `git push`, jalankan sel 3–4 di Colab, proses ulang video yang sama, kirim baris `[timing] ... stage=tracking` dan cari `ffmpeg_fallback` di `backend_error.log`. Sasaran: tracking jauh di bawah 0,96 × panjang klip.

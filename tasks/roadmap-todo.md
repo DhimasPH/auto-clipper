@@ -85,7 +85,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 - [x] **T0.15 Keputusan gerbang pendekatan B** · 2026-11-18: tracking wajah 64 % dari waktu mesin (spec bagian 7), jadi pendekatan B dijadwalkan di SP0 sebagai T0.16. Disetujui pemilik.
   - Jika tracking wajah masih mendominasi waktu, jadwalkan task pelacakan satu-kali-baca. Jika tidak, pindahkan ke SP3.
   - Selesai bila: keputusan dan alasannya dicatat di spec dan roadmap.
-- [ ] **T0.16 Pelacakan wajah satu-kali-baca (pendekatan B)** · bergantung T0.15
+- [~] **T0.16 Pelacakan wajah satu-kali-baca (pendekatan B)** · bergantung T0.15 · kode di-merge `5f91e77` (598 tes lulus dengan FFmpeg). Benchmark lokal 1080p: 5,3× lebih cepat, hasil identik. Menunggu ukur ulang di Colab.
   - `sample_face_trajectory` tidak lagi melompat (`cap.set(POS_MSEC)`) ke tiap titik sampel. Potongan klip dibaca sekali secara berurutan lewat FFmpeg (`-ss`/`-t`, `fps`, `scale` ke lebar 640), frame dialirkan ke Haar/MediaPipe tanpa ditampung semua di memori. Titik waktu sampel dan hasil trajektori tetap sama. Bila jalur FFmpeg gagal, jalur lama dipakai dan alasannya dicatat (`log_error`).
   - Selesai bila: uji membuktikan waktu sampel dan bentuk trajektori sama dengan jalur lama, pembatalan tetap bekerja, dan fallback tercatat; benchmark lokal pada video 1080p menunjukkan tracking jauh lebih cepat; diukur ulang di Colab oleh pemilik `[!]`.
   - File: `backend/crop_utils.py`, `backend/tests/test_crop_utils.py`.
