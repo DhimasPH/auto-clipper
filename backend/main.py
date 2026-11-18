@@ -429,8 +429,13 @@ def api_open_folder(req: OpenFolderRequest):
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
+class RerenderJobRequest(CreateJobRequest):
+    # The project already has its source URL; the web app does not send one.
+    url: str = ""
+
+
 @app.post("/jobs/{job_id}/rerender")
-def api_rerender_job(job_id: str, req: CreateJobRequest):
+def api_rerender_job(job_id: str, req: RerenderJobRequest):
     try:
         from backend.jobs import create_rerender_job
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None

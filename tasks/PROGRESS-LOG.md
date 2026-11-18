@@ -408,3 +408,10 @@ Catatan: klip 9 memakai crop statis di tengah (`iw*0.5`), kemungkinan wajah tida
 - Benchmark `scripts/benchmark_face_tracking.py` (saya ulang sendiri, video 1080p30 H.264 `-g 150`, jendela 80 dtk, Haar): lama 17,4 dtk, baru 3,3 dtk, 5,3×, sampel dan trajektori identik. Agen dengan 2 core: 74,0 dtk → 13,8 dtk (0,93 → 0,17 × panjang klip).
 - Belum diverifikasi: Colab/Linux dengan FFmpeg 4.4 dari apt (opsi yang dipakai seharusnya ada di 4.4; bila tidak, log berisi `sample_face_trajectory_ffmpeg_fallback` dan tracking selambat dulu, tidak rusak), MediaPipe dengan wajah sungguhan lewat jalur baru, build desktop.
 - Pemilik: `git push`, jalankan sel 3–4 di Colab, proses ulang video yang sama, kirim baris `[timing] ... stage=tracking` dan cari `ffmpeg_fallback` di `backend_error.log`. Sasaran: tracking jauh di bawah 0,96 × panjang klip.
+
+---
+
+## 2026-11-18 · Bug "Rerender All" di web (422)
+
+- Pemilik mencoba "Rerender All" di web untuk mengukur ulang T0.16: 422 `body.url Field required`. Penyebab: `POST /jobs/{id}/rerender` memakai `CreateJobRequest` yang mewajibkan `url`. Desktop mengakali dengan `url: "dummy"` (`src/hooks/useClipJobs.ts:321`), web tidak mengirimnya, jadi Rerender All di web tidak pernah berfungsi. Perbaikan: `RerenderJobRequest` dengan `url` opsional, uji `test_rerender_all_does_not_need_a_url` (gagal sebelum perbaikan). Tes 593 lulus + 6 dilewati.
+- Temuan terkait, belum diperbaiki: web memanggil `/jobs/{id}/rerun-ai` (tanda hubung), backend `/jobs/{id}/rerun_ai` (garis bawah), lalu fallback ke `/api/jobs/{id}/rerun-ai` yang juga tidak ada. "AI ulang" dari web kemungkinan 404. `rerun_ai` juga memakai `CreateJobRequest` (wajib `url`). Endpoint rerender juga tidak meneruskan `face_tracking_engine` ke `create_rerender_job` (selalu Haar).

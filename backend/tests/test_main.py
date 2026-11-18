@@ -249,6 +249,29 @@ def test_get_words_endpoint(tmp_path, monkeypatch):
     assert res.json()["words"][0]["word"] == "Hello"
 
 
+def test_rerender_all_does_not_need_a_url(monkeypatch):
+    # The web app's "Rerender All" sends no url (the project already has one);
+    # it got 422 "Field required: url" because the endpoint reused CreateJobRequest.
+    seen = {}
+
+    def fake_create(job_id, aspect_ratio, burn_subs, output_dir, max_clips, **kwargs):
+        seen.update(job_id=job_id, aspect_ratio=aspect_ratio, **kwargs)
+        return "new-job-456"
+
+    monkeypatch.setattr("backend.jobs.create_rerender_job", fake_create)
+    res = client.post("/jobs/hist-abc/rerender", json={
+        "aspect_ratio": "9:16",
+        "caption_style": "single_word",
+        "canvas_config": {"enabled": False},
+        "subtitle_config": {"style": "single_word"},
+        "burn_subs": True,
+    })
+
+    assert res.status_code == 200, res.text
+    assert res.json()["job_id"] == "new-job-456"
+    assert seen["job_id"] == "hist-abc" and seen["subtitle_config"] == {"style": "single_word"}
+
+
 def test_post_rerender_clip_endpoint(monkeypatch):
     """Test starting a rerender job."""
     history_record = {
