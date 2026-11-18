@@ -366,4 +366,11 @@ Kesimpulan: paket CUDA 12 sudah ada di Colab. Akar masalah Whisper adalah kode l
 
 Langkah berikutnya: pemilik push, jalankan sel 3–4, pastikan pemeriksaan awal "Render memakai GPU" tanpa peringatan subtitle, lalu Resume. Catat waktu per tahap sebagai angka T0.14.
 
+### Desktop Windows (PC pemilik: GTX 1650 + AMD Radeon terintegrasi, diuji langsung)
+
+- Aplikasi hanya mengenal NVIDIA (NVENC untuk render, CUDA untuk Whisper). Kartu AMD diabaikan, tidak bentrok.
+- Render: FFmpeg yang dibundel rilis Windows (`@ffmpeg-installer/ffmpeg`, build 2018 `N-92722`) punya `h264_nvenc`, tetapi gagal dengan driver sekarang: "Cannot get the preset configuration: unsupported param (12)", di ukuran berapa pun. Jadi di desktop render selalu memakai prosesor. `ffmpeg-static@5` (FFmpeg 6.1.1 gyan.dev, sudah dipakai build macOS) lolos uji `h264_nvenc` dan perintah gaya `crop_to_vertical` (preset `p4`, 1080×1920). Fitur yang dipakai aplikasi (libass, freetype, fontconfig, libx264, subtitles/ass/drawtext/overlay/zoompan) ada di keduanya. `build.yml` dan `pr-check.yml` sekarang memakai `ffmpeg-static@5` untuk Windows (+18 MB). Belum dijalankan di CI.
+- Subtitle: `ctranslate2` melihat 1 GPU dan membawa `cudnn64_9.dll`, tetapi `cublas64_12.dll` tidak ada di PC maupun di bundle PyInstaller. Whisper di desktop jatuh ke prosesor (jalur fallback yang sama dengan Colab). Membundel cuBLAS menambah ratusan MB; usul jadi keputusan SP3 (paket GPU opsional).
+- Belum diukur: seberapa cepat render NVENC dibanding libx264 di klip sungguhan. Uji sintetis 60 dtk tidak bermakna (pembangkit gambar uji yang dominan).
+
 Langkah lama (sudah terjawab di atas): setelah job selesai, pemilik menjalankan sel uji `h264_nvenc` 256×256, lalu push ulang dan jalankan sel 3–4 untuk melihat apakah pemeriksaan awal berubah menjadi "Render memakai GPU". Catat waktu job pertama ini (render CPU) sebagai pembanding.
