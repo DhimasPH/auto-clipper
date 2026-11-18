@@ -108,6 +108,8 @@ Brainstorming dan spec terpisah dimulai setelah SP0 selesai. Arah awal, belum fi
 - [ ] T3.x Ukuran installer (mediapipe opsional, komponen berat sebagai unduhan terpisah)
 - [ ] T3.x Startup dan RAM sidecar
 - [ ] T3.x Pendekatan B bila diputuskan di T0.15
+- [ ] T3.x Paket GPU opsional untuk desktop Windows: pustaka NVIDIA untuk Whisper (`cublas64_12.dll`, ratusan MB) diunduh terpisah hanya oleh pengguna dengan kartu NVIDIA, bukan dibundel di installer. Disetujui pemilik 2026-11-18. Latar: di GTX 1650 pemilik, Whisper jatuh ke prosesor karena DLL itu tidak ada (lihat PROGRESS-LOG 2026-11-18).
+- [ ] T3.x Ukuran model Whisper menyesuaikan perangkat: tanpa GPU pilih model lebih kecil, atau peringatkan sebelum mulai bahwa `medium` di prosesor bisa lebih dari satu jam untuk video 30 menit.
 
 ## SP4: Fitur kreator dan penyempurnaan fitur lama (belum dimulai)
 
