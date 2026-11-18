@@ -281,3 +281,7 @@ Langkah sesi berikutnya:
 
 1. Lanjutkan T0.13 di `ac-t13`: periksa diff notebook terhadap `2cdbfb2`, selesaikan sisanya, `git merge feat/sp0-pipeline-stability` di worktree (agar panduan bisa mengacu ke UI T0.12 yang sebenarnya), jalankan tes, merge, centang. Sel notebook tetap `[!]`: harus dijalankan pemilik di Colab bersih.
 2. Setelah itu sisa SP0 semuanya butuh pemilik: T0.2 dan T0.14 (pengukuran Colab), cek manual T0.12, T0.15 (keputusan gerbang), dan keputusan terbuka nomor 1–10 di entri-entri di atas.
+
+### 2026-11-18 · sesi dilanjutkan
+
+Baseline sesi: 522 lulus, 0 gagal. Agen T0.13 dilanjutkan di `C:\Users\dhima\projects\ac-t13` dari WIP `ba23f7b`, diminta merge branch utama dulu agar panduan mengacu ke UI T0.12 yang sebenarnya. Belum ada hasil. Jika terputus: periksa `git -C ..\ac-t13 status` dan `log`, commit WIP bila ada perubahan, lanjutkan.
