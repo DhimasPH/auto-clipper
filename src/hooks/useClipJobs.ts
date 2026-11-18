@@ -399,8 +399,10 @@ export function useClipJobs(p: ClipJobParams) {
     clearError();
 
     try {
+      // History keeps no API keys, so the keys from Settings go with every resume.
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/resume`, {
         api_key: p.apiKey,
+        pexels_api_key: p.pexelsApiKey,
         provider: p.provider,
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,

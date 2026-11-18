@@ -396,3 +396,196 @@ def test_run_resume_job_manual_provider_transitions_to_awaiting_manual(tmp_path,
     finally:
         jobs.active_jobs.pop(job_id, None)
 
+
+
+# --- API keys are not kept in history; resume uses the keys the app sends (T0.18) ---
+
+import pytest
+
+from backend.errors import AppError
+
+
+def _resumable(monkeypatch, tmp_path, **meta):
+    """A failed job in history, and the queue replaced so nothing runs."""
+    src = tmp_path / "source.mp4"
+    src.write_bytes(b"x")
+    metadata = {"source_video": str(src), "title": "Key Project", "output_dir": str(tmp_path)}
+    metadata.update(meta)
+    record = {"id": "hist-key", "url": "https://youtu.be/x", "status": "ERROR", "result_clips": [], "metadata": metadata}
+    saved = []
+    monkeypatch.setattr("backend.db.get_history", lambda j_id: record if j_id == "hist-key" else None)
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: saved.append(a))
+    monkeypatch.setattr(jobs.job_queue, "submit", lambda *a, **k: None)
+    return saved
+
+
+def test_create_job_does_not_store_api_keys(monkeypatch):
+    saved = []
+    monkeypatch.setattr(jobs, "save_history", lambda *a, **k: saved.append(a))
+    monkeypatch.setattr(jobs, "check_title_uniqueness", lambda title: None)
+    monkeypatch.setattr(jobs.job_queue, "submit", lambda *a, **k: None)
+
+    job_id = jobs.create_job("https://youtu.be/x", "gemini", "sk-secret", title="Keys A",
+                             enable_broll=True, pexels_api_key="px-secret")
+    try:
+        metadata = saved[0][4]
+        assert "api_key" not in metadata and "pexels_api_key" not in metadata
+        assert metadata["provider"] == "gemini" and metadata["enable_broll"] is True
+        # The running job still has them: it needs them.
+        assert jobs.active_jobs[job_id]["api_key"] == "sk-secret"
+        assert jobs.active_jobs[job_id]["pexels_api_key"] == "px-secret"
+    finally:
+        jobs.active_jobs.pop(job_id, None)
+
+
+def test_finalize_job_does_not_store_api_keys(monkeypatch):
+    saved = []
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: saved.append(a))
+    monkeypatch.setattr(jobs, "_publish", lambda job, metadata, final=False: [])
+    job_id = "test-finalize-keys"
+    jobs.active_jobs[job_id] = {
+        "id": job_id, "url": "https://youtu.be/x", "provider": "gemini", "api_key": "sk-secret",
+        "pexels_api_key": "px-secret", "enable_broll": True, "mode": "ai", "model": "gemini-x",
+        "aspect_ratio": "9:16", "status": "CROPPING", "cancelled": False, "clips": [], "error": None,
+    }
+    try:
+        jobs._finalize_job(job_id, "DONE", {"highlights": [{"start_time": "0"}]})
+        metadata = saved[-1][4]
+        assert "api_key" not in metadata and "pexels_api_key" not in metadata
+        assert metadata["provider"] == "gemini"
+        assert metadata["enable_broll"] is True
+        assert metadata["model"] == "gemini-x"
+    finally:
+        jobs.active_jobs.pop(job_id, None)
+
+
+def test_resume_uses_the_keys_sent_with_the_request(monkeypatch, tmp_path):
+    # A row from before T0.18 that still carries old keys: the sent keys win.
+    _resumable(monkeypatch, tmp_path, provider="gemini", enable_broll=True,
+               api_key="sk-old-stored", pexels_api_key="px-old-stored")
+
+    new_id = jobs.create_resume_job("hist-key", api_key="sk-sent", pexels_api_key="px-sent")
+    try:
+        job = jobs.active_jobs[new_id]
+        assert job["api_key"] == "sk-sent"
+        assert job["pexels_api_key"] == "px-sent"
+        assert job["enable_broll"] is True
+    finally:
+        jobs.active_jobs.pop(new_id, None)
+
+
+def test_resume_does_not_fall_back_to_a_stored_key(monkeypatch, tmp_path):
+    _resumable(monkeypatch, tmp_path, provider="gemini", api_key="sk-old-stored", pexels_api_key="px-old-stored",
+               highlights=[{"start_time": "00:00:00", "end_time": "00:00:05"}])
+
+    new_id = jobs.create_resume_job("hist-key")
+    try:
+        assert jobs.active_jobs[new_id]["api_key"] == ""
+        assert jobs.active_jobs[new_id]["pexels_api_key"] == ""
+    finally:
+        jobs.active_jobs.pop(new_id, None)
+
+
+def test_resume_without_a_key_for_a_provider_that_needs_one_fails_clearly(monkeypatch, tmp_path):
+    saved = _resumable(monkeypatch, tmp_path, provider="gemini")
+    before = set(jobs.active_jobs)
+
+    with pytest.raises(AppError) as caught:
+        jobs.create_resume_job("hist-key", api_key="")
+    assert caught.value.code == "AI_KEY_MISSING"
+    assert set(jobs.active_jobs) == before, "a job was started that can only fail"
+    assert saved == []
+
+
+def test_resume_with_stored_highlights_needs_no_key(monkeypatch, tmp_path):
+    _resumable(monkeypatch, tmp_path, provider="gemini",
+               highlights=[{"start_time": "00:00:00", "end_time": "00:00:05", "description": "a"}])
+
+    new_id = jobs.create_resume_job("hist-key")  # only rendering is left: no AI call
+    jobs.active_jobs.pop(new_id, None)
+
+
+@pytest.mark.parametrize("provider", ["manual", "manual_ai", "custom"])
+def test_resume_of_a_provider_without_a_key_needs_none(monkeypatch, tmp_path, provider):
+    _resumable(monkeypatch, tmp_path, provider=provider)
+
+    new_id = jobs.create_resume_job("hist-key")
+    try:
+        assert jobs.active_jobs[new_id]["provider"] == provider
+    finally:
+        jobs.active_jobs.pop(new_id, None)
+
+
+def test_manual_resume_needs_no_key_and_takes_the_pexels_key_sent(monkeypatch, tmp_path):
+    sub = tmp_path / "subs.srt"
+    sub.write_text("1\n00:00:00,000 --> 00:00:05,000\nHello\n", encoding="utf-8")
+    _resumable(monkeypatch, tmp_path, provider="manual_ai", subtitle_path=str(sub), enable_broll=True,
+               pexels_api_key="px-old-stored")
+    payload = '[{"start_time": "00:00:00", "end_time": "00:00:04", "description": "x"}]'
+
+    job_id = jobs.resume_manual_job("hist-key", payload, pexels_api_key="px-sent")
+    try:
+        assert jobs.active_jobs[job_id]["api_key"] == ""
+        assert jobs.active_jobs[job_id]["pexels_api_key"] == "px-sent"
+    finally:
+        jobs.active_jobs.pop(job_id, None)
+
+
+def test_resume_endpoints_take_the_keys_and_report_a_missing_one(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from backend.main import app
+
+    _resumable(monkeypatch, tmp_path, provider="openai")
+    client = TestClient(app)
+
+    r = client.post("/jobs/hist-key/resume", json={"provider": "openai"})
+    assert r.status_code == 400
+    assert r.json()["error_info"]["code"] == "AI_KEY_MISSING"
+
+    r = client.post("/jobs/hist-key/resume", json={"provider": "openai", "api_key": " sk-sent ", "pexels_api_key": "px-sent"})
+    assert r.status_code == 200
+    job = jobs.active_jobs.pop(r.json()["job_id"])
+    assert job["api_key"] == "sk-sent"
+    assert job["pexels_api_key"] == "px-sent"
+
+
+def test_manual_resume_endpoint_takes_the_pexels_key(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from backend.main import app
+
+    sub = tmp_path / "subs.srt"
+    sub.write_text("1\n00:00:00,000 --> 00:00:05,000\nHello\n", encoding="utf-8")
+    _resumable(monkeypatch, tmp_path, provider="manual_ai", subtitle_path=str(sub), enable_broll=True)
+    client = TestClient(app)
+    payload = '[{"start_time": "00:00:00", "end_time": "00:00:04", "description": "x"}]'
+
+    r = client.post("/jobs/hist-key/resume-manual", json={"json_payload": payload, "pexels_api_key": "px-sent"})
+    assert r.status_code == 200
+    assert jobs.active_jobs.pop(r.json()["job_id"])["pexels_api_key"] == "px-sent"
+
+
+def test_broll_without_a_pexels_key_is_skipped_with_a_logged_reason(tmp_path, monkeypatch):
+    src = tmp_path / "source.mp4"
+    src.write_bytes(b"x")
+    job_id = "test-broll-no-key"
+    jobs.active_jobs[job_id] = {
+        "id": job_id, "url": "local:test", "provider": "manual_ai", "api_key": "", "enable_broll": True,
+        "pexels_api_key": "", "status": "QUEUED", "cancelled": False, "clips": [], "failed": 0, "error": None,
+        "aspect_ratio": "9:16", "burn_subs": False, "output_dir": str(tmp_path), "title": "Broll",
+    }
+    seg = {"start_time": "00:00:00", "end_time": "00:00:05", "description": "a", "broll_query_en": "city"}
+    logged = []
+    monkeypatch.setattr(jobs, "log_app", lambda msg, *a, **k: logged.append(msg))
+    monkeypatch.setattr(jobs, "crop_to_vertical", lambda *a, **k: str(tmp_path / "clip.mp4"))
+    monkeypatch.setattr("backend.broll.download_pexels_broll", lambda *a, **k: pytest.fail("called without a key"))
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: None)
+    monkeypatch.setattr(jobs, "_publish", lambda job, metadata, final=False: [])
+    try:
+        metadata = {"highlights": [seg], "source_video": str(src)}
+        jobs._render_video_clips(jobs.active_jobs[job_id], job_id, metadata, str(src), None, lambda: False)
+        job = jobs.active_jobs[job_id]
+        assert job["status"] == "DONE"
+        assert len(job["clips"]) == 1
+        assert sum("B-roll" in m and "Pexels" in m for m in logged) == 1, logged
+    finally:
+        jobs.active_jobs.pop(job_id, None)

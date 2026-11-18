@@ -624,3 +624,110 @@ def test_runtime_dies_mid_job_then_history_is_restored_and_the_job_resumes(split
 
 
 
+
+
+# --- API keys never stay in history (T0.18) -----------------------------------------
+#
+# history.db is copied to Google Drive, so a key in it would end up there too.
+
+_KEY = "sk-live-0123456789"
+_PEXELS = "px-live-9876543210"
+
+
+def _write_rows_with_keys(db_file, job_ids):
+    """Rows as older versions stored them: the keys inside the metadata JSON."""
+    import json
+    db_file.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(str(db_file))) as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS history (id TEXT PRIMARY KEY, url TEXT, status TEXT, created_at TEXT, result_clips TEXT, metadata TEXT)")
+        for job_id in job_ids:
+            meta = {"title": job_id, "provider": "gemini", "api_key": _KEY, "pexels_api_key": _PEXELS,
+                    "enable_broll": True, "highlights": [{"start_time": "00:00:01"}]}
+            conn.execute("INSERT INTO history VALUES (?, 'u', 'DONE', '2026-01-01T00:00:00', '[]', ?)", (job_id, json.dumps(meta)))
+        conn.commit()
+
+
+def _has_secret(db_file) -> bool:
+    data = db_file.read_bytes()
+    return _KEY.encode() in data or _PEXELS.encode() in data
+
+
+def _raw_metadata(db_file) -> dict:
+    import json
+    with closing(sqlite3.connect(str(db_file))) as conn:
+        return {job_id: json.loads(meta) for job_id, meta in conn.execute("SELECT id, metadata FROM history")}
+
+
+def test_save_history_never_stores_api_keys(monkeypatch, tmp_path):
+    _use_tmp_db(monkeypatch, tmp_path)
+    meta = {"title": "Ep 1", "provider": "gemini", "api_key": _KEY, "pexels_api_key": _PEXELS, "enable_broll": True}
+
+    db.save_history("job-1", "u", "PENDING", [], meta)
+
+    stored = _raw_metadata(tmp_path / "history.db")["job-1"]
+    assert stored == {"title": "Ep 1", "provider": "gemini", "enable_broll": True}
+    assert meta["api_key"] == _KEY  # the caller's dict is untouched
+
+
+def test_init_db_removes_api_keys_from_existing_rows(monkeypatch, tmp_path):
+    dbfile = tmp_path / "history.db"
+    _write_rows_with_keys(dbfile, ["old-1", "old-2"])
+    assert _has_secret(dbfile)
+
+    _use_tmp_db(monkeypatch, tmp_path)
+
+    for meta in _raw_metadata(dbfile).values():
+        assert "api_key" not in meta and "pexels_api_key" not in meta
+        # Nothing else changes.
+        assert meta["provider"] == "gemini" and meta["enable_broll"] is True
+        assert meta["highlights"] == [{"start_time": "00:00:01"}]
+    assert not _has_secret(dbfile), "the old key text is still in the database file"
+
+
+def test_key_cleanup_is_idempotent_and_does_nothing_on_clean_rows(monkeypatch, tmp_path):
+    dbfile = tmp_path / "history.db"
+    _write_rows_with_keys(dbfile, ["old-1"])
+    _use_tmp_db(monkeypatch, tmp_path)
+    after_first = _raw_metadata(dbfile)
+
+    with closing(sqlite3.connect(str(dbfile))) as conn:
+        assert db._remove_secrets(conn) == 0
+    db.init_db()
+    assert _raw_metadata(dbfile) == after_first
+
+
+def test_snapshot_restored_from_drive_loses_its_keys_on_both_sides(split):
+    work, library = split
+    _write_rows_with_keys(library / "history.db", ["old-1"])
+
+    db.init_db()  # no local database: restored from the library copy
+    assert db.flush_snapshot() is True
+
+    assert db.get_history("old-1")["metadata"]["provider"] == "gemini"
+    assert not _has_secret(work / "history.db")
+    assert not _has_secret(library / "history.db"), "the Drive copy still holds the keys"
+
+
+def test_restart_with_keys_in_the_local_db_and_the_snapshot_cleans_both(split):
+    work, library = split
+    _write_rows_with_keys(work / "history.db", ["both", "local-only"])
+    _write_rows_with_keys(library / "history.db", ["both", "library-only"])
+
+    db.init_db()
+    assert db.flush_snapshot() is True
+
+    assert {r["id"] for r in db.get_all_history()} == {"both", "local-only", "library-only"}
+    assert not _has_secret(work / "history.db")
+    assert not _has_secret(library / "history.db")
+
+
+def test_snapshot_with_keys_that_appears_after_startup_is_cleaned_when_merged(split):
+    work, library = split
+    db.init_db()  # Drive not mounted yet
+    _write_rows_with_keys(library / "history.db", ["old-1"])
+
+    db.save_history("new-1", "u", "DONE", [], {})
+
+    assert {r["id"] for r in db.get_all_history()} == {"old-1", "new-1"}
+    assert not _has_secret(work / "history.db")
+    assert not _has_secret(library / "history.db")

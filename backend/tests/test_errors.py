@@ -169,3 +169,20 @@ def test_app_error_is_an_exception_that_chains_the_cause():
     err = to_app_error(cause)
     assert isinstance(err, Exception)
     assert err.__cause__ is cause
+
+
+# Asked for at resume time since API keys are no longer kept in history (T0.18).
+KEY_CODES = {"AI_KEY_MISSING"}
+
+
+@pytest.mark.parametrize("code", sorted(KEY_CODES))
+def test_key_codes_have_plain_text_in_both_languages(code):
+    assert code in ERROR_CODES
+    test_every_code_has_plain_text_in_both_languages(code)
+
+
+def test_missing_ai_key_points_to_settings_then_resume():
+    info = AppError("AI_KEY_MISSING").to_dict()
+    assert info["code"] == "AI_KEY_MISSING"
+    assert info["title"] != AppError("UNKNOWN").to_dict()["title"]
+    assert [a["id"] for a in info["actions"]] == ["open_settings", "resume"]

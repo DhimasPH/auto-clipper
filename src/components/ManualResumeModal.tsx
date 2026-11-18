@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { Copy, Check, Play, AlertCircle } from "lucide-react";
 import { Button } from "./ui/Button";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
-import { API_URL } from "../App";
+import { API_URL, AppContext } from "../App";
 import { useToasts } from "../hooks/useToasts";
 
 interface ManualResumeModalProps {
@@ -15,6 +15,7 @@ interface ManualResumeModalProps {
 export const ManualResumeModal: React.FC<ManualResumeModalProps> = ({ job, onClose, onSuccess }) => {
   const { t } = useTranslation();
   const { notify } = useToasts();
+  const ctx = useContext(AppContext);
   const [copied, setCopied] = useState(false);
   const [jsonInput, setJsonInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,8 +68,10 @@ export const ManualResumeModal: React.FC<ManualResumeModalProps> = ({ job, onClo
 
     try {
       setIsSubmitting(true);
+      // History keeps no API keys: B-roll needs the Pexels key from Settings.
       const res = await axios.post(`${API_URL}/jobs/${job.id}/resume-manual`, {
-        json_payload: jsonInput
+        json_payload: jsonInput,
+        pexels_api_key: ctx?.apiKeys?.["pexels"] || ""
       });
       if (res.data.status === "success") {
         notify(t("manualAI.success"), "success");

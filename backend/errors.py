@@ -195,6 +195,21 @@ ERROR_CODES = {
         ),
         "actions": ["open_settings", "resume"],
     },
+    "AI_KEY_MISSING": {
+        "title": "Kunci API belum diisi",
+        "message": (
+            "Bagian proses yang tersisa memerlukan layanan AI, tetapi aplikasi tidak mengirim kunci API untuk layanan itu. "
+            "Kunci API tidak disimpan di riwayat proyek, jadi kunci diambil dari Pengaturan setiap kali proses dilanjutkan. "
+            "Isi kunci untuk layanan AI yang dipilih di halaman Pengaturan, lalu tekan Lanjutkan."
+        ),
+        "title_en": "No API key was given",
+        "message_en": (
+            "The rest of this process needs the AI service, but the app did not send an API key for it. "
+            "API keys are not kept in the project history, so the key is taken from Settings each time a process is resumed. "
+            "Enter the key for the selected AI service on the Settings page, then press Resume."
+        ),
+        "actions": ["open_settings", "resume"],
+    },
     "FFMPEG_MISSING": {
         "title": "Komponen pengolah video tidak ditemukan",
         "message": (
