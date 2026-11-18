@@ -112,10 +112,12 @@ Tidak dipindah: `Dashboard/HeroInput`, `ResultsModal`, `PromptJsonModal`, `Histo
 
 Pemutar `<video>` tidak bisa mengirim header `Authorization`, karena itu `/video` dikecualikan dari cek token. Gantinya:
 
-- `sig = HMAC_SHA256(token, path + "\n" + exp)`, `exp` = waktu kedaluwarsa (misalnya 6 jam).
-- `GET /video?path=…&exp=…&sig=…` menolak (403) bila tanda tangan salah, kedaluwarsa, atau path dilindungi `path_guard` (T0.19). Pemeriksaan path yang ada tetap berlaku.
+- `sig = HMAC_SHA256(kunci_video, path_kanonik)`. Tanpa waktu kedaluwarsa (keputusan pemilik 2026-11-18): link berlaku untuk satu file itu, selamanya, dan tidak bisa dipakai untuk file lain.
+- `kunci_video`: 32 byte acak, dibuat sekali dan disimpan di app data (`video_signing.key`, di Colab ikut ke Drive), sehingga link tetap berlaku setelah backend dijalankan ulang. File kunci masuk daftar terlindung `path_guard`. Menghapus file itu membatalkan semua link lama.
+- `GET /video?path=…&sig=…` menolak (403) bila tanda tangan salah atau path dilindungi `path_guard` (T0.19). Pemeriksaan path yang ada tetap berlaku.
 - Frontend tidak menyusun URL video sendiri: backend mengembalikan URL bertanda tangan di data klip, atau lewat `POST /video-url` untuk path lain (pratinjau sumber, unduhan dengan `dl=1`).
-- Berlaku di ketiga platform, termasuk desktop dan cloud. Catatan: kunci HMAC adalah token sesi, jadi URL lama tidak berlaku setelah backend dijalankan ulang; frontend meminta ulang saat 403.
+- Berlaku di ketiga platform, termasuk desktop dan cloud. Bila tetap mendapat 403 (misalnya kunci dihapus), frontend meminta URL baru sekali.
+- Konsekuensi yang diterima: link klip yang tersebar tetap bisa dibuka siapa pun yang memegangnya selama server dan alamatnya sama, tetapi hanya untuk klip itu.
 
 ### 4.6 Paket web lokal
 
@@ -134,12 +136,12 @@ Pemutar `<video>` tidak bisa mengirim header `Authorization`, karena itu `/video
 
 - Kegagalan menemukan backend per platform memakai kartu error SP0: desktop (sidecar tidak start, kode sekarang), local (server mati: "Jendela Auto Clipper sudah ditutup. Buka lagi 'Auto Clipper Web'."), cloud (alamat atau token salah: pesan `AuthGate` sekarang).
 - Token local hilang (tab ditutup lalu dibuka manual tanpa `#t=`): halaman meminta pengguna membuka ulang lewat peluncur, yang membuka tab baru dengan token.
-- 403 dari `/video` karena tanda tangan kedaluwarsa: frontend meminta URL baru sekali, lalu menampilkan kartu error bila tetap gagal.
+- 403 dari `/video`: frontend meminta URL baru sekali, lalu menampilkan kartu error bila tetap gagal.
 - Teks baru id + en, bahasa awam, mengikuti aturan "apa, kenapa, harus apa".
 
 ## 6. Pengujian
 
-- Backend (pytest): penyajian `/` dan `/assets/*` di mode web, token wajib di mode web (tanpa token → 401, dengan token → 200, UI tanpa token), tanda tangan video (benar, salah, kedaluwarsa, path dilindungi, `dl=1`), deteksi instance yang sudah berjalan, bind hanya `127.0.0.1`.
+- Backend (pytest): penyajian `/` dan `/assets/*` di mode web, token wajib di mode web (tanpa token → 401, dengan token → 200, UI tanpa token), tanda tangan video (benar, salah, tanda tangan file A dipakai untuk file B, path dilindungi, `dl=1`, tetap berlaku setelah restart, kunci dibuat sekali), deteksi instance yang sudah berjalan, bind hanya `127.0.0.1`.
 - Frontend (Vitest): pemilihan platform; `caps` per platform; adapter local membaca token dari `#t=` lalu menghapusnya dari alamat; adapter cloud memakai alamat dan token tersimpan; pemetaan aksi kartu error per platform; tidak ada import statis `@tauri-apps/*` di luar `src/platform/desktop` (uji yang memindai sumber, seperti uji thread di SP0).
 - CI: build desktop (Tauri), build cloud (`VITE_TARGET=cloud`), paket web lokal per OS, pytest, Vitest, oxlint.
 - Manual per platform: daftar cek di log kerja (pembuatan job URL dan file, hasil klip, simpan klip, buka folder, Pengaturan, cookies, kartu error, Riwayat, Rerender All).
@@ -165,5 +167,4 @@ Setiap langkah berakhir dengan tes hijau dan build ketiga platform yang sudah ad
 
 ## 9. Pertanyaan terbuka
 
-- Lama berlaku tanda tangan video (usul 6 jam) dan apakah perlu diperpanjang untuk unduhan besar.
 - Apakah macOS x64 (Intel) masih perlu paket terpisah atau cukup arm64.
