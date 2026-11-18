@@ -95,7 +95,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 - [ ] **T0.18 Kunci API tidak disimpan di riwayat** · keputusan pemilik 2026-11-18
   - `api_key` dan `pexels_api_key` tidak masuk metadata `history.db`; data lama dibersihkan; Resume memakai kunci yang dikirim aplikasi.
   - Selesai bila: uji membuktikan kunci tidak tersimpan dan Resume tetap jalan di desktop dan web.
-- [ ] **T0.19 `/save_file` dan `/video` tidak bisa membaca cookies dan database** · keputusan pemilik 2026-11-18 (no. 2)
+- [x] **T0.19 `/save_file` dan `/video` tidak bisa membaca cookies dan database** · merge `9eecd7b`, 653 tes lulus · keputusan pemilik 2026-11-18 (no. 2)
   - Folder cookies, `history.db` beserta snapshot dan file `-wal`/`-shm` ditolak; akses klip dan video yang sah tetap jalan.
   - Selesai bila: uji untuk setiap jalur yang ditolak dan yang tetap diizinkan.
 
@@ -108,6 +108,7 @@ Brainstorming dan spec terpisah dimulai setelah SP0 selesai. Arah awal, belum fi
 - [ ] T1.0 Brainstorm dan spec SP1 (satu paket UI dengan adapter Tauri/web lokal/Colab, atau `web/` sebagai satu-satunya frontend)
 - [ ] T1.x Backend menyajikan UI sendiri sehingga cukup satu perintah lalu buka `localhost`
 - [ ] T1.x Model token untuk akses localhost
+- [ ] T1.x `/video` dikecualikan dari cek token: siapa pun yang tahu URL tunnel Colab bisa mengambil `.mp4` apa pun di app data, work dir, atau folder kerja proses. Perlu token atau URL bertanda tangan untuk pemutar video. Juga tinjau `canvas_config.background_image_path` dan `output_dir` (path bebas ke FFmpeg dan tujuan tulis). Ditemukan T0.19, 2026-11-18.
 - [ ] T1.x Hapus duplikasi `src/` dan `web/`, samakan versi React
 
 ## SP2: Revamp UI/UX untuk orang awam, bebas AI slop (belum dimulai)

@@ -462,3 +462,9 @@ Pelaksanaan (2026-11-18): tiga agen (fable, effort high) bekerja paralel, masing
 - T0.18 di `C:\Users\dhima\projects\ac-t18`, branch `sp0/t0.18-no-keys-in-history`.
 - T0.19 di `C:\Users\dhima\projects\ac-t19`, branch `sp0/t0.19-protect-app-data`.
 Bila sesi terputus: `git -C ..\ac-t1X log --oneline -3` dan jalankan tes di tiap worktree, lalu review dan merge satu per satu (kemungkinan konflik kecil di `backend/errors.py` dan `backend/main.py`).
+
+### T0.19 di-merge (`9eecd7b`)
+
+- Modul baru `backend/path_guard.py` (`is_protected`, `is_within`, `denied`, `safe_upload_name`). Ditolak 403 "Access denied" sebelum cek keberadaan file: folder cookies dan salinan kerjanya, nama berawalan `history.db` (termasuk `-wal`/`-shm`/`-journal`, snapshot, `.part`), dan `backend_*.log`. Path di-`realpath`, prefiks perangkat Windows dibuang, dibandingkan huruf kecil.
+- Celah yang ternyata ada: `/upload` memakai nama file dari klien apa adanya, sehingga di Windows bisa menimpa `cookies.txt` atau menulis ke mana pun; `/save_file` tidak memeriksa tujuan dan memakai cek awalan string untuk sumber; `/video` menyajikan `.mp4` di folder cookies; `/api/thumbnails` dan `/api/extract-metadata` menerima path terlindung. Semua ditutup, 55 tes baru di `backend/tests/test_protected_paths.py` (41 gagal sebelum perbaikan). Invarian E.14 ditambahkan di `.agents/AGENTS.md`.
+- Belum ditutup, masuk backlog SP1: `/video` tidak memerlukan token; `canvas_config.background_image_path` dan `output_dir` menerima path bebas.
