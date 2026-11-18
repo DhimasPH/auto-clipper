@@ -36,7 +36,8 @@ METADATA_FILE = "metadata.json"
 
 _CLIP_FILE_KEYS = ("path", "custom_subtitle_path")
 _METADATA_FILE_KEYS = ("subtitle_path",)
-_SECRET_KEYS = ("api_key", "pexels_api_key")
+# Never written to disk: not in metadata.json, not in history.db (T0.18).
+SECRET_KEYS = ("api_key", "pexels_api_key")
 
 
 def get_work_dir() -> Optional[str]:
@@ -185,7 +186,7 @@ def publish(ws: dict, clips: list, metadata: dict, final: bool = False, job_id: 
                     "id": job_id,
                     "url": url,
                     "clips": clips,
-                    "metadata": {k: v for k, v in metadata.items() if k not in _SECRET_KEYS},
+                    "metadata": {k: v for k, v in metadata.items() if k not in SECRET_KEYS},
                 })
             except OSError as e:
                 log_error("workspace.publish_metadata", e)

@@ -274,9 +274,9 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         raise ValueError("Judul Proyek wajib diisi.")
     check_title_uniqueness(title)
     job_id = str(uuid.uuid4())
+    # No API keys here: metadata goes to history.db (T0.18). The job keeps them below.
     metadata = {
         "provider": provider,
-        "api_key": api_key,
         "custom_base_url": custom_base_url,
         "custom_model_name": custom_model_name,
         "whisper_model": whisper_model or "small",
@@ -294,7 +294,6 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "title": title,
         "enable_broll": enable_broll,
         "enable_hook": enable_hook,
-        "pexels_api_key": pexels_api_key,
         "max_clips": max_clips,
         "is_gaming_video": is_gaming_video,
         "raw_video": None,
@@ -376,7 +375,6 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         "title": title,
         "enable_broll": False,
         "enable_hook": enable_hook,
-        "pexels_api_key": "",
         "max_clips": 0,
         "is_gaming_video": is_gaming_video,
         "raw_video": None,
@@ -717,6 +715,9 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
             job_layout = None
 
     rendered_count = len(job.get("clips", []))
+    if job.get("enable_broll") and not job.get("pexels_api_key") and rendered_count < len(segments):
+        # A resumed job only has the Pexels key the app sent: history keeps no keys.
+        log_app(f"[{job_id}] B-roll dilewati: tidak ada kunci API Pexels untuk proses ini.")
 
     for i, seg in enumerate(segments):
         set_context(clip=i + 1)
@@ -1706,7 +1707,8 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     if metadata.get("highlights") and job.get("mode") == "ai":
         metadata["ai_job"] = True
         
-    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "enable_hook", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model", "canvas_config", "subtitle_config", "tracking_mode", "face_tracking_engine"]:
+    # API keys are not copied: history.db goes to Google Drive (T0.18).
+    for key in ["provider", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "enable_hook", "max_clips", "is_gaming_video", "whisper_model", "canvas_config", "subtitle_config", "tracking_mode", "face_tracking_engine"]:
         if key in job:
             metadata[key] = job[key]
 
@@ -1734,7 +1736,8 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
 
 
 @_serialized
-def resume_manual_job(history_id: str, json_payload: str) -> str:
+def resume_manual_job(history_id: str, json_payload: str, pexels_api_key: str = "") -> str:
+    """Render the highlights the user pasted. ``pexels_api_key`` comes from the app: history keeps no keys."""
     _reject_if_still_processing(history_id)
     if is_any_job_running():
         from fastapi import HTTPException
@@ -1766,7 +1769,7 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
         "whisper_model": hist_meta.get("whisper_model", "small"),
         "enable_broll": hist_meta.get("enable_broll", False),
         "enable_hook": hist_meta.get("enable_hook", False),
-        "pexels_api_key": hist_meta.get("pexels_api_key", ""),
+        "pexels_api_key": pexels_api_key or "",
         "max_clips": hist_meta.get("max_clips", 0),
         "is_gaming_video": hist_meta.get("is_gaming_video", False),
         "status": "PENDING",
@@ -1830,8 +1833,28 @@ def _run_manual_resume_job(job_id: str, parsed_highlights: list):
         _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)
 
+def _resume_needs_ai_key(provider: str, metadata: dict) -> bool:
+    """Whether resuming still calls an AI service that needs a key.
+
+    Stored highlights mean only rendering is left; the manual providers stop
+    at a prompt for the user; a custom server may run without a key.
+    """
+    if metadata.get("highlights"):
+        return False
+    return provider not in ("manual_ai", "manual", "custom")
+
+
+def _missing_key_error(provider: str) -> AppError:
+    return AppError("AI_KEY_MISSING", technical=f"No API key was sent to resume with provider '{provider}'.")
+
+
 @_serialized
-def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_provider: str = None, fallback_custom_base_url: str = None, fallback_custom_model_name: str = None, fallback_whisper_model: str = None, fallback_model: str = None) -> str:
+def create_resume_job(history_id: str, api_key: str = None, fallback_provider: str = None, fallback_custom_base_url: str = None, fallback_custom_model_name: str = None, fallback_whisper_model: str = None, fallback_model: str = None, pexels_api_key: str = None) -> str:
+    """Continue a failed job from what history kept.
+
+    The API keys come from the app with the request: history does not store
+    them (T0.18). Without ``pexels_api_key`` B-roll is skipped.
+    """
     _reject_if_still_processing(history_id)
     if is_any_job_running():
         from fastapi import HTTPException
@@ -1854,12 +1877,14 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         provider = hist_provider
     else:
         provider = "manual"
+    if not api_key and _resume_needs_ai_key(provider, hist_meta):
+        raise _missing_key_error(provider)  # before a job exists that could only fail
 
     active_jobs[job_id] = {
         "id": job_id,
         "url": hist["url"],
         "provider": provider,
-        "api_key": hist_meta.get("api_key") or fallback_api_key or "",
+        "api_key": api_key or "",
         "custom_base_url": hist_meta.get("custom_base_url") or fallback_custom_base_url or "",
         "custom_model_name": hist_meta.get("custom_model_name") or fallback_custom_model_name or "",
         "whisper_model": hist_meta.get("whisper_model") or fallback_whisper_model or "small",
@@ -1875,7 +1900,7 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "title": hist_meta.get("title", ""),
         "enable_broll": hist_meta.get("enable_broll", False),
         "enable_hook": hist_meta.get("enable_hook", False),
-        "pexels_api_key": hist_meta.get("pexels_api_key", ""),
+        "pexels_api_key": pexels_api_key or "",
         "max_clips": hist_meta.get("max_clips", 0),
         "is_gaming_video": hist_meta.get("is_gaming_video", False),
         "status": "QUEUED",
@@ -1994,7 +2019,7 @@ def _run_resume_job(job_id: str):
             _finalize_job(job_id, "AWAITING_MANUAL", metadata)
             return
         elif not job.get("api_key") and job["provider"] != "custom":
-            raise ValueError(f"API key untuk provider '{job['provider']}' tidak ditemukan. Harap sertakan API key untuk melanjutkan.")
+            raise _missing_key_error(job["provider"])
         elif has_subtitle:
             job["status"] = "TRANSCRIBING"
             log_app(f"[{job_id}] TRANSCRIBING (Resuming)")

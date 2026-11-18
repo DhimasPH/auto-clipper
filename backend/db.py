@@ -8,8 +8,8 @@ from contextlib import closing
 from datetime import datetime
 import sys
 from typing import Optional
-from backend.logger import log_error
-from backend.workspace import get_work_dir
+from backend.logger import log_app, log_error
+from backend.workspace import SECRET_KEYS, get_work_dir
 
 DB_NAME = "history.db"
 SNAPSHOT_MIN_INTERVAL = 5.0  # seconds between two snapshot writes
@@ -98,6 +98,50 @@ def _adopt_missing_jobs(local: str, other: str) -> None:
         conn.commit()
 
 
+# --- API keys are never kept in history (T0.18) ---------------------------------
+#
+# The database is copied to the library, which on Colab is Google Drive.
+
+def _without_secrets(metadata):
+    """The metadata as it may be stored: without API keys. The caller's dict is not changed."""
+    if isinstance(metadata, dict) and any(key in metadata for key in SECRET_KEYS):
+        return {k: v for k, v in metadata.items() if k not in SECRET_KEYS}
+    return metadata
+
+
+def _remove_secrets(conn: sqlite3.Connection) -> int:
+    """Remove the API keys that older versions stored in job metadata. Returns the number of jobs changed.
+
+    Cheap when there is nothing to remove: one text match over the metadata
+    column. After a change the file is rebuilt (VACUUM), so the old text does
+    not stay behind in free pages that the snapshot backup would copy along.
+    """
+    if "metadata" not in [col[1] for col in conn.execute("PRAGMA table_info(history)")]:
+        return 0
+    matches = " OR ".join("metadata LIKE ?" for _ in SECRET_KEYS)
+    rows = conn.execute(f"SELECT id, metadata FROM history WHERE {matches}", [f'%"{key}"%' for key in SECRET_KEYS]).fetchall()
+    changed = 0
+    for job_id, meta_json in rows:
+        try:
+            meta = json.loads(meta_json)
+        except ValueError:
+            continue
+        clean = _without_secrets(meta)
+        if clean is not meta:
+            conn.execute("UPDATE history SET metadata=? WHERE id=?", (json.dumps(clean), job_id))
+            changed += 1
+    conn.commit()
+    if changed:
+        conn.execute("VACUUM")
+        log_app(f"Removed stored API keys from {changed} job(s) in the history.")
+    return changed
+
+
+def _remove_secrets_from(path: str) -> int:
+    with closing(sqlite3.connect(path, timeout=30.0)) as conn:
+        return _remove_secrets(conn)
+
+
 class _Snapshot:
     """Keeps the library copy of one work-dir database up to date.
 
@@ -132,25 +176,30 @@ class _Snapshot:
             self._prepared = True
             had_local = os.path.isfile(self.local)
             try:
-                self._sync()
+                had_secrets = self._sync()
             except Exception as e:
                 log_error("db.restore", e)  # tried again before the first snapshot write
                 return
-        if had_local:
-            self.changed()  # the server restarted: the local database may be ahead of the snapshot
+        # After a server restart the local database may be ahead of the
+        # snapshot; a snapshot that held API keys must be replaced by a clean one.
+        if had_local or had_secrets:
+            self.changed()
 
-    def _sync(self) -> None:
+    def _sync(self) -> bool:
         """Restore a missing local database from the library copy, else add the jobs only that copy has.
 
         An existing local database wins: it has every write of this runtime,
-        while the snapshot can only lag behind it.
+        while the snapshot can only lag behind it. API keys in the library copy
+        are removed before anything is taken from it. True when it had some.
         """
         if not os.path.isfile(self.target):
-            return  # nothing there yet (Drive may be mounted later): looked at again before the first write
+            return False  # nothing there yet (Drive may be mounted later): looked at again before the first write
         incoming = _temp_name(self.local)
         _discard(incoming)
+        had_secrets = False
         try:
             if self._fetch(incoming):
+                had_secrets = _remove_secrets_from(incoming) > 0
                 if os.path.isfile(self.local):
                     _adopt_missing_jobs(self.local, incoming)
                 else:
@@ -158,6 +207,7 @@ class _Snapshot:
         finally:
             _discard(incoming)
         self._synced = True
+        return had_secrets
 
     def _fetch(self, incoming: str) -> bool:
         """Copy the library database to the local disk. False when that file is not a database."""
@@ -299,7 +349,15 @@ def init_db():
     conn = _connect()
     _create_schema(conn)
     conn.commit()
-    conn.close()
+    try:
+        had_secrets = _remove_secrets(conn) > 0
+    except Exception as e:
+        log_error("db.remove_secrets", e)  # tried again at the next start; the app still starts
+        had_secrets = False
+    finally:
+        conn.close()
+    if had_secrets:
+        _changed(final=True)  # do not leave the keys in the library copy until the next job
 
     fix_stuck_jobs()
 
@@ -332,7 +390,7 @@ def save_history(job_id: str, url: str, status: str, clips: list, metadata: dict
     cursor = conn.cursor()
     created_at = datetime.now().isoformat()
     clips_json = json.dumps(clips) if clips is not None else "[]"
-    meta_json = json.dumps(metadata) if metadata is not None else None
+    meta_json = json.dumps(_without_secrets(metadata)) if metadata is not None else None
     
     cursor.execute("SELECT id, result_clips, metadata FROM history WHERE id=?", (job_id,))
     existing = cursor.fetchone()

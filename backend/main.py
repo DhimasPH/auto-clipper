@@ -575,8 +575,22 @@ async def api_rerender_clip(job_id: str, clip_index: int, req: RerenderClipReque
 from pydantic import BaseModel
 from typing import Optional
 
+def _key(value: Optional[str]) -> str:
+    return (value or "").strip()
+
+
+def _resume_failed(e: Exception) -> JSONResponse:
+    from backend.errors import AppError
+    if isinstance(e, AppError):
+        info = e.to_dict()
+        return JSONResponse(status_code=400, content={"status": "error", "message": info["message"], "error_info": info})
+    return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
+# The keys come with every resume: history does not store them (T0.18).
 class ResumeJobRequest(BaseModel):
     api_key: Optional[str] = None
+    pexels_api_key: Optional[str] = None
     provider: Optional[str] = None
     custom_base_url: Optional[str] = None
     custom_model_name: Optional[str] = None
@@ -589,28 +603,30 @@ def api_resume_job(job_id: str, req: ResumeJobRequest):
         from backend.jobs import create_resume_job
         new_job_id = create_resume_job(
             job_id,
-            fallback_api_key=req.api_key,
+            api_key=_key(req.api_key),
             fallback_provider=req.provider,
             fallback_custom_base_url=req.custom_base_url,
             fallback_custom_model_name=req.custom_model_name,
             fallback_whisper_model=req.whisper_model,
-            fallback_model=req.model
+            fallback_model=req.model,
+            pexels_api_key=_key(req.pexels_api_key),
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+        return _resume_failed(e)
 
 class ResumeManualJobRequest(BaseModel):
     json_payload: str
+    pexels_api_key: Optional[str] = None
 
 @app.post("/jobs/{job_id}/resume-manual")
 def api_resume_manual_job(job_id: str, req: ResumeManualJobRequest):
     try:
         from backend.jobs import resume_manual_job
-        new_job_id = resume_manual_job(job_id, req.json_payload)
+        new_job_id = resume_manual_job(job_id, req.json_payload, pexels_api_key=_key(req.pexels_api_key))
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+        return _resume_failed(e)
 
 SUPPORTED_URL_RE = re.compile(
     r'^(https?://)?(www\.|m\.)?'
