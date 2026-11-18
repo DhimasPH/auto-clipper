@@ -415,3 +415,18 @@ Catatan: klip 9 memakai crop statis di tengah (`iw*0.5`), kemungkinan wajah tida
 
 - Pemilik mencoba "Rerender All" di web untuk mengukur ulang T0.16: 422 `body.url Field required`. Penyebab: `POST /jobs/{id}/rerender` memakai `CreateJobRequest` yang mewajibkan `url`. Desktop mengakali dengan `url: "dummy"` (`src/hooks/useClipJobs.ts:321`), web tidak mengirimnya, jadi Rerender All di web tidak pernah berfungsi. Perbaikan: `RerenderJobRequest` dengan `url` opsional, uji `test_rerender_all_does_not_need_a_url` (gagal sebelum perbaikan). Tes 593 lulus + 6 dilewati.
 - Temuan terkait, belum diperbaiki: web memanggil `/jobs/{id}/rerun-ai` (tanda hubung), backend `/jobs/{id}/rerun_ai` (garis bawah), lalu fallback ke `/api/jobs/{id}/rerun-ai` yang juga tidak ada. "AI ulang" dari web kemungkinan 404. `rerun_ai` juga memakai `CreateJobRequest` (wajib `url`). Endpoint rerender juga tidak meneruskan `face_tracking_engine` ke `create_rerender_job` (selalu Haar).
+
+---
+
+## 2026-11-18 · T0.16 terukur di Colab; "Rerender All" web berfungsi
+
+- Pemilik menjalankan "Rerender All" proyek tirtapengpengpeng di web (versi `4f440b7`), job `91c1eeae` `DONE`, 10 klip di Drive. Perbaikan 422 terbukti.
+- Tracking 10 klip: 786,4 → 271,0 dtk (2,9×; per klip 2,8–3,0×), 0,33 × panjang klip. Render NVENC tetap ~298 dtk. Fase klip 18:04 → 9:33. Perkiraan job penuh 20,4 → ~11,9 menit. Rinciannya di spec bagian 7. Waktu yang turun tiga kali lipat menunjukkan jalur FFmpeg dipakai di FFmpeg apt Colab; `backend_error.log` belum diperiksa untuk `ffmpeg_fallback`.
+- Posisi x awal trajektori sedikit berbeda dari job pertama (misalnya klip 1: 0,4477 → 0,4469), sesuai perbedaan frame seri/≤1 frame yang sudah diuji.
+- T0.16 `[x]`.
+
+Sisa SP0 (semua butuh pemilik):
+1. T0.12: cek manual tampilan di kedua frontend (daftar di entri 2026-11-17).
+2. T0.13: satu kali jalan notebook di runtime baru dari awal, plus daftar cek 5 (`history.db` di `/content/work`), 7 (job kedua menunggu giliran), 8 (hapus runtime lalu sambung lagi).
+3. Keputusan terbuka 1–13 dan temuan baru (`rerun-ai` vs `rerun_ai` di web, `face_tracking_engine` tidak diteruskan saat rerender).
+4. Lalu PR `feat/sp0-pipeline-stability` → `main`.

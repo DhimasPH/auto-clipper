@@ -138,6 +138,16 @@ Diukur pemilik di Google Colab T4, 2026-11-18, video YouTube sekitar 30 menit, W
 
 Pembagian waktu mesin sesudah: tracking wajah 64,1 %, render 23,9 %, unduh + audio + transkripsi 11,9 %.
 
+**Sesudah T0.16** (pelacakan satu-kali-baca, `4f440b7`, "Rerender All" proyek yang sama di Colab T4, 2026-11-18):
+
+| Tahap | Sesudah A | Sesudah T0.16 |
+|---|---|---|
+| Tracking wajah, 10 klip | 786,4 dtk (0,96 × panjang klip) | 271,0 dtk (0,33 × panjang klip), 2,8–3,0× lebih cepat di setiap klip |
+| Render, 10 klip (NVENC) | 293,3 dtk | 298,1 dtk |
+| Fase klip (tracking + render + publish) | 18 mnt 4 dtk | 9 mnt 33 dtk |
+
+Perkiraan total waktu mesin satu job penuh: 20,4 → sekitar 11,9 menit. Tracking kini 38 % dan render 42 %. RAM puncak rerender 0,76 GB (tidak sebanding dengan job penuh, karena model Whisper tidak dimuat di proses rerender).
+
 Keputusan gerbang: jika sesudah A tracking wajah masih mendominasi waktu, pendekatan B dijadwalkan. Jika tidak, B dipindah ke SP3 sebagai optimasi opsional.
 
 **Keputusan (2026-11-18, disetujui pemilik):** tracking wajah 64 % dari waktu mesin dan sekitar 0,96 × panjang klip, sedangkan transkripsi dan render sudah di GPU. Pendekatan B dijadwalkan di SP0 sebagai T0.16. Penyebab yang diduga adalah F3 (lompatan `POS_MSEC` per sampel men-decode ulang dari keyframe). Proxy 720p (pendekatan C) belum perlu.
