@@ -4,7 +4,7 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file in
 
 ## [1.18.0] - 2026-11-18
 
-Rilis SP0 (pipeline andal). Belum ada pengukuran kecepatan sebelum dan sesudah perubahan ini, jadi tidak ada klaim "lebih cepat" di bawah. Versi 1.17.2 sampai 1.17.4 tidak tercatat di file ini.
+Rilis SP0 (pipeline andal). Diukur di Google Colab T4 dengan video YouTube 30 menit dan 10 klip: sebelumnya job ini tidak selesai (unduhan ditolak YouTube, subtitle jatuh ke prosesor), sekarang selesai dalam sekitar 12 menit waktu mesin. Angka per tahap ada di `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md` bagian 7. Versi 1.17.2 sampai 1.17.4 tidak tercatat di file ini.
 
 ### Added
 - **Kartu Error yang Bisa Ditindaklanjuti**: Kegagalan kini tampil sebagai kartu berisi judul dan penjelasan dalam bahasa awam (Indonesia dan Inggris) beserta tombol aksi, misalnya **Unggah cookies.txt**, **Pilih video dari Google Drive** (web), **Lanjutkan**, atau **Buka Pengaturan** (desktop). Pesan asli error tersimpan di **Detail teknis** yang tertutup secara bawaan, lengkap dengan tombol **Salin**. Berlaku di aplikasi desktop dan Web UI.
@@ -14,7 +14,8 @@ Rilis SP0 (pipeline andal). Belum ada pengukuran kecepatan sebelum dan sesudah p
 - **Pemeriksaan Awal (Preflight)**: Backend memeriksa FFmpeg, ruang disk, memori, GPU, encoder GPU, Google Drive, Deno, dan umur pengunduh video (`GET /api/preflight`). FFmpeg yang hilang atau disk yang hampir penuh menghentikan job sebelum mulai dengan pesan jelas.
 - **Halaman Pengaturan di Web UI** (`/settings`): Berisi panel Cookies YouTube dan pilihan bahasa untuk pesan error, panduan cookies, dan detail waktu.
 - **Notebook Colab**: Memasang Deno (dengan skrip pemasangan resmi; bila gagal, notebook memberi tahu lalu tetap lanjut) dan menampilkan **Pemeriksaan awal** dalam bahasa Indonesia sebelum server menyala (`scripts/colab_preflight.py`).
-- **Skrip Benchmark** (`scripts/benchmark_pipeline.py`): Menjalankan satu video lewat pipeline asli lalu mencetak tabel waktu dan memori per tahap.
+- **Skrip Benchmark** (`scripts/benchmark_pipeline.py`): Menjalankan satu video lewat pipeline asli lalu mencetak tabel waktu dan memori per tahap. `scripts/benchmark_face_tracking.py` membandingkan cara baca pelacakan wajah lama dan baru pada satu video.
+- **Pilihan Versi di Notebook Colab**: Langkah 3 punya kolom `BRANCH` (bawaan `main`) untuk mencoba versi yang belum dirilis, dan menampilkan versi yang benar-benar dipakai.
 
 ### Changed
 - **Disk Kerja Lokal di Colab**: Notebook kini menjalankan backend dengan `AUTO_CLIPPER_WORK_DIR=/content/work`. Video sumber, audio, dan render dikerjakan di disk lokal Colab, lalu setiap klip yang selesai beserta file subtitle disalin ke Google Drive dengan cara aman (nama sementara lalu rename, sehingga tidak pernah ada klip setengah jadi di Drive). Video sumber tidak lagi disimpan di Drive. Tanpa `AUTO_CLIPPER_WORK_DIR` (aplikasi desktop) perilakunya tidak berubah.
@@ -23,6 +24,10 @@ Rilis SP0 (pipeline andal). Belum ada pengukuran kecepatan sebelum dan sesudah p
 - **Kualitas Unduhan Bawaan**: Pilihan "terbaik" kini berarti H.264 MP4 hingga 1080p (label "Otomatis (hingga 1080p)"), bukan AV1/VP9 hingga 4K yang berat di-decode. Resolusi 1440p dan 2160p tetap bisa dipilih.
 - **Strategi Pengunduh YouTube**: yt-dlp mencoba pilihan client bawaannya, lalu `web_embedded`, lalu `android_vr`, masing-masing sekali. Bila Deno terpasang, yt-dlp memakainya untuk tantangan JavaScript YouTube beserta komponen EJS dari GitHub. Error yang tidak bisa ditolong client lain (video tidak tersedia, rate limit, disk penuh, verifikasi saat cookies sudah dipakai) langsung dihentikan.
 - **Notebook Colab Lebih Jujur**: Notebook tidak lagi mengklaim render NVENC. FFmpeg dari Ubuntu dipakai apa adanya; render memakai GPU hanya bila runtime menyediakannya, dan hasilnya terlihat di Pemeriksaan awal.
+- **Pelacakan Wajah Satu Kali Baca**: Pelacakan wajah tidak lagi melompat ke setiap titik sampel di video (yang memaksa video di-decode ulang dari keyframe tiap 0,5 detik). Potongan klip dibaca sekali secara berurutan lewat FFmpeg. Hasil pelacakan sama; di Colab T4 waktunya turun dari 0,96 menjadi 0,33 kali panjang klip (10 klip: 13,1 menjadi 4,5 menit). Bila FFmpeg gagal, cara lama dipakai dan alasannya dicatat.
+- **Google Drive Wajib Terhubung di Colab**: Bila server dijalankan sebelum Langkah 1, setiap job ditolak dengan pesan "Google Drive belum terhubung" dan backend tidak membuat folder apa pun di `/content/drive` (folder itu membuat Langkah 1 gagal). Sebelumnya job tetap jalan dan klip hilang saat sesi berakhir.
+- **Kunci API Tidak Disimpan di Riwayat**: Kunci OpenAI/Gemini dan Pexels tidak lagi masuk `history.db` (yang dicadangkan ke Drive); data lama dibersihkan saat aplikasi dibuka. Lanjutkan memakai kunci dari Pengaturan; bila kunci yang dibutuhkan kosong, muncul kartu "API key belum diisi".
+- **FFmpeg Aplikasi Desktop Windows**: Installer kini membawa FFmpeg 6.1 (sebelumnya build 2018 yang encoder NVIDIA-nya tidak bisa dipakai dengan driver sekarang), sehingga render bisa memakai kartu grafis NVIDIA.
 - **Dokumentasi**: `docs/panduan-penggunaan-awam.md` dan `docs/tutorial-auto-clipper-cloud.md` diperbarui (verifikasi YouTube dan cookies, disk kerja sementara, apa yang aman saat sesi Colab mati, arti "Menunggu giliran", letak Detail waktu dan Detail teknis). ADR-012 mencatat keputusan arsitektur SP0.
 
 ### Fixed
@@ -32,6 +37,12 @@ Rilis SP0 (pipeline andal). Belum ada pengukuran kecepatan sebelum dan sesudah p
 - **Fallback GPU yang Diam-Diam**: Transkripsi yang jatuh ke CPU dan render yang jatuh ke `libx264` kini terlihat di Pemeriksaan awal dan Detail waktu.
 - **Job Paralel yang Menghabiskan RAM**: Dua job (atau dua klik Lanjutkan) tidak lagi menjalankan dua transkripsi atau dua render bersamaan.
 - **Penghalusan Gerak Kamera**: `smooth_trajectory`, `apply_deadband_filter`, dan `build_dynamic_crop_filter` kini menerima titik `(waktu, x, lebar wajah)` yang memang dihasilkan pelacak wajah.
+- **Subtitle di Colab Jatuh ke Prosesor**: Backend mencari pustaka GPU Whisper (cuBLAS/cuDNN CUDA 12) dengan cara yang gagal di Colab bertorch CUDA 13, sehingga subtitle memakai prosesor (lebih dari 24 menit untuk video 30 menit, lalu dihentikan). Kini ditemukan dengan benar (2 menit di GPU). Pemeriksaan awal memperingatkan "Subtitle memakai prosesor" bila pustakanya tetap tidak bisa dimuat.
+- **Render GPU di T4 Tidak Pernah Dipakai**: Uji encoder NVIDIA memakai gambar 128×128, yang ditolak GPU generasi Turing. Kini 256×256, dan render di Colab memakai GPU.
+- **Rerender All di Web**: Selalu gagal dengan error 422 karena backend mewajibkan URL video. Kini berfungsi.
+- **Mode Pelacakan Wajah saat Rerender**: Rerender dan AI Koreksi selalu memakai mode standar; kini memakai mode proyek aslinya.
+- **Antrean yang Tidak Pernah Dipakai**: Job kedua selalu ditolak "Ada proses lain yang sedang berjalan" sebelum sampai ke antrean; kini menunggu giliran.
+- **File Privat Bisa Diakses lewat Endpoint**: `/upload` (nama file dari pengirim), `/save_file`, `/video`, `/api/thumbnails`, dan `/api/extract-metadata` bisa membaca atau menimpa `cookies.txt`, `history.db`, dan log. Kini ditolak.
 
 ## [1.17.1] - 2026-10-01
 
