@@ -31,7 +31,7 @@ Langkah ini dilakukan di laptop/komputer.
 2. Buka *file* bernama `Auto_Clipper_Colab.ipynb` dari repository kode yang Anda punya.
 3. **Sangat Penting:** Klik menu **Runtime** (di atas) -> **Change runtime type**. Pastikan *Hardware accelerator* terpilih **T4 GPU**. Tanpa GPU, pembuatan subtitle berjalan jauh lebih lambat.
 4. Klik tombol **Play (▶️)** di sebelah kiri kotak-kotak kodenya secara berurutan:
-   - **Kotak 1:** Untuk menyambungkan ke Google Drive (klik izinkan saat muncul peringatan).
+   - **Kotak 1:** Untuk menyambungkan ke Google Drive (klik izinkan saat muncul peringatan). Jalankan kotak ini sebelum Kotak 4. Kalau terlewat, server tetap menyala tetapi tidak mau memproses video.
    - **Kotak 2 & 3:** Untuk menginstal mesin dan peralatannya. Tunggu sampai selesai (ada centang hijau ✅).
      - Kotak 2 juga memasang **Deno**, program kecil yang membantu pengunduh video menjawab pemeriksaan dari YouTube. Kalau di bawah kotak muncul tulisan `PERHATIAN: Deno tidak berhasil dipasang`, klik Play sekali lagi. Kalau tetap gagal, lanjutkan saja: aplikasi tetap jalan, hanya saja video YouTube lebih sering gagal diunduh.
 
@@ -66,7 +66,7 @@ Yang paling sering muncul:
 |---|---|---|
 | GPU tidak aktif | Mesin tidak mendapat GPU, subtitle dibuat jauh lebih lambat. | Ganti runtime ke **T4 GPU** (Langkah 1 nomor 3), lalu jalankan ulang semua kotak. |
 | Render memakai prosesor | Klip dirender dengan prosesor biasa, bukan kartu grafis. | Tidak perlu apa-apa. Lebih lambat, tetapi klip tetap jadi. |
-| Google Drive belum terhubung | Klip tidak tersimpan ke Drive dan hilang saat sesi selesai. | Jalankan Kotak 1 lagi, lalu jalankan ulang Kotak 4. |
+| Google Drive belum terhubung (`[MASALAH]`) | Kotak 4 dijalankan sebelum Kotak 1. Tanpa Drive klip akan hilang saat sesi selesai, jadi video tidak diproses sama sekali. | Hentikan Kotak 4 (tombol stop di kotaknya), jalankan Kotak 1, lalu jalankan lagi Kotak 4. Kalau Kotak 1 gagal karena foldernya sudah berisi file, buka menu **Runtime** -> **Disconnect and delete runtime**, lalu jalankan semua kotak dari awal. |
 | Pembantu unduhan YouTube belum terpasang | Deno tidak ada, jadi video YouTube lebih sering gagal diunduh. | Jalankan Kotak 2 lagi, lalu jalankan ulang Kotak 4. |
 | Pengunduh video perlu diperbarui | Pengunduh video sudah lama, makin sering gagal. | Jalankan Kotak 3 lagi, lalu jalankan ulang Kotak 4. |
 

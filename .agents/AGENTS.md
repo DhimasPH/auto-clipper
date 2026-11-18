@@ -70,6 +70,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 11. **Snapshot `history.db`**: Hanya `backend/db.py` yang tahu soal snapshot. Status akhir job ditulis ke snapshot sebelum `save_history` kembali; perubahan lain dibatasi sekali per 5 detik. Jangan menulis langsung ke `<pustaka>/history.db` saat work dir aktif.
 12. **Error Terstruktur**: Kegagalan yang bisa ditindaklanjuti pengguna **WAJIB** dilempar/dicatat sebagai `AppError(code, technical=...)` dari `backend/errors.py`. Kode baru wajib punya `title`/`message` (id) dan `title_en`/`message_en` (en) berbahasa awam (apa, kenapa, harus apa) dan aksi dari `_ACTIONS`. Teks mentah hanya di `technical`. Frontend hanya merender `error_info` lewat `ErrorCard`, tidak menulis teks error sendiri.
 13. **Cookies Tidak Pernah Bocor**: Isi `cookies.txt` tidak boleh masuk log, pesan error, atau respons API. yt-dlp hanya menerima salinan kerja dari `cookies.ytdlp_cookiefile()`, tidak pernah file yang tersimpan.
+14. **Drive Colab Belum Ter-mount (T0.17)**: Bila mode cloud aktif dan pustaka ada di bawah `/content/drive` yang belum menjadi titik mount, backend **tidak boleh** membuat apa pun di bawah `/content/drive` (Colab menolak `drive.mount` ke folder yang sudah berisi file). `get_app_data_dir()`, `get_work_dir()`, `copy_atomic` dan snapshot memanggil `drive_mount.refuse_unmounted()` (melempar `AppError("DRIVE_NOT_MOUNTED")`), preflight `drive` bernilai `block`, dan log serta `history.db` ditulis ke `drive_mount.local_dir()` (work dir). Folder baru yang mungkin berada di pustaka wajib lewat jalur yang sama.
 
 ### F. Frontend, i18n & OS Integration (ADR-004, v1.7.0)
 1. Seluruh teks antarmuka **HARUS** mendukung multi-bahasa melalui `src/locales/id.json` dan `src/locales/en.json` (menggunakan library i18n).
@@ -109,6 +110,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `backend/errors.py`: `AppError`, katalog `ERROR_CODES` (id/en), `classify_download_error`, `to_app_error`.
 - `backend/job_queue.py`: Antrean FIFO job berat (`AUTO_CLIPPER_MAX_HEAVY_JOBS`).
 - `backend/preflight.py`: Pengecekan awal (`run_preflight`, `blocking_error`) di balik `GET /api/preflight`.
+- `backend/drive_mount.py`: Aturan Drive Colab yang belum ter-mount (`refuse_unmounted`, `library_unavailable`, `local_dir`).
 - `backend/stage_timer.py`: Waktu dan RAM puncak per tahap ke `metadata["timings"]`.
 - `backend/cookies.py`: Validasi, penyimpanan, status, dan salinan kerja `cookies.txt` untuk yt-dlp.
 - `backend/video_utils.py`: Unduhan yt-dlp (urutan client, cookies, Deno/EJS, format), ekstraksi audio.
