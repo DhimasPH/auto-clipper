@@ -340,24 +340,117 @@ def test_sample_face_trajectory_rejects_outlier():
 
 # --- sample_face_trajectory: engines, fallback and cleanup -------------------
 
+import io
+import math
+import subprocess
 import sys
 import types
+from contextlib import contextmanager
 
 import numpy as np
 import pytest
 
+FFMPEG_FALLBACK = "crop_utils.sample_face_trajectory_ffmpeg_fallback"
 
-def _capture(frames=None, width=640, height=360):
+
+def _capture(frames=None, width=640, height=360, fps=25.0):
     """A cv2.VideoCapture stand-in that hands out black frames."""
     cap = MagicMock()
     cap.isOpened.return_value = True
-    props = {5: 25.0, 7: 250, 3: width, 4: height}  # FPS, FRAME_COUNT, WIDTH, HEIGHT
+    props = {5: fps, 7: 250, 3: width, 4: height}  # FPS, FRAME_COUNT, WIDTH, HEIGHT
     cap.get.side_effect = lambda prop: props.get(prop, 0)
     if frames is None:
         cap.read.side_effect = lambda: (True, np.zeros((height, width, 3), dtype=np.uint8))
     else:
         cap.read.side_effect = frames
     return cap
+
+
+class _Pipe(io.BytesIO):
+    """A pipe end that remembers how far it was read before being closed."""
+
+    def __init__(self, data=b"", fail_at=None):
+        super().__init__(data)
+        self.read_until = 0
+        self._fail_at = fail_at
+
+    def readinto(self, buffer):
+        if self._fail_at is not None and self.tell() >= self._fail_at:
+            raise self._fail_with
+        n = super().readinto(buffer)
+        self.read_until = self.tell()
+        return n
+
+    def close(self):
+        if not self.closed:
+            self.read_until = self.tell()
+        super().close()
+
+
+class _FakeFfmpeg:
+    """A subprocess.Popen stand-in for the tracking FFmpeg process.
+
+    Streams raw BGR frames on stdout, then exits with ``returncode``. Unless
+    ``frames`` is given it sends exactly as many black frames as ``-frames:v``
+    asks for, like the real process.
+    """
+
+    def __init__(self, cmd, frames=None, returncode=0, stderr=b"", stdout=None, read_error=None, read_error_at=0):
+        self.cmd = cmd
+        if stdout is None:
+            if frames is None:
+                w, h = _scale_size(cmd)
+                count = int(cmd[cmd.index("-frames:v") + 1])
+                frames = [np.zeros((h, w, 3), dtype=np.uint8)] * count
+            stdout = b"".join(np.ascontiguousarray(f).tobytes() for f in frames)
+        self.stdout = _Pipe(stdout, fail_at=read_error_at if read_error else None)
+        if read_error:
+            self.stdout._fail_with = read_error
+        self.stderr = _Pipe(stderr)
+        self._exit_code = returncode
+        self.returncode = None
+        self.killed = False
+        self.waited = False
+
+    def poll(self):
+        return self.returncode
+
+    def wait(self, timeout=None):
+        self.waited = True
+        if self.returncode is None:
+            self.returncode = self._exit_code
+        return self.returncode
+
+    def kill(self):
+        self.killed = True
+        if self.returncode is None:
+            self.returncode = -9
+
+    terminate = kill
+
+    def frames_read(self, width=640, height=360):
+        return self.stdout.read_until // (width * height * 3)
+
+
+def _scale_size(cmd):
+    vf = cmd[cmd.index("-vf") + 1]
+    m = re.search(r"scale=(\d+):(\d+)", vf)
+    return int(m.group(1)), int(m.group(2))
+
+
+@contextmanager
+def _ffmpeg_streams(**fake_kwargs):
+    """Make sample_face_trajectory find FFmpeg and get a _FakeFfmpeg process."""
+    procs = []
+
+    def popen(cmd, **kwargs):
+        proc = _FakeFfmpeg(cmd, **fake_kwargs)
+        procs.append(proc)
+        return proc
+
+    with patch("backend.crop_utils._ffmpeg_executable", return_value="ffmpeg"), \
+         patch("backend.crop_utils.subprocess.Popen", side_effect=popen):
+        yield procs
 
 
 def _cascade(boxes):
@@ -389,16 +482,22 @@ def _one_face(cx):
     return lambda rgb: types.SimpleNamespace(multi_face_landmarks=[_landmarks(cx)])
 
 
+def _logged_contexts(mock_log):
+    return [c.args[0] for c in mock_log.call_args_list]
+
+
 def test_haar_trajectory_follows_the_largest_face():
     from backend.crop_utils import sample_face_trajectory
     cap = _capture()
     # 640-wide frame: box x=352..416 -> centre 0.6, width 0.1
-    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
          patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(10, 10, 20, 20), (352, 100, 64, 64)])):
         traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar")
 
     assert traj == [(0.0, 0.6, 0.1), (0.5, 0.6, 0.1), (1.0, 0.6, 0.1)]
-    assert cap.read.call_count == 3
+    assert len(procs) == 1 and procs[0].frames_read() == 3
+    cap.read.assert_not_called()
     cap.release.assert_called_once()
 
 
@@ -406,7 +505,8 @@ def test_mediapipe_trajectory_follows_the_face():
     from backend.crop_utils import sample_face_trajectory
     cap = _capture()
     mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.6))
-    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
          patch.dict(sys.modules, {"mediapipe": mp}):
         traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="mediapipe")
 
@@ -414,14 +514,16 @@ def test_mediapipe_trajectory_follows_the_face():
     for _, x, w in traj:
         assert x == pytest.approx(0.6)
         assert w == pytest.approx(0.2)
-    assert cap.read.call_count == 3
+    assert procs[0].frames_read() == 3
+    assert mesh.process.call_count == 3
 
 
 def test_face_mesh_is_created_once_and_closed_after_success():
     from backend.crop_utils import sample_face_trajectory
     mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.5))
     info = {}
-    with patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
+    with _ffmpeg_streams(), \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
          patch.dict(sys.modules, {"mediapipe": mp}):
         sample_face_trajectory("v.mp4", 0.0, 2.0, interval=0.5, engine="mediapipe", info=info)
 
@@ -439,7 +541,8 @@ def test_face_mesh_is_closed_when_mediapipe_raises_and_the_reason_is_logged():
     mp, face_mesh_cls, mesh = _fake_mediapipe(process)
     cap = _capture()
     info = {}
-    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+    with _ffmpeg_streams(), \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
          patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
          patch("backend.crop_utils.log_error") as mock_log, \
          patch.dict(sys.modules, {"mediapipe": mp}):
@@ -466,14 +569,16 @@ def test_frames_read_before_a_mediapipe_failure_are_not_read_again():
 
     mp, face_mesh_cls, mesh = _fake_mediapipe(process)
     cap = _capture()
-    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
          patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
          patch("backend.crop_utils.log_error"), \
          patch.dict(sys.modules, {"mediapipe": mp}):
         traj = sample_face_trajectory("v.mp4", 0.0, 2.0, interval=0.5, engine="mediapipe")
 
     # 5 samples, each frame decoded exactly once even though the engine changed at sample 3
-    assert cap.read.call_count == 5
+    assert len(procs) == 1 and procs[0].frames_read() == 5
+    cap.read.assert_not_called()
     assert [t for t, _, _ in traj] == [0.0, 0.5, 1.0, 1.5, 2.0]
     for _, x, _ in traj:
         assert x == pytest.approx(0.6)
@@ -485,7 +590,8 @@ def test_missing_mediapipe_solutions_falls_back_with_a_logged_reason():
     mp_without_solutions = types.SimpleNamespace(tasks=object())
     cap = _capture()
     info = {}
-    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
          patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
          patch("backend.crop_utils.log_error") as mock_log, \
          patch.dict(sys.modules, {"mediapipe": mp_without_solutions}):
@@ -494,7 +600,7 @@ def test_missing_mediapipe_solutions_falls_back_with_a_logged_reason():
     assert mock_log.call_count == 1
     assert info["engine_used"] == "haar"
     assert "solutions" in info["fallback_reason"]
-    assert cap.read.call_count == 3
+    assert procs[0].frames_read() == 3
     assert len(traj) == 3
 
 
@@ -502,7 +608,8 @@ def test_haar_engine_does_not_touch_mediapipe_or_log_a_fallback():
     from backend.crop_utils import sample_face_trajectory
     mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.5))
     info = {}
-    with patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
+    with _ffmpeg_streams(), \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
          patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([])), \
          patch("backend.crop_utils.log_error") as mock_log, \
          patch.dict(sys.modules, {"mediapipe": mp}):
@@ -513,12 +620,31 @@ def test_haar_engine_does_not_touch_mediapipe_or_log_a_fallback():
     assert info == {"engine_used": "haar"}
 
 
-def test_face_mesh_and_capture_are_released_when_reading_frames_crashes():
+def test_face_mesh_capture_and_ffmpeg_are_released_when_reading_frames_crashes():
+    from backend.crop_utils import sample_face_trajectory
+    mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.5))
+    cap = _capture()
+    frame_size = 640 * 360 * 3
+    with _ffmpeg_streams(read_error=MemoryError("pipe buffer ran out of memory"), read_error_at=frame_size) as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch.dict(sys.modules, {"mediapipe": mp}):
+        with pytest.raises(MemoryError):
+            sample_face_trajectory("v.mp4", 0.0, 2.0, interval=0.5, engine="mediapipe")
+
+    mesh.close.assert_called_once()
+    cap.release.assert_called_once()
+    assert procs[0].killed and procs[0].waited
+    assert procs[0].stdout.closed and procs[0].stderr.closed
+
+
+def test_face_mesh_and_capture_are_released_when_seek_reading_crashes():
     from backend.crop_utils import sample_face_trajectory
     mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.5))
     frame = np.zeros((360, 640, 3), dtype=np.uint8)
     cap = _capture(frames=[(True, frame), MemoryError("decoder ran out of memory")])
-    with patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+    with patch("backend.crop_utils._ffmpeg_executable", return_value=None), \
+         patch("backend.crop_utils.log_error"), \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
          patch.dict(sys.modules, {"mediapipe": mp}):
         with pytest.raises(MemoryError):
             sample_face_trajectory("v.mp4", 0.0, 2.0, interval=0.5, engine="mediapipe")
@@ -530,12 +656,429 @@ def test_face_mesh_and_capture_are_released_when_reading_frames_crashes():
 def test_face_mesh_is_closed_when_tracking_is_cancelled():
     from backend.crop_utils import sample_face_trajectory
     mp, face_mesh_cls, mesh = _fake_mediapipe(_one_face(0.5))
-    with patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
          patch.dict(sys.modules, {"mediapipe": mp}):
         traj = sample_face_trajectory("v.mp4", 0.0, 2.0, interval=0.5, engine="mediapipe", should_cancel=lambda: True)
 
     mesh.close.assert_called_once()
     assert traj == [(0.0, 0.5, 0.16)]
+    for proc in procs:
+        assert proc.frames_read() == 0
+        assert proc.waited and proc.stdout.closed
+
+
+# --- sample_face_trajectory: one sequential FFmpeg read (T0.16) --------------
+
+def _old_offsets(start, end, interval):
+    """The sample offsets the seek-per-sample implementation used."""
+    duration = max(0.1, end - start)
+    num_samples = max(2, int(duration / interval) + 1)
+    return [min(duration, i * interval) for i in range(num_samples)]
+
+
+@pytest.mark.parametrize("start,end,interval", [
+    (0.0, 1.0, 0.5),
+    (12.3, 72.3, 0.5),
+    (3.37, 10.0, 0.5),
+    (2.0, 2.3, 0.5),      # shorter than one interval: two samples, the last at the clip end
+    (5.0, 5.0, 0.5),      # zero-length window becomes 0.1 s
+    (0.98, 9.7, 0.7),
+    (100.0, 130.0, 0.25),
+])
+def test_ffmpeg_path_reports_the_same_sample_times_as_the_seek_path(start, end, interval):
+    from backend.crop_utils import sample_face_trajectory
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture(width=64, height=36)), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([])):
+        traj = sample_face_trajectory("v.mp4", start, end, interval=interval, engine="haar")
+
+    expected = _old_offsets(start, end, interval)
+    assert [t for t, _, _ in traj] == expected
+    cmd = procs[0].cmd
+    assert int(cmd[cmd.index("-frames:v") + 1]) == len(expected)
+    assert procs[0].frames_read(64, 36) == len(expected)
+
+
+def test_ffmpeg_command_seeks_before_input_and_scales_to_640_wide():
+    from backend.crop_utils import sample_face_trajectory
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture(width=1920, height=1080, fps=30.0)), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([])):
+        sample_face_trajectory("clip source.mp4", 12.0, 72.0, interval=0.5, engine="haar")
+
+    cmd = procs[0].cmd
+    assert cmd[0] == "ffmpeg"
+    i_input = cmd.index("-i")
+    assert cmd[i_input + 1] == "clip source.mp4"
+    assert cmd.index("-ss") < i_input and cmd.index("-t") < i_input
+    # Seek half a source frame early so the frame nearest the clip start is kept.
+    assert float(cmd[cmd.index("-ss") + 1]) == pytest.approx(12.0 - 0.5 / 30, abs=0.003)
+    assert float(cmd[cmd.index("-t") + 1]) >= 60.0
+    assert _scale_size(cmd) == (640, 360)
+    vf = cmd[cmd.index("-vf") + 1]
+    assert "fps=fps=2/1" in vf
+    assert cmd[cmd.index("-f") + 1] == "rawvideo"
+    assert cmd[cmd.index("-pix_fmt") + 1] == "bgr24"
+    assert cmd[-1] == "pipe:1"
+    assert not any("hwaccel" in str(a) for a in cmd)
+
+
+def test_ffmpeg_command_keeps_small_sources_at_their_own_size():
+    from backend.crop_utils import sample_face_trajectory
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture(width=480, height=854)), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([])):
+        sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar")
+
+    assert _scale_size(procs[0].cmd) == (480, 854)
+
+
+def test_ffmpeg_command_uses_the_old_resize_height_rule():
+    # The seek path resized to int(h * 640 / w); FFmpeg must hand out frames of that exact size.
+    from backend.crop_utils import sample_face_trajectory
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture(width=1080, height=1920)), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([])):
+        sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar")
+
+    assert _scale_size(procs[0].cmd) == (640, int(1920 * (640 / 1080)))
+
+
+def _simulated_ffmpeg_frames(start, offsets, fps, total_frames=10**9):
+    """Which source frame each sample gets, following the FFmpeg filter chain.
+
+    Models the command's semantics: -ss drops frames before the seek point,
+    setpts shifts timestamps, fps=...:round=up gives slot k the last frame with
+    shifted time <= k * step (start_time=0 pads slot 0 with the first frame).
+    """
+    from backend.crop_utils import _ffmpeg_frame_plan
+    plan = _ffmpeg_frame_plan(start, offsets, fps)
+    first = math.ceil(plan["seek"] * fps - 1e-9)
+    chosen = []
+    for k in range(len(offsets)):
+        limit = k * plan["step"] + plan["seek"] + plan["shift"]
+        last = math.floor(limit * fps + 1e-9)
+        last = min(last, total_frames - 1)
+        chosen.append(max(first, last))
+    return chosen
+
+
+@pytest.mark.parametrize("fps", [24.0, 25.0, 30000 / 1001, 30.0, 50.0, 60.0])
+def test_frame_plan_picks_the_frame_opencv_seeking_picked(fps):
+    import random
+    rng = random.Random(int(fps * 1000))
+    checked = 0
+    for _ in range(300):
+        start = round(rng.uniform(0.0, 600.0), rng.choice([0, 1, 2, 3]))
+        duration = rng.choice([0.3, 1.0, 7.3, 30.0, 60.0, 90.0])
+        interval = rng.choice([0.5, 0.25, 1.0])
+        offsets = _old_offsets(start, start + duration, interval)
+        new = _simulated_ffmpeg_frames(start, offsets, fps)
+        for rel_t, frame in zip(offsets, new):
+            exact = (start + rel_t) * fps
+            old = math.floor(exact + 0.5)  # OpenCV: nearest frame to POS_MSEC
+            if abs((exact % 1.0) - 0.5) < 0.1:
+                assert abs(frame - old) <= 1  # a near-tie: either neighbour is as close
+            else:
+                assert frame == old, (start, rel_t, fps)
+            checked += 1
+    assert checked > 1000
+
+
+def test_ffmpeg_frames_reach_the_haar_detector_in_order():
+    from backend.crop_utils import sample_face_trajectory
+    frames = [np.full((360, 640, 3), 10 * (i + 1), dtype=np.uint8) for i in range(5)]
+    seen = []
+
+    def fake_haar(cascade, small_frame):
+        seen.append((small_frame.shape, int(small_frame[0, 0, 0])))
+        return [{"cx": 0.3 + 0.1 * len(seen), "w": 0.1}]
+
+    with _ffmpeg_streams(frames=frames), \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([])), \
+         patch("backend.crop_utils._haar_faces", side_effect=fake_haar):
+        traj = sample_face_trajectory("v.mp4", 0.0, 2.0, interval=0.5, engine="haar")
+
+    assert seen == [((360, 640, 3), 10), ((360, 640, 3), 20), ((360, 640, 3), 30), ((360, 640, 3), 40), ((360, 640, 3), 50)]
+    assert [round(x, 2) for _, x, _ in traj] == [0.4, 0.5, 0.6, 0.7, 0.8]
+
+
+def test_ffmpeg_frames_reach_mediapipe_as_rgb():
+    from backend.crop_utils import sample_face_trajectory
+    frame = np.zeros((360, 640, 3), dtype=np.uint8)
+    frame[..., 0] = 200  # blue channel in BGR
+    seen = []
+
+    def process(rgb):
+        seen.append(tuple(int(v) for v in rgb[0, 0]))
+        return types.SimpleNamespace(multi_face_landmarks=[_landmarks(0.5)])
+
+    mp, face_mesh_cls, mesh = _fake_mediapipe(process)
+    with _ffmpeg_streams(frames=[frame] * 3), \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
+         patch.dict(sys.modules, {"mediapipe": mp}):
+        sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="mediapipe")
+
+    assert seen == [(0, 0, 200)] * 3
+
+
+def test_cancelling_mid_clip_stops_reading_and_kills_ffmpeg():
+    from backend.crop_utils import sample_face_trajectory
+    checks = {"n": 0}
+
+    def should_cancel():
+        checks["n"] += 1
+        return checks["n"] > 2
+
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])):
+        traj = sample_face_trajectory("v.mp4", 0.0, 10.0, interval=0.5, engine="haar", should_cancel=should_cancel)
+
+    proc = procs[0]
+    assert proc.frames_read() == 2
+    assert proc.killed and proc.waited
+    assert proc.stdout.closed and proc.stderr.closed
+    assert [t for t, _, _ in traj] == [0.0, 0.5]
+
+
+def test_ffmpeg_process_is_cleaned_up_after_a_full_read():
+    from backend.crop_utils import sample_face_trajectory
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=_capture()), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([])):
+        sample_face_trajectory("v.mp4", 0.0, 3.0, interval=0.5, engine="haar")
+
+    proc = procs[0]
+    assert proc.waited
+    assert proc.stdout.closed and proc.stderr.closed
+
+
+def test_missing_ffmpeg_falls_back_to_seeking_and_logs_it():
+    from backend.crop_utils import sample_face_trajectory
+    cap = _capture()
+    info = {}
+    with patch("backend.crop_utils._ffmpeg_executable", return_value=None), \
+         patch("backend.crop_utils.subprocess.Popen") as mock_popen, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
+         patch("backend.crop_utils.log_error") as mock_log:
+        traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar", info=info)
+
+    mock_popen.assert_not_called()
+    assert _logged_contexts(mock_log) == [FFMPEG_FALLBACK]
+    assert cap.read.call_count == 3
+    assert traj == [(0.0, 0.6, 0.1), (0.5, 0.6, 0.1), (1.0, 0.6, 0.1)]
+    assert info == {"engine_used": "haar"}
+
+
+def test_ffmpeg_that_cannot_start_falls_back_to_seeking():
+    from backend.crop_utils import sample_face_trajectory
+    cap = _capture()
+    with patch("backend.crop_utils._ffmpeg_executable", return_value="ffmpeg"), \
+         patch("backend.crop_utils.subprocess.Popen", side_effect=FileNotFoundError("no such file: ffmpeg")), \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
+         patch("backend.crop_utils.log_error") as mock_log:
+        traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar")
+
+    assert _logged_contexts(mock_log) == [FFMPEG_FALLBACK]
+    assert "no such file" in str(mock_log.call_args[0][1])
+    assert cap.read.call_count == 3
+    assert len(traj) == 3
+
+
+def test_ffmpeg_failing_before_any_frame_falls_back_and_logs_its_error():
+    from backend.crop_utils import sample_face_trajectory
+    cap = _capture()
+    with _ffmpeg_streams(frames=[], returncode=1, stderr=b"v.mp4: moov atom not found\n") as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
+         patch("backend.crop_utils.log_error") as mock_log:
+        traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar")
+
+    assert _logged_contexts(mock_log) == [FFMPEG_FALLBACK]
+    message = str(mock_log.call_args[0][1])
+    assert "moov atom not found" in message and "1" in message
+    assert cap.read.call_count == 3
+    assert traj == [(0.0, 0.6, 0.1), (0.5, 0.6, 0.1), (1.0, 0.6, 0.1)]
+    assert procs[0].waited and procs[0].stdout.closed
+
+
+def test_ffmpeg_ending_early_hands_the_remaining_samples_to_the_seek_path():
+    from backend.crop_utils import sample_face_trajectory
+    frames = [np.zeros((360, 640, 3), dtype=np.uint8)] * 2
+    cap = _capture()
+    seek_times = []
+    cap.set.side_effect = lambda prop, value: seek_times.append(value)
+    with _ffmpeg_streams(frames=frames, returncode=0) as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
+         patch("backend.crop_utils.log_error") as mock_log, \
+         patch("backend.crop_utils.log_app") as mock_app:
+        traj = sample_face_trajectory("v.mp4", 10.0, 12.0, interval=0.5, engine="haar")
+
+    assert [t for t, _, _ in traj] == [0.0, 0.5, 1.0, 1.5, 2.0]
+    assert procs[0].frames_read() == 2
+    assert cap.read.call_count == 3
+    assert seek_times == [11000.0, 11500.0, 12000.0]
+    # Running to the end of the video is normal: app log, not error log.
+    assert FFMPEG_FALLBACK not in _logged_contexts(mock_log)
+    assert "2 of 5" in str(mock_app.call_args[0][0])
+    assert procs[0].waited and procs[0].stdout.closed
+
+
+def test_ffmpeg_sending_a_truncated_frame_falls_back_for_the_rest():
+    from backend.crop_utils import sample_face_trajectory
+    frame_size = 640 * 360 * 3
+    cap = _capture()
+    with _ffmpeg_streams(stdout=b"\0" * (frame_size + 1000), returncode=1, stderr=b"Conversion failed!") as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
+         patch("backend.crop_utils.log_error") as mock_log:
+        traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar")
+
+    assert len(traj) == 3
+    assert cap.read.call_count == 2
+    assert _logged_contexts(mock_log) == [FFMPEG_FALLBACK]
+    assert "Conversion failed!" in str(mock_log.call_args[0][1])
+    assert procs[0].waited and procs[0].stdout.closed
+
+
+def test_broken_pipe_while_reading_falls_back_and_cleans_up():
+    from backend.crop_utils import sample_face_trajectory
+    frame_size = 640 * 360 * 3
+    cap = _capture()
+    with _ffmpeg_streams(read_error=BrokenPipeError("pipe closed"), read_error_at=frame_size) as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
+         patch("backend.crop_utils.log_error") as mock_log:
+        traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar")
+
+    assert len(traj) == 3
+    assert cap.read.call_count == 2
+    assert _logged_contexts(mock_log) == [FFMPEG_FALLBACK]
+    assert procs[0].killed and procs[0].waited and procs[0].stdout.closed
+
+
+def test_unknown_source_size_uses_the_seek_path():
+    from backend.crop_utils import sample_face_trajectory
+    cap = _capture(width=0, height=0)
+    cap.read.side_effect = lambda: (True, np.zeros((360, 640, 3), dtype=np.uint8))
+    with _ffmpeg_streams() as procs, \
+         patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([])), \
+         patch("backend.crop_utils.log_error") as mock_log:
+        traj = sample_face_trajectory("v.mp4", 0.0, 1.0, interval=0.5, engine="haar")
+
+    assert procs == []
+    assert cap.read.call_count == 3
+    assert len(traj) == 3
+    assert _logged_contexts(mock_log) == [FFMPEG_FALLBACK]
+
+
+# --- integration: real FFmpeg vs the seek path ----------------------------------
+
+def _real_ffmpeg():
+    from backend.crop_utils import _ffmpeg_executable
+    return _ffmpeg_executable()
+
+
+@pytest.fixture(scope="module")
+def moving_box_video(tmp_path_factory):
+    """6 s of 1920x1080 30 fps H.264 with a white box moving 8 px right per frame.
+
+    Keyframes only every 300 frames, so seeking has to decode from the start like
+    a YouTube download.
+    """
+    ffmpeg = _real_ffmpeg()
+    if not ffmpeg:
+        pytest.skip("no FFmpeg binary available")
+    path = str(tmp_path_factory.mktemp("tracking") / "moving_box.mp4")
+    cmd = [
+        ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
+        "-f", "lavfi", "-i", "color=c=0x202020:s=1920x1080:r=30:d=6",
+        "-f", "lavfi", "-i", "color=c=white:s=160x160:r=30:d=6",
+        "-filter_complex", "[0:v][1:v]overlay=x='200+8*n':y=460:eval=frame,format=yuv420p",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "16", "-g", "300", path,
+    ]
+    res = subprocess.run(cmd, capture_output=True)
+    if res.returncode != 0:
+        pytest.skip(f"FFmpeg could not encode the test video: {res.stderr.decode('utf-8', 'ignore')[-300:]}")
+    return path
+
+
+def _box_frame_index(small_frame):
+    """Source frame number, read back from where the box is (x = 200 + 8 n at 1920 wide)."""
+    bright = np.nonzero(small_frame.max(axis=2) > 128)[1]
+    left = bright.min() * 1920 / small_frame.shape[1]
+    return round((left - 200) / 8)
+
+
+def _track_box(path, start, end, use_ffmpeg):
+    from backend.crop_utils import _sample_face_trajectory
+    seen = []
+
+    def box_detector(cascade, small_frame):
+        bright = np.nonzero(small_frame.max(axis=2) > 128)[1]
+        seen.append(_box_frame_index(small_frame))
+        w = small_frame.shape[1]
+        return [{"cx": (bright.min() + bright.max() + 1) / 2 / w, "w": (bright.max() - bright.min() + 1) / w}]
+
+    with patch("backend.crop_utils._haar_faces", side_effect=box_detector), \
+         patch("backend.crop_utils.log_error") as mock_log:
+        traj = _sample_face_trajectory(path, start, end, interval=0.5, engine="haar", use_ffmpeg=use_ffmpeg)
+    return traj, seen, mock_log
+
+
+@pytest.mark.parametrize("start,end", [(0.0, 5.0), (1.37, 4.9), (2.0, 2.3), (3.0, 5.9)])
+def test_real_ffmpeg_path_matches_the_seek_path(moving_box_video, start, end):
+    old_traj, old_frames, _ = _track_box(moving_box_video, start, end, use_ffmpeg=False)
+    new_traj, new_frames, new_log = _track_box(moving_box_video, start, end, use_ffmpeg=True)
+
+    assert FFMPEG_FALLBACK not in _logged_contexts(new_log)
+    assert [t for t, _, _ in new_traj] == [t for t, _, _ in old_traj]
+    assert len(new_frames) == len(old_frames) == len(_old_offsets(start, end, 0.5))
+    assert max(abs(a - b) for a, b in zip(new_frames, old_frames)) <= 1
+    for (_, ox, ow), (_, nx, nw) in zip(old_traj, new_traj):
+        assert nx == pytest.approx(ox, abs=10 / 1920)  # one frame of motion is 8 px
+        assert nw == pytest.approx(ow, abs=6 / 640)
+
+
+def test_real_ffmpeg_window_past_the_end_matches_the_seek_path(moving_box_video):
+    old_traj, old_frames, _ = _track_box(moving_box_video, 4.0, 8.0, use_ffmpeg=False)
+    new_traj, new_frames, new_log = _track_box(moving_box_video, 4.0, 8.0, use_ffmpeg=True)
+
+    assert [t for t, _, _ in new_traj] == [t for t, _, _ in old_traj]
+    assert len(new_frames) == len(old_frames)
+    assert max(abs(a - b) for a, b in zip(new_frames, old_frames)) <= 1
+    assert FFMPEG_FALLBACK not in _logged_contexts(new_log)
+
+
+def test_real_ffmpeg_process_is_gone_after_cancel(moving_box_video):
+    from backend.crop_utils import _sample_face_trajectory
+    started = []
+    real_popen = subprocess.Popen
+
+    def recording_popen(*args, **kwargs):
+        proc = real_popen(*args, **kwargs)
+        started.append(proc)
+        return proc
+
+    checks = {"n": 0}
+
+    def should_cancel():
+        checks["n"] += 1
+        return checks["n"] > 2
+
+    with patch("backend.crop_utils.subprocess.Popen", side_effect=recording_popen):
+        traj = _sample_face_trajectory(moving_box_video, 0.0, 5.0, interval=0.5, should_cancel=should_cancel, engine="haar", use_ffmpeg=True)
+
+    assert len(traj) == 2
+    assert len(started) == 1
+    assert started[0].poll() is not None
 
 
 @patch('backend.crop_utils.is_nvenc_available', return_value=False)
