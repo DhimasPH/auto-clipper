@@ -241,12 +241,14 @@ def check_gpu_render() -> dict:
             "Render memakai prosesor",
             "Kartu grafis di perangkat ini tidak bisa dipakai untuk merender klip, "
             "jadi render memakai prosesor dan berjalan lebih lambat. "
-            "Ini normal di komputer tanpa kartu grafis NVIDIA. "
+            "Di Google Colab ini bisa terjadi walaupun GPU aktif: GPU tetap dipakai untuk membuat subtitle. "
+            "Di komputer tanpa kartu grafis NVIDIA, ini juga normal. "
             "Proses tetap berjalan, tidak ada yang perlu dilakukan.",
             "Rendering uses the processor",
             "The graphics card on this device cannot be used to render clips, "
             "so rendering runs on the processor and is slower. "
-            "This is normal on a computer without an NVIDIA graphics card. "
+            "On Google Colab this can happen even when the GPU is active: the GPU is still used to make subtitles. "
+            "It is also normal on a computer without an NVIDIA graphics card. "
             "The process still works and you do not need to do anything.",
             technical="h264_nvenc test encode failed, rendering with libx264",
         )

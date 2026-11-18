@@ -322,3 +322,22 @@ Daftar cek Colab (dari agen T0.13, runtime T4 baru):
 7. Job kedua saat yang pertama berjalan → "Menunggu giliran".
 8. Runtime → Disconnect and delete runtime, sambung lagi, jalankan sel 1–4: riwayat dan klip lama muncul; render ulang mengunduh ulang video sumber.
 9. Opsional: unggah `cookies.txt` akun cadangan di Pengaturan ("Berlaku sampai ..."); jalankan sel 4 tanpa sel 1 di runtime baru → "Google Drive belum terhubung".
+
+---
+
+## 2026-11-18 · Uji Colab pertama oleh pemilik (sedang berjalan)
+
+Pemilik menjalankan notebook dengan `BRANCH = feat/sp0-pipeline-stability` (kolom baru di sel 3, commit `2a747eb`). Web yang dipakai masih Vercel produksi (`main`), jadi kartu error baru belum terlihat.
+
+Yang sudah terbukti di Colab sungguhan:
+
+- Dengan versi `main`, URL YouTube gagal "Sign in to confirm you're not a bot".
+- Dengan versi branch dan `cookies.txt` diletakkan manual di Drive `AutoClipperData/cookies/cookies.txt`, job yang sama di-Resume dan lolos tahap unduh.
+- Pemeriksaan awal: FFmpeg, disk 105,9 GB, RAM 11,1 GB, GPU (subtitle), Drive, Deno, yt-dlp 2026.10.26 semuanya OK. Render: `[PERHATIAN] Render memakai prosesor` (temuan F8).
+
+Perbaikan setelah temuan F8 (tes 558 lulus):
+
+- `is_nvenc_available` menguji `h264_nvenc` dengan bingkai 128×128. GPU Turing (T4) menolak lebar di bawah 145 piksel, jadi uji itu gagal di T4 walaupun encoder-nya mungkin bisa dipakai. Bingkai uji sekarang 256×256, dan alasan kegagalan ditulis ke log aplikasi. Belum diverifikasi di Colab: bisa jadi encoder tetap tidak tersedia (misalnya pustaka encoder NVIDIA tidak ada di runtime Colab).
+- Teks peringatan render tidak lagi hanya berkata "normal di komputer tanpa kartu grafis NVIDIA", yang bertentangan dengan baris "GPU aktif" di atasnya.
+
+Langkah berikutnya: setelah job selesai, pemilik menjalankan sel uji `h264_nvenc` 256×256, lalu push ulang dan jalankan sel 3–4 untuk melihat apakah pemeriksaan awal berubah menjadi "Render memakai GPU". Catat waktu job pertama ini (render CPU) sebagai pembanding.

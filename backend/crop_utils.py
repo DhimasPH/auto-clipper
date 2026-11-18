@@ -16,13 +16,16 @@ def is_nvenc_available():
     if _NVENC_AVAILABLE is not None:
         return _NVENC_AVAILABLE
     try:
-        # Try to encode a 0.1 second blank video using NVENC to test driver capability
+        # Encode 0.1 s of black to test driver capability. Turing GPUs (Colab's T4)
+        # reject h264_nvenc frames narrower than 145 px, so the frame must be larger.
         cmd = [
-            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=128x128", 
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=256x256",
             "-t", "0.1", "-c:v", "h264_nvenc", "-f", "null", "-"
         ]
         res = subprocess.run(cmd, capture_output=True, text=True)
         _NVENC_AVAILABLE = (res.returncode == 0)
+        if not _NVENC_AVAILABLE:
+            log_app(f"h264_nvenc unavailable, rendering with libx264: {(res.stderr or '')[-300:].strip()}")
     except Exception:
         _NVENC_AVAILABLE = False
     return _NVENC_AVAILABLE

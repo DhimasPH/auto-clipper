@@ -557,3 +557,23 @@ def test_crop_reports_the_tracking_engine_that_really_ran(mock_popen, mock_nvenc
     tracking = [t for t in timings if t["stage"] == "tracking"][0]
     assert tracking["tracking_engine_requested"] == "mediapipe"
     assert tracking["tracking_engine_used"] == "haar"
+
+
+def test_nvenc_probe_uses_a_frame_turing_gpus_accept(monkeypatch):
+    # Turing GPUs (Colab's T4) reject h264_nvenc frames narrower than 145 px,
+    # so a smaller probe frame reports "no GPU encoder" on a GPU that has one.
+    import backend.crop_utils as cu
+
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return MagicMock(returncode=0)
+
+    monkeypatch.setattr(cu, "_NVENC_AVAILABLE", None)
+    monkeypatch.setattr(cu.subprocess, "run", fake_run)
+
+    assert cu.is_nvenc_available() is True
+    size = re.search(r"s=(\d+)x(\d+)", " ".join(calls[0]))
+    assert size, calls[0]
+    assert int(size.group(1)) >= 145 and int(size.group(2)) >= 145
