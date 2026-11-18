@@ -19,6 +19,7 @@ import os
 import shutil
 import sys
 
+from backend import drive_mount
 from backend.errors import AppError, ERROR_CODES
 from backend.logger import log_error
 
@@ -135,14 +136,13 @@ def _cloud_drive_expected() -> bool:
     AUTO_CLIPPER_WORKSPACE is the library (where clips are kept). The work dir
     (AUTO_CLIPPER_WORK_DIR) is a local disk and plays no part here.
     """
-    workspace = os.environ.get("AUTO_CLIPPER_WORKSPACE", "").replace("\\", "/")
-    return bool(os.environ.get("AUTO_CLIPPER_CLOUD_MODE")) and workspace.startswith("/content/drive")
+    return drive_mount.library_on_drive()
 
 
 def _drive_mounted() -> bool:
-    # Ask the mount point, not the folder: opening the library creates
-    # /content/drive/MyDrive/... on the local disk when Drive is not mounted.
-    return os.path.ismount("/content/drive")
+    # Ask the mount point, not the folder: an older version created
+    # /content/drive/MyDrive/... on the local disk when Drive was not mounted.
+    return drive_mount.drive_mounted()
 
 
 def _deno_path():
@@ -323,7 +323,9 @@ def check_drive() -> dict:
             "Google Drive is not used", "Google Drive is only used when the app runs on Google Colab.",
         )
     if not _drive_mounted():
-        return _from_error_code("drive", "warn", "DRIVE_NOT_MOUNTED", technical="/content/drive is not a mount point")
+        # Block: without the mount every clip would be lost with the runtime (backend.drive_mount).
+        return _from_error_code("drive", "block", "DRIVE_NOT_MOUNTED",
+                                technical=f"{drive_mount.DRIVE_ROOT} is not a mount point")
     return _result(
         "drive", "ok",
         "Google Drive terhubung", "Klip disimpan ke Google Drive.",
@@ -385,7 +387,8 @@ CHECKS = (
     ("gpu_render", check_gpu_render), ("drive", check_drive), ("deno", check_deno), ("downloader", check_downloader),
 )
 # Only these can return "block"; they are the ones run again right before a job.
-_BLOCKING_CHECKS = (("ffmpeg", check_ffmpeg), ("disk", check_disk))
+# The drive check costs one look at an environment variable and one os.path.ismount.
+_BLOCKING_CHECKS = (("ffmpeg", check_ffmpeg), ("disk", check_disk), ("drive", check_drive))
 
 
 def _run(checks) -> list:

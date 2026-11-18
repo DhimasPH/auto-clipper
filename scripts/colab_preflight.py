@@ -5,7 +5,8 @@ with the same environment variables (AUTO_CLIPPER_WORKSPACE,
 AUTO_CLIPPER_WORK_DIR, AUTO_CLIPPER_CLOUD_MODE, PATH), so the user reads what
 the server is about to find: FFmpeg, disk, memory, GPU, Google Drive, Deno and
 the downloader version. The checks are the ones behind ``GET /api/preflight``
-(backend/preflight.py).
+(backend/preflight.py). A Google Drive that is not mounted is a ``MASALAH``:
+the server still starts, but every job is refused until Drive is connected.
 
 Usage (from the repo root):
 
@@ -20,47 +21,17 @@ import textwrap
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DRIVE_ROOT = "/content/drive"
 WIDTH = 88
 LEVEL_LABELS = {"ok": "OK", "warn": "PERHATIAN", "block": "MASALAH"}
 
 
-def drive_is_missing(workspace: str, is_mount=os.path.ismount) -> bool:
-    """True when the library is meant to be on Google Drive but Drive is not mounted.
-
-    This asks the mount point itself. backend.preflight looks for the folder
-    /content/drive/MyDrive, and the backend creates that folder on the local
-    disk the first time it opens the library, so without a mount that check
-    still passes.
-    """
-    workspace = (workspace or "").replace("\\", "/")
-    return (workspace == DRIVE_ROOT or workspace.startswith(DRIVE_ROOT + "/")) and not is_mount(DRIVE_ROOT)
-
-
-def mark_drive_missing(checks: list) -> list:
-    """Replace a passing Drive check with the "Google Drive is not connected" warning."""
-    from backend.errors import ERROR_CODES
-
-    entry = ERROR_CODES["DRIVE_NOT_MOUNTED"]
-    warning = {
-        "id": "drive", "level": "warn", "code": "DRIVE_NOT_MOUNTED",
-        "title": entry["title"], "message": entry["message"],
-        "title_en": entry["title_en"], "message_en": entry["message_en"],
-        "technical": f"{DRIVE_ROOT} is not a mount point",
-    }
-    return [warning if c.get("id") == "drive" and c.get("level") == "ok" else c for c in checks]
-
-
 def collect_checks() -> list:
     """The preflight results of this environment."""
-    # Asked before the backend is imported: opening the library creates its folder.
-    drive_missing = drive_is_missing(os.environ.get("AUTO_CLIPPER_WORKSPACE", ""))
     if REPO_ROOT not in sys.path:
         sys.path.insert(0, REPO_ROOT)
     from backend.preflight import run_preflight
 
-    checks = run_preflight()
-    return mark_drive_missing(checks) if drive_missing else checks
+    return run_preflight()
 
 
 def format_report(checks: list) -> str:

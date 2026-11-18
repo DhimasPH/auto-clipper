@@ -28,6 +28,7 @@ import shutil
 import uuid
 from typing import Optional
 
+from backend.drive_mount import library_unavailable, local_dir, refuse_unmounted
 from backend.logger import get_app_data_dir, log_error
 from backend.stage_timer import stage
 
@@ -46,6 +47,7 @@ def get_work_dir() -> Optional[str]:
     if not raw:
         return None
     path = os.path.abspath(os.path.expanduser(raw))
+    refuse_unmounted(path)
     os.makedirs(path, exist_ok=True)
     return path
 
@@ -120,6 +122,7 @@ def _discard(path: str) -> None:
 
 def copy_atomic(src: str, dst: str) -> None:
     """Copy ``src`` to ``dst``. A reader sees the old ``dst`` or the complete new one, never half a file."""
+    refuse_unmounted(dst)
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     tmp = _temp_name(dst)
     try:
@@ -131,6 +134,7 @@ def copy_atomic(src: str, dst: str) -> None:
 
 
 def _write_json_atomic(path: str, data: dict) -> None:
+    refuse_unmounted(path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = _temp_name(path)
     try:
@@ -212,9 +216,11 @@ def _stranded_clips(ws: dict, clips: list) -> list:
 def library_warnings() -> list:
     """What the user must be told about the library along with a finished job.
 
-    Same shape as a preflight result. An unmounted Google Drive does not stop a
-    job: clips are published to the local folder that stands in for it, and the
-    user is told they will not survive the session.
+    Same shape as a preflight result. Only warnings are reported. An unmounted
+    Google Drive is not one any more: it blocks the job before it starts and
+    makes publishing fail (backend.drive_mount), so today this returns an empty
+    list, and the caller uses that to clear the Drive warning older versions
+    stored in a project's metadata.
     """
     from backend.preflight import check_drive
     result = check_drive()
@@ -222,7 +228,13 @@ def library_warnings() -> list:
 
 
 def storage_dirs() -> list:
-    """Every folder a job writes to: the library, and the work dir when one is set."""
+    """Every folder a job writes to: the library, and the work dir when one is set.
+
+    While the library is on a Google Drive that is not mounted, jobs are
+    refused and only this machine's disk is measured.
+    """
+    if library_unavailable():
+        return [local_dir()]
     dirs = [get_app_data_dir()]
     work = get_work_dir()
     if work and not _same(work, dirs[0]):

@@ -119,15 +119,21 @@ ERROR_CODES = {
     "DRIVE_NOT_MOUNTED": {
         "title": "Google Drive belum terhubung",
         "message": (
-            "Aplikasi tidak menemukan folder Google Drive, jadi klip hanya tersimpan di penyimpanan sementara Colab "
-            "dan hilang saat sesi berakhir. "
-            "Jalankan Langkah 1 di notebook untuk menghubungkan Google Drive, lalu jalankan ulang server."
+            "Proses video tidak dijalankan karena Google Drive belum terhubung. "
+            "Tanpa Google Drive, klip hanya tersimpan sementara di Colab dan hilang saat sesi berakhir. "
+            "Hentikan kotak server di Langkah 4 dengan tombol stop di kotak itu, "
+            "jalankan Langkah 1 (Hubungkan Google Drive), lalu jalankan lagi kotak server. "
+            "Jika Langkah 1 gagal karena foldernya sudah berisi file, buka menu Runtime, "
+            "pilih \"Disconnect and delete runtime\", lalu jalankan semua langkah dari awal."
         ),
         "title_en": "Google Drive is not connected",
         "message_en": (
-            "The app did not find the Google Drive folder, so clips are saved only to Colab's temporary storage "
-            "and disappear when the session ends. "
-            "Run Step 1 in the notebook to connect Google Drive, then restart the server."
+            "Video processing did not start because Google Drive is not connected. "
+            "Without Google Drive, clips are kept only in Colab's temporary storage and disappear when the session ends. "
+            "Stop the server box in Step 4 with its stop button, "
+            "run Step 1 (Hubungkan Google Drive), then run the server box again. "
+            "If Step 1 fails because the folder already contains files, open the Runtime menu, "
+            "choose \"Disconnect and delete runtime\", then run every step again from the start."
         ),
         "actions": [],
     },

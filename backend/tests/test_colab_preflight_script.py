@@ -1,8 +1,6 @@
 import importlib.util
 from pathlib import Path
 
-import pytest
-
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "colab_preflight.py"
 
 
@@ -21,7 +19,6 @@ def _check(check_id, level, title, message):
 OK = _check("ffmpeg", "ok", "Pengolah video siap", "Aplikasi menemukan FFmpeg.")
 WARN = _check("gpu", "warn", "GPU tidak aktif", "Pembuatan subtitle berjalan jauh lebih lambat.")
 BLOCK = _check("disk", "block", "Ruang penyimpanan penuh", "Ruang kosong tinggal 0,4 GB.")
-DRIVE_OK = _check("drive", "ok", "Google Drive terhubung", "Klip disimpan ke Google Drive.")
 
 
 def test_report_shows_level_title_and_message_of_every_check_in_indonesian():
@@ -63,53 +60,22 @@ def test_report_treats_an_unknown_level_as_needing_attention():
     assert report.splitlines()[-1].startswith("1 hal perlu perhatian.")
 
 
-@pytest.mark.parametrize("workspace, mounted, missing", [
-    ("/content/drive/MyDrive/AutoClipperData", False, True),
-    ("/content/drive/MyDrive/AutoClipperData", True, False),
-    ("/content/drive", False, True),
-    ("/content/drive-backup/data", False, False),   # not Google Drive
-    ("/content/local-library", False, False),
-    ("", False, False),
-])
-def test_drive_is_missing_only_when_the_library_is_on_an_unmounted_drive(workspace, mounted, missing):
-    asked = []
+def test_unmounted_drive_is_a_problem_and_running_the_checks_creates_nothing_on_it(monkeypatch, tmp_path):
+    from backend import drive_mount
 
-    def is_mount(path):
-        asked.append(path)
-        return mounted
+    drive = tmp_path / "drive"
+    monkeypatch.setattr(drive_mount, "DRIVE_ROOT", str(drive))
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", str(drive / "MyDrive" / "AutoClipperData"))
+    monkeypatch.setenv("AUTO_CLIPPER_WORK_DIR", str(tmp_path / "work"))
 
-    assert _load().drive_is_missing(workspace, is_mount=is_mount) is missing
-    assert set(asked) <= {"/content/drive"}  # the mount point, not a folder the backend may have created
+    checks = {c["id"]: c for c in _load().collect_checks()}
 
-
-def test_mark_drive_missing_replaces_only_a_passing_drive_check():
-    from backend.errors import ERROR_CODES
-
-    module = _load()
-    marked = module.mark_drive_missing([OK, DRIVE_OK, WARN])
-
-    assert marked[0] is OK and marked[2] is WARN
-    assert marked[1]["id"] == "drive"
-    assert marked[1]["level"] == "warn"
-    assert marked[1]["title"] == ERROR_CODES["DRIVE_NOT_MOUNTED"]["title"]
-    assert marked[1]["message"] == ERROR_CODES["DRIVE_NOT_MOUNTED"]["message"]
-
-    already_warned = _check("drive", "warn", "Google Drive belum terhubung", "Pesan dari backend.")
-    assert module.mark_drive_missing([already_warned]) == [already_warned]
-
-
-def test_collect_checks_warns_when_drive_is_not_mounted_although_its_folder_exists(monkeypatch):
-    from backend import preflight
-
-    module = _load()
-    monkeypatch.setattr(preflight, "run_preflight", lambda: [OK, DRIVE_OK])
-
-    monkeypatch.setattr(module, "drive_is_missing", lambda workspace: False)
-    assert module.collect_checks() == [OK, DRIVE_OK]
-
-    monkeypatch.setattr(module, "drive_is_missing", lambda workspace: True)
-    levels = {c["id"]: c["level"] for c in module.collect_checks()}
-    assert levels == {"ffmpeg": "ok", "drive": "warn"}
+    assert checks["drive"]["level"] == "block"
+    assert checks["drive"]["code"] == "DRIVE_NOT_MOUNTED"
+    assert not drive.exists()
+    report = _load().format_report(list(checks.values()))
+    assert "[MASALAH] Google Drive belum terhubung" in report
 
 
 def test_main_prints_the_report_and_exits_zero(monkeypatch, capsys):

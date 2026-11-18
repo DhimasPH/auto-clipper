@@ -72,6 +72,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 13. **Cookies Tidak Pernah Bocor**: Isi `cookies.txt` tidak boleh masuk log, pesan error, atau respons API. yt-dlp hanya menerima salinan kerja dari `cookies.ytdlp_cookiefile()`, tidak pernah file yang tersimpan.
 14. **Path dari Request Tidak Boleh Menyentuh File Privat**: Setiap endpoint yang membaca, menyajikan, menyalin, atau menulis file berdasarkan path dari request (`/video`, `/save_file` sumber dan tujuan, `/api/thumbnails`, `/api/extract-metadata`) **WAJIB** memanggil `path_guard.is_protected()` sebelum memeriksa keberadaan file, dan menjawab `path_guard.denied()` (403, `Access denied`). Yang dilindungi: folder `cookies/` dan folder salinan kerja cookies, semua file `history.db*` (termasuk `-wal`/`-shm`/`-journal`, snapshot, `.part`), dan log `backend_*.log`. Nama file unggahan selalu lewat `path_guard.safe_upload_name()`.
 15. **Kunci API Tidak Pernah Disimpan (T0.18)**: `api_key` dan `pexels_api_key` (`workspace.SECRET_KEYS`) hanya ada di job yang sedang berjalan, tidak pernah di metadata `history.db` (yang disalin ke Google Drive) maupun `metadata.json`. `db.save_history` membuangnya; `init_db` dan sinkronisasi snapshot membersihkan baris lama. Resume dan resume-manual memakai kunci yang dikirim aplikasi di request. Provider yang butuh kunci tetapi tidak menerimanya ditolak dengan `AI_KEY_MISSING`; B-roll tanpa kunci Pexels dilewati dengan catatan di log.
+16. **Drive Colab Belum Ter-mount (T0.17)**: Bila mode cloud aktif dan pustaka ada di bawah `/content/drive` yang belum menjadi titik mount, backend **tidak boleh** membuat apa pun di bawah `/content/drive` (Colab menolak `drive.mount` ke folder yang sudah berisi file). `get_app_data_dir()`, `get_work_dir()`, `copy_atomic` dan snapshot memanggil `drive_mount.refuse_unmounted()` (melempar `AppError("DRIVE_NOT_MOUNTED")`), preflight `drive` bernilai `block`, dan log serta `history.db` ditulis ke `drive_mount.local_dir()` (work dir). Folder baru yang mungkin berada di pustaka wajib lewat jalur yang sama.
 
 ### F. Frontend, i18n & OS Integration (ADR-004, v1.7.0)
 1. Seluruh teks antarmuka **HARUS** mendukung multi-bahasa melalui `src/locales/id.json` dan `src/locales/en.json` (menggunakan library i18n).
@@ -111,6 +112,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `backend/errors.py`: `AppError`, katalog `ERROR_CODES` (id/en), `classify_download_error`, `to_app_error`.
 - `backend/job_queue.py`: Antrean FIFO job berat (`AUTO_CLIPPER_MAX_HEAVY_JOBS`).
 - `backend/preflight.py`: Pengecekan awal (`run_preflight`, `blocking_error`) di balik `GET /api/preflight`.
+- `backend/drive_mount.py`: Aturan Drive Colab yang belum ter-mount (`refuse_unmounted`, `library_unavailable`, `local_dir`).
 - `backend/stage_timer.py`: Waktu dan RAM puncak per tahap ke `metadata["timings"]`.
 - `backend/cookies.py`: Validasi, penyimpanan, status, dan salinan kerja `cookies.txt` untuk yt-dlp.
 - `backend/path_guard.py`: Daftar tolak file privat (cookies, `history.db*`, log) untuk endpoint yang menerima path, dan pembersih nama file unggahan.
