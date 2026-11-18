@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useState, useContext } from "react";
+import { Dispatch, SetStateAction, useState, useContext, useEffect, useRef } from "react";
 import axios from "axios";
 import { API_URL, AppContext } from "../App";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,10 @@ import { ToggleSwitch } from "./ui/ToggleSwitch";
 import { Button } from "./ui/Button";
 import { CanvasConfigControls } from "./ui/CanvasConfigControls";
 import { SubtitleConfigControls } from "./ui/SubtitleConfigControls";
+import { ErrorCard } from "./ErrorCard";
+import { useErrorActions } from "../hooks/useErrorActions";
+import { asErrorInfo } from "../lib/errorInfo";
+import type { ErrorInfo } from "../types/errorInfo";
 
 type Quality = "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p";
 
@@ -71,19 +75,41 @@ export default function GenerateForm({
   const setEnableHook = propSetEnableHook ?? ctx?.setEnableHook ?? (() => {});
   const [availHeights, setAvailHeights] = useState<number[]>([]);
   const [probing, setProbing] = useState(false);
+  const [probeError, setProbeError] = useState<ErrorInfo | null>(null);
+  const localFileInput = useRef<HTMLInputElement>(null);
 
   const probeQualities = async () => {
     if (!url) return;
     setProbing(true);
+    setProbeError(null);
     try {
       const r = await axios.get(`${API_URL}/probe`, { params: { url } });
       setAvailHeights(r.data.heights || []);
-    } catch {
+    } catch (err: any) {
       setAvailHeights([]);
+      setProbeError(asErrorInfo(err?.response?.data?.error_info));
     } finally {
       setProbing(false);
     }
   };
+
+  // "Unggah file video" on an error: switch to the local file input and put the cursor on it.
+  const showLocalUpload = () => {
+    setProbeError(null);
+    ctx.requestLocalUpload();
+  };
+
+  useEffect(() => {
+    if (!ctx?.pendingLocalUpload || inputType !== "local") return;
+    localFileInput.current?.focus();
+    localFileInput.current?.scrollIntoView({ block: "center" });
+    ctx.clearPendingLocalUpload();
+  }, [ctx?.pendingLocalUpload, inputType]);
+
+  // The failed job is resumed in place, so its clips land in this page.
+  const jobErrorActions = useErrorActions({ jobId: ctx?.failedJobId, origin: "workspace", onUploadVideo: showLocalUpload });
+  // A failed quality check has no job: "Coba lagi" checks again.
+  const probeErrorActions = useErrorActions({ onRetry: probeQualities, onUploadVideo: showLocalUpload });
 
   return (
     <main className="bg-bg-secondary rounded-card border border-border p-6 shadow-sm flex flex-col gap-6">
@@ -144,6 +170,7 @@ export default function GenerateForm({
                 </span>
               )}
             </div>
+            {probeError && <ErrorCard info={probeError} handlers={probeErrorActions} announce />}
           </div>
         ) : (
           <div className="space-y-2">
@@ -151,6 +178,7 @@ export default function GenerateForm({
               {t("main.local_file_label", "Select Local Video File")}
             </label>
             <input
+              ref={localFileInput}
               type="file"
               accept="video/mp4,video/x-m4v,video/*"
               onChange={(e) => setLocalFile(e.target.files?.[0] || null)}
@@ -440,7 +468,11 @@ export default function GenerateForm({
         />
       </div>
 
-      {errorMsg && (
+      {errorMsg && ctx?.errorInfo && (
+        <ErrorCard info={ctx.errorInfo} handlers={jobErrorActions} announce />
+      )}
+
+      {errorMsg && !ctx?.errorInfo && (
         <div className="p-4 bg-danger/10 border border-danger/20 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="text-danger text-body">
             ⚠️ {errorMsg}

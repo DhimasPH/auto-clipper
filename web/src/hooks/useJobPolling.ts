@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { JobStatus, JobResponse, Clip, CreateJobPayload } from "../types/job";
 import { apiGetJob, apiCreateJob, apiResumeJob, apiResumeManualJob, apiCancelJob } from "../api";
+import type { ErrorInfo } from "../types/errorInfo";
+import { asErrorInfo, requestError } from "../lib/errorInfo";
 
 export const STORAGE_ACTIVE_JOB_KEY = "ac_active_job_id";
 
@@ -11,6 +13,10 @@ export interface UseJobPollingReturn {
   prompt: string;
   clips: Clip[];
   error: string | null;
+  /** Structured form of `error`, when the backend sent one. */
+  errorInfo: ErrorInfo | null;
+  /** 1 = next in line, 2 = after that; null while running or not queued. */
+  queuePosition: number | null;
   failedCount: number;
   isPolling: boolean;
   isLoading: boolean;
@@ -40,6 +46,8 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
   const [clips, setClips] = useState<Clip[]>([]);
   const [failedCount, setFailedCount] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeJob, setActiveJob] = useState<JobResponse | null>(null);
@@ -76,6 +84,7 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
         setActiveJob(job);
         setStatus(job.status);
         setProgress(job.progress || "");
+        setQueuePosition(typeof job.queue_position === "number" && job.queue_position > 0 ? job.queue_position : null);
         
         if (job.metadata?.manual_prompt) {
           setPrompt(job.metadata.manual_prompt);
@@ -91,6 +100,7 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
 
         if (job.error) {
           setError(job.error);
+          setErrorInfo(asErrorInfo(job.error_info));
         }
 
         // Terminal & awaiting manual states stop polling
@@ -109,6 +119,7 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
         if (err?.status === 404) {
           setStatus("ERROR");
           setError("Pekerjaan (Job) tidak ditemukan. Mungkin sudah dihapus atau server di-restart.");
+          setErrorInfo(null);
           stopPolling();
         }
         return null;
@@ -124,6 +135,7 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
       activeJobIdRef.current = id;
       setIsPolling(true);
       setError(null);
+      setErrorInfo(null);
 
       // Immediate first fetch
       fetchJobNow(id);
@@ -153,6 +165,7 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
     async (payload: CreateJobPayload): Promise<string> => {
       setIsLoading(true);
       setError(null);
+      setErrorInfo(null);
       try {
         const res = await apiCreateJob(payload);
         if (res.status === "success" && res.job_id) {
@@ -168,8 +181,9 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
           throw new Error(res.message || "Failed to create job");
         }
       } catch (err: any) {
-        const msg = err?.message || "Failed to submit job to server";
-        setError(msg);
+        const { message, info } = requestError(err, "Failed to submit job to server");
+        setError(message);
+        setErrorInfo(info);
         setStatus("ERROR");
         throw err;
       } finally {
@@ -188,6 +202,7 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
 
       setIsLoading(true);
       setError(null);
+      setErrorInfo(null);
       try {
         const res = await apiResumeJob(currentId);
         if (res.status === "success" && res.job_id) {
@@ -201,8 +216,9 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
           throw new Error(res.message || "Gagal melanjutkan job");
         }
       } catch (err: any) {
-        const msg = err?.message || "Gagal menghubungi server untuk melanjutkan job";
-        setError(msg);
+        const { message, info } = requestError(err, "Gagal menghubungi server untuk melanjutkan job");
+        setError(message);
+        setErrorInfo(info);
         throw err;
       } finally {
         setIsLoading(false);
@@ -220,6 +236,7 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
 
       setIsLoading(true);
       setError(null);
+      setErrorInfo(null);
       try {
         const res = await apiResumeManualJob(currentId, jsonPayload);
         if (res.status === "success") {
@@ -233,8 +250,9 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
           throw new Error(res.message || "Failed to resume manual job");
         }
       } catch (err: any) {
-        const msg = err?.message || "Failed to submit AI highlights";
-        setError(msg);
+        const { message, info } = requestError(err, "Failed to submit AI highlights");
+        setError(message);
+        setErrorInfo(info);
         throw err;
       } finally {
         setIsLoading(false);
@@ -248,6 +266,7 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
     stopPolling();
     setStatus("CANCELLED");
     setProgress("Cancelled by user.");
+    setQueuePosition(null);
 
     if (currentId) {
       try {
@@ -268,6 +287,8 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
     setClips([]);
     setFailedCount(0);
     setError(null);
+    setErrorInfo(null);
+    setQueuePosition(null);
     setActiveJob(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_ACTIVE_JOB_KEY);
@@ -281,6 +302,8 @@ export function useJobPolling(initialJobId?: string | null): UseJobPollingReturn
     prompt,
     clips,
     error,
+    errorInfo,
+    queuePosition,
     failedCount,
     isPolling,
     isLoading,

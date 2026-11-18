@@ -15,6 +15,8 @@ import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
 import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "../types/subtitle";
 import { SubtitleConfigControls } from "../components/ui/SubtitleConfigControls";
+import { JobReport } from "../components/JobReport";
+import { asErrorInfo, hasRerunAction } from "../lib/errorInfo";
 
 export const HistoryPage: React.FC = () => {
   const { t } = useTranslation();
@@ -151,6 +153,8 @@ export const HistoryPage: React.FC = () => {
                   onClick={() => deleteHistory(job.id)}
                 />
               </div>
+
+              <JobReport job={job} />
 
               {deletingId !== job.id && job.result_clips && job.result_clips.length > 0 && (
                 <div className="flex gap-6 overflow-x-auto py-4">
@@ -337,7 +341,8 @@ export const HistoryPage: React.FC = () => {
                     {t("history.lanjut_manual")}
                   </Button>
                 )}
-                {(job.status === "failed" || job.status === "ERROR") && canResumeJob(job) && (
+                {/* The error card already has this button when the error offers "Coba lagi" or "Lanjutkan". */}
+                {(job.status === "failed" || job.status === "ERROR") && canResumeJob(job) && !hasRerunAction(asErrorInfo(job.metadata?.error_info)) && (
                   <Button
                     variant="outline"
                     className="!text-accent !border-accent/30 hover:!bg-accent/10"

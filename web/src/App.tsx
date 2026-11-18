@@ -4,10 +4,14 @@ import { AuthGate } from "./components/AuthGate";
 import { AppLayout } from "./layouts/AppLayout";
 import { WorkspacePage } from "./pages/WorkspacePage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { PromptJsonModal } from "./components/Dashboard/PromptJsonModal";
 import { ResultsModal } from "./components/Dashboard/ResultsModal";
 import { ClipEditModal } from "./components/ClipEditModal";
 import { BusyOverlay } from "./components/BusyOverlay";
+import { CookiesModal } from "./components/CookiesModal";
+import { JobWarnings } from "./components/JobWarnings";
+import { TimingDetails } from "./components/TimingDetails";
 import { useJobPolling } from "./hooks/useJobPolling";
 import type { JobResponse } from "./types/job";
 import { DEFAULT_CANVAS_CONFIG } from "./types/canvas";
@@ -24,6 +28,10 @@ function MainApp() {
   const [activeHistoryJob, setActiveHistoryJob] = useState<JobResponse | null>(null);
   const [shownResultsForJobId, setShownResultsForJobId] = useState<string | null>(null);
   const [activeEditModalClip, setActiveEditModalClip] = useState<{ jobId: string; index: number; jobMeta?: any } | null>(null);
+  // Cookies upload opened from an error card. `onRetry` runs the failed step again.
+  const [cookiesModal, setCookiesModal] = useState<{ onRetry?: () => void } | null>(null);
+  // Set by the "pick a video from Google Drive" action; the workspace form opens the Drive browser once.
+  const [driveBrowserRequested, setDriveBrowserRequested] = useState(false);
 
   const {
     jobId,
@@ -32,6 +40,8 @@ function MainApp() {
     prompt,
     clips,
     error,
+    errorInfo,
+    queuePosition,
     isLoading,
     isPolling,
     activeJob,
@@ -95,6 +105,9 @@ function MainApp() {
       status !== "CANCELLED" &&
       status !== "AWAITING_MANUAL");
 
+  // The job whose clips the results modal shows: one opened from History, else the current job.
+  const resultsMeta = activeHistoryJob?.metadata || activeJob?.metadata;
+
   const contextValue = {
     resetKey,
     jobId,
@@ -105,6 +118,12 @@ function MainApp() {
     handleHeroSubmit,
     resumeJob,
     error,
+    errorInfo,
+    queuePosition,
+    openCookies: (onRetry?: () => void) => setCookiesModal({ onRetry }),
+    driveBrowserRequested,
+    requestDriveBrowser: () => setDriveBrowserRequested(true),
+    clearDriveBrowserRequest: () => setDriveBrowserRequested(false),
     status,
     progress,
     setIsResultsModalOpen,
@@ -124,12 +143,17 @@ function MainApp() {
           <Route path="/" element={<AppLayout />}>
             <Route index element={<WorkspacePage />} />
             <Route path="history" element={<HistoryPage />} />
+            <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Routes>
       </HashRouter>
 
       {/* Busy Overlay Modal (Persistent Modal like Desktop Auto Clipper) */}
       <BusyOverlay />
+
+      {cookiesModal && (
+        <CookiesModal onClose={() => setCookiesModal(null)} onRetry={cookiesModal.onRetry} />
+      )}
 
       {/* Global Modals for Job Flow */}
       <PromptJsonModal
@@ -166,6 +190,12 @@ function MainApp() {
           }
         }}
         onResetApp={handleResetToNewJob}
+        notice={
+          <>
+            <JobWarnings warnings={resultsMeta?.warnings} className="mb-3 sm:mb-4" />
+            <TimingDetails metadata={resultsMeta} className="mb-3 sm:mb-4" />
+          </>
+        }
       />
 
       {activeEditModalClip && (

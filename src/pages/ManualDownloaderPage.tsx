@@ -10,6 +10,10 @@ import { ToggleSwitch } from "../components/ui/ToggleSwitch";
 import { Select } from "../components/ui/Select";
 import { Button } from "../components/ui/Button";
 import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
+import { ErrorCard } from "../components/ErrorCard";
+import { useErrorActions } from "../hooks/useErrorActions";
+import { asErrorInfo } from "../lib/errorInfo";
+import type { ErrorInfo } from "../types/errorInfo";
 
 export const ManualDownloaderPage: React.FC = () => {
   const { t } = useTranslation();
@@ -19,19 +23,26 @@ export const ManualDownloaderPage: React.FC = () => {
   const [quality, setQuality] = useState<"best" | "2160p" | "1440p" | "1080p" | "720p" | "480p">("best");
   const [availHeights, setAvailHeights] = useState<number[]>([]);
   const [probing, setProbing] = useState(false);
+  const [probeError, setProbeError] = useState<ErrorInfo | null>(null);
 
   const probeQualities = async () => {
     if (!downloadUrl) return;
     setProbing(true);
+    setProbeError(null);
     try {
       const r = await axios.get(`${API_URL}/probe`, { params: { url: downloadUrl } });
       setAvailHeights(r.data.heights || []);
-    } catch {
+    } catch (err: any) {
       setAvailHeights([]);
+      setProbeError(asErrorInfo(err?.response?.data?.error_info));
     } finally {
       setProbing(false);
     }
   };
+
+  const jobErrorActions = useErrorActions({ jobId: ctx.failedJobId });
+  // A failed quality check has no job: "Coba lagi" checks again.
+  const probeErrorActions = useErrorActions({ onRetry: probeQualities });
 
   const handleDownload = () => {
     if (!downloadTitle || !downloadTitle.trim()) {
@@ -83,6 +94,7 @@ export const ManualDownloaderPage: React.FC = () => {
               </span>
             )}
           </div>
+          {probeError && <ErrorCard info={probeError} handlers={probeErrorActions} announce className="mt-2" />}
         </div>
 
         <div className="space-y-2">
@@ -206,7 +218,11 @@ export const ManualDownloaderPage: React.FC = () => {
           )}
         </div>
 
-        {ctx.errorMsg && (
+        {ctx.errorMsg && ctx.errorInfo && (
+          <ErrorCard info={ctx.errorInfo} handlers={jobErrorActions} announce />
+        )}
+
+        {ctx.errorMsg && !ctx.errorInfo && (
           <div className="p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-body">
             ⚠️ {ctx.errorMsg}
           </div>

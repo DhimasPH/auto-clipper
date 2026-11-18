@@ -6,6 +6,7 @@ import { ProviderSection } from '../components/settings/ProviderSection';
 import { TranscriptionSection } from '../components/settings/TranscriptionSection';
 import { OutputSection } from '../components/settings/OutputSection';
 import { UpdaterSection } from '../components/settings/UpdaterSection';
+import { CookiesSection } from '../components/settings/CookiesSection';
 
 export const SettingsPage: React.FC = () => {
   const ctx = useContext(AppContext);
@@ -34,12 +35,13 @@ export const SettingsPage: React.FC = () => {
           setWhisperModel={ctx.setWhisperModel}
           notify={ctx.notify}
         />
-        <OutputSection 
+        <OutputSection
           outputFolder={ctx.outputFolder}
           setOutputFolder={ctx.setOutputFolder}
           quality={ctx.quality}
           setQuality={ctx.setQuality}
         />
+        <CookiesSection />
         <UpdaterSection />
       </div>
     </div>

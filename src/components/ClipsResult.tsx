@@ -5,6 +5,8 @@ import { Plus } from "lucide-react";
 import { useContext } from "react";
 import { AppContext } from "../App";
 import { useTranslation } from "react-i18next";
+import { JobWarnings } from "./JobWarnings";
+import { TimingDetails } from "./TimingDetails";
 
 interface ClipsResultProps {
   clips: Clip[];
@@ -45,6 +47,8 @@ export default function ClipsResult({ clips, status, failedCount, jobId, videoSr
         )}
       </div>
       
+      {status === "DONE" && <JobWarnings warnings={ctx.jobMeta?.warnings} />}
+
       <div className="flex gap-6 flex-wrap">
         {clips.map((clip, i) => (
           <ClipCard
@@ -56,6 +60,8 @@ export default function ClipsResult({ clips, status, failedCount, jobId, videoSr
           />
         ))}
       </div>
+
+      {status === "DONE" && <TimingDetails metadata={ctx.jobMeta} />}
     </section>
   );
 }

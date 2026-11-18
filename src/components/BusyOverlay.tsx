@@ -40,6 +40,11 @@ export default function BusyOverlay() {
   };
 
   const getStatusText = () => {
+    // Waiting for another job to finish: say so instead of a working message.
+    if (ctx.queuePosition === 1) return t('queue.next', 'Menunggu giliran. Proses ini berikutnya.');
+    if (ctx.queuePosition > 1) {
+      return t('queue.position', { n: ctx.queuePosition, defaultValue: 'Menunggu giliran. Urutan ke-{{n}} dalam antrean.' });
+    }
     if (elapsedSeconds > 2400) return t('busy.wait_40m', "Harap tunggu, ternyata agak lama ya proses nya");
     if (elapsedSeconds > 1200) return t('busy.wait_20m', "Sabar adalah kunci. Video kamu hampir siap!");
     if (elapsedSeconds > 600) return t('busy.wait_10m', "Sabar yaa, lagi proses nih...");
@@ -63,7 +68,7 @@ export default function BusyOverlay() {
           <Loader2 className="w-6 h-6 text-accent animate-spin shrink-0" />
           <div className="min-w-0">
             <h3 className="text-body font-medium text-text-primary">{t('busy.processing', 'Sedang memproses…')}</h3>
-            <p className="text-caption text-text-secondary truncate">{getStatusText()}</p>
+            <p className={`text-caption text-text-secondary ${ctx.queuePosition ? "" : "truncate"}`}>{getStatusText()}</p>
           </div>
         </div>
 

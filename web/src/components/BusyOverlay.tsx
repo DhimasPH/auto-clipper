@@ -1,9 +1,11 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Loader2, StopCircle } from "lucide-react";
 import { AppContext } from "../App";
+import { useLang } from "../lib/lang";
 
 export const BusyOverlay: React.FC = () => {
   const ctx = useContext(AppContext);
+  const { t } = useLang();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [rotateIdx, setRotateIdx] = useState(0);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -49,6 +51,9 @@ export const BusyOverlay: React.FC = () => {
   };
 
   const getStatusText = () => {
+    // Waiting for another job to finish: say so instead of a working message.
+    if (ctx?.queuePosition === 1) return t("queue.next");
+    if (ctx?.queuePosition > 1) return t("queue.position", { n: ctx.queuePosition });
     if (elapsedSeconds > 2400) return "Harap tunggu, proses membutuhkan waktu lebih lama...";
     if (elapsedSeconds > 1200) return "Sabar adalah kunci. Video kamu hampir siap!";
     if (elapsedSeconds > 600) return "Sedang diproses di GPU Cloud...";
@@ -99,7 +104,7 @@ export const BusyOverlay: React.FC = () => {
           </div>
           <div className="min-w-0">
             <h3 className="font-bold text-base sm:text-lg text-text-primary">Sedang Memproses…</h3>
-            <p className="text-xs text-text-secondary truncate mt-0.5">{getStatusText()}</p>
+            <p className={`text-xs text-text-secondary mt-0.5 ${ctx?.queuePosition ? "" : "truncate"}`}>{getStatusText()}</p>
           </div>
         </div>
 

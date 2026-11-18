@@ -16,7 +16,9 @@ export const ResultsModal: React.FC<{
   onRerenderClip?: (clipId: string) => void;
   onOpenFolder?: () => void;
   onResetApp?: () => void;
-}> = ({ isOpen, onClose, clips, onEditSubtitle, onRerenderClip, onOpenFolder, onResetApp }) => {
+  /** Shown above the clips: warnings and timing details of the job. */
+  notice?: React.ReactNode;
+}> = ({ isOpen, onClose, clips, onEditSubtitle, onRerenderClip, onOpenFolder, onResetApp, notice }) => {
   // Close modal on Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -50,6 +52,7 @@ export const ResultsModal: React.FC<{
           </div>
 
           <div className="p-3 sm:p-6 overflow-y-auto flex-1 min-h-0 bg-bg-surface/30">
+             {notice}
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {clips.map((clip, i) => (
                   <div key={clip.id} className="bg-white border border-border rounded-2xl overflow-hidden group flex flex-col shadow-sm hover:shadow-md transition-shadow">

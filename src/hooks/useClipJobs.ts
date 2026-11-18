@@ -7,6 +7,8 @@ import { Clip } from "../components/ClipCard";
 import { ToastKind } from "./useToasts";
 import { CanvasConfig } from "../types/canvas";
 import { SubtitleConfig } from "../types/subtitle";
+import type { ErrorInfo } from "../types/errorInfo";
+import { asErrorInfo, localizedText, requestError, toLang } from "../lib/errorInfo";
 
 export interface ClipJobParams {
   inputType: "url" | "local";
@@ -44,13 +46,21 @@ export type CreateJobParams = ClipJobParams;
  * polling, cancellation and the derived progress/running flags.
  */
 export function useClipJobs(p: ClipJobParams) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { notify } = p;
 
   const [status, setStatus] = useState<
     "IDLE" | "GENERATING" | "DOWNLOADING" | "TRANSCRIBING" | "ANALYZING" | "CROPPING" | "DONE" | "ERROR"
   >("IDLE");
   const [errorMsg, setErrorMsg] = useState("");
+  // Structured form of the error, when the backend sent one (error_info).
+  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
+  // The job the error belongs to, so its Resume button knows what to run.
+  const [failedJobId, setFailedJobId] = useState<string | null>(null);
+  // 1 = next in line, 2 = after that; null while running or not queued.
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
+  // Metadata of the last finished workspace job (timings, warnings).
+  const [jobMeta, setJobMeta] = useState<any>(null);
   const [progress, setProgress] = useState("");
   const [clips, setClips] = useState<Clip[]>([]);
   const [failedCount, setFailedCount] = useState(0);
@@ -58,6 +68,20 @@ export function useClipJobs(p: ClipJobParams) {
   const [jobOrigin, setJobOrigin] = useState<"workspace" | "history">("workspace");
   const [historyVersion, setHistoryVersion] = useState(0);
 
+  const clearError = () => {
+    setErrorMsg("");
+    setErrorInfo(null);
+    setFailedJobId(null);
+  };
+
+  /** Show a failed request: the structured card when the backend sent error_info, else the raw text. */
+  const showRequestError = (err: unknown, fallback: string) => {
+    const { message, info } = requestError(err, fallback);
+    setErrorMsg(message);
+    setErrorInfo(info);
+    setFailedJobId(null);
+    notify(info ? localizedText(info, toLang(i18n.language)).title : `⚠️ ${message}`, "error");
+  };
 
   // Polling effect for async job status.
   useEffect(() => {
@@ -77,28 +101,37 @@ export function useClipJobs(p: ClipJobParams) {
             if (jobOrigin === "workspace") {
               setClips(job.clips);
               setFailedCount(failedN);
+              setJobMeta(job.metadata || null);
             } else {
               // History-origin job (re-render / AI correction): refresh History, leave Workspace untouched.
               setHistoryVersion((v) => v + 1);
             }
             setActiveJobId(null);
             setProgress("");
+            setQueuePosition(null);
             const doneMsg = failedN > 0
               ? t('toast.done_partial', { count: job.clips.length, failed: failedN, defaultValue: `🎉 Selesai! ${job.clips.length} klip berhasil, ${failedN} gagal` })
               : t('toast.done_all', { count: job.clips.length, defaultValue: `🎉 Selesai! ${job.clips.length} clip berhasil dibuat` });
             notify(doneMsg, "success");
 
           } else if (job.status === "ERROR") {
+            const info = asErrorInfo(job.error_info);
             setStatus("ERROR");
             setErrorMsg(job.error || "Unknown error occurred.");
-            notify(`⚠️ ${job.error || "Unknown error"}`, "error");
+            setErrorInfo(info);
+            setFailedJobId(activeJobId);
+            notify(info ? localizedText(info, toLang(i18n.language)).title : `⚠️ ${job.error || "Unknown error"}`, "error");
             setActiveJobId(null);
             setProgress("");
+            setQueuePosition(null);
+            // The failed job is in History now, with its own error card.
+            setHistoryVersion((v) => v + 1);
           } else if (job.status === "CANCELLED") {
             setStatus("IDLE");
             notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
             setActiveJobId(null);
             setProgress("");
+            setQueuePosition(null);
           } else if (job.status === "AWAITING_MANUAL") {
             setStatus("IDLE");
             notify(t("toast.manual_prompt_ready", "Prompt manual berhasil dibuat. Anda dialihkan ke menu History."), "success");
@@ -108,10 +141,12 @@ export function useClipJobs(p: ClipJobParams) {
             }
             setActiveJobId(null);
             setProgress("");
+            setQueuePosition(null);
           } else {
             // In progress
             setStatus(job.status as any);
             setProgress(job.progress);
+            setQueuePosition(typeof job.queue_position === "number" && job.queue_position > 0 ? job.queue_position : null);
             if (jobOrigin === "workspace" && job.clips && job.clips.length > clips.length) {
               setClips(job.clips);
             }
@@ -129,6 +164,7 @@ export function useClipJobs(p: ClipJobParams) {
     setStatus("IDLE");
     setActiveJobId(null);
     setProgress("");
+    setQueuePosition(null);
     notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
     setHistoryVersion((v) => v + 1);
 
@@ -165,10 +201,11 @@ export function useClipJobs(p: ClipJobParams) {
       return;
     }
 
-    setErrorMsg("");
+    clearError();
     setProgress("");
     setClips([]);
     setFailedCount(0);
+    setJobMeta(null);
     setJobOrigin("workspace");
 
     try {
@@ -219,9 +256,7 @@ export function useClipJobs(p: ClipJobParams) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || "An unknown error occurred.";
-      setErrorMsg(msg);
-      notify(`⚠️ ${msg}`, "error");
+      showRequestError(err, "An unknown error occurred.");
     }
   };
 
@@ -234,10 +269,11 @@ export function useClipJobs(p: ClipJobParams) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
       return;
     }
-    setErrorMsg("");
+    clearError();
     setProgress("");
     setClips([]);
     setFailedCount(0);
+    setJobMeta(null);
     setJobOrigin("workspace");
 
     try {
@@ -263,9 +299,7 @@ export function useClipJobs(p: ClipJobParams) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || "An unknown error occurred.";
-      setErrorMsg(msg);
-      notify(`⚠️ ${msg}`, "error");
+      showRequestError(err, "An unknown error occurred.");
     }
   };
 
@@ -280,7 +314,7 @@ export function useClipJobs(p: ClipJobParams) {
     setJobOrigin("history");
     setStatus("TRANSCRIBING");
     setProgress("");
-    setErrorMsg("");
+    clearError();
 
     try {
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerender`, {
@@ -310,9 +344,7 @@ export function useClipJobs(p: ClipJobParams) {
       console.error(err);
       setStatus("ERROR");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || t('toast.rerender_fail', 'Gagal memulai re-render.');
-      setErrorMsg(msg);
-      notify(`⚠️ ${msg}`, "error");
+      showRequestError(err, t('toast.rerender_fail', 'Gagal memulai re-render.'));
     }
   };
 
@@ -320,7 +352,7 @@ export function useClipJobs(p: ClipJobParams) {
     setJobOrigin("history");
     setStatus("TRANSCRIBING");
     setProgress("");
-    setErrorMsg("");
+    clearError();
 
     try {
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerun_ai`, {
@@ -354,17 +386,17 @@ export function useClipJobs(p: ClipJobParams) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || t('toast.ai_correct_fail', 'Gagal memulai AI Koreksi.');
-      setErrorMsg(msg);
-      notify(`⚠️ ${msg}`, "error");
+      showRequestError(err, t('toast.ai_correct_fail', 'Gagal memulai AI Koreksi.'));
     }
   };
 
-  const handleResumeJob = async (historyJobId: string) => {
-    setJobOrigin("history");
+  // origin "workspace": the clips of the resumed job appear in the Workspace
+  // (Resume pressed on the Workspace error card). Default: History is refreshed.
+  const handleResumeJob = async (historyJobId: string, origin: "workspace" | "history" = "history") => {
+    setJobOrigin(origin);
     setStatus("TRANSCRIBING");
     setProgress("");
-    setErrorMsg("");
+    clearError();
 
     try {
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/resume`, {
@@ -385,9 +417,7 @@ export function useClipJobs(p: ClipJobParams) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || t('toast.resume_fail', 'Gagal melanjutkan proses AI.');
-      setErrorMsg(msg);
-      notify(`⚠️ ${msg}`, "error");
+      showRequestError(err, t('toast.resume_fail', 'Gagal melanjutkan proses AI.'));
     }
   };
 
@@ -395,7 +425,7 @@ export function useClipJobs(p: ClipJobParams) {
     setJobOrigin("history");
     setStatus("CROPPING");
     setProgress("");
-    setErrorMsg("");
+    clearError();
     setActiveJobId(newJobId);
     // Polling loop in useEffect will pick up the new job automatically
   };
@@ -403,10 +433,12 @@ export function useClipJobs(p: ClipJobParams) {
   const resetJobState = () => {
     setStatus("IDLE");
     setClips([]);
-    setErrorMsg("");
+    clearError();
     setProgress("");
     setActiveJobId(null);
     setFailedCount(0);
+    setQueuePosition(null);
+    setJobMeta(null);
   };
 
   const startManualResumePolling = (jobId: string) => {
@@ -414,7 +446,7 @@ export function useClipJobs(p: ClipJobParams) {
     setJobOrigin("history");
     setStatus("CROPPING");
     setProgress("Memproses klip manual...");
-    setErrorMsg("");
+    clearError();
     p.closeHistory();
   };
 
@@ -429,7 +461,7 @@ export function useClipJobs(p: ClipJobParams) {
   }, [isRunning]);
 
   return {
-    status, progress, errorMsg, clips, failedCount,
+    status, progress, errorMsg, errorInfo, failedJobId, queuePosition, jobMeta, clips, failedCount,
     isRunning, historyVersion, activeJobId,
     handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, startManualResumePolling, cancelJob, resetJobState,
   };
