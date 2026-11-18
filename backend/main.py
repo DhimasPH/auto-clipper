@@ -134,10 +134,11 @@ async def verify_token(request: Request, call_next):
 
 @app.post("/upload")
 def api_upload_video(file: UploadFile = File(...)):
+    from backend.path_guard import safe_upload_name
     from backend.workspace import uploads_dir
     temp_dir = os.path.abspath(uploads_dir())
     os.makedirs(temp_dir, exist_ok=True)
-    file_path = os.path.join(temp_dir, f"upload_{file.filename}")
+    file_path = os.path.join(temp_dir, f"upload_{safe_upload_name(file.filename)}")
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     # Return local path prefixed with local: so jobs.py knows to skip download
@@ -390,14 +391,18 @@ class SaveFileRequest(BaseModel):
 
 @app.post("/save_file")
 def api_save_file(req: SaveFileRequest):
+    from backend.path_guard import denied, is_protected, is_within
     try:
-        abs_src = os.path.abspath(req.src)
-        app_data = os.path.abspath(get_app_data_dir())
+        # copy2 into a folder keeps the source's name: check the file it would write.
+        dest = os.path.join(req.dest, os.path.basename(req.src)) if os.path.isdir(req.dest) else req.dest
+        for path in (req.src, dest):
+            if is_protected(path):
+                return denied("save_file", path)
         # Only allow copying files that originate from our AppData directory
-        if not abs_src.startswith(app_data):
+        if not is_within(req.src, get_app_data_dir()):
             return JSONResponse(status_code=403, content={"status": "error", "message": "Hanya diperbolehkan menyalin file dari direktori internal aplikasi."})
-            
-        shutil.copy2(req.src, req.dest)
+
+        shutil.copy2(req.src, dest)
         return {"status": "success"}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -824,9 +829,12 @@ def api_extract_metadata(req: ExtractMetadataRequest):
 
     Returns a job_id immediately; the frontend polls GET /api/metadata/{id}.
     """
+    from backend.path_guard import denied, is_protected
     path = req.path
     if path.startswith("local:"):
         path = path.split("local:")[1]
+    if path and is_protected(path):
+        return denied("extract_metadata", path)
     if not path or not os.path.exists(path):
         return JSONResponse(status_code=400, content={"status": "error", "message": "File tidak ditemukan."})
     from backend.metadata import create_metadata_job
@@ -855,9 +863,12 @@ def api_get_metadata(job_id: str):
 @app.get("/api/thumbnails")
 def api_get_thumbnails(path: str, start: float = 0.0, end: float = 0.0, count: int = 12):
     """On-demand filmstrip thumbnails for a time window (zoomable timeline)."""
+    from backend.path_guard import denied, is_protected
     p = path
     if p.startswith("local:"):
         p = p.split("local:")[1]
+    if p and is_protected(p):
+        return denied("thumbnails", p)
     if not p or not os.path.exists(p):
         return JSONResponse(status_code=400, content={"status": "error", "message": "File tidak ditemukan."})
     if end <= start:
@@ -918,7 +929,12 @@ def get_video(path: str, dl: int = 0, title: str = None):
     FileResponse handles HTTP Range requests, so seeking works in the player.
     """
     from backend.logger import log_app
-    
+    from backend.path_guard import denied, is_protected
+
+    # Before anything that could tell whether the file exists.
+    if is_protected(path):
+        return denied("video", path)
+
     abs_path = os.path.normpath(os.path.abspath(path))
     
     # Path traversal protection: ensure file is inside app data dir or project root
