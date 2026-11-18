@@ -456,3 +456,9 @@ Sisa SP0 (semua butuh pemilik):
   - No. 8 (teks error web) dan no. 9 (preflight belum tampil): backlog SP2, bersama task teks layar proses.
   - No. 10: kelas palet di `ErrorCard` desktop dibiarkan.
   - No. 12 (Ngrok tanpa GPU keep-alive): backlog SP1.
+
+Pelaksanaan (2026-11-18): tiga agen (fable, effort high) bekerja paralel, masing-masing di worktree sendiri dari `6c04901`:
+- T0.17 di `C:\Users\dhima\projects\ac-t17`, branch `sp0/t0.17-drive-block`.
+- T0.18 di `C:\Users\dhima\projects\ac-t18`, branch `sp0/t0.18-no-keys-in-history`.
+- T0.19 di `C:\Users\dhima\projects\ac-t19`, branch `sp0/t0.19-protect-app-data`.
+Bila sesi terputus: `git -C ..\ac-t1X log --oneline -3` dan jalankan tes di tiap worktree, lalu review dan merge satu per satu (kemungkinan konflik kecil di `backend/errors.py` dan `backend/main.py`).
