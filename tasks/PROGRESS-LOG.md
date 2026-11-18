@@ -321,7 +321,7 @@ Daftar cek Colab (dari agen T0.13, runtime T4 baru):
 6. Satu job URL pendek: video sumber ada di `/content/work/projects/<judul>/source/`; setelah selesai klip ada di Drive `AutoClipperData/projects/<judul>/clips/`, tanpa file `.part`; "Detail waktu" tampil.
 7. Job kedua saat yang pertama berjalan → "Menunggu giliran".
 8. Runtime → Disconnect and delete runtime, sambung lagi, jalankan sel 1–4: riwayat dan klip lama muncul; render ulang mengunduh ulang video sumber.
-9. Opsional: unggah `cookies.txt` akun cadangan di Pengaturan ("Berlaku sampai ..."); jalankan sel 4 tanpa sel 1 di runtime baru → "Google Drive belum terhubung".
+9. Opsional: unggah `cookies.txt` akun cadangan di Pengaturan ("Berlaku sampai ..."); jalankan sel 4 tanpa sel 1 di runtime baru → pemeriksaan awal `[MASALAH] Google Drive belum terhubung`, job ditolak dengan kartu error, dan tidak ada folder di `/content/drive` (sejak T0.17). Lalu hentikan sel 4, jalankan sel 1: harus berhasil ter-mount.
 
 ---
 
@@ -476,3 +476,12 @@ Bila sesi terputus: `git -C ..\ac-t1X log --oneline -3` dan jalankan tes di tiap
 - Tes 674 lulus + 7 dilewati; `npm run build` desktop exit 0.
 - Risiko di luar jangkauan kode: Google Drive bisa menyimpan versi lama `history.db` (riwayat versi, sampah) yang masih berisi kunci. Saran ke pemilik: ganti (rotate) kunci API yang pernah dipakai di desktop dengan workspace di Drive.
 - Belum ada ADR untuk perubahan aliran data ini; dicatat di ADR-012 saat PR bila pemilik setuju.
+
+### T0.17 di-merge (`ddcfb0e`); semua kode SP0 selesai
+
+- Modul baru `backend/drive_mount.py`: di mode cloud dengan pustaka di bawah `/content/drive` yang belum ter-mount, `refuse_unmounted` melempar `AppError("DRIVE_NOT_MOUNTED")` alih-alih membuat folder; log dan `history.db` memakai `local_dir()` (work dir `/content/work`), snapshot dimatikan sampai Drive ter-mount lalu digabung. `check_drive` menjadi `block` dan masuk `_BLOCKING_CHECKS`. `colab_api.setup_environment` tidak membuat folder Drive. `scripts/colab_preflight.py` tidak lagi punya cek Drive sendiri. Handler `AppError` global di `main.py` (400 + `error_info`). Teks `DRIVE_NOT_MOUNTED` (id + en) menyuruh hentikan server, jalankan Langkah 1, dan bila Langkah 1 gagal karena folder berisi file: Runtime → "Disconnect and delete runtime". Agen memeriksa sumber `google/colab/drive.py`: `ValueError('Mountpoint must not already contain files')` memang dilempar. Panduan, tutorial (Kendala 9), dan ADR-012 diperbarui.
+- Konflik merge: import `db.py` (gabungan) dan `AGENTS.md` (aturan T0.17 menjadi E.16). Interaksi dicek: saat Drive belum ter-mount, snapshot `None` sehingga pembersihan kunci T0.18 tidak menulis ke Drive; `path_guard` T0.19 gagal tertutup dengan `DRIVE_NOT_MOUNTED`.
+- Tes 693 lulus + 7 dilewati.
+- Sisa kecil: `workspace.library_warnings()` kini hanya membersihkan peringatan Drive lama; bisa disederhanakan nanti.
+
+Sisa SP0 (semua butuh pemilik): cek manual T0.12, satu jalan notebook di runtime baru (T0.13, daftar cek 5, 7, 8, 9), `git push`, lalu PR ke `main`.
