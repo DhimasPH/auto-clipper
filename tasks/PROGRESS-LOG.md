@@ -315,7 +315,7 @@ Daftar cek Colab (dari agen T0.13, runtime T4 baru):
 
 1. Sel 1: Drive ter-mount, baris GPU "GPU T4 Aktif".
 2. Sel 2: berakhir "Deno terpasang (deno 2.x ...)"; jalankan lagi → "Deno sudah terpasang"; sel baru `!which deno` → `/usr/local/bin/deno`.
-3. Sel 3: pip selesai.
+3. Sel 3: isi `BRANCH` dengan `feat/sp0-pipeline-stability` (branch harus sudah di-push ke GitHub), lalu pip selesai. Baris "Versi yang dipakai" harus menunjukkan branch itu dan commit terakhirnya.
 4. Sel 4A atau 4B: sebelum log server muncul "PEMERIKSAAN AWAL AUTO CLIPPER" dengan Drive, YouTube helper, GPU OK. **Catat** apakah "Render memakai GPU" atau "[PERHATIAN] Render memakai prosesor" (menjawab temuan F8).
 5. Sel baru `!ls /content/work` → ada `history.db`; `AutoClipperData/history.db` di Drive tetap ada.
 6. Satu job URL pendek: video sumber ada di `/content/work/projects/<judul>/source/`; setelah selesai klip ada di Drive `AutoClipperData/projects/<judul>/clips/`, tanpa file `.part`; "Detail waktu" tampil.
