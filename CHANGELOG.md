@@ -2,6 +2,37 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.18.0] - 2026-11-18
+
+Rilis SP0 (pipeline andal). Belum ada pengukuran kecepatan sebelum dan sesudah perubahan ini, jadi tidak ada klaim "lebih cepat" di bawah. Versi 1.17.2 sampai 1.17.4 tidak tercatat di file ini.
+
+### Added
+- **Kartu Error yang Bisa Ditindaklanjuti**: Kegagalan kini tampil sebagai kartu berisi judul dan penjelasan dalam bahasa awam (Indonesia dan Inggris) beserta tombol aksi, misalnya **Unggah cookies.txt**, **Pilih video dari Google Drive** (web), **Lanjutkan**, atau **Buka Pengaturan** (desktop). Pesan asli error tersimpan di **Detail teknis** yang tertutup secara bawaan, lengkap dengan tombol **Salin**. Berlaku di aplikasi desktop dan Web UI.
+- **Unggah `cookies.txt` YouTube**: Saat YouTube meminta verifikasi, pengguna bisa mengunggah `cookies.txt` dari kartu error atau dari halaman Pengaturan. File diperiksa (format, cookie YouTube, masa berlaku, ukuran maks. 1 MB), statusnya ditampilkan ("Berlaku sampai ..."), dan bisa dihapus. Panduan 3 langkah dan peringatan "pakai akun cadangan, bukan akun utama" tampil di panel yang sama.
+- **Detail Waktu**: Setiap job mencatat lama dan memori puncak tiap tahap (unduh, ambil audio, subtitle, analisis AI, pelacakan wajah, render per klip, simpan ke penyimpanan) serta perangkat yang benar-benar dipakai (GPU atau prosesor untuk subtitle dan render, mode pelacakan wajah). Ditampilkan sebagai **Detail waktu** di hasil job dan di Riwayat.
+- **Antrean Job**: Hanya satu job berat yang berjalan dalam satu waktu (atur dengan `AUTO_CLIPPER_MAX_HEAVY_JOBS`). Job berikutnya menampilkan "Menunggu giliran" beserta urutannya, bisa dibatalkan selama menunggu, dan menekan Lanjutkan dua kali pada proyek yang masih diproses ditolak dengan pesan jelas.
+- **Pemeriksaan Awal (Preflight)**: Backend memeriksa FFmpeg, ruang disk, memori, GPU, encoder GPU, Google Drive, Deno, dan umur pengunduh video (`GET /api/preflight`). FFmpeg yang hilang atau disk yang hampir penuh menghentikan job sebelum mulai dengan pesan jelas.
+- **Halaman Pengaturan di Web UI** (`/settings`): Berisi panel Cookies YouTube dan pilihan bahasa untuk pesan error, panduan cookies, dan detail waktu.
+- **Notebook Colab**: Memasang Deno (dengan skrip pemasangan resmi; bila gagal, notebook memberi tahu lalu tetap lanjut) dan menampilkan **Pemeriksaan awal** dalam bahasa Indonesia sebelum server menyala (`scripts/colab_preflight.py`).
+- **Skrip Benchmark** (`scripts/benchmark_pipeline.py`): Menjalankan satu video lewat pipeline asli lalu mencetak tabel waktu dan memori per tahap.
+
+### Changed
+- **Disk Kerja Lokal di Colab**: Notebook kini menjalankan backend dengan `AUTO_CLIPPER_WORK_DIR=/content/work`. Video sumber, audio, dan render dikerjakan di disk lokal Colab, lalu setiap klip yang selesai beserta file subtitle disalin ke Google Drive dengan cara aman (nama sementara lalu rename, sehingga tidak pernah ada klip setengah jadi di Drive). Video sumber tidak lagi disimpan di Drive. Tanpa `AUTO_CLIPPER_WORK_DIR` (aplikasi desktop) perilakunya tidak berubah.
+- **Riwayat (`history.db`) di Disk Lokal dengan Cadangan ke Drive**: Di Colab, database riwayat dibuka di disk kerja dan dicadangkan ke `AutoClipperData/history.db` di Drive (status akhir job langsung, perubahan lain paling sering sekali per 5 detik). Saat server dinyalakan di sesi baru, riwayat dipulihkan otomatis dari Drive. Database lama di Drive terbaca tanpa langkah migrasi.
+- **Melanjutkan Proyek setelah Sesi Colab Berakhir**: Lanjutkan, render ulang, AI Koreksi, dan resume manual kini mengambil kembali video sumber yang hilang bersama disk kerja: video dari URL diunduh ulang, video dari Google Drive disalin ulang. Bila video unggahan sudah tidak ada, muncul pesan "File video yang diunggah sudah tidak ada" alih-alih error mentah.
+- **Kualitas Unduhan Bawaan**: Pilihan "terbaik" kini berarti H.264 MP4 hingga 1080p (label "Otomatis (hingga 1080p)"), bukan AV1/VP9 hingga 4K yang berat di-decode. Resolusi 1440p dan 2160p tetap bisa dipilih.
+- **Strategi Pengunduh YouTube**: yt-dlp mencoba pilihan client bawaannya, lalu `web_embedded`, lalu `android_vr`, masing-masing sekali. Bila Deno terpasang, yt-dlp memakainya untuk tantangan JavaScript YouTube beserta komponen EJS dari GitHub. Error yang tidak bisa ditolong client lain (video tidak tersedia, rate limit, disk penuh, verifikasi saat cookies sudah dipakai) langsung dihentikan.
+- **Notebook Colab Lebih Jujur**: Notebook tidak lagi mengklaim render NVENC. FFmpeg dari Ubuntu dipakai apa adanya; render memakai GPU hanya bila runtime menyediakannya, dan hasilnya terlihat di Pemeriksaan awal.
+- **Dokumentasi**: `docs/panduan-penggunaan-awam.md` dan `docs/tutorial-auto-clipper-cloud.md` diperbarui (verifikasi YouTube dan cookies, disk kerja sementara, apa yang aman saat sesi Colab mati, arti "Menunggu giliran", letak Detail waktu dan Detail teknis). ADR-012 mencatat keputusan arsitektur SP0.
+
+### Fixed
+- **Rotasi Client YouTube yang Tidak Pernah Bekerja**: Kode lama memakai bentuk `extractor_args` yang diabaikan yt-dlp, sehingga permintaan yang sama diulang sampai 12 kali tanpa berganti client. Kini setiap percobaan benar-benar memakai client yang berbeda.
+- **Error Unduhan Mentah**: Pesan yt-dlp seperti "Sign in to confirm you're not a bot" atau "HTTP Error 403" tidak lagi tampil mentah; semuanya dipetakan ke kode error dengan pesan awam.
+- **MediaPipe Face Tracking**: `FaceMesh` dibuat sekali per panggilan dan selalu ditutup, juga saat terjadi error. Kegagalan MediaPipe dicatat ke log beserta alasannya (sebelumnya ditelan diam-diam), bila MediaPipe gagal di tengah jalan OpenCV Haar melanjutkan dari frame itu tanpa mengulang sampling dari awal, dan mode yang benar-benar dipakai tercatat di Detail waktu.
+- **Fallback GPU yang Diam-Diam**: Transkripsi yang jatuh ke CPU dan render yang jatuh ke `libx264` kini terlihat di Pemeriksaan awal dan Detail waktu.
+- **Job Paralel yang Menghabiskan RAM**: Dua job (atau dua klik Lanjutkan) tidak lagi menjalankan dua transkripsi atau dua render bersamaan.
+- **Penghalusan Gerak Kamera**: `smooth_trajectory`, `apply_deadband_filter`, dan `build_dynamic_crop_filter` kini menerima titik `(waktu, x, lebar wajah)` yang memang dihasilkan pelacak wajah.
+
 ## [1.17.1] - 2026-10-01
 
 ### Fixed

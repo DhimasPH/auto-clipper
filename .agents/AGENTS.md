@@ -9,15 +9,16 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - **Frontend Desktop**: Tauri v2 (Rust) + React 18 + TypeScript + Vite + Tailwind CSS + Lucide React + React Router.
 - **Frontend Web (Cloud UI)**: Terletak di folder `web/`. Menggunakan React 18 + TypeScript + Vite + Tailwind CSS untuk antarmuka web murni (tanpa Tauri).
 - **Backend Core (Sidecar)**: Python 3.11+ berjalan sebagai server lokal **FastAPI** yang dibungkus menjadi single executable dengan PyInstaller (`backend-x86_64-pc-windows-msvc.exe` di folder `bin/`).
-- **Cloud Backend Support**: Backend Python mendukung eksekusi di cloud GPU (seperti Google Colab) menggunakan *Ngrok tunnel*. Frontend Web berkomunikasi menggunakan `AUTO_CLIPPER_WEB_TOKEN`.
-- **Database**: SQLite lokal (`history.db`) via `backend/db.py` untuk mengelola riwayat job, metadata klip, dan status pemrosesan.
+- **Cloud Backend Support**: Backend Python mendukung eksekusi di cloud GPU (seperti Google Colab) menggunakan *Ngrok* atau *Cloudflare tunnel*. Frontend Web berkomunikasi menggunakan `AUTO_CLIPPER_WEB_TOKEN`. Di Colab, pustaka (`AUTO_CLIPPER_WORKSPACE`) ada di Google Drive dan disk kerja (`AUTO_CLIPPER_WORK_DIR=/content/work`) di disk lokal (ADR-012).
+- **Database**: SQLite (`history.db`) via `backend/db.py` untuk mengelola riwayat job, metadata klip, dan status pemrosesan. Dengan `AUTO_CLIPPER_WORK_DIR` aktif, database dibuka di work dir dan di-snapshot ke `<pustaka>/history.db` (ADR-012).
 - **AI & Processing Pipeline**:
   - **Speech-to-Text**: `faster-whisper` (didukung model: `small`, `medium`, `large-v3`) + Silero VAD filter (`min_silence_duration_ms=500`).
   - **Highlight Extraction & Social Kit**: **AI Provider Registry** (Mendukung provider dinamis seperti OpenAI, Gemini, dll) dengan parser JSON tangguh (`clean_json_response`).
   - **Face Detection & Tracking**: OpenCV Haar Cascade + Exponential Moving Average (EMA, alpha ~0.25) + ekspresi interpolasi FFmpeg dinamis.
   - **Subtitles**: Engine ASS single-word pop karaoke non-overlapping (`words_to_karaoke_ass`) & sentence reconstruction (`words_to_standard_ass`) dengan tipografi kustom (ADR-009).
   - **Video Rendering & Cropping**: FFmpeg via subproses Python (menggunakan Hardware Acceleration `h264_nvenc` dengan mekanisme fallback otomatis ke `libx264`).
-  - **Downloader**: `yt-dlp` dengan fallback cookie browser.
+  - **Downloader**: `yt-dlp` dengan urutan client `default → web_embedded → android_vr` (masing-masing sekali), `cookies.txt` unggahan pengguna (`backend/cookies.py`), dan Deno + komponen EJS (`remote_components=['ejs:github']`) bila `deno` ada di `PATH`. Format default H.264 ≤1080p. Semua kegagalan dipetakan ke `AppError` lewat `classify_download_error` (ADR-012).
+  - **Error, Antrean & Preflight**: `AppError` berkode (`backend/errors.py`) di `job["error_info"]`; satu slot job berat (`backend/job_queue.py`); pengecekan awal `GET /api/preflight` (`backend/preflight.py`); laporan waktu per tahap di `metadata["timings"]` (`backend/stage_timer.py`).
 
 ---
 
@@ -49,7 +50,7 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 5. **Universal Word-Level Transcription & Mode Dispatch**: Whisper wajib selalu mengekstrak word timestamps (`words.json`). Mode subtitle (`standard` vs `karaoke`) dikontrol oleh `subtitle_config.style`, bukan oleh ekstensi file input.
 6. **Pipeline Metadata Invariant**: Properti `canvas_config` dan `subtitle_config` **HARUS** dipropagasikan dan dipertahankan di seluruh alur pembuatan job (`create_job`, `create_manual_job`, `create_rerender_job`, `create_rerun_ai_job`) serta alur resume (`create_resume_job`, `resume_manual_job`).
 7. Pipeline wajib mendeteksi layout video asli (Landscape/Portrait) secara otomatis sebelum pemrosesan klip.
-8. **NVENC Fallback**: Semua *command* FFmpeg untuk rendering video wajib mengimplementasikan percobaan hardware encoding dengan `h264_nvenc`. Jika terjadi error (misalnya karena driver tidak tersedia atau memori GPU penuh), command tersebut harus ditangkap dan fallback secara aman ke CPU encoding (`libx264`).
+8. **NVENC Fallback**: Semua *command* FFmpeg untuk rendering video wajib mengimplementasikan percobaan hardware encoding dengan `h264_nvenc`. Jika terjadi error (misalnya karena driver tidak tersedia atau memori GPU penuh), command tersebut harus ditangkap dan fallback secara aman ke CPU encoding (`libx264`). Fallback tidak boleh diam-diam: encoder yang dipakai dicatat di `metadata["timings"]` (`encoder`) dan preflight melaporkan `gpu_render` (ADR-012). Notebook Colab memakai FFmpeg dari apt, jadi NVENC di Colab tidak dijamin.
 9. **FFmpeg Path Discovery Hierarchy**: Resolusi path binary FFmpeg wajib memeriksa hirarki `bin_dir`, `bin_dir.parent`, `os.path.dirname(bin_dir)`, dan fallback `PATH` sistem agar konsisten di environment dev, PyInstaller onefile, maupun macOS app bundle.
 10. **Custom Subtitle Persistence Invariant**: Setiap modifikasi subtitle kustom per-klip (revisi manual) **WAJIB** disimpan jalurnya (`custom_subtitle_path`) ke dalam objek `result_clips` pada *history database*. *Endpoint* `api_get_clip_words` dan proses batch `_run_rerender_job` **WAJIB** memprioritaskan membaca `clip.get("custom_subtitle_path")` dibandingkan `metadata.get("subtitle_path")`. Hal ini menjamin revisi kata-per-kata yang dilakukan pengguna tidak tertimpa oleh transkripsi *full-video* asli saat dilakukan "Rerender All Clips".
 11. **Gaming Layout Auto-Detection & Split-Screen**: Pipeline video secara otomatis dapat mendeteksi layout *gaming* dan mendukung *vertical split-screen cropping* (memotong layar video menjadi atas dan bawah) yang disesuaikan dengan posisi subtitle.
@@ -63,6 +64,12 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 5. **Manual Downloader Enhancements**: Fitur downloader mendukung pengunduhan *full video* (tanpa memotong klip / *empty clips allowed*) dan pengguna dapat memilih kualitas resolusi video saat mengunduh.
 6. **Penghapusan Smart Editor**: Fitur eksperimental *Smart Editor* telah **dihapus secara permanen**. Semua alur penyuntingan dan pemotongan (cropping) kini sepenuhnya mengandalkan pengaturan UI standar, *Gaming Mode*, dan modul *Canvas Config*.
 7. **Web UI Draft State Invariant**: Pada Frontend Web, pembersihan status draft di `localStorage` (seperti `ac_draft_step_input`) saat memulai job baru **WAJIB** dilakukan secara asinkron (menggunakan `setTimeout`) untuk menghindari *race condition* dengan efek unmount dari komponen React yang berpotensi menimpa ulang *cache* yang baru saja dihapus.
+8. **Work Dir vs Pustaka (ADR-012)**: `get_project_workspace()` mengembalikan `project_dir` (tempat kerja, di work dir bila `AUTO_CLIPPER_WORK_DIR` aktif) dan `library_dir` (pustaka). Semua file antara ditulis ke `project_dir`. Hasil yang harus bertahan dipindahkan ke pustaka **hanya** lewat `workspace.publish()` / `copy_atomic()` (nama `.part` lalu `os.replace`), setelah setiap klip dan di akhir job. Tanpa work dir, kedua path sama dan perilaku desktop tidak berubah.
+9. **Riwayat Tidak Pernah Menunjuk ke Work Dir**: Path di `result_clips` (`path`, `custom_subtitle_path`) dan `metadata.subtitle_path` yang disimpan ke `history.db` **WAJIB** menunjuk ke pustaka setelah publish. Video sumber tidak dipublikasikan; alur yang membutuhkannya (Resume, rerender, AI Koreksi, resume-manual) **WAJIB** memanggil `jobs._restore_source_video()` (unduh ulang job URL, salin ulang file `local:`, atau `UPLOAD_MISSING`).
+10. **Semua Thread Job Lewat Antrean**: Setiap job di `backend/jobs.py` **WAJIB** dimulai lewat `_start_job()` → `job_queue.submit()`, tidak pernah dengan `threading.Thread` langsung. Slot dikontrol `AUTO_CLIPPER_MAX_HEAVY_JOBS` (default 1). Resume untuk proyek yang masih antre/berjalan ditolak. (Pengecualian lama yang belum dipindah: `backend/metadata.py`.)
+11. **Snapshot `history.db`**: Hanya `backend/db.py` yang tahu soal snapshot. Status akhir job ditulis ke snapshot sebelum `save_history` kembali; perubahan lain dibatasi sekali per 5 detik. Jangan menulis langsung ke `<pustaka>/history.db` saat work dir aktif.
+12. **Error Terstruktur**: Kegagalan yang bisa ditindaklanjuti pengguna **WAJIB** dilempar/dicatat sebagai `AppError(code, technical=...)` dari `backend/errors.py`. Kode baru wajib punya `title`/`message` (id) dan `title_en`/`message_en` (en) berbahasa awam (apa, kenapa, harus apa) dan aksi dari `_ACTIONS`. Teks mentah hanya di `technical`. Frontend hanya merender `error_info` lewat `ErrorCard`, tidak menulis teks error sendiri.
+13. **Cookies Tidak Pernah Bocor**: Isi `cookies.txt` tidak boleh masuk log, pesan error, atau respons API. yt-dlp hanya menerima salinan kerja dari `cookies.ytdlp_cookiefile()`, tidak pernah file yang tersimpan.
 
 ### F. Frontend, i18n & OS Integration (ADR-004, v1.7.0)
 1. Seluruh teks antarmuka **HARUS** mendukung multi-bahasa melalui `src/locales/id.json` dan `src/locales/en.json` (menggunakan library i18n).
@@ -97,9 +104,19 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `backend/ai_utils.py`: Integrasi Whisper, model registry, prompt LLM & JSON sanitizer.
 - `backend/crop_utils.py`: Face tracking (OpenCV), generator kanvas background (`build_canvas_background_filter`), subtitle ASS anti-overlap & typography parser.
 - `backend/logger.py`: Fail-safe error logger (`backend_error.log`).
-- `backend/db.py`: SQLite database schema & repository functions.
+- `backend/db.py`: SQLite database schema & repository functions, snapshot `history.db` ke pustaka dan pemulihan saat startup.
+- `backend/workspace.py`: Pemisahan work dir vs pustaka, `publish` atomik, `uploads_dir`, ruang disk.
+- `backend/errors.py`: `AppError`, katalog `ERROR_CODES` (id/en), `classify_download_error`, `to_app_error`.
+- `backend/job_queue.py`: Antrean FIFO job berat (`AUTO_CLIPPER_MAX_HEAVY_JOBS`).
+- `backend/preflight.py`: Pengecekan awal (`run_preflight`, `blocking_error`) di balik `GET /api/preflight`.
+- `backend/stage_timer.py`: Waktu dan RAM puncak per tahap ke `metadata["timings"]`.
+- `backend/cookies.py`: Validasi, penyimpanan, status, dan salinan kerja `cookies.txt` untuk yt-dlp.
+- `backend/video_utils.py`: Unduhan yt-dlp (urutan client, cookies, Deno/EJS, format), ekstraksi audio.
+- `backend/colab_api.py`: Entry point Colab/cloud (`--workspace`, `--work-dir`, tunnel Cloudflare, GPU keep-alive).
+- `scripts/colab_preflight.py`: Mencetak hasil preflight dalam bahasa Indonesia di notebook Colab sebelum server menyala.
+- `scripts/benchmark_pipeline.py`: Menjalankan satu video lewat pipeline asli dan mencetak tabel waktu/RAM per tahap.
 - `backend/tests/test_subtitle_render.py` & `backend/tests/test_jobs_subtitle.py`: Pengujian render subtitle ASS, anti-overlap, dan jobs threading.
-- `Auto_Clipper_Colab.ipynb`: Jupyter Notebook untuk menjalankan backend FastAPI di Google Colab dengan GPU gratis dan Ngrok.
+- `Auto_Clipper_Colab.ipynb`: Jupyter Notebook untuk menjalankan backend FastAPI di Google Colab dengan GPU gratis dan Ngrok/Cloudflare. Memasang FFmpeg (paket Ubuntu, tanpa jaminan NVENC), cloudflared, dan Deno (`DENO_INSTALL=/usr/local`, gagal pasang tidak menghentikan notebook), mengatur `AUTO_CLIPPER_WORKSPACE` (Drive) dan `AUTO_CLIPPER_WORK_DIR=/content/work`, lalu menjalankan `scripts/colab_preflight.py` sebelum server. Sel diidentifikasi lewat `metadata.id` dan diuji di `backend/tests/test_colab_api.py`; edit dengan alat yang mempertahankan format JSON (indent 1, urutan kunci) dan pertahankan urutan sel.
 - `src/App.tsx`: Routing, splash screen, startup update check.
 - `src/pages/LandingPage.tsx`: Halaman utama aplikasi dengan integrasi navigasi tautan sosial dan akses ke *workspace* video.
 - `src/pages/ManualDownloaderPage.tsx`: Halaman pengunduhan manual dengan dukungan kustomisasi resolusi.
@@ -110,7 +127,9 @@ Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositor
 - `src-tauri/`: Tauri Rust backend & configuration (`tauri.conf.json`, `tauri.macos.conf.json`).
 - `src-tauri/hooks.nsh`: NSIS preinstall script untuk kill zombie backend/app processes di Windows.
 - `release-mac-intel.sh` & `docs/release-macos-intel.md`: Script dan panduan build rilis macOS Intel dengan updater artifacts.
-- `docs/decisions/`: Architecture Decision Records (ADR-001 s/d ADR-011).
+- `docs/decisions/`: Architecture Decision Records (ADR-001 s/d ADR-012).
+- `src/components/ErrorCard.tsx`, `CookiesPanel.tsx`, `TimingDetails.tsx` (dan pasangannya di `web/src/components/`): Kartu error generik, panel unggah cookies, dan "Detail waktu".
+- `web/src/pages/SettingsPage.tsx`: Halaman Pengaturan Web UI (`/settings`): cookies YouTube dan bahasa. Teks bagian baru web ada di `web/src/lib/strings.ts`.
 - `web/src/App.tsx`: Entry point untuk Web UI (Wizard flow & autentikasi).
 - `web/src/components/HistoryList.tsx`: Menampilkan riwayat job, *Social Kit*, dan Rerender panel di Web UI.
 - `web/src/components/ClipEditModal.tsx`: Modal Web UI untuk koreksi subtitle secara manual/AI dan *rerender* per klip.

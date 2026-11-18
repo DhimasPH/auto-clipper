@@ -1,7 +1,7 @@
 {
   "name": "auto-clipper",
   "private": true,
-  "version": "1.17.4",
+  "version": "1.18.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
