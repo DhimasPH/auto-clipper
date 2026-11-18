@@ -424,7 +424,7 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
 
 
 @_serialized
-def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
+def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = None, enable_hook: bool = False) -> str:
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -443,6 +443,8 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "canvas_config": canvas_config if canvas_config is not None else hist_meta.get("canvas_config"),
         "subtitle_config": subtitle_config if subtitle_config is not None else hist_meta.get("subtitle_config"),
         "tracking_mode": tracking_mode if tracking_mode else hist_meta.get("tracking_mode", "auto"),
+        # None means the app did not choose: keep the engine the project was made with.
+        "face_tracking_engine": face_tracking_engine or hist_meta.get("face_tracking_engine") or "haar",
         "burn_subs": burn_subs,
         "output_dir": output_dir or hist_meta.get("output_dir", ""),
         "title": hist_meta.get("title", ""),
@@ -1228,7 +1230,7 @@ def _run_rerender_job(job_id: str):
         _finalize_job(job_id, "ERROR", metadata)
 
 @_serialized
-def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False):
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = None, enable_hook: bool = False):
     if is_any_job_running():
         from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
@@ -1257,6 +1259,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "canvas_config": canvas_config if canvas_config is not None else metadata.get("canvas_config"),
         "subtitle_config": subtitle_config if subtitle_config is not None else metadata.get("subtitle_config"),
         "tracking_mode": tracking_mode if tracking_mode else metadata.get("tracking_mode", "auto"),
+        "face_tracking_engine": face_tracking_engine or metadata.get("face_tracking_engine") or "haar",
         "caption_style": job_record.get("caption_style", "standard"),
         "burn_subs": burn_subs,
         "output_dir": output_dir,
@@ -1703,7 +1706,7 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     if metadata.get("highlights") and job.get("mode") == "ai":
         metadata["ai_job"] = True
         
-    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "enable_hook", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model", "canvas_config", "subtitle_config"]:
+    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "enable_hook", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model", "canvas_config", "subtitle_config", "tracking_mode", "face_tracking_engine"]:
         if key in job:
             metadata[key] = job[key]
 

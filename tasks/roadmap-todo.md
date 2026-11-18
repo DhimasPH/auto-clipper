@@ -125,3 +125,4 @@ Brainstorming dan spec terpisah dimulai setelah SP0 selesai. Arah awal, belum fi
 
 - [ ] T4.0 Brainstorm dan prioritaskan kandidat (daftar di roadmap bagian 6), kerjakan per gelombang
 - [ ] T4.x Audit fitur yang ada untuk penyempurnaan (subtitle, canvas, hook, B-roll, re-render)
+- [ ] T4.x "AI ulang" (AI Koreksi) untuk mode AI manual di web. Web selalu memakai `provider: "manual"` tanpa API key, sedangkan `POST /jobs/{id}/rerun_ai` butuh provider dan key; web juga memanggil `/rerun-ai` (tanda hubung). Perlu alur manual: susun ulang prompt dengan instruksi tambahan, lalu `AWAITING_MANUAL`. Ditemukan 2026-11-18.

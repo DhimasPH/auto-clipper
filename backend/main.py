@@ -434,12 +434,17 @@ class RerenderJobRequest(CreateJobRequest):
     url: str = ""
 
 
+def _requested_engine(req: BaseModel):
+    """The face tracking engine the app chose, or None to keep the project's own."""
+    return req.face_tracking_engine if "face_tracking_engine" in req.model_fields_set else None
+
+
 @app.post("/jobs/{job_id}/rerender")
 def api_rerender_job(job_id: str, req: RerenderJobRequest):
     try:
         from backend.jobs import create_rerender_job
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
-        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, tracking_mode=req.tracking_mode, enable_hook=req.enable_hook)
+        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, tracking_mode=req.tracking_mode, face_tracking_engine=_requested_engine(req), enable_hook=req.enable_hook)
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -456,7 +461,7 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
             req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
             req.custom_base_url.strip(), req.custom_model_name.strip(), req.whisper_model,
             req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, enable_hook=req.enable_hook,
-            tracking_mode=req.tracking_mode
+            tracking_mode=req.tracking_mode, face_tracking_engine=_requested_engine(req)
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:

@@ -430,3 +430,11 @@ Sisa SP0 (semua butuh pemilik):
 2. T0.13: satu kali jalan notebook di runtime baru dari awal, plus daftar cek 5 (`history.db` di `/content/work`), 7 (job kedua menunggu giliran), 8 (hapus runtime lalu sambung lagi).
 3. Keputusan terbuka 1–13 dan temuan baru (`rerun-ai` vs `rerun_ai` di web, `face_tracking_engine` tidak diteruskan saat rerender).
 4. Lalu PR `feat/sp0-pipeline-stability` → `main`.
+
+---
+
+## 2026-11-18 · Mesin pelacakan proyek dipakai saat rerender; "AI ulang" web ke backlog
+
+- Bug: `tracking_mode` dan `face_tracking_engine` tidak pernah masuk metadata proyek (`_finalize_job`), dan `create_rerender_job`/`create_rerun_ai_job` menerima `face_tracking_engine` tapi tidak menyimpannya ke job, jadi rerender dan AI ulang selalu Haar. Perbaikan: keduanya disimpan di metadata; rerender/AI ulang memakai mesin yang diminta aplikasi bila dikirim (`model_fields_set`), selain itu mesin proyek, selain itu Haar (proyek lama). Desktop dan web tidak mengirimnya, jadi mesin proyek yang dipakai. Uji baru `backend/tests/test_tracking_engine.py` (6, semuanya gagal sebelum perbaikan). Tes 599 lulus + 6 dilewati.
+- "AI ulang" di web bukan bug kecil: web selalu `provider: "manual"` tanpa API key, backend `rerun_ai` butuh provider + key, dan web memanggil `/rerun-ai`. Dicatat sebagai task SP4 di roadmap.
+- Temuan keamanan (lama, bukan dari SP0): `_finalize_job` menyimpan `api_key` dan `pexels_api_key` ke metadata di `history.db`. `metadata.json` di pustaka menyaringnya (`workspace._SECRET_KEYS`), tetapi snapshot `history.db` (T0.9) ikut ke Drive, seperti `history.db` di Drive sebelum SP0. Masuk keputusan terbuka: simpan key di tempat lain atau saring dari metadata DB (fitur Resume BYOK memakainya).
