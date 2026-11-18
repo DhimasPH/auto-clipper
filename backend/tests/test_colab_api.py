@@ -136,6 +136,15 @@ def test_work_dir_on_google_drive_is_warned_about(tmp_path, capsys):
     assert "PERINGATAN" in err and "WARNING" in err
 
 
+def test_setup_environment_warns_when_drive_folder_exists_but_is_not_mounted(monkeypatch, capsys):
+    from backend import colab_api
+    monkeypatch.setattr(colab_api.os.path, "isdir", lambda p: True)
+    monkeypatch.setattr(colab_api.os.path, "ismount", lambda p: False)
+    monkeypatch.setattr(colab_api.os, "makedirs", lambda *a, **k: None)
+    colab_api.setup_environment("/content/drive/MyDrive/AutoClipperData", api_token="t")
+    assert "belum terhubung" in capsys.readouterr().err
+
+
 def test_run_server_passes_the_work_dir_to_the_server_process(tmp_path, monkeypatch):
     monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
     work = str(tmp_path / "work")

@@ -98,7 +98,9 @@ def _cloud_drive_expected() -> bool:
 
 
 def _drive_mounted() -> bool:
-    return os.path.isdir("/content/drive/MyDrive")
+    # Ask the mount point, not the folder: opening the library creates
+    # /content/drive/MyDrive/... on the local disk when Drive is not mounted.
+    return os.path.ismount("/content/drive")
 
 
 def _deno_path():
@@ -263,7 +265,7 @@ def check_drive() -> dict:
             "Google Drive is not used", "Google Drive is only used when the app runs on Google Colab.",
         )
     if not _drive_mounted():
-        return _from_error_code("drive", "warn", "DRIVE_NOT_MOUNTED", technical="/content/drive/MyDrive is not a directory")
+        return _from_error_code("drive", "warn", "DRIVE_NOT_MOUNTED", technical="/content/drive is not a mount point")
     return _result(
         "drive", "ok",
         "Google Drive terhubung", "Klip disimpan ke Google Drive.",

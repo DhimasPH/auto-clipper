@@ -103,6 +103,21 @@ def test_unmounted_drive_warns_in_colab(healthy, monkeypatch):
     assert r["code"] == "DRIVE_NOT_MOUNTED"
 
 
+def test_drive_folder_without_a_mount_is_not_a_mounted_drive(monkeypatch):
+    # The backend creates /content/drive/MyDrive/... on the local disk when it
+    # opens the library, so the folder existing proves nothing.
+    monkeypatch.setattr(preflight.os.path, "isdir", lambda p: True)
+    monkeypatch.setattr(preflight.os.path, "ismount", lambda p: False)
+    assert preflight._drive_mounted() is False
+
+
+def test_drive_mount_point_counts_as_mounted(monkeypatch):
+    asked = []
+    monkeypatch.setattr(preflight.os.path, "ismount", lambda p: asked.append(p) or True)
+    assert preflight._drive_mounted() is True
+    assert asked == ["/content/drive"]
+
+
 def test_drive_is_not_a_concern_outside_colab(healthy, monkeypatch):
     monkeypatch.setattr(preflight, "_cloud_drive_expected", lambda: False)
     monkeypatch.setattr(preflight, "_drive_mounted", lambda: False)
