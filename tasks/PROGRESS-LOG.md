@@ -468,3 +468,11 @@ Bila sesi terputus: `git -C ..\ac-t1X log --oneline -3` dan jalankan tes di tiap
 - Modul baru `backend/path_guard.py` (`is_protected`, `is_within`, `denied`, `safe_upload_name`). Ditolak 403 "Access denied" sebelum cek keberadaan file: folder cookies dan salinan kerjanya, nama berawalan `history.db` (termasuk `-wal`/`-shm`/`-journal`, snapshot, `.part`), dan `backend_*.log`. Path di-`realpath`, prefiks perangkat Windows dibuang, dibandingkan huruf kecil.
 - Celah yang ternyata ada: `/upload` memakai nama file dari klien apa adanya, sehingga di Windows bisa menimpa `cookies.txt` atau menulis ke mana pun; `/save_file` tidak memeriksa tujuan dan memakai cek awalan string untuk sumber; `/video` menyajikan `.mp4` di folder cookies; `/api/thumbnails` dan `/api/extract-metadata` menerima path terlindung. Semua ditutup, 55 tes baru di `backend/tests/test_protected_paths.py` (41 gagal sebelum perbaikan). Invarian E.14 ditambahkan di `.agents/AGENTS.md`.
 - Belum ditutup, masuk backlog SP1: `/video` tidak memerlukan token; `canvas_config.background_image_path` dan `output_dir` menerima path bebas.
+
+### T0.18 di-merge (`25e1792`)
+
+- `db.save_history` membuang `api_key`/`pexels_api_key` (`workspace.SECRET_KEYS`); `init_db` dan sinkronisasi snapshot membersihkan baris lama lalu `VACUUM` (agar teks kunci tidak tersisa di halaman kosong file yang disalin ke Drive) dan menulis snapshot baru. Resume dan resume-manual memakai kunci dari request; provider yang butuh kunci tanpa kunci → `AI_KEY_MISSING` (kode baru, id + en). B-roll tanpa kunci Pexels dilewati dengan catatan log. Desktop kini mengirim `pexels_api_key` saat Resume (`useClipJobs.ts`, `ManualResumeModal.tsx`). Web tidak berubah (selalu manual).
+- Konflik `AGENTS.md`: T0.19 dan T0.18 sama-sama menambah E.14; aturan T0.18 menjadi E.15.
+- Tes 674 lulus + 7 dilewati; `npm run build` desktop exit 0.
+- Risiko di luar jangkauan kode: Google Drive bisa menyimpan versi lama `history.db` (riwayat versi, sampah) yang masih berisi kunci. Saran ke pemilik: ganti (rotate) kunci API yang pernah dipakai di desktop dengan workspace di Drive.
+- Belum ada ADR untuk perubahan aliran data ini; dicatat di ADR-012 saat PR bila pemilik setuju.

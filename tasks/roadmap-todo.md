@@ -92,7 +92,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 - [ ] **T0.17 Tolak job bila Drive pustaka belum ter-mount di Colab** · keputusan pemilik 2026-11-18 (no. 11)
   - Backend tidak membuat folder di bawah `/content/drive` tanpa mount; `DRIVE_NOT_MOUNTED` menjadi `block`; pesan awam menyuruh menjalankan Langkah 1.
   - Selesai bila: uji membuktikan tidak ada folder dibuat dan job berhenti sebelum mulai; tanpa mode Colab perilaku tidak berubah.
-- [ ] **T0.18 Kunci API tidak disimpan di riwayat** · keputusan pemilik 2026-11-18
+- [x] **T0.18 Kunci API tidak disimpan di riwayat** · merge `25e1792`, 674 tes lulus, build desktop exit 0 · keputusan pemilik 2026-11-18
   - `api_key` dan `pexels_api_key` tidak masuk metadata `history.db`; data lama dibersihkan; Resume memakai kunci yang dikirim aplikasi.
   - Selesai bila: uji membuktikan kunci tidak tersimpan dan Resume tetap jalan di desktop dan web.
 - [x] **T0.19 `/save_file` dan `/video` tidak bisa membaca cookies dan database** · merge `9eecd7b`, 653 tes lulus · keputusan pemilik 2026-11-18 (no. 2)
