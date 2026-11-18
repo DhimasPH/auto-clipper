@@ -916,15 +916,18 @@ def test_ffmpeg_ending_early_hands_the_remaining_samples_to_the_seek_path():
     with _ffmpeg_streams(frames=frames, returncode=0) as procs, \
          patch("backend.crop_utils.cv2.VideoCapture", return_value=cap), \
          patch("backend.crop_utils.cv2.CascadeClassifier", return_value=_cascade([(352, 100, 64, 64)])), \
-         patch("backend.crop_utils.log_error") as mock_log:
+         patch("backend.crop_utils.log_error") as mock_log, \
+         patch("backend.crop_utils.log_app") as mock_app:
         traj = sample_face_trajectory("v.mp4", 10.0, 12.0, interval=0.5, engine="haar")
 
     assert [t for t, _, _ in traj] == [0.0, 0.5, 1.0, 1.5, 2.0]
     assert procs[0].frames_read() == 2
     assert cap.read.call_count == 3
     assert seek_times == [11000.0, 11500.0, 12000.0]
-    assert _logged_contexts(mock_log) == [FFMPEG_FALLBACK]
-    assert "2 of 5" in str(mock_log.call_args[0][1])
+    # Running to the end of the video is normal: app log, not error log.
+    assert FFMPEG_FALLBACK not in _logged_contexts(mock_log)
+    assert "2 of 5" in str(mock_app.call_args[0][0])
+    assert procs[0].waited and procs[0].stdout.closed
 
 
 def test_ffmpeg_sending_a_truncated_frame_falls_back_for_the_rest():
@@ -1051,7 +1054,7 @@ def test_real_ffmpeg_window_past_the_end_matches_the_seek_path(moving_box_video)
     assert [t for t, _, _ in new_traj] == [t for t, _, _ in old_traj]
     assert len(new_frames) == len(old_frames)
     assert max(abs(a - b) for a, b in zip(new_frames, old_frames)) <= 1
-    assert _logged_contexts(new_log) == [FFMPEG_FALLBACK]
+    assert FFMPEG_FALLBACK not in _logged_contexts(new_log)
 
 
 def test_real_ffmpeg_process_is_gone_after_cancel(moving_box_video):

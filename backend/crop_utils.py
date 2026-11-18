@@ -521,10 +521,13 @@ def _sample_face_trajectory(video_path, start_time, end_time, interval=0.5, shou
                 try:
                     small_frame = reader.read()
                     if small_frame is None:
-                        raise _FfmpegFrameError(
-                            f"FFmpeg finished after {i} of {len(offsets)} frames "
-                            "(normal when the clip runs to the end of the video)"
+                        # A clip that runs to the end of the video: not an error.
+                        log_app(
+                            f"Tracking: FFmpeg finished after {i} of {len(offsets)} frames "
+                            f"(clip runs to the end of the video); the rest are read by seeking. Video: {video_path}"
                         )
+                        reader.close()
+                        reader = None
                 except (_FfmpegFrameError, OSError, ValueError) as e:
                     note_ffmpeg_fallback(e, i)
                     reader.close()
