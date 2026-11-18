@@ -493,3 +493,12 @@ Sisa SP0 (semua butuh pemilik): cek manual T0.12, satu jalan notebook di runtime
 - Pemilik bertanya apakah fitur "Menunggu giliran" benar-benar ada. Ternyata tidak pernah terjadi: ketujuh fungsi `create_*` di `jobs.py` masih punya penjaga lama `if is_any_job_running(): raise HTTPException(409, "Ada proses lain yang sedang berjalan...")`, jadi job kedua selalu ditolak sebelum sampai ke `job_queue` (T0.4). Tes T0.4 menutupinya dengan menandai job sebelumnya `DONE` sebelum membuat job berikutnya. ADR-012 dan UI T0.12 mengharapkan job kedua mengantre.
 - Perbaikan: ketujuh penjaga dihapus; antrean T0.4 tetap membatasi satu job berat. Penolakan Resume ganda untuk proyek yang sama (`_reject_if_still_processing`) tetap. Uji baru `test_second_job_waits_in_line_instead_of_being_refused` (gagal 409 sebelum perbaikan). Tes 694 lulus + 7 dilewati.
 - Dicek di Colab lewat daftar cek T0.13 no. 7 (job kedua dari tab/perangkat lain → "Menunggu giliran").
+
+---
+
+## 2026-11-18 · Keputusan: satu PR setelah SP1 dan SP2
+
+- Pemilik memilih tidak membuka PR SP0 sekarang. SP1 dan SP2 diselesaikan dulu, lalu satu PR ke `main`.
+- Cara kerja: branch bertumpuk. SP1 di `feat/sp1-...` yang bercabang dari `feat/sp0-pipeline-stability`; SP2 bercabang dari SP1. PR akhir dari branch SP2 ke `main`. Deskripsi PR SP0 yang sudah disiapkan (ringkasan, tabel ukur, keamanan, belum diverifikasi) dipakai sebagai bagian pertama deskripsi PR akhir.
+- Selama itu: Colab diuji lewat kolom `BRANCH`; web produksi Vercel tetap `main` (versi lama).
+- T0.12 (cek manual UI) dan T0.13 (notebook di runtime baru) tetap terbuka dan dicek sebelum PR akhir; SP2 akan mengubah UI, jadi T0.12 sebaiknya dicek terhadap UI hasil SP2.
