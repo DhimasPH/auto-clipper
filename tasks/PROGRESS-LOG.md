@@ -349,4 +349,21 @@ Perbaikan (tes 564 lulus):
 - Pemeriksaan awal: bila ada GPU tetapi `libcublas.so.12`/`libcudnn.so.9` tidak bisa dimuat (Linux saja), cek `gpu` menjadi `[PERHATIAN] Subtitle memakai prosesor` dengan langkah perbaikan.
 - Belum diverifikasi di Colab. Pemilik diminta menjalankan sel diagnosis (daftar paket nvidia/torch, pasang paket, muat pustaka, uji `h264_nvenc`). Risiko: bila torch Colab memakai CUDA 13, `nvidia-cudnn-cu12` bisa bertabrakan dengan cuDNN milik torch; output `pip list` dari pemilik akan menjawabnya.
 
-Langkah berikutnya: setelah job selesai, pemilik menjalankan sel uji `h264_nvenc` 256×256, lalu push ulang dan jalankan sel 3–4 untuk melihat apakah pemeriksaan awal berubah menjadi "Render memakai GPU". Catat waktu job pertama ini (render CPU) sebagai pembanding.
+Hasil sel diagnosis pemilik (Colab T4, 2026-11-18), sebelum perintah pasang dijalankan:
+
+```
+ctranslate2          4.9.0
+nvidia-cublas        13.1.1.3
+nvidia-cublas-cu12   12.9.3.13
+nvidia-cudnn-cu12    9.28.0.42
+nvidia-cudnn-cu13    9.24.0.43
+torch                2.14.1+cu130
+PUSTAKA GPU SUBTITLE OK   (dimuat lewat __path__ paket nvidia.*.lib)
+RENDER GPU BISA           (h264_nvenc 256x256)
+```
+
+Kesimpulan: paket CUDA 12 sudah ada di Colab. Akar masalah Whisper adalah kode lama `colab_api` yang memakai `nvidia.cublas.lib.__file__`; gagal, lalu `LD_LIBRARY_PATH` jatuh ke `/usr/local/cuda/lib64` (CUDA 13, torch cu130). Dugaan: `__file__` kosong karena paket itu namespace package; belum dicek langsung. Perbaikan `__path__` di `b3cce93` terbukti memuat pustakanya. Render GPU terbukti bisa di T4, jadi kegagalan sebelumnya murni karena bingkai uji 128×128 (`08504f4`). Baris `pip install nvidia-*-cu12` di notebook tidak mengubah apa pun di Colab saat ini; dibiarkan sebagai pengaman.
+
+Langkah berikutnya: pemilik push, jalankan sel 3–4, pastikan pemeriksaan awal "Render memakai GPU" tanpa peringatan subtitle, lalu Resume. Catat waktu per tahap sebagai angka T0.14.
+
+Langkah lama (sudah terjawab di atas): setelah job selesai, pemilik menjalankan sel uji `h264_nvenc` 256×256, lalu push ulang dan jalankan sel 3–4 untuk melihat apakah pemeriksaan awal berubah menjadi "Render memakai GPU". Catat waktu job pertama ini (render CPU) sebagai pembanding.
