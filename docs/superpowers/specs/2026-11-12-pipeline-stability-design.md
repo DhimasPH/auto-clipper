@@ -140,6 +140,8 @@ Pembagian waktu mesin sesudah: tracking wajah 64,1 %, render 23,9 %, unduh + aud
 
 Keputusan gerbang: jika sesudah A tracking wajah masih mendominasi waktu, pendekatan B dijadwalkan. Jika tidak, B dipindah ke SP3 sebagai optimasi opsional.
 
+**Keputusan (2026-11-18, disetujui pemilik):** tracking wajah 64 % dari waktu mesin dan sekitar 0,96 × panjang klip, sedangkan transkripsi dan render sudah di GPU. Pendekatan B dijadwalkan di SP0 sebagai T0.16. Penyebab yang diduga adalah F3 (lompatan `POS_MSEC` per sampel men-decode ulang dari keyframe). Proxy 720p (pendekatan C) belum perlu.
+
 ## 8. Risiko
 
 - YouTube dapat mengubah perilaku kapan saja, jadi `cookies.txt` dan Deno mengurangi, bukan menghilangkan, kegagalan. Jalur unggah file video selalu tersedia sebagai jalan keluar.
