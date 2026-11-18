@@ -485,3 +485,11 @@ Bila sesi terputus: `git -C ..\ac-t1X log --oneline -3` dan jalankan tes di tiap
 - Sisa kecil: `workspace.library_warnings()` kini hanya membersihkan peringatan Drive lama; bisa disederhanakan nanti.
 
 Sisa SP0 (semua butuh pemilik): cek manual T0.12, satu jalan notebook di runtime baru (T0.13, daftar cek 5, 7, 8, 9), `git push`, lalu PR ke `main`.
+
+---
+
+## 2026-11-18 · Antrean job ternyata tidak pernah dipakai
+
+- Pemilik bertanya apakah fitur "Menunggu giliran" benar-benar ada. Ternyata tidak pernah terjadi: ketujuh fungsi `create_*` di `jobs.py` masih punya penjaga lama `if is_any_job_running(): raise HTTPException(409, "Ada proses lain yang sedang berjalan...")`, jadi job kedua selalu ditolak sebelum sampai ke `job_queue` (T0.4). Tes T0.4 menutupinya dengan menandai job sebelumnya `DONE` sebelum membuat job berikutnya. ADR-012 dan UI T0.12 mengharapkan job kedua mengantre.
+- Perbaikan: ketujuh penjaga dihapus; antrean T0.4 tetap membatasi satu job berat. Penolakan Resume ganda untuk proyek yang sama (`_reject_if_still_processing`) tetap. Uji baru `test_second_job_waits_in_line_instead_of_being_refused` (gagal 409 sebelum perbaikan). Tes 694 lulus + 7 dilewati.
+- Dicek di Colab lewat daftar cek T0.13 no. 7 (job kedua dari tab/perangkat lain → "Menunggu giliran").

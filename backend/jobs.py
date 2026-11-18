@@ -267,9 +267,6 @@ def _restore_source_video(job: dict, metadata: dict, url: str = "", project_id: 
 
 @_serialized
 def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     if not title or not title.strip():
         raise ValueError("Judul Proyek wajib diisi.")
     check_title_uniqueness(title)
@@ -351,9 +348,6 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
     LLM provider entirely (see the Smart Manual Clipper design spec).
     """
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     if not title or not title.strip():
         raise ValueError("Judul Proyek wajib diisi.")
     check_title_uniqueness(title)
@@ -423,9 +417,6 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
 
 @_serialized
 def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = None, enable_hook: bool = False) -> str:
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
@@ -1232,9 +1223,6 @@ def _run_rerender_job(job_id: str):
 
 @_serialized
 def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = None, enable_hook: bool = False):
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     from backend.db import get_history
     job_record = get_history(history_job_id)
     if not job_record:
@@ -1463,9 +1451,6 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
 
 @_serialized
 def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, aspect_ratio: str, caption_style: str, burn_subs: bool, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar"):
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     import time
     new_job_id = f"rerender_clip_{job_id}_{clip_index}_{int(time.time())}"
     active_jobs[new_job_id] = {
@@ -1739,9 +1724,6 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
 def resume_manual_job(history_id: str, json_payload: str, pexels_api_key: str = "") -> str:
     """Render the highlights the user pasted. ``pexels_api_key`` comes from the app: history keeps no keys."""
     _reject_if_still_processing(history_id)
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata"):
@@ -1856,9 +1838,6 @@ def create_resume_job(history_id: str, api_key: str = None, fallback_provider: s
     them (T0.18). Without ``pexels_api_key`` B-roll is skipped.
     """
     _reject_if_still_processing(history_id)
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist:

@@ -179,6 +179,36 @@ def test_resume_endpoint_reports_the_duplicate_as_a_plain_message(tmp_path, monk
     assert "masih diproses" in r.json()["message"]
 
 
+def test_second_job_waits_in_line_instead_of_being_refused(tmp_path, monkeypatch, no_db):
+    # Before: every create_* refused with 409 "Ada proses lain yang sedang berjalan"
+    # while another job ran, so nothing ever reached the queue and the UI's
+    # "Menunggu giliran" was never shown.
+    history = _history(tmp_path)
+    monkeypatch.setattr("backend.db.get_history", lambda j: history)
+    release = threading.Event()
+    ran = []
+
+    def slow_job(job_id):
+        jobs.active_jobs[job_id]["status"] = "DOWNLOADING"
+        ran.append(job_id)
+        release.wait(5)
+        jobs.active_jobs[job_id]["status"] = "DONE"
+
+    monkeypatch.setattr(jobs, "_run_manual_job", slow_job)
+    monkeypatch.setattr(jobs, "_run_rerender_job", slow_job)
+    try:
+        first = jobs.create_manual_job("https://youtu.be/x", [], title="Line first")
+        assert _wait_until(lambda: ran == [first])
+
+        second = jobs.create_manual_job("https://youtu.be/y", [], title="Line second")
+        third = jobs.create_rerender_job("hist-1", "9:16", False, "")
+        assert _wait_until(lambda: jobs.job_queue.position(second) == 1)
+        assert jobs.job_queue.position(third) == 2
+    finally:
+        release.set()
+    assert _wait_until(lambda: len(ran) == 3)
+
+
 def test_job_status_endpoint_reports_queue_position(monkeypatch, no_db):
     from fastapi.testclient import TestClient
     from backend.main import app
