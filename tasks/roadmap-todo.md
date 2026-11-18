@@ -18,7 +18,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
   - Catat durasi dan RAM puncak untuk unduh, ekstrak audio, transkripsi, analisis AI, tracking, render per klip, publish. Simpan di `metadata["timings"]`, tulis ke log, sertakan `whisper_device`, `encoder`, `tracking_engine_used`.
   - Selesai bila: tidak ada perubahan perilaku pipeline, uji unit lulus, tidak ada `print()` ke stdout.
   - File: `backend/stage_timer.py` (baru), `backend/jobs.py`, `backend/tests/test_stage_timer.py`.
-- [~] **T0.2 Skrip benchmark dan pengukuran dasar** · bergantung T0.1 · `[!]` butuh sesi Colab pemilik
+- [~] **T0.2 Skrip benchmark dan pengukuran dasar** · bergantung T0.1 · `[!]` butuh sesi Colab pemilik · 2026-11-18: kolom "Sebelum" hanya terisi sebagian (versi `main` gagal mengunduh tanpa cookies, percobaan CPU dihentikan). Pemilik memutuskan apakah ini cukup.
   - `scripts/benchmark_pipeline.py` plus sel Colab opsional yang mencetak tabel waktu dan RAM.
   - Selesai bila: angka dasar video 30 menit tercatat di spec bagian 7 (kolom "Sebelum"), termasuk apakah GPU dan NVENC aktif di Colab.
 
@@ -79,7 +79,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 
 ### Fase 5: Ukur ulang dan gerbang
 
-- [ ] **T0.14 Pengukuran sesudah** · bergantung semua di atas · `[!]` butuh sesi Colab pemilik
+- [x] **T0.14 Pengukuran sesudah** · bergantung semua di atas · `[!]` butuh sesi Colab pemilik · diukur 2026-11-18, lihat spec bagian 7. Laporan waktu tercatat di log dan `metadata["timings"]`; tampilannya di UI masuk cek manual T0.12.
   - Ulang benchmark pada video yang sama, isi kolom "Sesudah" di spec bagian 7.
   - Selesai bila: video 30 menit selesai di Colab gratis tanpa `-9`, laporan waktu muncul di setiap job.
 - [ ] **T0.15 Keputusan gerbang pendekatan B**

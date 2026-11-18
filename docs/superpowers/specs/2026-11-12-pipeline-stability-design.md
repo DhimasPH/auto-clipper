@@ -124,13 +124,19 @@ Kode awal: `YT_SIGNIN_REQUIRED`, `YT_RATE_LIMITED`, `VIDEO_UNAVAILABLE`, `VIDEO_
 
 ## 7. Hasil ukur (diisi setelah T0.2 dan T0.14)
 
+Diukur pemilik di Google Colab T4, 2026-11-18, video YouTube sekitar 30 menit, Whisper `medium`, analisis AI mode manual, 10 klip (total 819,5 detik), tracking Haar. "Sesudah" = branch `feat/sp0-pipeline-stability` di `1f65023`. "Sebelum" tidak bisa diukur penuh: versi `main` gagal mengunduh, dan percobaan pertama branch ini (sebelum `08504f4` dan `b3cce93`) dihentikan di tahap transkripsi.
+
 | Tahap | Sebelum | Sesudah |
 |---|---|---|
-| Unduh | belum diukur | belum diukur |
-| Transkripsi | belum diukur | belum diukur |
-| Tracking wajah (per klip) | belum diukur | belum diukur |
-| Render (per klip) | belum diukur | belum diukur |
-| RAM puncak | belum diukur | belum diukur |
+| Unduh | Gagal: "Sign in to confirm you're not a bot" (versi `main`, tanpa cookies) | 13,9 dtk (dengan `cookies.txt`) |
+| Ekstrak audio | 18,2 dtk | 12,3 dtk |
+| Transkripsi | Prosesor (`libcublas.so.12` tidak ditemukan), belum selesai setelah 24 menit lalu dihentikan | 119,8 dtk di GPU (`whisper_device=cuda`) |
+| Tracking wajah (per klip) | belum diukur | rata-rata 78,6 dtk (50,7–101,0), sekitar 0,96 × panjang klip |
+| Render (per klip) | belum diukur; encoder `libx264` karena uji NVENC 128×128 gagal di T4 | rata-rata 29,3 dtk (18,7–37,2) dengan `h264_nvenc`, sekitar 0,36 × panjang klip |
+| Total waktu mesin | tidak selesai | 20,4 menit (di luar 4 menit 40 detik menunggu jawaban AI manual) |
+| RAM puncak | 0,5 GB sampai tahap transkripsi | 3,09 GB (render); 2,47 GB saat transkripsi. Tidak ada `-9` |
+
+Pembagian waktu mesin sesudah: tracking wajah 64,1 %, render 23,9 %, unduh + audio + transkripsi 11,9 %.
 
 Keputusan gerbang: jika sesudah A tracking wajah masih mendominasi waktu, pendekatan B dijadwalkan. Jika tidak, B dipindah ke SP3 sebagai optimasi opsional.
 

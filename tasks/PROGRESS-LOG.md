@@ -374,3 +374,18 @@ Langkah berikutnya: pemilik push, jalankan sel 3–4, pastikan pemeriksaan awal 
 - Belum diukur: seberapa cepat render NVENC dibanding libx264 di klip sungguhan. Uji sintetis 60 dtk tidak bermakna (pembangkit gambar uji yang dominan).
 
 Langkah lama (sudah terjawab di atas): setelah job selesai, pemilik menjalankan sel uji `h264_nvenc` 256×256, lalu push ulang dan jalankan sel 3–4 untuk melihat apakah pemeriksaan awal berubah menjadi "Render memakai GPU". Catat waktu job pertama ini (render CPU) sebagai pembanding.
+
+---
+
+## 2026-11-18 · Job 30 menit selesai di Colab; T0.14 terukur
+
+Job `ccc39a30` (branch di `1f65023`, Whisper `medium`, AI manual, 10 klip, Haar) selesai `DONE` tanpa `-9`. Kesepuluh klip ada di Drive `AutoClipperData/projects/tirtapengpengpeng/clips/` (`/video` → `Exists: True`). Angka lengkap ada di spec bagian 7. Ringkas: unduh 13,9 dtk, transkripsi 119,8 dtk di GPU, tracking rata-rata 78,6 dtk per klip (0,96 × panjang klip), render NVENC rata-rata 29,3 dtk per klip, total mesin 20,4 menit, RAM puncak 3,09 GB.
+
+Status:
+
+- T0.14 `[x]`: video 30 menit selesai di Colab tanpa `-9`, `timings` lengkap di log.
+- T0.2 tetap `[~]`: "Sebelum" hanya sebagian. Pemilik memutuskan apakah cukup.
+- T0.13 tetap `[~]`: notebook terbukti jalan, tetapi bukan di runtime bersih (sel 3 dijalankan ulang di runtime yang sama untuk menarik `b3cce93`). Daftar cek yang sudah terbukti: 1, 2 (Deno OK di pemeriksaan awal), 3, 4, 6. Belum: 5 (`history.db` di work dir), 7 (antrean), 8 (runtime dihapus lalu sambung ulang), 9.
+- T0.15: tracking wajah 64 % dari waktu mesin. Menurut aturan gerbang di spec, pendekatan B (tracking satu-kali-baca) dijadwalkan. Menunggu keputusan pemilik.
+
+Catatan: klip 9 memakai crop statis di tengah (`iw*0.5`), kemungkinan wajah tidak terdeteksi. Ekspresi `crop` per klip sangat panjang (fungsi `if(lte(t,…))` bertingkat tiap 0,5 dtk); render tetap 0,36 × panjang klip, jadi bukan hambatan sekarang.
