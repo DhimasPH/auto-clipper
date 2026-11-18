@@ -1,9 +1,12 @@
 import cv2
+import numpy as np
 import os
 import re
 import subprocess
+import threading
 import traceback
 import math
+from fractions import Fraction
 from backend.logger import log_error, log_app
 from backend.stage_timer import stage
 
@@ -261,8 +264,183 @@ def _largest_face_trajectory(raw_frames: list, lo: float, hi: float) -> list:
     return trajectory
 
 
+_FFMPEG_FALLBACK_CONTEXT = "crop_utils.sample_face_trajectory_ffmpeg_fallback"
+_TRACKING_WIDTH = 640
+
+
+def _ffmpeg_executable():
+    """The FFmpeg binary the rest of the backend uses, or None when there is none."""
+    from backend.video_utils import get_ffmpeg_path
+    return get_ffmpeg_path()
+
+
+def _sample_offsets(start_time: float, end_time: float, interval: float):
+    """Clip duration and the sample offsets (seconds from the clip start)."""
+    duration = max(0.1, end_time - start_time)
+    num_samples = max(2, int(duration / interval) + 1)
+    return duration, [min(duration, i * interval) for i in range(num_samples)]
+
+
+def _tracking_frame_size(width: int, height: int):
+    """Detection frame size: 640 wide when the source is wider, else the source size."""
+    if width > _TRACKING_WIDTH:
+        return _TRACKING_WIDTH, int(height * (_TRACKING_WIDTH / width))
+    return width, height
+
+
+def _ffmpeg_frame_plan(start_time: float, offsets: list, fps: float) -> dict:
+    """Seek point, timestamp shift and output grid that make FFmpeg pick the sample frames.
+
+    The seek path asked OpenCV for ``POS_MSEC = start + offset``, and OpenCV
+    returns the source frame nearest to that time (frame ``floor(t * fps + 0.5)``,
+    ties going to the later frame). Here the same frames come from one decode:
+
+    * ``-ss`` lands half a source frame (``h``) before ``start`` plus ``eps``, so
+      the frame nearest the clip start is still decoded, and the one exactly
+      half a frame earlier (which loses the tie) is not.
+    * ``setpts`` moves every frame back by ``shift``, so a frame's new time is
+      its source time minus ``start + h + eps``.
+    * ``fps=...:round=up:start_time=0`` gives output slot ``k`` the last frame
+      whose new time is at most ``k * step``, i.e. the last frame at or before
+      ``start + k * step + h``: the nearest frame to the sample time.
+
+    ``eps`` (0.5 ms) breaks exact ties the way OpenCV does and absorbs
+    container timestamp rounding. The offsets are always ``k * step`` with
+    ``step = offsets[1]`` (the interval, or the whole window when the clip is
+    shorter than one interval), so slot ``k`` is sample ``k``. The fps filter
+    repeats a frame when the source has a gap longer than ``step``, so a gap
+    never shifts the later samples.
+    """
+    step = offsets[1]
+    half_frame = 0.5 / fps
+    eps = min(0.0005, half_frame / 4)
+    seek = max(0.0, start_time - half_frame + eps)
+    shift = start_time + half_frame + eps - seek
+    rate = Fraction(step).limit_denominator(1_000_000)
+    return {
+        "seek": seek,
+        "shift": shift,
+        "step": step,
+        "rate": f"{rate.denominator}/{rate.numerator}",
+        # Half a second past the last sample, so the fps filter sees the frame
+        # after it instead of the end of the input.
+        "window": (start_time - seek) + offsets[-1] + half_frame + 0.5,
+    }
+
+
+def _ffmpeg_sample_command(ffmpeg: str, video_path: str, start_time: float, offsets: list, fps: float, width: int, height: int) -> list:
+    """FFmpeg command that writes the sample frames as raw BGR to stdout."""
+    plan = _ffmpeg_frame_plan(start_time, offsets, fps)
+    video_filter = (
+        f"setpts=PTS-{plan['shift']:.6f}/TB,"
+        f"fps=fps={plan['rate']}:start_time=0:round=up,"
+        f"scale={width}:{height}:flags=bilinear"
+    )
+    return [
+        ffmpeg, "-hide_banner", "-nostdin", "-loglevel", "error",
+        "-ss", f"{plan['seek']:.6f}", "-t", f"{plan['window']:.6f}",
+        "-i", video_path,
+        "-map", "0:V:0", "-an", "-sn", "-dn",
+        "-vf", video_filter,
+        "-frames:v", str(len(offsets)),
+        "-f", "rawvideo", "-pix_fmt", "bgr24", "pipe:1",
+    ]
+
+
+class _FfmpegFrameError(Exception):
+    """The FFmpeg tracking process stopped or failed before sending every frame."""
+
+
+class _FfmpegFrameReader:
+    """One FFmpeg process that streams the sample frames of a clip, one per read()."""
+
+    def __init__(self, cmd: list, width: int, height: int):
+        self.cmd = cmd
+        self.width = width
+        self.height = height
+        self.frame_size = width * height * 3
+        self._stderr_tail = b""
+        self.proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # FFmpeg blocks if nobody empties its stderr pipe, so drain it alongside.
+        self._stderr_thread = threading.Thread(target=self._drain_stderr, daemon=True)
+        self._stderr_thread.start()
+
+    def _drain_stderr(self):
+        try:
+            for chunk in iter(lambda: self.proc.stderr.read(4096), b""):
+                self._stderr_tail = (self._stderr_tail + chunk)[-2000:]
+        except (OSError, ValueError):
+            pass
+
+    def stderr_text(self) -> str:
+        return self._stderr_tail.decode("utf-8", "ignore").strip()
+
+    def read(self):
+        """The next frame, or None when FFmpeg exited normally with no frame left.
+
+        Raises _FfmpegFrameError when FFmpeg failed or sent a partial frame.
+        """
+        buf = bytearray(self.frame_size)
+        view = memoryview(buf)
+        got = 0
+        while got < self.frame_size:
+            n = self.proc.stdout.readinto(view[got:])
+            if not n:
+                break
+            got += n
+        if got == self.frame_size:
+            return np.frombuffer(buf, dtype=np.uint8).reshape(self.height, self.width, 3)
+
+        try:
+            code = self.proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            raise _FfmpegFrameError("FFmpeg closed its output but did not exit")
+        self._stderr_thread.join(timeout=2)
+        if got == 0 and code == 0:
+            return None
+        raise _FfmpegFrameError(
+            f"FFmpeg exit code {code}, {got} of {self.frame_size} bytes of a frame received. "
+            f"stderr: {self.stderr_text()[-600:]}"
+        )
+
+    def close(self):
+        """Stop FFmpeg if it still runs, reap it, and close its pipes."""
+        try:
+            if self.proc.poll() is None:
+                self.proc.kill()
+        except OSError:
+            pass
+        try:
+            self.proc.wait(timeout=10)
+        except subprocess.TimeoutExpired as e:
+            log_error("crop_utils.sample_face_trajectory_ffmpeg_cleanup", e)
+        self._stderr_thread.join(timeout=2)
+        for stream in (self.proc.stdout, self.proc.stderr):
+            try:
+                stream.close()
+            except (OSError, ValueError):
+                pass
+
+
+def _seek_tracking_frame(cap, abs_t: float):
+    """One detection frame read by seeking the capture (the pre-T0.16 way), or None."""
+    cap.set(cv2.CAP_PROP_POS_MSEC, abs_t * 1000.0)
+    ret, frame = cap.read()
+    if not ret:
+        return None
+    fh, fw = frame.shape[:2]
+    if fw > _TRACKING_WIDTH:
+        small_w, small_h = _tracking_frame_size(fw, fh)
+        return cv2.resize(frame, (small_w, small_h))
+    return frame
+
+
 def sample_face_trajectory(video_path: str, start_time: float, end_time: float, interval: float = 0.5, should_cancel = None, engine: str = "haar", info: dict = None) -> list[tuple]:
     """Sample face positions at periodic intervals across a clip window.
+
+    The sample frames are decoded in one sequential FFmpeg read of the clip
+    (see ``_ffmpeg_frame_plan``). If FFmpeg is missing or fails, the reason is
+    logged and the remaining samples are read by seeking with OpenCV.
 
     ``engine="mediapipe"`` uses MediaPipe Face Mesh (speaker picked by Mouth
     Aspect Ratio). If MediaPipe cannot start or fails on a frame, the reason is
@@ -272,6 +450,11 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
     ``info``, when given, receives ``engine_used`` ("mediapipe" or "haar") and,
     after a fallback, ``fallback_reason``.
     """
+    return _sample_face_trajectory(video_path, start_time, end_time, interval, should_cancel, engine, info, use_ffmpeg=True)
+
+
+def _sample_face_trajectory(video_path, start_time, end_time, interval=0.5, should_cancel=None, engine="haar", info=None, use_ffmpeg=True):
+    """sample_face_trajectory; ``use_ffmpeg=False`` reads every sample by seeking (the old path)."""
     if info is None:
         info = {}
     info["engine_used"] = "haar"
@@ -282,12 +465,10 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
         return [(0.0, 0.5)]
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
     frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
     frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
 
-    duration = max(0.1, end_time - start_time)
-    num_samples = max(2, int(duration / interval) + 1)
+    duration, offsets = _sample_offsets(start_time, end_time, interval)
 
     half_window = (frame_h * 9 / 16) / frame_w / 2 if (frame_w and frame_h) else 0.28
     lo, hi = half_window, 1.0 - half_window
@@ -299,8 +480,16 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
             f"MediaPipe face tracking failed, using OpenCV Haar Cascade instead. Reason: {reason}",
         )
 
+    def note_ffmpeg_fallback(reason, done):
+        log_error(
+            _FFMPEG_FALLBACK_CONTEXT,
+            f"Sequential FFmpeg read of the tracking frames stopped after {done} of {len(offsets)} frames; "
+            f"the rest are read by seeking with OpenCV (slower). Video: {video_path}. Reason: {reason}",
+        )
+
     face_mesh = None
     face_cascade = None
+    reader = None
     raw_frames = []
     try:
         if engine == "mediapipe":
@@ -309,25 +498,42 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
             except Exception as e:
                 note_fallback(e)
 
-        for i in range(num_samples):
+        if use_ffmpeg:
+            ffmpeg = _ffmpeg_executable()
+            if not ffmpeg:
+                note_ffmpeg_fallback("FFmpeg executable not found", 0)
+            elif not (frame_w and frame_h):
+                note_ffmpeg_fallback("OpenCV reported no frame size for this video", 0)
+            else:
+                small_w, small_h = _tracking_frame_size(frame_w, frame_h)
+                cmd = _ffmpeg_sample_command(ffmpeg, video_path, start_time, offsets, fps, small_w, small_h)
+                try:
+                    reader = _FfmpegFrameReader(cmd, small_w, small_h)
+                except (OSError, ValueError, subprocess.SubprocessError) as e:
+                    note_ffmpeg_fallback(f"FFmpeg could not start: {e}", 0)
+
+        for i, rel_t in enumerate(offsets):
             if should_cancel and should_cancel():
                 break
-            rel_t = min(duration, i * interval)
-            abs_t = start_time + rel_t
-            cap.set(cv2.CAP_PROP_POS_MSEC, abs_t * 1000.0)
-            ret, frame = cap.read()
-            if not ret:
+
+            small_frame = None
+            if reader is not None:
+                try:
+                    small_frame = reader.read()
+                    if small_frame is None:
+                        raise _FfmpegFrameError(
+                            f"FFmpeg finished after {i} of {len(offsets)} frames "
+                            "(normal when the clip runs to the end of the video)"
+                        )
+                except (_FfmpegFrameError, OSError, ValueError) as e:
+                    note_ffmpeg_fallback(e, i)
+                    reader.close()
+                    reader = None
+            if reader is None:
+                small_frame = _seek_tracking_frame(cap, start_time + rel_t)
+            if small_frame is None:
                 raw_frames.append((rel_t, []))
                 continue
-
-            fh, fw = frame.shape[:2]
-            if fw > 640:
-                small_w = 640
-                small_h = int(fh * (640 / fw))
-                small_frame = cv2.resize(frame, (small_w, small_h))
-            else:
-                small_frame = frame
-            del frame
 
             faces = None
             if face_mesh is not None:
@@ -346,6 +552,8 @@ def sample_face_trajectory(video_path: str, start_time: float, end_time: float, 
             del small_frame
             raw_frames.append((rel_t, faces))
     finally:
+        if reader is not None:
+            reader.close()
         if face_mesh is not None:
             _close_face_mesh(face_mesh)
         cap.release()
