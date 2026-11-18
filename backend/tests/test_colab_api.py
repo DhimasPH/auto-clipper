@@ -271,3 +271,169 @@ def test_colab_notebook_step3_avoids_force_upgrading_colab_packages():
     assert "pip install -r backend/requirements.txt" in source_lines
     assert "pip install -U -r backend/requirements.txt" not in source_lines
     assert "pip install --upgrade -r backend/requirements.txt" not in source_lines
+
+
+# --- Auto_Clipper_Colab.ipynb: Deno, work dir, preflight (T0.13) ---------------
+
+def _notebook():
+    import json
+    from pathlib import Path
+
+    nb_path = Path(__file__).resolve().parents[2] / "Auto_Clipper_Colab.ipynb"
+    with open(nb_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _notebook_source(cell_id):
+    """The text of one notebook cell, found by its metadata id."""
+    cells = [cell for cell in _notebook().get("cells", []) if cell.get("metadata", {}).get("id") == cell_id]
+    assert len(cells) == 1
+    return "".join(cells[0].get("source", []))
+
+
+def _python_part(source):
+    """A code cell without its shell (!) and magic (%) lines, which only Colab can run."""
+    return "\n".join(
+        "" if line.lstrip().startswith(("!", "%")) else line
+        for line in source.split("\n")
+    )
+
+
+SERVER_CELLS = ["step4a_code", "step4b_code"]
+CODE_CELLS = ["step1_code", "step2_code", "step3_code"] + SERVER_CELLS
+
+
+def test_colab_notebook_keeps_its_cells_in_order():
+    nb = _notebook()
+    assert nb["nbformat"] == 4
+    assert [cell["metadata"]["id"] for cell in nb["cells"]] == [
+        "header_cell", "step1_md", "step1_code", "step2_md", "step2_code", "step3_md", "step3_code",
+        "step4a_md", "step4a_code", "step4b_md", "step4b_code",
+    ]
+
+
+@pytest.mark.parametrize("cell_id", CODE_CELLS)
+def test_colab_notebook_code_cells_are_valid_python(cell_id):
+    compile(_python_part(_notebook_source(cell_id)), cell_id, "exec")
+
+
+def test_colab_notebook_installs_deno_where_the_server_finds_it():
+    source = _notebook_source("step2_code")
+
+    # Deno's official install script, see docs.deno.com/runtime/getting_started/installation
+    assert "curl -fsSL https://deno.land/install.sh" in source
+    # The backend finds Deno with a PATH lookup; /usr/local/bin is on PATH for every Colab process.
+    assert "DENO_INSTALL=/usr/local sh" in source
+    # The install script stops without unzip (or 7z).
+    assert "unzip" in source
+
+
+class _FakeDeno:
+    """Stands in for the machine in the notebook's Deno step: is Deno there, and does installing work?"""
+
+    def __init__(self, installed, install_works=True, install_raises=None):
+        self.installed = installed
+        self.install_works = install_works
+        self.install_raises = install_raises
+        self.install_commands = []
+
+    def which(self, name):
+        return "/usr/local/bin/deno" if name == "deno" and self.installed else None
+
+    def run(self, cmd, **kwargs):
+        result = MagicMock()
+        if kwargs.get("shell"):
+            self.install_commands.append(cmd)
+            if self.install_raises:
+                raise self.install_raises
+            self.installed = self.install_works
+            result.returncode = 0 if self.install_works else 1
+            result.stdout = ""
+            result.stderr = "" if self.install_works else "curl: (6) Could not resolve host: deno.land"
+            return result
+        result.returncode = 0
+        result.stdout = "deno 2.5.6 (stable, release, x86_64-unknown-linux-gnu)\nv8 14.0\n"
+        result.stderr = ""
+        return result
+
+
+def _run_deno_step(monkeypatch, fake):
+    import shutil
+
+    monkeypatch.setattr(shutil, "which", fake.which)
+    monkeypatch.setattr(subprocess, "run", fake.run)
+    exec(compile(_python_part(_notebook_source("step2_code")), "step2_code", "exec"), {})
+
+
+def test_colab_notebook_deno_step_installs_deno_when_it_is_missing(monkeypatch, capsys):
+    fake = _FakeDeno(installed=False)
+    _run_deno_step(monkeypatch, fake)
+
+    assert fake.install_commands == ["curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh"]
+    out = capsys.readouterr().out
+    assert "Deno terpasang (deno 2.5.6" in out
+    assert "PERHATIAN" not in out
+
+
+def test_colab_notebook_deno_step_is_harmless_to_run_again(monkeypatch, capsys):
+    fake = _FakeDeno(installed=True)
+    _run_deno_step(monkeypatch, fake)
+
+    assert fake.install_commands == []
+    assert "Deno sudah terpasang" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("make_fake", [
+    lambda: _FakeDeno(installed=False, install_works=False),
+    lambda: _FakeDeno(installed=False, install_raises=subprocess.TimeoutExpired("sh", 300)),
+    lambda: _FakeDeno(installed=False, install_raises=OSError("no shell")),
+], ids=["install-fails", "install-times-out", "no-shell"])
+def test_colab_notebook_deno_step_says_so_and_continues_when_the_install_fails(monkeypatch, capsys, make_fake):
+    _run_deno_step(monkeypatch, make_fake())  # must not raise: the next steps still have to run
+
+    out = capsys.readouterr().out
+    assert "PERHATIAN: Deno tidak berhasil dipasang." in out
+    assert "tetap bisa dipakai" in out
+    assert "Detail teknis:" in out
+
+
+@pytest.mark.parametrize("cell_id", SERVER_CELLS)
+def test_colab_notebook_works_on_the_local_disk_and_keeps_the_library_on_drive(cell_id):
+    source = _notebook_source(cell_id)
+
+    assert 'os.environ["AUTO_CLIPPER_WORK_DIR"] = "/content/work"' in source
+    assert 'os.environ["AUTO_CLIPPER_WORKSPACE"] = "/content/drive/MyDrive/AutoClipperData"' in source
+    assert 'os.environ["AUTO_CLIPPER_CLOUD_MODE"] = "1"' in source
+
+
+@pytest.mark.parametrize("cell_id", SERVER_CELLS)
+def test_colab_notebook_shows_preflight_before_the_server_starts(cell_id):
+    from pathlib import Path
+
+    lines = _notebook_source(cell_id).split("\n")
+    preflight = lines.index("!python scripts/colab_preflight.py")
+    work_dir = next(i for i, line in enumerate(lines) if "AUTO_CLIPPER_WORK_DIR" in line)
+    server = next(
+        i for i, line in enumerate(lines)
+        if line.startswith("!python") and ("backend/colab_api.py" in line or "uvicorn backend.main:app" in line)
+    )
+
+    # Preflight sees the same folders as the server, and its result is on screen before the server logs.
+    assert work_dir < preflight < server
+    assert (Path(__file__).resolve().parents[2] / "scripts" / "colab_preflight.py").is_file()
+
+
+def test_colab_server_reads_the_work_dir_the_notebook_exports(monkeypatch):
+    """Cell 4A passes no --work-dir: colab_api.py takes the folder from the environment the cell set."""
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", "/content/drive/MyDrive/AutoClipperData")
+    monkeypatch.setenv("AUTO_CLIPPER_WORK_DIR", "/content/work")
+
+    args = parse_args(["--cloudflare-token", "cf", "--api-token", "secret"])
+    assert args.work_dir == "/content/work"
+    assert args.workspace == "/content/drive/MyDrive/AutoClipperData"
+
+
+def test_colab_notebook_does_not_promise_gpu_rendering():
+    """Spec finding F8: the notebook installs stock FFmpeg, so it must not claim NVENC rendering."""
+    for cell_id in ["header_cell", "step1_md", "step2_md", "step3_md", "step4a_md", "step4b_md"]:
+        assert "NVENC" not in _notebook_source(cell_id).upper()
