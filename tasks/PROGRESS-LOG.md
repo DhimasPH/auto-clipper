@@ -502,3 +502,20 @@ Sisa SP0 (semua butuh pemilik): cek manual T0.12, satu jalan notebook di runtime
 - Cara kerja: branch bertumpuk. SP1 di `feat/sp1-...` yang bercabang dari `feat/sp0-pipeline-stability`; SP2 bercabang dari SP1. PR akhir dari branch SP2 ke `main`. Deskripsi PR SP0 yang sudah disiapkan (ringkasan, tabel ukur, keamanan, belum diverifikasi) dipakai sebagai bagian pertama deskripsi PR akhir.
 - Selama itu: Colab diuji lewat kolom `BRANCH`; web produksi Vercel tetap `main` (versi lama).
 - T0.12 (cek manual UI) dan T0.13 (notebook di runtime baru) tetap terbuka dan dicek sebelum PR akhir; SP2 akan mengubah UI, jadi T0.12 sebaiknya dicek terhadap UI hasil SP2.
+
+---
+
+## 2026-11-18 · Berhenti di 80% kuota: SP1 spec selesai, rencana setengah jadi
+
+Branch aktif: `feat/sp1-single-frontend-web-local` (bercabang dari `feat/sp0-pipeline-stability` di `ed990c6`). Tidak ada perubahan kode sejak tes terakhir hijau (694 lulus, 7 dilewati).
+
+Selesai:
+- Spec SP1 disetujui per bagian dan ditulis: `docs/superpowers/specs/2026-11-18-sp1-single-frontend-web-local-design.md` (`e531bbc`, `87f1553`). Keputusan: web lokal untuk pengguna tanpa desktop di `localhost`; Colab tetap lewat Vercel; desktop `src/` jadi basis dengan lapisan platform, `web/` dihapus; paket web lokal siap pakai per OS (Windows, macOS arm64 dan x64, Linux); link video bertanda tangan tanpa kedaluwarsa dengan kunci permanen `video_signing.key` di app data. Pemilik belum memberi review akhir atas spec tertulis, tetapi berkata "oke lanjut" ke tahap rencana.
+
+Setengah jadi:
+- Agen penyusun rencana (skill `superpowers:writing-plans`) dihentikan karena kuota. Potongan yang sudah ada disimpan di `docs/superpowers/plans/wip/2026-11-18-sp1-plan-part1.md` (header, Global Constraints, pertanyaan untuk pemilik, celah spec, struktur file, urutan 14 task, Task 1–3) dan `...-part2.md` (Task 4–6; Task 6 mungkin belum lengkap). Task 7–14 belum ditulis: backend kunci dan tanda tangan video, `/video` wajib `sig` + `POST /video-url`, link bertanda tangan di frontend, mode web menyajikan UI + aturan token, peluncur `--web`, adapter local + LocalGate, paket dan CI 4 target, hapus `web/` + dokumen + ADR-013 + versi 1.19.0.
+
+Langkah berikutnya:
+1. Baca kedua file WIP, cek apakah Task 6 lengkap, lalu tulis Task 7–14 dengan format yang sama (bisa lewat agen baru dengan brief: lanjutkan rencana dari file WIP, jangan tulis ulang Task 1–6).
+2. Gabungkan menjadi `docs/superpowers/plans/2026-11-18-sp1-single-frontend-web-local.md`, hapus folder `wip/`, lakukan self-review terhadap spec, commit.
+3. Sampaikan ke pemilik: daftar task, bagian "Questions for the owner" dan "Spec gaps" dari part1, lalu tanya cara eksekusi (subagent per task, model fable effort high).
