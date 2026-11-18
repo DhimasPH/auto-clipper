@@ -340,4 +340,13 @@ Perbaikan setelah temuan F8 (tes 558 lulus):
 - `is_nvenc_available` menguji `h264_nvenc` dengan bingkai 128×128. GPU Turing (T4) menolak lebar di bawah 145 piksel, jadi uji itu gagal di T4 walaupun encoder-nya mungkin bisa dipakai. Bingkai uji sekarang 256×256, dan alasan kegagalan ditulis ke log aplikasi. Belum diverifikasi di Colab: bisa jadi encoder tetap tidak tersedia (misalnya pustaka encoder NVIDIA tidak ada di runtime Colab).
 - Teks peringatan render tidak lagi hanya berkata "normal di komputer tanpa kartu grafis NVIDIA", yang bertentangan dengan baris "GPU aktif" di atasnya.
 
+Temuan kedua, lebih berat: `backend_app.log` menunjukkan unduh 19,7 dtk dan ambil suara 18,2 dtk normal, lalu `transcribe whisper_model=medium` → "Library libcublas.so.12 is not found ... falling back to CPU transcription". Setelah 24 menit `.srt` belum ada. Pemeriksaan awal tetap berkata "GPU aktif, subtitle memakai GPU" karena hanya menghitung perangkat CUDA.
+
+Perbaikan (tes 564 lulus):
+
+- Notebook sel 3 memasang `nvidia-cublas-cu12` dan `nvidia-cudnn-cu12==9.*` (cara yang dianjurkan README faster-whisper untuk ctranslate2 4.5+).
+- `colab_api.setup_environment` menambahkan folder cuBLAS dan cuDNN ke `LD_LIBRARY_PATH` masing-masing; dulu satu paket yang hilang membuang keduanya. Memakai `__path__`, bukan `__file__`.
+- Pemeriksaan awal: bila ada GPU tetapi `libcublas.so.12`/`libcudnn.so.9` tidak bisa dimuat (Linux saja), cek `gpu` menjadi `[PERHATIAN] Subtitle memakai prosesor` dengan langkah perbaikan.
+- Belum diverifikasi di Colab. Pemilik diminta menjalankan sel diagnosis (daftar paket nvidia/torch, pasang paket, muat pustaka, uji `h264_nvenc`). Risiko: bila torch Colab memakai CUDA 13, `nvidia-cudnn-cu12` bisa bertabrakan dengan cuDNN milik torch; output `pip list` dari pemilik akan menjawabnya.
+
 Langkah berikutnya: setelah job selesai, pemilik menjalankan sel uji `h264_nvenc` 256×256, lalu push ulang dan jalankan sel 3–4 untuk melihat apakah pemeriksaan awal berubah menjadi "Render memakai GPU". Catat waktu job pertama ini (render CPU) sebagai pembanding.

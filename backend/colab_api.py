@@ -8,6 +8,7 @@ Example:
 """
 
 import argparse
+import importlib
 import os
 import signal
 import subprocess
@@ -134,14 +135,18 @@ def setup_environment(workspace: str, api_token: Optional[str] = None, work_dir:
     except Exception as e:
         print(f"[Auto Clipper Colab] Warning: Could not create workspace directory '{workspace}': {e}", file=sys.stderr)
 
-    # Inject CUDA 12 library paths for ctranslate2 / Whisper GPU fallback
-    try:
-        import nvidia.cublas.lib
-        import nvidia.cudnn.lib
-        cuda_paths = f"{os.path.dirname(nvidia.cublas.lib.__file__)}:{os.path.dirname(nvidia.cudnn.lib.__file__)}"
-        os.environ["LD_LIBRARY_PATH"] = cuda_paths + ":" + os.environ.get("LD_LIBRARY_PATH", "")
-    except Exception:
-        os.environ["LD_LIBRARY_PATH"] = "/usr/local/cuda/lib64:" + os.environ.get("LD_LIBRARY_PATH", "")
+    # CUDA 12 cuBLAS and cuDNN 9 for ctranslate2 (Whisper on the GPU), from the
+    # nvidia-*-cu12 pip packages the notebook installs. Each package is added on
+    # its own, so a missing cuDNN does not also hide cuBLAS.
+    cuda_paths = []
+    for package in ("cublas", "cudnn"):
+        try:
+            module = importlib.import_module(f"nvidia.{package}.lib")
+            cuda_paths.extend(list(getattr(module, "__path__", []))[:1])
+        except Exception:
+            pass
+    cuda_paths.append("/usr/local/cuda/lib64")
+    os.environ["LD_LIBRARY_PATH"] = ":".join(cuda_paths + [os.environ.get("LD_LIBRARY_PATH", "")])
 
 
 def start_uvicorn(host: str, port: int) -> subprocess.Popen:

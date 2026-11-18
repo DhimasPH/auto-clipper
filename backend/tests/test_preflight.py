@@ -16,6 +16,7 @@ def healthy(monkeypatch):
     monkeypatch.setattr(preflight, "_free_disk_gb", lambda: 80.0)
     monkeypatch.setattr(preflight, "_available_ram_gb", lambda: 10.0)
     monkeypatch.setattr(preflight, "_cuda_device_count", lambda: 1)
+    monkeypatch.setattr(preflight, "_whisper_gpu_libs_missing", lambda: [])
     monkeypatch.setattr(preflight, "_gpu_encoder_available", lambda: True)
     monkeypatch.setattr(preflight, "_cloud_drive_expected", lambda: True)
     monkeypatch.setattr(preflight, "_drive_mounted", lambda: True)
@@ -89,6 +90,47 @@ def test_no_gpu_warns_that_subtitles_will_be_slow(healthy, monkeypatch):
     assert "lambat" in r["message"]
 
 
+def test_gpu_without_its_subtitle_libraries_warns_that_subtitles_use_the_processor(healthy, monkeypatch):
+    # Colab 2026-11-18: a T4 was found, but libcublas.so.12 was not, so Whisper
+    # quietly ran on the processor for more than half an hour.
+    monkeypatch.setattr(preflight, "_whisper_gpu_libs_missing", lambda: ["libcublas.so.12"])
+    r = _by_id(preflight.run_preflight())["gpu"]
+    assert r["level"] == "warn"
+    assert "prosesor" in r["message"] and "processor" in r["message_en"]
+    assert "Langkah 3" in r["message"]
+    assert "libcublas.so.12" in r["technical"]
+
+
+def test_subtitle_libraries_are_not_checked_without_a_gpu(healthy, monkeypatch):
+    monkeypatch.setattr(preflight, "_cuda_device_count", lambda: 0)
+    asked = []
+    monkeypatch.setattr(preflight, "_whisper_gpu_libs_missing", lambda: asked.append(1) or ["x"])
+    assert _by_id(preflight.run_preflight())["gpu"]["code"] == "NO_GPU_SLOW"
+    assert asked == []
+
+
+def test_subtitle_library_probe_finds_libraries_in_the_nvidia_packages(monkeypatch, tmp_path):
+    loaded = []
+
+    def fake_cdll(name):
+        if "/" not in name.replace("\\", "/"):
+            raise OSError(f"{name}: cannot open shared object file")
+        loaded.append(name)
+
+    monkeypatch.setattr(preflight.sys, "platform", "linux")
+    monkeypatch.setattr(preflight.ctypes, "CDLL", fake_cdll)
+    monkeypatch.setattr(preflight, "_nvidia_lib_dir", lambda package: str(tmp_path / package) if package == "cublas" else None)
+
+    assert preflight._whisper_gpu_libs_missing() == ["libcudnn.so.9"]
+    assert loaded == [str(tmp_path / "cublas" / "libcublas.so.12")]
+
+
+def test_subtitle_library_probe_is_skipped_off_linux(monkeypatch):
+    monkeypatch.setattr(preflight.sys, "platform", "win32")
+    monkeypatch.setattr(preflight.ctypes, "CDLL", lambda name: (_ for _ in ()).throw(AssertionError(name)))
+    assert preflight._whisper_gpu_libs_missing() == []
+
+
 def test_cpu_rendering_is_reported_not_hidden(healthy, monkeypatch):
     monkeypatch.setattr(preflight, "_gpu_encoder_available", lambda: False)
     r = _by_id(preflight.run_preflight())["gpu_render"]
@@ -148,7 +190,7 @@ def test_downloader_version_with_a_patch_suffix_is_understood(healthy, monkeypat
 
 @pytest.mark.parametrize("probe, check_id", [
     ("_ffmpeg_path", "ffmpeg"), ("_free_disk_gb", "disk"), ("_available_ram_gb", "ram"),
-    ("_cuda_device_count", "gpu"), ("_gpu_encoder_available", "gpu_render"), ("_drive_mounted", "drive"),
+    ("_cuda_device_count", "gpu"), ("_whisper_gpu_libs_missing", "gpu"), ("_gpu_encoder_available", "gpu_render"), ("_drive_mounted", "drive"),
     ("_deno_path", "deno"), ("_downloader_version", "downloader"),
 ])
 def test_one_crashing_check_never_takes_down_the_others(healthy, monkeypatch, probe, check_id):
@@ -185,6 +227,7 @@ def _all_states(monkeypatch):
     degraded = [
         ("_ffmpeg_path", lambda: None), ("_free_disk_gb", lambda: 0.4), ("_free_disk_gb", lambda: 3.0),
         ("_available_ram_gb", lambda: 1.2), ("_available_ram_gb", lambda: None), ("_cuda_device_count", lambda: 0),
+        ("_whisper_gpu_libs_missing", lambda: ["libcublas.so.12"]),
         ("_gpu_encoder_available", lambda: False), ("_drive_mounted", lambda: False),
         ("_deno_path", lambda: None), ("_downloader_version", lambda: "2026.01.01"),
     ]
@@ -220,7 +263,7 @@ def test_blocking_error_is_an_app_error_with_the_check_code(healthy, monkeypatch
 
 def test_blocking_error_only_runs_the_checks_that_can_block(healthy, monkeypatch):
     called = []
-    for probe in ("_available_ram_gb", "_cuda_device_count", "_gpu_encoder_available", "_deno_path", "_downloader_version", "_drive_mounted"):
+    for probe in ("_available_ram_gb", "_cuda_device_count", "_whisper_gpu_libs_missing", "_gpu_encoder_available", "_deno_path", "_downloader_version", "_drive_mounted"):
         monkeypatch.setattr(preflight, probe, lambda probe=probe: called.append(probe))
     assert preflight.blocking_error() is None
     assert called == []

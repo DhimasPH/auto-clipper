@@ -12,7 +12,9 @@ a warning and logged; it never fails the other checks and never blocks a job.
 Each check gets its facts from a small ``_probe`` function so tests can replace
 one fact at a time.
 """
+import ctypes
 import datetime
+import importlib
 import os
 import shutil
 import sys
@@ -80,6 +82,46 @@ def _available_ram_gb():
 def _cuda_device_count() -> int:
     import ctranslate2
     return int(ctranslate2.get_cuda_device_count())
+
+
+# What ctranslate2 4.5+ (faster-whisper) loads to run on the GPU: CUDA 12 cuBLAS
+# and cuDNN 9. A GPU without them makes Whisper fall back to the processor.
+_WHISPER_GPU_LIBS = (("libcublas.so.12", "cublas"), ("libcudnn.so.9", "cudnn"))
+
+
+def _nvidia_lib_dir(package: str):
+    """lib folder of the nvidia-<package>-cu12 wheel, or None when it is not installed."""
+    try:
+        module = importlib.import_module(f"nvidia.{package}.lib")
+    except ImportError:
+        return None
+    paths = list(getattr(module, "__path__", []))
+    return paths[0] if paths else None
+
+
+def _whisper_gpu_libs_missing() -> list:
+    """Libraries Whisper needs on the GPU that cannot be loaded. Linux only.
+
+    Looks where colab_api.py points LD_LIBRARY_PATH: the system paths, then
+    the nvidia pip packages.
+    """
+    if not sys.platform.startswith("linux"):
+        return []
+    missing = []
+    for name, package in _WHISPER_GPU_LIBS:
+        candidates = [name]
+        lib_dir = _nvidia_lib_dir(package)
+        if lib_dir:
+            candidates.append(os.path.join(lib_dir, name))
+        for candidate in candidates:
+            try:
+                ctypes.CDLL(candidate)
+                break
+            except OSError:
+                continue
+        else:
+            missing.append(name)
+    return missing
 
 
 def _gpu_encoder_available() -> bool:
@@ -227,6 +269,20 @@ def check_gpu() -> dict:
     count = _cuda_device_count()
     if count < 1:
         return _from_error_code("gpu", "warn", "NO_GPU_SLOW", technical="ctranslate2 reports 0 CUDA devices")
+    missing = _whisper_gpu_libs_missing()
+    if missing:
+        return _result(
+            "gpu", "warn",
+            "Subtitle memakai prosesor",
+            "GPU aktif, tetapi bagian program yang dibutuhkan untuk membuat subtitle di GPU tidak ditemukan. "
+            "Subtitle akan dibuat dengan prosesor, dan untuk video panjang bisa memakan waktu lebih dari satu jam. "
+            "Di Google Colab, hentikan server, jalankan ulang Langkah 3 di notebook, lalu jalankan lagi server.",
+            "Subtitles use the processor",
+            "The GPU is active, but the parts of the program needed to make subtitles on it were not found. "
+            "Subtitles will be made on the processor, which can take more than an hour for a long video. "
+            "On Google Colab, stop the server, run Step 3 of the notebook again, then start the server again.",
+            technical="cannot load " + ", ".join(missing),
+        )
     return _result(
         "gpu", "ok",
         "GPU aktif", "Subtitle dibuat memakai GPU.",

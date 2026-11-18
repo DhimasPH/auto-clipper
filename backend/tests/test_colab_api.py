@@ -145,6 +145,30 @@ def test_setup_environment_warns_when_drive_folder_exists_but_is_not_mounted(mon
     assert "belum terhubung" in capsys.readouterr().err
 
 
+def test_setup_environment_adds_cublas_even_when_cudnn_is_missing(monkeypatch, tmp_path):
+    # Whisper needs libcublas.so.12 on LD_LIBRARY_PATH; before, one missing
+    # package dropped both paths and Whisper ran on the processor.
+    from backend import colab_api
+    import types
+
+    real_import = colab_api.importlib.import_module
+
+    def fake_import(name):
+        if name == "nvidia.cublas.lib":
+            return types.SimpleNamespace(__path__=[str(tmp_path / "cublas" / "lib")])
+        if name == "nvidia.cudnn.lib":
+            raise ImportError(name)
+        return real_import(name)
+
+    monkeypatch.setattr(colab_api.importlib, "import_module", fake_import)
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/existing")
+    colab_api.setup_environment(str(tmp_path / "ws"), api_token="t")
+    # tmp_path holds "C:" on Windows, so compare text instead of splitting on ":".
+    value = os.environ["LD_LIBRARY_PATH"]
+    assert value.startswith(str(tmp_path / "cublas" / "lib") + ":")
+    assert value.endswith(":/usr/local/cuda/lib64:/existing")
+
+
 def test_run_server_passes_the_work_dir_to_the_server_process(tmp_path, monkeypatch):
     monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
     work = str(tmp_path / "work")
