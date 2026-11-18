@@ -101,6 +101,12 @@ Brainstorming dan spec terpisah dimulai setelah SP0 selesai. Arah awal, belum fi
 
 - [ ] T2.0 Brainstorm dan spec SP2 (alur utama, onboarding, bahasa, antislop: skill `antislop-*`)
 - [ ] T2.x Audit alur dan copy saat ini, sasaran: pengguna awam selesai dari link ke klip tanpa panduan
+- [ ] T2.x Teks layar proses (BusyOverlay) jujur, di `src/` dan `web/`. Diminta pemilik 2026-11-18 setelah uji Colab: di menit ke-24 layar menampilkan teks generik padahal subtitle masih dibuat dengan prosesor. Masalah yang ada sekarang:
+  - Setelah 10/20/40 menit, pesan berdasarkan waktu menggantikan tahap sebenarnya ("Sedang diproses di GPU Cloud...", "Sabar yaa, lagi proses nih...", "Video kamu hampir siap!").
+  - Web selalu mengklaim GPU ("Menyiapkan proses di Google Colab GPU…", catatan "Video sedang diproses di GPU Colab"), juga saat jatuh ke prosesor.
+  - Status `TRANSCRIBING` memutar empat pesan tiap 4,5 detik, termasuk "Menganalisis momen-momen terbaik" sebelum AI mulai.
+
+  Arah: tampilkan tahap sebenarnya dengan nama yang sama seperti "Detail waktu" (`timing.stage_*`), perangkat yang benar-benar dipakai ("Membuat subtitle dengan prosesor, bisa lama"), progres nyata ("Merender klip 3 dari 10"), dan tanpa "hampir siap" kecuali berdasarkan progres. Backend mungkin perlu mengirim tahap dan perangkat yang sedang berjalan di status job (sekarang baru tercatat di `timings` setelah tahap selesai). Terkait keputusan terbuka nomor 9 (preflight belum tampil di frontend).
 
 ## SP3: Ringan (belum dimulai)
 
