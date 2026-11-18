@@ -498,7 +498,7 @@ Sisa SP0 (semua butuh pemilik): cek manual T0.12, satu jalan notebook di runtime
 
 ## 2026-11-18 · Keputusan: satu PR setelah SP1 dan SP2
 
-- Pemilik memilih tidak membuka PR SP0 sekarang. SP1 dan SP2 diselesaikan dulu, lalu satu PR ke `main`.
+- Pemilik memilih tidak membuka PR SP0 sekarang. Draf deskripsi bagian SP0 ada di `tasks/pr-draft-sp0.md`. SP1 dan SP2 diselesaikan dulu, lalu satu PR ke `main`.
 - Cara kerja: branch bertumpuk. SP1 di `feat/sp1-...` yang bercabang dari `feat/sp0-pipeline-stability`; SP2 bercabang dari SP1. PR akhir dari branch SP2 ke `main`. Deskripsi PR SP0 yang sudah disiapkan (ringkasan, tabel ukur, keamanan, belum diverifikasi) dipakai sebagai bagian pertama deskripsi PR akhir.
 - Selama itu: Colab diuji lewat kolom `BRANCH`; web produksi Vercel tetap `main` (versi lama).
 - T0.12 (cek manual UI) dan T0.13 (notebook di runtime baru) tetap terbuka dan dicek sebelum PR akhir; SP2 akan mengubah UI, jadi T0.12 sebaiknya dicek terhadap UI hasil SP2.
