@@ -89,6 +89,15 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
   - `sample_face_trajectory` tidak lagi melompat (`cap.set(POS_MSEC)`) ke tiap titik sampel. Potongan klip dibaca sekali secara berurutan lewat FFmpeg (`-ss`/`-t`, `fps`, `scale` ke lebar 640), frame dialirkan ke Haar/MediaPipe tanpa ditampung semua di memori. Titik waktu sampel dan hasil trajektori tetap sama. Bila jalur FFmpeg gagal, jalur lama dipakai dan alasannya dicatat (`log_error`).
   - Selesai bila: uji membuktikan waktu sampel dan bentuk trajektori sama dengan jalur lama, pembatalan tetap bekerja, dan fallback tercatat; benchmark lokal pada video 1080p menunjukkan tracking jauh lebih cepat; diukur ulang di Colab oleh pemilik `[!]`.
   - File: `backend/crop_utils.py`, `backend/tests/test_crop_utils.py`.
+- [ ] **T0.17 Tolak job bila Drive pustaka belum ter-mount di Colab** · keputusan pemilik 2026-11-18 (no. 11)
+  - Backend tidak membuat folder di bawah `/content/drive` tanpa mount; `DRIVE_NOT_MOUNTED` menjadi `block`; pesan awam menyuruh menjalankan Langkah 1.
+  - Selesai bila: uji membuktikan tidak ada folder dibuat dan job berhenti sebelum mulai; tanpa mode Colab perilaku tidak berubah.
+- [ ] **T0.18 Kunci API tidak disimpan di riwayat** · keputusan pemilik 2026-11-18
+  - `api_key` dan `pexels_api_key` tidak masuk metadata `history.db`; data lama dibersihkan; Resume memakai kunci yang dikirim aplikasi.
+  - Selesai bila: uji membuktikan kunci tidak tersimpan dan Resume tetap jalan di desktop dan web.
+- [ ] **T0.19 `/save_file` dan `/video` tidak bisa membaca cookies dan database** · keputusan pemilik 2026-11-18 (no. 2)
+  - Folder cookies, `history.db` beserta snapshot dan file `-wal`/`-shm` ditolak; akses klip dan video yang sah tetap jalan.
+  - Selesai bila: uji untuk setiap jalur yang ditolak dan yang tetap diizinkan.
 
 ---
 

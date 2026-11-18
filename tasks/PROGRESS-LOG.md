@@ -438,3 +438,21 @@ Sisa SP0 (semua butuh pemilik):
 - Bug: `tracking_mode` dan `face_tracking_engine` tidak pernah masuk metadata proyek (`_finalize_job`), dan `create_rerender_job`/`create_rerun_ai_job` menerima `face_tracking_engine` tapi tidak menyimpannya ke job, jadi rerender dan AI ulang selalu Haar. Perbaikan: keduanya disimpan di metadata; rerender/AI ulang memakai mesin yang diminta aplikasi bila dikirim (`model_fields_set`), selain itu mesin proyek, selain itu Haar (proyek lama). Desktop dan web tidak mengirimnya, jadi mesin proyek yang dipakai. Uji baru `backend/tests/test_tracking_engine.py` (6, semuanya gagal sebelum perbaikan). Tes 599 lulus + 6 dilewati.
 - "AI ulang" di web bukan bug kecil: web selalu `provider: "manual"` tanpa API key, backend `rerun_ai` butuh provider + key, dan web memanggil `/rerun-ai`. Dicatat sebagai task SP4 di roadmap.
 - Temuan keamanan (lama, bukan dari SP0): `_finalize_job` menyimpan `api_key` dan `pexels_api_key` ke metadata di `history.db`. `metadata.json` di pustaka menyaringnya (`workspace._SECRET_KEYS`), tetapi snapshot `history.db` (T0.9) ikut ke Drive, seperti `history.db` di Drive sebelum SP0. Masuk keputusan terbuka: simpan key di tempat lain atau saring dari metadata DB (fitur Resume BYOK memakainya).
+
+---
+
+## 2026-11-18 · Keputusan terbuka dijawab pemilik
+
+- **No. 11 (Drive belum ter-mount):** tolak job. Backend tidak membuat folder di bawah `/content/drive` tanpa mount; setiap job berhenti sebelum mulai dengan pesan "jalankan Langkah 1". → task T0.17.
+- **API key di `history.db`:** jangan simpan. `api_key`/`pexels_api_key` tidak masuk metadata; Resume memakai kunci yang dikirim aplikasi. → task T0.18.
+- **No. 2 (`/save_file`, `/video` bisa membaca app data termasuk cookies):** tutup sekarang di SP0. → task T0.19.
+- Sisanya disetujui sesuai rekomendasi:
+  - No. 1: cookies tetap di Drive saat di Colab.
+  - No. 3: tercakup ADR-012, ditutup.
+  - No. 4: `PLAYER_CLIENT_ORDER` tidak diubah (unduhan dengan cookies terbukti jalan 2026-11-18).
+  - No. 5 dan 13: tetap `remote_components=['ejs:github']`, `yt-dlp-ejs` tidak dipasang; ditinjau ulang bila pengambilan dari GitHub gagal.
+  - No. 6: tetap berhenti saat cookies ditolak.
+  - No. 7: ekstensi "Get cookies.txt LOCALLY" tetap di panduan.
+  - No. 8 (teks error web) dan no. 9 (preflight belum tampil): backlog SP2, bersama task teks layar proses.
+  - No. 10: kelas palet di `ErrorCard` desktop dibiarkan.
+  - No. 12 (Ngrok tanpa GPU keep-alive): backlog SP1.
