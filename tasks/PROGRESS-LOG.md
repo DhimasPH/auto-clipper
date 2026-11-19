@@ -536,3 +536,6 @@ Langkah berikutnya:
 - Task 1 (toolchain `src/`): React 19, Vite 8, TypeScript 6, plugin-react 6, oxlint, Vitest 5 + jsdom; skrip `npm test` dan `npm run lint`; `tsconfig` dengan `types: ["vite/client", "node"]`; `workflow_dispatch` di PR Check. Tes Vitest pertama: `src/lib/errorInfo.test.ts` (4 lulus).
 - `npm run build` lulus tanpa perubahan kode; `oxlint src` 0 error, 29 peringatan (oxlint 1.94 terpasang menambah aturan `immutability`/`purity`/`set-state-in-effect`; 1.78 milik `web/` memberi 14). Backend tetap 694 lulus, 7 dilewati.
 - Catatan: jalankan Vitest dari folder dengan huruf drive besar (`C:\...`). Dari cwd `c:\...` (huruf kecil, misalnya Git Bash di `/c/...`) suite gagal dengan `Cannot read properties of undefined (reading 'config')` karena vitest termuat dua kali.
+- Task 2 (inti platform): `src/platform/` berisi `types`, `caps`, `select`, `backendUrl`, `auth`, `paths`, `localSecrets`; `src/env.d.ts` mendeklarasikan `VITE_TARGET`, `VITE_API_URL`, `VITE_DEV_BACKEND`. Modul belum dipakai aplikasi (Task 3).
+- Token backend hanya dikirim bila origin permintaan (URL relatif diresolusi terhadap halaman) sama dengan origin backend; tidak lagi karena URL berisi `localhost`/`127.0.0.1` atau diawali `/` (ruling P13).
+- Vitest 21 lulus (6 file); `npm run build` lulus; `oxlint src` 0 error, 29 peringatan (tetap). Backend tidak disentuh.
