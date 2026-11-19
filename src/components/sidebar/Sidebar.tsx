@@ -45,19 +45,21 @@ export const Sidebar: React.FC = () => {
           {t("sidebar.menu", "Menu")}
         </div>
 
-        <NavLink
-          to="/"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-body transition-colors ${
-              isActive
-                ? "bg-accent/10 text-accent font-medium border-l-2 border-accent"
-                : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated border-l-2 border-transparent"
-            }`
-          }
-        >
-          <Scissors className="w-5 h-5" />
-          {t("sidebar.workspace", "Workspace")}
-        </NavLink>
+        {platform().caps.apiKeys && (
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-body transition-colors ${
+                isActive
+                  ? "bg-accent/10 text-accent font-medium border-l-2 border-accent"
+                  : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated border-l-2 border-transparent"
+              }`
+            }
+          >
+            <Scissors className="w-5 h-5" />
+            {t("sidebar.workspace", "Workspace")}
+          </NavLink>
+        )}
 
         <NavLink
           to="/manual-ai"

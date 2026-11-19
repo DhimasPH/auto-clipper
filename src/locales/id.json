@@ -481,5 +481,33 @@
   },
   "action": {
     "pick_from_drive": "Pilih video dari Google Drive"
+  },
+  "auth": {
+    "loading": "Menyiapkan Auto Clipper…",
+    "character_alt": "Karakter 3D Auto Clipper",
+    "logo_alt": "Logo Auto Clipper",
+    "tagline": "Potong video panjang jadi klip pendek secara otomatis.",
+    "open_login": "Masuk ke Workspace",
+    "login_title": "Masuk",
+    "login_subtitle": "Masukkan kode akses dari notebook Colab (API_SECRET_TOKEN).",
+    "token_placeholder": "Kode akses",
+    "verifying": "Memeriksa…",
+    "submit": "Masuk",
+    "stored_locally": "Kode akses hanya disimpan di browser ini.",
+    "close": "Tutup",
+    "discord_title": "Komunitas Discord",
+    "discord_badge": "Komunitas",
+    "discord_body": "Laporkan bug, minta fitur, pamerkan konten, dan ngobrol dengan sesama clipper.",
+    "error_empty": "Kode akses belum diisi. Salin API_SECRET_TOKEN dari notebook Colab, lalu tempel di sini.",
+    "error_invalid": "Kode akses ditolak karena tidak cocok dengan server Colab yang sedang berjalan. Salin lagi API_SECRET_TOKEN dari notebook, lalu coba lagi.",
+    "error_offline": "Server Colab tidak bisa dihubungi. Notebook belum dijalankan atau sesinya sudah berakhir. Jalankan lagi notebook sampai server menyala, lalu coba lagi.",
+    "error_expired": "Kode akses tidak berlaku lagi, mungkin karena server Colab dinyalakan ulang dengan kode baru. Masukkan kode akses dari notebook sekali lagi."
+  },
+  "drive": {
+    "title": "Pilih video dari Google Drive",
+    "go_up": "Kembali ke folder sebelumnya",
+    "empty": "Folder ini tidak berisi video atau folder lain.",
+    "load_failed": "Isi folder tidak bisa dimuat. Google Drive mungkin belum terhubung di Colab. Jalankan lagi sel yang menghubungkan Google Drive di notebook, lalu buka daftar ini lagi.",
+    "close": "Tutup"
   }
 }

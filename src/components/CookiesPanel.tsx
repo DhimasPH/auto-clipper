@@ -3,6 +3,7 @@ import axios from "axios";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, ShieldAlert, Trash2, Upload } from "lucide-react";
 import { API_URL } from "../App";
+import { platform } from "../platform";
 import { Button } from "./ui/Button";
 import { ErrorCard } from "./ErrorCard";
 import type { CookiesStatus, ErrorInfo } from "../types/errorInfo";
@@ -216,7 +217,10 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
         </div>
 
         <p className="text-caption text-text-secondary m-0">
-          {t("cookies.privacy", "File disimpan di komputer ini dan hanya dipakai saat mengunduh video.")}
+          {/* Only Colab has a Drive browser, and there the app data folder is the user's Google Drive. */}
+          {platform().caps.driveBrowser
+            ? t("cookies.privacy_cloud")
+            : t("cookies.privacy", "File disimpan di komputer ini dan hanya dipakai saat mengunduh video.")}
         </p>
       </div>
     </div>

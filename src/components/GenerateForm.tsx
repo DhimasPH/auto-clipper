@@ -2,7 +2,8 @@ import { Dispatch, SetStateAction, useState, useContext, useEffect, useRef } fro
 import axios from "axios";
 import { API_URL, AppContext } from "../App";
 import { useTranslation } from "react-i18next";
-import { Link2, FileVideo, Wand2, Type, Folder, Film, RefreshCw } from "lucide-react";
+import { Link2, FileVideo, Wand2, Type, Folder, Film, RefreshCw, HardDrive } from "lucide-react";
+import { platform } from "../platform";
 import { InputGroup } from "./ui/InputGroup";
 import { Select } from "./ui/Select";
 import { ToggleSwitch } from "./ui/ToggleSwitch";
@@ -184,6 +185,11 @@ export default function GenerateForm({
               onChange={(e) => setLocalFile(e.target.files?.[0] || null)}
               className="w-full p-3 rounded-xl border border-border bg-input-bg text-text-primary focus:outline-none focus:border-accent"
             />
+            {platform().caps.driveBrowser && (
+              <Button variant="outline" icon={HardDrive} onClick={() => ctx.requestDriveBrowser()}>
+                {t("action.pick_from_drive", "Pilih video dari Google Drive")}
+              </Button>
+            )}
           </div>
         )}
       </div>

@@ -1,14 +1,7 @@
 import axios from "axios";
 import { API_URL } from "../backendUrl";
 import { setAuthToken, wireAuthOnce } from "../auth";
-import {
-  askBrowserNotifyPermission,
-  browserDownload,
-  browserNotify,
-  checkBackend,
-  openInBrowser,
-  pickBrowserVideo,
-} from "../browser";
+import { browserPlatformParts, checkBackend } from "../browser";
 import { CAPS } from "../caps";
 import { localStorageSecrets } from "../localSecrets";
 import { folderToOpen } from "../paths";
@@ -27,22 +20,14 @@ function connect(): BackendInfo {
 
 export function createPlatform(): Platform {
   return {
+    ...browserPlatformParts,
     kind: "local",
     caps: CAPS.local,
     backend: async () => connect(),
-    pickVideo: pickBrowserVideo,
-    saveClip: browserDownload,
     async openFolder(path) {
       await axios.post(`${API_URL}/open_folder`, { path: folderToOpen(path) });
     },
     secrets: localStorageSecrets,
-    notify: browserNotify,
-    askNotifyPermission: askBrowserNotifyPermission,
     reconnect: async () => ((await checkBackend(API_URL)) ? connect() : null),
-    openExternal: openInBrowser,
-    pickFolder: async () => null,
-    pickImage: async () => null,
-    setPreventSleep: async () => {},
-    updater: null,
   };
 }

@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { ClipRef, VideoSource } from "./types";
+import type { ClipRef, Platform, VideoSource } from "./types";
 
 // Browser implementations shared by the local and cloud adapters (and the desktop video picker).
 
@@ -71,3 +71,26 @@ export async function checkBackend(url: string): Promise<boolean> {
     return false;
   }
 }
+
+export const browserPlatformParts: Pick<
+  Platform,
+  | "pickVideo"
+  | "saveClip"
+  | "notify"
+  | "askNotifyPermission"
+  | "openExternal"
+  | "pickFolder"
+  | "pickImage"
+  | "setPreventSleep"
+  | "updater"
+> = {
+  pickVideo: pickBrowserVideo,
+  saveClip: browserDownload,
+  notify: browserNotify,
+  askNotifyPermission: askBrowserNotifyPermission,
+  openExternal: openInBrowser,
+  pickFolder: async () => null,
+  pickImage: async () => null,
+  setPreventSleep: async () => {},
+  updater: null,
+};

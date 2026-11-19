@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:cloud": "tsc && vite build --mode cloud",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",

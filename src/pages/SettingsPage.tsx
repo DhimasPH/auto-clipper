@@ -7,9 +7,11 @@ import { TranscriptionSection } from '../components/settings/TranscriptionSectio
 import { OutputSection } from '../components/settings/OutputSection';
 import { UpdaterSection } from '../components/settings/UpdaterSection';
 import { CookiesSection } from '../components/settings/CookiesSection';
+import { platform } from '../platform';
 
 export const SettingsPage: React.FC = () => {
   const ctx = useContext(AppContext);
+  const caps = platform().caps;
 
   return (
     <div className="p-8 max-w-2xl mx-auto">
@@ -22,14 +24,16 @@ export const SettingsPage: React.FC = () => {
           theme={ctx.theme} 
           setTheme={ctx.setTheme} 
         />
-        <ProviderSection 
-          provider={ctx.provider} 
-          setProvider={ctx.setProvider}
-          selectedModel={ctx.selectedModel}
-          setSelectedModel={ctx.setSelectedModel}
-          apiKeys={ctx.apiKeys}
-          setApiKey={ctx.setApiKey}
-        />
+        {caps.apiKeys && (
+          <ProviderSection 
+            provider={ctx.provider} 
+            setProvider={ctx.setProvider}
+            selectedModel={ctx.selectedModel}
+            setSelectedModel={ctx.setSelectedModel}
+            apiKeys={ctx.apiKeys}
+            setApiKey={ctx.setApiKey}
+          />
+        )}
         <TranscriptionSection
           whisperModel={ctx.whisperModel}
           setWhisperModel={ctx.setWhisperModel}
@@ -42,7 +46,7 @@ export const SettingsPage: React.FC = () => {
           setQuality={ctx.setQuality}
         />
         <CookiesSection />
-        <UpdaterSection />
+        {caps.updater && <UpdaterSection />}
       </div>
     </div>
   );

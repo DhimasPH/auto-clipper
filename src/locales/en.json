@@ -481,5 +481,33 @@
   },
   "action": {
     "pick_from_drive": "Choose a video from Google Drive"
+  },
+  "auth": {
+    "loading": "Starting Auto Clipper…",
+    "character_alt": "Auto Clipper 3D character",
+    "logo_alt": "Auto Clipper logo",
+    "tagline": "Turn long videos into short clips automatically.",
+    "open_login": "Log in to Workspace",
+    "login_title": "Log in",
+    "login_subtitle": "Enter the access code from the Colab notebook (API_SECRET_TOKEN).",
+    "token_placeholder": "Access code",
+    "verifying": "Checking…",
+    "submit": "Log in",
+    "stored_locally": "The access code is stored in this browser only.",
+    "close": "Close",
+    "discord_title": "Discord Community",
+    "discord_badge": "Community",
+    "discord_body": "Report bugs, request features, show your content and chat with other clippers.",
+    "error_empty": "The access code is empty. Copy API_SECRET_TOKEN from the Colab notebook and paste it here.",
+    "error_invalid": "Access code rejected: it does not match the Colab server that is running. Copy API_SECRET_TOKEN from the notebook again and retry.",
+    "error_offline": "The Colab server cannot be reached. The notebook is not running or its session ended. Run the notebook again until the server is up, then retry.",
+    "error_expired": "The access code is no longer valid, probably because the Colab server restarted with a new code. Enter the code from the notebook again."
+  },
+  "drive": {
+    "title": "Choose a video from Google Drive",
+    "go_up": "Up one folder",
+    "empty": "This folder has no videos or folders.",
+    "load_failed": "The folder could not be loaded. Google Drive may not be connected in Colab. Run the notebook cell that connects Google Drive again, then open this list again.",
+    "close": "Close"
   }
 }
