@@ -517,6 +517,21 @@
     "video_link_refused": {
       "title": "This video cannot be played",
       "message": "The server refused this video's address, or the file was moved or deleted. Press Try again. If it still fails, render this clip again from History."
+    },
+    "local_token_missing": {
+      "title": "Open it with \"Auto Clipper Web\"",
+      "message": "This page was opened without its access key, so Auto Clipper cannot be used here. The key only comes with the tab that \"Auto Clipper Web\" opens. Double-click \"Auto Clipper Web\" again; a new tab opens, ready to use."
+    },
+    "local_token_expired": {
+      "title": "This tab's access key is no longer valid",
+      "message": "Auto Clipper was started again with a new key, so this old tab cannot be used any more. Double-click \"Auto Clipper Web\" to open a new tab, then close this one."
+    },
+    "local_server_closed": {
+      "title": "The Auto Clipper window was closed",
+      "message": "The app stops when the \"Auto Clipper Web\" window (the one that says \"Auto Clipper is running\") is closed. Open \"Auto Clipper Web\" again and use the new tab it opens."
     }
+  },
+  "local_gate": {
+    "checking": "Connecting to Auto Clipper…"
   }
 }

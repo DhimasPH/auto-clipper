@@ -5,11 +5,20 @@ import type { ErrorInfo } from "../types/errorInfo";
 // cannot be reached). Same ErrorInfo shape as backend/errors.py, texts from
 // src/locales (local_error.*), so ErrorCard renders them like any other error.
 
-export const LOCAL_ERROR_CODES = ["VIDEO_LINK_REFUSED"] as const;
+export const LOCAL_ERROR_CODES = [
+  "VIDEO_LINK_REFUSED",
+  "LOCAL_TOKEN_MISSING",
+  "LOCAL_TOKEN_EXPIRED",
+  "LOCAL_SERVER_CLOSED",
+] as const;
 export type LocalErrorCode = (typeof LOCAL_ERROR_CODES)[number];
 
 const ACTIONS: Record<LocalErrorCode, string[]> = {
   VIDEO_LINK_REFUSED: ["retry"],
+  // Only a new tab from the launcher helps; a button here could not do it.
+  LOCAL_TOKEN_MISSING: [],
+  LOCAL_TOKEN_EXPIRED: [],
+  LOCAL_SERVER_CLOSED: ["retry"],
 };
 
 export function localErrorInfo(code: LocalErrorCode, technical = ""): ErrorInfo {

@@ -10,6 +10,7 @@ import { HelpPage } from "./pages/HelpPage";
 import Toasts from "./components/Toasts";
 import { CookiesModal } from "./components/CookiesModal";
 import { AuthGate } from "./components/AuthGate";
+import { LocalGate } from "./components/LocalGate";
 import { GDriveBrowserModal } from "./components/GDriveBrowserModal";
 import { SplashScreen } from "./components/SplashScreen";
 import { LandingPage } from "./pages/LandingPage";
@@ -30,7 +31,10 @@ export const AppContext = React.createContext<any>(null);
 
 /** The sign-in step of each platform: the one place that checks the platform kind. */
 function gate(content: React.ReactNode): React.ReactNode {
-  return platform().kind === "cloud" ? <AuthGate>{content}</AuthGate> : content;
+  const kind = platform().kind;
+  if (kind === "cloud") return <AuthGate>{content}</AuthGate>;
+  if (kind === "local") return <LocalGate>{content}</LocalGate>;
+  return content;
 }
 
 export default function App() {

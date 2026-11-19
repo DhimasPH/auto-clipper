@@ -592,3 +592,10 @@ Langkah berikutnya:
 - Langkah berikutnya untuk sesi selanjutnya:
   1. Review Task 11 (`cd7d065..8fe5570`) mengikuti `tasks/sp1-reviewer-instructions.md` (brief `task-11-brief.md`, laporan `task-11-report.md`, dan diff `review-cd7d065..8fe5570.diff` sudah siap di `.superpowers/sdd/2026-11-18-sp1-single-frontend-web-local/`), lalu tandai Task 11 selesai di `tasks/sp1-ledger.md`.
   2. Lanjutkan Task 12 (adapter local token & `LocalGate`), Task 13 (paket web lokal & CI 4 target, bawa P2 dan P16), dan Task 14 (hapus `web/`, dokumen, ADR-013, versi 1.19.0, bawa P6 dan P18).
+
+### 2026-11-19 · Lanjutan SP1
+
+- Task 11 (`8fe5570`): lolos review (`cd7d065..8fe5570`, Approved, 2 minor ditunda ke ledger).
+- Task 12 (adapter web lokal & `LocalGate`): `src/platform/local/token.ts` mengambil `#t=<token>` ke `sessionStorage` lalu mengubah hash ke `#/`; `src/platform/local/index.ts` memakai `browserPlatformParts` (P11/P19), `folderToOpen` (Task 3), dan memancarkan `ac_backend_lost` saat `reconnect()` gagal; `LocalGate` & `localErrors.ts` menangani `LOCAL_TOKEN_MISSING`, `LOCAL_TOKEN_EXPIRED`, `LOCAL_SERVER_CLOSED`.
+- Vitest 86 lulus (21 file, termasuk `local.test.ts` +9 dan `localErrors.test.ts` 5), `npm run build` & `npm run build:cloud` lulus, `oxlint src` 0 error (30 peringatan).
+- Cek browser web lokal penuh (Edge headless lewat CDP + `backend.main --web` & mode dev): `#t=` hilang menjadi `#/` dan "Terhubung"; Settings lokal tampilkan API key tanpa Pilih Folder/Updater; buka tanpa `#t=` tampilkan "Buka lewat \"Auto Clipper Web\""; peluncur kedua tampilkan "Auto Clipper sudah berjalan"; server dimatikan + focus tampilkan "Jendela Auto Clipper sudah ditutup" + Coba lagi tetap menampilkannya; mode dev `VITE_DEV_BACKEND=true` lulus `LocalGate`. Alur buat job/putar klip/Buka folder/Rerender All tetap di daftar cek manual pemilik (Task 14).

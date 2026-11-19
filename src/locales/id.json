@@ -517,6 +517,21 @@
     "video_link_refused": {
       "title": "Video tidak bisa diputar",
       "message": "Server menolak alamat video ini, atau filenya sudah dipindah atau dihapus. Tekan Coba lagi. Bila tetap gagal, buat ulang klip ini dari Riwayat."
+    },
+    "local_token_missing": {
+      "title": "Buka lewat \"Auto Clipper Web\"",
+      "message": "Halaman ini dibuka tanpa kunci akses, jadi Auto Clipper tidak bisa dipakai di sini. Kunci itu hanya ikut di tab yang dibuka oleh \"Auto Clipper Web\". Klik dua kali \"Auto Clipper Web\" lagi; tab baru akan terbuka dan siap dipakai."
+    },
+    "local_token_expired": {
+      "title": "Kunci akses tab ini sudah tidak berlaku",
+      "message": "Auto Clipper sudah dijalankan ulang dengan kunci baru, jadi tab lama ini tidak bisa dipakai lagi. Klik dua kali \"Auto Clipper Web\" untuk membuka tab baru, lalu tutup tab ini."
+    },
+    "local_server_closed": {
+      "title": "Jendela Auto Clipper sudah ditutup",
+      "message": "Aplikasi berhenti saat jendela \"Auto Clipper Web\" (yang bertuliskan \"Auto Clipper berjalan\") ditutup. Buka lagi \"Auto Clipper Web\", lalu pakai tab baru yang terbuka."
     }
+  },
+  "local_gate": {
+    "checking": "Menghubungkan ke Auto Clipper…"
   }
 }
