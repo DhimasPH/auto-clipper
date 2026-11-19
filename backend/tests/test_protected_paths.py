@@ -10,7 +10,7 @@ import sys
 import pytest
 from fastapi.testclient import TestClient
 
-from backend import cookies, main
+from backend import cookies, main, video_sign
 
 client = TestClient(main.app)
 
@@ -112,7 +112,8 @@ def test_refusal_is_logged_without_the_file_contents(app_files, monkeypatch):
 
 @pytest.mark.parametrize("name", ["clip", "source", "upload"])
 def test_video_still_serves_clips_sources_and_uploads(app_files, name):
-    r = client.get("/video", params={"path": str(app_files[name])})
+    path = str(app_files[name])
+    r = client.get("/video", params={"path": path, "sig": video_sign.sign(path)})
 
     assert r.status_code == 200
     assert r.content == name.encode()

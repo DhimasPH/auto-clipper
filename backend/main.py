@@ -10,6 +10,7 @@ from typing import List, Optional
 from backend.db import init_db, get_all_history, delete_history, get_app_data_dir
 from backend.logger import log_error, get_log_content
 from backend.errors import AppError
+from backend import video_sign
 import os
 import sys
 import shutil
@@ -124,9 +125,10 @@ app.add_middleware(
 
 @app.middleware("http")
 async def verify_token(request: Request, call_next):
-    # Biarkan endpoint tertentu tanpa token (video player tidak bisa mengirim header dengan mudah)
+    # /video carries its own signature (backend.video_sign) because the player cannot send a header.
+    # Exactly "/video": a prefix match would also open /video-url.
     path = request.url.path
-    if request.method == "OPTIONS" or path.startswith("/video") or path in ["/health", "/heartbeat"]:
+    if request.method == "OPTIONS" or path == "/video" or path in ["/health", "/heartbeat"]:
         return await call_next(request)
         
     # Enforce token verification in frozen bundles or cloud mode
@@ -778,7 +780,8 @@ def api_get_job(job_id: str):
         "progress": job["progress"],
         # 0 = running, 1 = next in line, null = not in the queue (finished or from history)
         "queue_position": jobs.job_queue.position(job_id),
-        "clips": job["clips"],
+        # Signed /video links, made now and never stored (spec 4.5).
+        "clips": video_sign.with_video_urls(job["clips"]),
         "failed": job.get("failed", 0),
         "error": job.get("error"),
         "error_info": job.get("error_info"),
@@ -835,7 +838,18 @@ def api_cancel_job(job_id: str):
 
 @app.get("/history")
 def api_get_history():
-    return {"status": "success", "history": get_all_history()}
+    history = get_all_history()
+    key = None
+    for entry in history:
+        if key is None and isinstance(entry.get("result_clips"), list) and any(isinstance(c, dict) and c.get("path") for c in entry["result_clips"]):
+            try:
+                key = video_sign.load_key()
+            except Exception as e:
+                log_error("video_sign.with_video_urls", e)
+                break
+        # Signed /video links, made now and never stored in history.db (spec 4.5).
+        entry["result_clips"] = video_sign.with_video_urls(entry["result_clips"], key=key)
+    return {"status": "success", "history": history}
 
 @app.delete("/history/{job_id}")
 def api_delete_history(job_id: str):
@@ -947,18 +961,24 @@ def api_create_manual_job(req: ManualJobRequest):
 
 
 @app.get("/video")
-def get_video(path: str, dl: int = 0, title: str = None):
-    """Serve a generated clip so the frontend can preview it inline.
+def get_video(path: str, sig: str = "", dl: int = 0, title: str = None):
+    """Serve a generated clip so the frontend can preview or download it.
 
-    Restricted to existing .mp4 files. Starlette's
-    FileResponse handles HTTP Range requests, so seeking works in the player.
+    Needs ``sig`` from backend.video_sign instead of the API token, on every
+    platform: the <video> player cannot send headers. Links come with the clip
+    data (GET /jobs/{id}, GET /history) or from POST /video-url. Restricted to
+    existing .mp4 files. Starlette's FileResponse handles HTTP Range requests,
+    so seeking works in the player.
     """
     from backend.logger import log_app
-    from backend.path_guard import denied, is_protected
+    from backend.path_guard import DENIED_MESSAGE, denied, is_protected
 
     # Before anything that could tell whether the file exists.
     if is_protected(path):
         return denied("video", path)
+    if not video_sign.verify(path, sig):
+        log_app("[video] Refused: missing or wrong signature")
+        return JSONResponse(status_code=403, content={"status": "error", "message": DENIED_MESSAGE})
 
     abs_path = os.path.normpath(os.path.abspath(path))
     
@@ -999,6 +1019,27 @@ def get_video(path: str, dl: int = 0, title: str = None):
             "Cache-Control": "no-cache",
         },
     )
+
+
+class VideoUrlRequest(BaseModel):
+    path: str
+
+
+@app.post("/video-url")
+def api_video_url(req: VideoUrlRequest):
+    """A signed /video link for a path the clip data does not carry (spec 4.5).
+
+    Behind the API token like every other endpoint, so only the app can ask
+    for links. /video still checks the folder and the file type when the link
+    is used.
+    """
+    from backend.path_guard import denied, is_protected
+    path = req.path[len("local:"):] if req.path.startswith("local:") else req.path
+    if not path.strip():
+        return JSONResponse(status_code=400, content={"status": "error", "message": "path is required"})
+    if is_protected(path):
+        return denied("video_url", path)
+    return {"status": "success", "video_url": video_sign.signed_url(path)}
 
 
 if __name__ == "__main__":

@@ -97,7 +97,7 @@ def signed_url(path: str, key: Optional[bytes] = None) -> str:
     return "/video?" + urlencode({"path": path, "sig": sign(path, key=key)})
 
 
-def with_video_urls(clips):
+def with_video_urls(clips, key: Optional[bytes] = None):
     """Copies of ``clips`` with a signed ``video_url`` on every clip that has a path.
 
     The input is not changed, so the running job and history.db never hold a
@@ -106,8 +106,7 @@ def with_video_urls(clips):
     """
     if not isinstance(clips, list):
         return clips
-    key: Optional[bytes] = None
-    key_loaded = False
+    key_loaded = key is not None
     result = []
     for clip in clips:
         if isinstance(clip, dict) and isinstance(clip.get("path"), str) and clip["path"]:

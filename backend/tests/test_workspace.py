@@ -939,30 +939,36 @@ def test_upload_without_work_dir_stays_in_the_app_data_folder(tmp_path, monkeypa
 
 
 def test_video_endpoint_serves_a_clip_left_on_the_work_disk(dirs, client):
+    from backend import video_sign
     work, _ = dirs
     clip = work / "projects" / TITLE / "clips" / "clip_1.mp4"
     clip.parent.mkdir(parents=True)
     clip.write_bytes(b"clip one")
 
-    r = client.get("/video", params={"path": str(clip)})
+    r = client.get("/video", params={"path": str(clip), "sig": video_sign.sign(str(clip))})
 
     assert r.status_code == 200
     assert r.content == b"clip one"
 
 
 def test_video_endpoint_still_refuses_files_outside_the_allowed_folders(dirs, client, tmp_path):
+    from backend import video_sign
     outside = tmp_path / "elsewhere" / "private.mp4"
     outside.parent.mkdir()
     outside.write_bytes(b"not ours")
 
-    assert client.get("/video", params={"path": str(outside)}).status_code == 403
+    # A valid signature does not open a file outside the app's folders.
+    r = client.get("/video", params={"path": str(outside), "sig": video_sign.sign(str(outside))})
+
+    assert r.status_code == 403
 
 
 def test_video_endpoint_without_work_dir_does_not_serve_that_folder(tmp_path, monkeypatch, client):
+    from backend import video_sign
     monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
     monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", str(tmp_path / "library"))
     clip = tmp_path / "work" / "clip_1.mp4"
     clip.parent.mkdir()
     clip.write_bytes(b"clip one")
 
-    assert client.get("/video", params={"path": str(clip)}).status_code == 403
+    assert client.get("/video", params={"path": str(clip), "sig": video_sign.sign(str(clip))}).status_code == 403
