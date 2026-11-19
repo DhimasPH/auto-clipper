@@ -432,7 +432,8 @@
     "btn_delete": "Delete cookies",
     "privacy": "The file is stored on this computer and is only used when downloading videos.",
     "close": "Close",
-    "retry_now": "Try again now"
+    "retry_now": "Try again now",
+    "privacy_cloud": "The file is stored in the app's data folder (on Google Colab: your Google Drive, folder AutoClipperData/cookies) and is only used when downloading videos."
   },
   "timing": {
     "summary": "Timing details",
@@ -477,5 +478,8 @@
     "body": "The app could not prepare its connection to its processing engine. This usually means an installation file is missing or blocked (for example by antivirus software).",
     "action": "Close Auto Clipper and open it again. If this keeps happening, reinstall the app.",
     "details": "Technical details"
+  },
+  "action": {
+    "pick_from_drive": "Choose a video from Google Drive"
   }
 }

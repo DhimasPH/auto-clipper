@@ -557,3 +557,5 @@ Langkah berikutnya:
 - `tasks/HANDOFF-AI.md`: urutan membaca, posisi SP1, cara mengerjakan setiap task (TDD, pemeriksaan, commit, review sebelum lanjut), keputusan pre-flight per task, lingkungan mesin, aturan dan preferensi pemilik.
 - `tasks/sp1-ledger.md` kini ledger resmi SP1 (ikut git); `tasks/sp1-reviewer-instructions.md` panduan review per task.
 - Penunjuk di root untuk berbagai AI: `AGENTS.md` (Codex, Cursor, dll.), `CLAUDE.md` (Claude Code), `GEMINI.md` (Gemini CLI); `.agents/AGENTS.md` diberi catatan di bagian atas.
+- Task 4 (i18n tunggal): kunci `action.pick_from_drive` dan `cookies.privacy_cloud` ditambahkan ke `src/locales/{id,en}.json` lewat `scripts/add-locale-keys.mjs`; `scripts/check-web-strings.mjs` membuktikan semua 138 teks `web/src/lib/strings.ts` yang dipindah SP1 sudah ada di `src/locales`.
+- Uji paritas kunci id/en ditambahkan di `src/locales/locales.test.ts`. Vitest 52 lulus (16 file), `npm run build` lulus, `oxlint src` 0 error (27 peringatan). Backend tidak disentuh.

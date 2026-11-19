@@ -305,7 +305,7 @@
     "laneVideo": "Video",
     "changeVideo": "Ganti Video"
   },
-  "aiClipper" : {
+  "aiClipper": {
     "title": "AI Clipper",
     "subtitle": "Ubah video panjang jadi klip vertikal"
   },
@@ -432,7 +432,8 @@
     "btn_delete": "Hapus cookies",
     "privacy": "File disimpan di komputer ini dan hanya dipakai saat mengunduh video.",
     "close": "Tutup",
-    "retry_now": "Coba lagi sekarang"
+    "retry_now": "Coba lagi sekarang",
+    "privacy_cloud": "File disimpan di folder data aplikasi (di Google Colab: Google Drive Anda, folder AutoClipperData/cookies) dan hanya dipakai saat mengunduh video."
   },
   "timing": {
     "summary": "Detail waktu",
@@ -477,5 +478,8 @@
     "body": "Aplikasi gagal menyiapkan sambungan ke mesin pemrosesnya. Biasanya ini karena ada file instalasi yang hilang atau diblokir (misalnya oleh antivirus).",
     "action": "Tutup Auto Clipper lalu buka lagi. Kalau masih terjadi, pasang ulang aplikasinya.",
     "details": "Detail teknis"
+  },
+  "action": {
+    "pick_from_drive": "Pilih video dari Google Drive"
   }
 }
