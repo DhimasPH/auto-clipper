@@ -1,9 +1,9 @@
 """App files that no endpoint may read, copy or overwrite by a path from the request.
 
 The stored cookies.txt (a YouTube login) and its working copies, the job
-history database with its snapshot and SQLite side files, and the backend logs
-sit next to the clips in the app data folder, which on Colab is the user's
-Google Drive. Every endpoint that opens a request-provided path asks
+history database with its snapshot and SQLite side files, the backend logs and
+the key that signs /video links (video_signing.key) sit next to the clips in
+the app data folder, which on Colab is the user's Google Drive. Every endpoint that opens a request-provided path asks
 ``is_protected`` first and answers a protected path with ``denied``.
 
 Paths are compared after ``os.path.realpath`` (symlinks, ``..``, Windows short
@@ -11,6 +11,7 @@ names and trailing dots resolved) and in lower case on every platform, because
 Windows and the default macOS file system ignore case.
 """
 import os
+import secrets
 
 from fastapi.responses import JSONResponse
 
@@ -20,6 +21,8 @@ from backend.logger import log_error
 _DB_PREFIX = "history.db"
 # backend_error.log, backend_app.log, backend_ai.log and anything rotated from them
 _LOG_PREFIXES = ("backend_error.log", "backend_app.log", "backend_ai.log")
+# video_signing.key (signs /video links, backend.video_sign) and its temp copies while it is written
+_PRIVATE_FILE_PREFIXES = ("video_signing.key",)
 
 DENIED_MESSAGE = "Access denied"
 
@@ -59,7 +62,7 @@ def is_within(path: str, root: str) -> bool:
 
 def _protected_name(name: str) -> bool:
     name = name.lower().lstrip(".")
-    return name.startswith(_DB_PREFIX) or name.startswith(_LOG_PREFIXES)
+    return name.startswith(_DB_PREFIX) or name.startswith(_LOG_PREFIXES) or name.startswith(_PRIVATE_FILE_PREFIXES)
 
 
 def _protected_dirs() -> list:
@@ -92,3 +95,15 @@ def safe_upload_name(filename: str) -> str:
     """The last part of an uploaded file's name, so it can never climb out of the uploads folder."""
     name = (filename or "").replace("\\", "/").rsplit("/", 1)[-1].strip()
     return name if name.strip(".") else "video"
+
+
+def write_private_file(path: str, data: bytes) -> None:
+    """Atomically write ``data`` to ``path`` with mode 0600 (owner-only on POSIX)."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temp = f"{path}.{secrets.token_hex(4)}.part"
+    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(temp, path)
