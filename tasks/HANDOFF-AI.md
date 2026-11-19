@@ -5,7 +5,7 @@ Ditulis 2026-11-19 untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) 
 ## 1. Urutan membaca
 
 1. File ini.
-2. `.agents/AGENTS.md`: aturan repo. Wajib dipatuhi, terutama bagian E (invarian backend E.1–E.16), F (i18n), H (ADR).
+2. `.agents/AGENTS.md`: aturan repo. Wajib dipatuhi, terutama bagian E (invarian backend E.1–E.18), F (frontend & i18n F.1–F.8), G.8 (paket web lokal), H (ADR).
 3. Entri terakhir `tasks/PROGRESS-LOG.md`: posisi terakhir dan langkah berikutnya.
 4. `tasks/sp1-ledger.md`: status tiap task SP1, 20 keputusan pre-flight (P1–P20), dan temuan yang ditunda.
 5. Spec SP1: `docs/superpowers/specs/2026-11-18-sp1-single-frontend-web-local-design.md`. Ini otoritas tertinggi bila rencana bertentangan dengan dirinya sendiri.
@@ -13,7 +13,7 @@ Ditulis 2026-11-19 untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) 
 
 ## 2. Gambaran besar
 
-Roadmap: SP0 (pipeline andal, selesai) → SP1 (frontend tunggal + web lokal, sedang berjalan) → SP2 (UI/UX untuk orang awam) → SP3 (ringan) → SP4 (fitur kreator). Daftar task: `tasks/roadmap-todo.md`.
+Roadmap: SP0 (pipeline andal, selesai) → SP1 (frontend tunggal + web lokal, selesai menunggu cek manual pemilik & PR bersama SP2) → SP2 (UI/UX untuk orang awam) → SP3 (ringan) → SP4 (fitur kreator). Daftar task: `tasks/roadmap-todo.md`.
 
 Branch bertumpuk, satu PR ke `main` setelah SP2 (keputusan pemilik 2026-11-18):
 - `feat/sp0-pipeline-stability`: SP0, selesai.
@@ -36,12 +36,15 @@ Jangan membuka PR, jangan push, jangan merge ke `main` kecuali pemilik memintany
 | 8 Backend: `/video` wajib `sig`, `POST /video-url`, link di data klip | selesai, lolos review (`2ac1b3a`) |
 | 9 Frontend: signed video links, `useSignedVideo`, `localErrors` | selesai, lolos review (`df54bef`) |
 | 10 Backend: web mode menyajikan UI, aturan token | selesai, lolos review (`cd7d065`) |
-| 11 Backend: peluncur `--web` (satu instance, browser, teks konsol) | kode selesai & semua tes hijau (`8fe5570`); **review belum dijalankan** |
-| 12–14 | belum dimulai |
+| 11 Backend: peluncur `--web` (satu instance, browser, teks konsol) | selesai, lolos review (`8fe5570`) |
+| 12 Frontend: adapter web lokal & `LocalGate` | selesai, lolos review (`7c1838e`) |
+| 13 Pemaketan `Auto Clipper Web`, smoke script, workflow CI 4 OS | selesai, lolos review (`0e5da33` + perbaikan `b207969`) |
+| 14 Hapus `web/`, ADR-013, `AGENTS.md`, panduan, versi `1.19.0`, roadmap | selesai, lolos review (`f45b1d1`, `e9d3369`) |
 
-Langkah berikutnya:
-1. Jalankan review atas `git diff cd7d065..8fe5570` untuk Task 11 mengikuti `tasks/sp1-reviewer-instructions.md` (file brief `task-11-brief.md`, laporan `task-11-report.md`, dan paket diff `review-cd7d065..8fe5570.diff` sudah siap di `.superpowers/sdd/2026-11-18-sp1-single-frontend-web-local/`). Bila lolos, tandai Task 11 selesai di `tasks/sp1-ledger.md`.
-2. Lanjut Task 12, 13, dan 14 secara berurutan.
+Langkah berikutnya (seluruh kode SP1 selesai):
+1. Pemilik menjalankan daftar cek manual lintas platform di akhir `tasks/PROGRESS-LOG.md` ("Daftar cek manual SP1 (pemilik)"), termasuk memicu workflow `Web Package` dan `PR Check` di GitHub Actions.
+2. Mulai SP2 dengan membuat branch baru bertumpuk dari `feat/sp1-single-frontend-web-local` (`tasks/roadmap-todo.md`, termasuk sisa `T1.y` dan temuan minor di `tasks/sp1-ledger.md` bila relevan).
+3. Saat PR gabungan SP1+SP2 nantinya di-merge ke `main`: pastikan proyek Vercel produksi mengosongkan **Root Directory**, memakai Node.js **22.x**, dan di-redeploy.
 
 ## 4. Cara mengerjakan setiap task
 
@@ -73,7 +76,7 @@ Jangan menunggu persetujuan pemilik di antara task. Putuskan sendiri hal yang am
 
 ## 6. Lingkungan (Windows, mesin pemilik)
 
-- Tes Python: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q -p no:cacheprovider`. Jangan pakai `python` dari PATH (hanya pintasan Microsoft Store). Baseline branch SP1: 694 lulus, 7 dilewati.
+- Tes Python: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q -p no:cacheprovider`. Jangan pakai `python` dari PATH (hanya pintasan Microsoft Store). Baseline awal SP1: 694 lulus, 7 dilewati; akhir SP1: 780 lulus, 11 dilewati.
 - Frontend (dari root repo): `npm run build`, `npx vitest run`, `npx oxlint src` (0 error; warning boleh). Mulai Task 5 juga `npm run build:cloud`.
 - **Vitest harus dijalankan dari path dengan huruf drive besar** (`C:\Users\...`). Dari `c:\...` (misalnya Git Bash `/c/...`) Vitest termuat dua kali dan gagal "Cannot read properties of undefined (reading 'config')". Di Git Bash: `cd 'C:/Users/dhima/projects/auto-clipper'`.
 - Tidak ada Rust: `npm run tauri build` tidak bisa dijalankan. Desktop diverifikasi lewat tes dengan plugin di-mock, workflow PR Check, dan daftar cek manual pemilik.

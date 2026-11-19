@@ -81,4 +81,20 @@ Task 10: dispatched (BASE df54bef)
 Task 10: DONE, commit cd7d065 (P3 path_guard.is_protected in web_ui._serve + test, pytest 747 passed / 8 skipped)
 Task 10: complete (commits df54bef..cd7d065, review clean)
 Task 11: dispatched (BASE cd7d065)
-Task 11: DONE, commit 8fe5570 (P7 normalized ui_dir test, P11 path_guard.write_private_file, P15 explicit port assertions, pytest 763 passed / 9 skipped, manual --web two-instance check passed). Stopped on owner quota instruction before dispatching Task 11 reviewer. NEXT: review cd7d065..8fe5570 (brief: task-11-brief.md, report: task-11-report.md, diff: review-cd7d065..8fe5570.diff), then Task 12, 13, 14.
+Task 11: DONE, commit 8fe5570 (P7 normalized ui_dir test, P11 path_guard.write_private_file, P15 explicit port assertions, pytest 763 passed / 9 skipped, manual --web two-instance check passed)
+Task 11: minor (deferred): read_instance/_status does not reject bool/out-of-range port (InvalidURL in urlopen) — web_mode.py:77,108; unguarded sys.stderr.write on --web error fallback — main.py:1074.
+Task 11: complete (commits cd7d065..8fe5570, review clean)
+Task 12: dispatched (BASE 9841f30)
+Task 12: DONE, commit 7c1838e (P11/P19 browserPlatformParts, folderToOpen preserved, vitest 86/86, build + build:cloud OK, oxlint 0 errors, headless Edge local-web + dev checks passed)
+Task 12: minor (deferred): LocalGate.tsx:40 new react(set-state-in-effect) oxlint warning & missing unmount cleanup flag; LocalGate event/retry & online reconnect untested, local.test.ts missing setAuthToken(null) cleanup; unguarded decodeURIComponent in token.ts:19.
+Task 12: complete (commits 9841f30..7c1838e, review clean)
+Task 13: dispatched (BASE 7c1838e)
+Task 13: DONE, commit 0e5da33 (P2 web-package read-only & web-release in build.yml, P16 ignore_cleanup_errors=True, packaging LF verified via git ls-files --eol, pytest 778->780, vitest 86/86, build + build:cloud OK, oxlint 0 errors, PyYAML OK; local PyInstaller smoke skipped: no PyInstaller)
+Task 13: review found Important #1 (shutdown race on macOS/Linux + uncaught http.client.HTTPException in smoke_web_package.py); fixed in b207969 (_wait_stopped polling up to 5s, catch HTTPException, +2 tests -> pytest 780/11), re-review clean.
+Task 13: minor (deferred): Auto Clipper Web.sh xfce4-terminal -e vs -x & smoke_web_package AUTO_CLIPPER_IN_TERMINAL=1 (Auto Clipper Web.sh:14, smoke_web_package.py:130); uncaught OSError if backend.exe fails to launch in web_launcher.py:46-52; smoke_web_package.main([]) IndexError + CLI main()/launcher_command() coverage (smoke_web_package.py:121, test_web_launcher_script.py:181-218); test_smoke_request_treats_remote_disconnected_as_stopped only tests RemoteDisconnected (OSError subclass) rather than pure HTTPException like BadStatusLine, and _wait_stopped uses default 30s timeout per poll (smoke_web_package.py:54,62-70).
+Task 13: complete (commits 7c1838e..b207969, review clean)
+Task 14: dispatched (BASE b207969)
+Task 14: DONE, commits f45b1d1 & e9d3369 (web/ + check-web-strings.mjs deleted + 3 stale web/src comments cleaned, ADR-013 written, AGENTS.md updated w/ P18, README/tutorial/awam/cloud-plan updated w/ P6 + verified id.json labels, 1.19.0 across 5 version files, CHANGELOG + roadmap + owner manual checklist; pytest 780/11, vitest 86/86, oxlint 0 errors, build + build:cloud OK, zero remaining web/ or 1.18.0 refs)
+Task 14: minor (deferred): untouched troubleshooting sections still mention Drive button near URL field — docs/tutorial-auto-clipper-cloud.md:424 & docs/panduan-penggunaan-awam.md:185; menu Riwayat/Manual AI Editor vs page header History/Manual AI Clipper left for SP2 — docs/ & src/pages/; untouched SP2 backlog T2.x mentions `web/` — tasks/roadmap-todo.md:118; condensed Task 14 PROGRESS-LOG bullet — tasks/PROGRESS-LOG.md:603; 30 pre-existing oxlint warnings.
+Task 14: complete (commits b207969..e9d3369, review clean)
+SP1: COMPLETE (Tasks 1-14 all complete and review-approved on feat/sp1-single-frontend-web-local; owner manual checklist in tasks/PROGRESS-LOG.md)
