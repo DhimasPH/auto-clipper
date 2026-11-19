@@ -509,5 +509,14 @@
     "empty": "This folder has no videos or folders.",
     "load_failed": "The folder could not be loaded. Google Drive may not be connected in Colab. Run the notebook cell that connects Google Drive again, then open this list again.",
     "close": "Close"
+  },
+  "local_error": {
+    "action": {
+      "retry": "Try again"
+    },
+    "video_link_refused": {
+      "title": "This video cannot be played",
+      "message": "The server refused this video's address, or the file was moved or deleted. Press Try again. If it still fails, render this clip again from History."
+    }
   }
 }

@@ -13,10 +13,9 @@ interface ClipsResultProps {
   status: string;
   failedCount: number;
   jobId: string;
-  videoSrc: (p: string, v?: number) => string;
 }
 
-export default function ClipsResult({ clips, status, failedCount, jobId, videoSrc }: ClipsResultProps) {
+export default function ClipsResult({ clips, status, failedCount, jobId }: ClipsResultProps) {
   const { t } = useTranslation();
   const ctx = useContext(AppContext);
 
@@ -56,7 +55,6 @@ export default function ClipsResult({ clips, status, failedCount, jobId, videoSr
             clip={clip}
             index={i}
             jobId={jobId}
-            videoSrc={videoSrc}
           />
         ))}
       </div>

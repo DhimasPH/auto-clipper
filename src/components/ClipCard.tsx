@@ -3,6 +3,11 @@ import { Download, Folder, Sparkles, Pencil, Star } from "lucide-react";
 import { Button } from "./ui/Button";
 import { platform } from "../platform";
 import { fileName } from "../platform/paths";
+import { API_URL } from "../platform/backendUrl";
+import { useSignedVideo } from "../hooks/useSignedVideo";
+import { localErrorInfo } from "../lib/localErrors";
+import { videoHref } from "../lib/videoUrl";
+import { ErrorCard } from "./ErrorCard";
 import { SocialKitModal } from "./SocialKitModal";
 
 export interface SocialData {
@@ -21,6 +26,8 @@ export interface SocialData {
 
 export interface Clip {
   path: string;
+  /** Signed /video link from the backend (relative), see backend/video_sign.py. */
+  video_url?: string;
   description: string;
   description_en?: string;
   description_id?: string;
@@ -36,7 +43,6 @@ interface ClipCardProps {
   clip: Clip;
   index: number;
   jobId: string;
-  videoSrc: (path: string, v: number) => string;
   onEdit?: () => void;
 }
 
@@ -46,13 +52,12 @@ export default function ClipCard({
   clip,
   index,
   jobId,
-  videoSrc,
   onEdit
 }: ClipCardProps) {
   const { t, i18n } = useTranslation();
   const [showModal, setShowModal] = useState(false);
   const [localSocial, setLocalSocial] = useState<SocialData | undefined>(clip.social);
-
+  const video = useSignedVideo(clip.path, clip.video_url);
 
   const currentDescription = i18n.language === 'id' 
     ? (clip.description_id || clip.description)
@@ -61,14 +66,23 @@ export default function ClipCard({
   return (
     <div className="bg-bg-secondary rounded-card border border-border p-4 flex flex-col gap-4 w-72 shadow-sm">
       <div className="aspect-[9/16] bg-scrim rounded-lg overflow-hidden border border-border/50">
-        <video
-          key={clip.v}
-          src={videoSrc(clip.path, clip.v)}
-          controls
-          playsInline
-          preload="metadata"
-          className="w-full h-full object-contain bg-black"
-        />
+        {video.failed ? (
+          <ErrorCard
+            info={localErrorInfo("VIDEO_LINK_REFUSED")}
+            handlers={{ retry: video.retry }}
+            className="h-full overflow-y-auto rounded-none border-0"
+          />
+        ) : (
+          <video
+            key={`${clip.v}-${video.src}`}
+            src={videoHref(video.src, API_URL, { v: clip.v }) || undefined}
+            onError={video.onError}
+            controls
+            playsInline
+            preload="metadata"
+            className="w-full h-full object-contain bg-black"
+          />
+        )}
       </div>
         <div className="flex flex-col flex-1">
         <div className="flex items-start justify-between gap-2 mb-2">
@@ -115,7 +129,7 @@ export default function ClipCard({
                 await platform().saveClip({
                   path: clip.path,
                   filename: fileName(clip.path),
-                  videoUrl: videoSrc(clip.path, clip.v),
+                  videoUrl: videoHref(video.src, API_URL, { dl: true }) || undefined,
                 });
               } catch (err) {
                 console.error("Save failed", err);

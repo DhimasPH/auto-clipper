@@ -509,5 +509,14 @@
     "empty": "Folder ini tidak berisi video atau folder lain.",
     "load_failed": "Isi folder tidak bisa dimuat. Google Drive mungkin belum terhubung di Colab. Jalankan lagi sel yang menghubungkan Google Drive di notebook, lalu buka daftar ini lagi.",
     "close": "Tutup"
+  },
+  "local_error": {
+    "action": {
+      "retry": "Coba lagi"
+    },
+    "video_link_refused": {
+      "title": "Video tidak bisa diputar",
+      "message": "Server menolak alamat video ini, atau filenya sudah dipindah atau dihapus. Tekan Coba lagi. Bila tetap gagal, buat ulang klip ini dari Riwayat."
+    }
   }
 }

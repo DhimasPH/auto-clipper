@@ -55,7 +55,6 @@ export const WorkspacePage: React.FC = () => {
               status={ctx.status}
               failedCount={ctx.failedCount}
               jobId={ctx.job?.id || ""}
-              videoSrc={ctx.videoSrc}
             />
           ) : (
             <div className="flex flex-col items-center justify-center text-center gap-3 rounded-card border border-dashed border-border bg-bg-secondary/40 p-10 min-h-[360px]">

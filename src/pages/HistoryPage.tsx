@@ -171,9 +171,6 @@ export const HistoryPage: React.FC = () => {
                       }}
                       index={idx}
                       jobId={job.id}
-                      videoSrc={(path, v) =>
-                        `${API_URL}/video?path=${encodeURIComponent(path)}&v=${v || 0}`
-                      }
                       onEdit={() => setActiveEditClip({job, index: idx})}
                     />
                   ))}
