@@ -9,6 +9,7 @@ without a token; /history needs the token; FFmpeg is found (preflight); a second
 launch hands over to the first; the server stops with its window. Exit code 0 when
 everything holds.
 """
+import http.client
 import json
 import os
 import re
@@ -54,8 +55,19 @@ def _request(url: str, token: Optional[str] = None, method: str = "GET"):
             return response.status, response.headers.get("Content-Type", ""), response.read()
     except urllib.error.HTTPError as e:
         return e.code, e.headers.get("Content-Type", ""), e.read()
-    except OSError:
+    except (OSError, http.client.HTTPException):
         return None, "", b""
+
+
+def _wait_stopped(base: str, timeout: float = 5.0, interval: float = 0.1) -> bool:
+    """Poll until the backend socket closes after its launcher process exits."""
+    deadline = time.monotonic() + timeout
+    while True:
+        if _request(f"{base}/health")[0] is None:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(interval)
 
 
 class Launch:
@@ -150,7 +162,7 @@ def main(argv=None) -> int:
         finally:
             first.stop()
         if base:
-            check(_request(f"{base}/health")[0] is None, "the server stops with its window")
+            check(_wait_stopped(base), "the server stops with its window")
 
     failed = [what for ok, what in results if not ok]
     print(f"\n{len(results) - len(failed)} of {len(results)} checks passed.")

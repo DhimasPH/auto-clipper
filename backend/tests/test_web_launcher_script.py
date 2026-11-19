@@ -191,3 +191,28 @@ def test_smoke_test_finds_the_script_of_the_built_page():
 
     assert smoke.first_asset(html) == "assets/index-AbC1.js"
     assert smoke.first_asset("<html></html>") is None
+
+
+def test_smoke_request_treats_remote_disconnected_as_stopped(monkeypatch):
+    import http.client
+
+    smoke = _load("smoke_web_package")
+
+    def drop(*args, **kwargs):
+        raise http.client.RemoteDisconnected("closed during shutdown")
+
+    monkeypatch.setattr(smoke.urllib.request, "urlopen", drop)
+
+    assert smoke._request("http://127.0.0.1:9/health") == (None, "", b"")
+
+
+def test_smoke_wait_stopped_polls_until_server_closes(monkeypatch):
+    smoke = _load("smoke_web_package")
+    replies = iter([(200, "application/json", b"{}"), (None, "", b"")])
+
+    monkeypatch.setattr(smoke, "_request", lambda url: next(replies))
+
+    assert smoke._wait_stopped("http://127.0.0.1:9", timeout=1.0, interval=0.0) is True
+
+    monkeypatch.setattr(smoke, "_request", lambda url: (200, "application/json", b"{}"))
+    assert smoke._wait_stopped("http://127.0.0.1:9", timeout=0.0, interval=0.0) is False
