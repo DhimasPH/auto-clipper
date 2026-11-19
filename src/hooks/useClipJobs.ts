@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { API_URL } from "../App";
+import { platform } from "../platform";
 import { Clip } from "../components/ClipCard";
 import { ToastKind } from "./useToasts";
 import { CanvasConfig } from "../types/canvas";
@@ -201,6 +201,8 @@ export function useClipJobs(p: ClipJobParams) {
       return;
     }
 
+    // Still inside the click: browsers only allow the permission prompt from a user gesture.
+    platform().askNotifyPermission();
     clearError();
     setProgress("");
     setClips([]);
@@ -269,6 +271,7 @@ export function useClipJobs(p: ClipJobParams) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
       return;
     }
+    platform().askNotifyPermission();
     clearError();
     setProgress("");
     setClips([]);
@@ -455,11 +458,8 @@ export function useClipJobs(p: ClipJobParams) {
   const isRunning = !!activeJobId || status === "GENERATING";
 
   useEffect(() => {
-    if (isRunning) {
-      invoke('prevent_sleep').catch(console.error);
-    } else {
-      invoke('allow_sleep').catch(console.error);
-    }
+    if (!platform().caps.preventSleep) return;
+    platform().setPreventSleep(isRunning).catch(console.error);
   }, [isRunning]);
 
   return {

@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Sparkles, Palette, Image as ImageIcon, Check, Upload, Trash2, Info, Monitor, Smartphone } from "lucide-react";
 import { CanvasConfig } from "../../types/canvas";
-import { open } from "@tauri-apps/plugin-dialog";
+import { platform } from "../../platform";
 
 interface CanvasConfigControlsProps {
   config: CanvasConfig;
@@ -36,21 +36,17 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
 
   const handleSelectImage = async () => {
     try {
-      if ("__TAURI_INTERNALS__" in window) {
-        const selected = await open({
-          multiple: false,
-          filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }],
+      const selected = await platform().pickImage();
+      if (selected) {
+        onChange({
+          ...config,
+          background_type: "image",
+          background_image_path: selected,
         });
-        if (selected && typeof selected === "string") {
-          onChange({
-            ...config,
-            background_type: "image",
-            background_image_path: selected,
-          });
-        }
-      } else {
-        fileInputRef.current?.click();
+        return;
       }
+      // No OS dialog here (local/cloud): fall back to the browser file input as before.
+      if (!platform().caps.localFilePicker) fileInputRef.current?.click();
     } catch (err) {
       console.error("Error opening file dialog:", err);
       fileInputRef.current?.click();

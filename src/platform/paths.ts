@@ -8,3 +8,8 @@ export function parentDir(p: string): string {
 export function fileName(p: string, fallback = "clip.mp4"): string {
   return p.replace(/\\/g, "/").split("/").pop() || fallback;
 }
+
+/** The folder to open for a file: its parent, or the path itself when it has none (never ""). */
+export function folderToOpen(p: string): string {
+  return parentDir(p) || p;
+}

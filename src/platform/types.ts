@@ -62,6 +62,11 @@ export interface Platform {
   openFolder(path: string): Promise<void>;
   secrets: { get(name: string): Promise<string | null>; set(name: string, value: string): Promise<void> };
   notify(title: string, body: string): void;
+  /**
+   * Ask, once, to show notifications. Called from a user gesture (starting a job),
+   * never on page load. Desktop already asks at startup, as before SP1.
+   */
+  askNotifyPermission(): void;
 
   // Not in spec 4.1, needed to move every Tauri call (see "Spec gaps" 1 in the plan).
   /** Find the backend again (desktop: respawn the sidecar). Null when it cannot be reached. */

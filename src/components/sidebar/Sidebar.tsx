@@ -11,7 +11,7 @@ import {
 import { NavLink } from "react-router-dom";
 import { useBackendHealth } from "../../hooks/useBackendHealth";
 import { useTranslation } from "react-i18next";
-import { open } from "@tauri-apps/plugin-shell";
+import { platform } from "../../platform";
 import packageJson from "../../../package.json";
 
 export const Sidebar: React.FC = () => {
@@ -173,7 +173,7 @@ export const Sidebar: React.FC = () => {
           <span>&copy; {currentYear} Auto Clipper</span>
           <span
             className="hover:text-text-primary transition-colors cursor-pointer"
-            onClick={() => open("https://auto-clipper.dhims.web.id")}
+            onClick={() => platform().openExternal("https://auto-clipper.dhims.web.id")}
           >
             Official Website
           </span>

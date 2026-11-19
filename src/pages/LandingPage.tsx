@@ -1,5 +1,5 @@
 import React from "react";
-import { open } from "@tauri-apps/plugin-shell";
+import { platform } from "../platform";
 
 interface LandingPageProps {
   onEnter: () => void;
@@ -12,7 +12,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
   ) => {
     e.preventDefault();
     try {
-      await open(url);
+      await platform().openExternal(url);
     } catch (err) {
       console.error("Failed to open URL", err);
     }

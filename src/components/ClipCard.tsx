@@ -1,10 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { Download, Folder, Sparkles, Pencil, Star } from "lucide-react";
 import { Button } from "./ui/Button";
-import { open } from "@tauri-apps/plugin-shell";
-import { save } from "@tauri-apps/plugin-dialog";
-import axios from "axios";
-import { API_URL } from "../App";
+import { platform } from "../platform";
+import { fileName } from "../platform/paths";
 import { SocialKitModal } from "./SocialKitModal";
 
 export interface SocialData {
@@ -112,25 +110,15 @@ export default function ClipCard({
           )}
           <button
             onClick={async (e) => {
-              if ('__TAURI_INTERNALS__' in window) {
-                e.preventDefault();
-                try {
-                  const filename = clip.path.replace(/\\/g, '/').split('/').pop() || 'clip.mp4';
-                  const savePath = await save({
-                    defaultPath: filename,
-                    filters: [{ name: 'Video', extensions: ['mp4'] }]
-                  });
-                  if (savePath) {
-                    await axios.post(`${API_URL}/save_file`, { src: clip.path, dest: savePath });
-                  }
-                } catch (err) {
-                  console.error("Save failed", err);
-                }
-              } else {
-                const a = document.createElement('a');
-                a.href = videoSrc(clip.path, clip.v);
-                a.download = clip.path.replace(/\\/g, '/').split('/').pop() || 'clip.mp4';
-                a.click();
+              e.preventDefault();
+              try {
+                await platform().saveClip({
+                  path: clip.path,
+                  filename: fileName(clip.path),
+                  videoUrl: videoSrc(clip.path, clip.v),
+                });
+              } catch (err) {
+                console.error("Save failed", err);
               }
             }}
             className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-accent text-on-accent rounded-button text-caption font-medium hover:brightness-110 transition-all cursor-pointer"
@@ -138,33 +126,21 @@ export default function ClipCard({
             <Download className="w-4 h-4" />
             {t('clip.btn_download', 'Download')}
           </button>
-          <Button
-            variant="outline"
-            className="!px-3"
-            icon={Folder}
-            title="Buka Folder"
-            onClick={async () => {
-              const lastSlash = clip.path.replace(/\\/g, '/').lastIndexOf('/');
-              const dir = clip.path.substring(0, lastSlash);
-              
-              if ('__TAURI_INTERNALS__' in window) {
+          {platform().caps.openFolder && (
+            <Button
+              variant="outline"
+              className="!px-3"
+              icon={Folder}
+              title="Buka Folder"
+              onClick={async () => {
                 try {
-                  await axios.post(`${API_URL}/open_folder`, { path: dir });
+                  await platform().openFolder(clip.path);
                 } catch (err) {
-                  console.error("Open folder API failed", err);
-                  // fallback to old tauri open
-                  try {
-                    await open(dir);
-                  } catch (e2) {
-                    await open(clip.path);
-                  }
+                  console.error("Open folder failed", err);
                 }
-              } else {
-                // Not in Tauri (e.g. dev server), still try backend API
-                await axios.post(`${API_URL}/open_folder`, { path: dir });
-              }
-            }}
-          />
+              }}
+            />
+          )}
         </div>
       </div>
       {(currentDescription || localSocial) && (

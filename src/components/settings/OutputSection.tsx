@@ -1,5 +1,5 @@
 import React from 'react';
-import { open } from '@tauri-apps/plugin-dialog';
+import { platform } from '../../platform';
 import { FolderOutput, FolderOpen, X } from 'lucide-react';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
@@ -16,12 +16,8 @@ export const OutputSection: React.FC<OutputSectionProps> = ({
   outputFolder, setOutputFolder, quality, setQuality
 }) => {
   const handleSelectFolder = async () => {
-    if ('__TAURI_INTERNALS__' in window) {
-      const folder = await open({ directory: true, multiple: false });
-      if (folder) setOutputFolder(folder as string);
-    } else {
-      alert("Fitur pilih folder hanya tersedia di aplikasi Desktop.");
-    }
+    const folder = await platform().pickFolder();
+    if (folder) setOutputFolder(folder);
   };
 
   return (
@@ -34,24 +30,26 @@ export const OutputSection: React.FC<OutputSectionProps> = ({
       </div>
 
       <div className="space-y-6">
-        <div className="space-y-2">
-          <label className="text-label text-text-secondary">Folder Penyimpanan</label>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <InputGroup 
-                readOnly
-                value={outputFolder || "Default (temp_downloads)"}
-                className="pointer-events-none"
-              />
+        {platform().caps.localFilePicker && (
+          <div className="space-y-2">
+            <label className="text-label text-text-secondary">Folder Penyimpanan</label>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <InputGroup
+                  readOnly
+                  value={outputFolder || "Default (temp_downloads)"}
+                  className="pointer-events-none"
+                />
+              </div>
+              <Button variant="outline" icon={FolderOpen} onClick={handleSelectFolder}>
+                Pilih Folder
+              </Button>
+              {outputFolder && (
+                <Button variant="ghost" icon={X} onClick={() => setOutputFolder("")} title="Reset" />
+              )}
             </div>
-            <Button variant="outline" icon={FolderOpen} onClick={handleSelectFolder}>
-              Pilih Folder
-            </Button>
-            {outputFolder && (
-              <Button variant="ghost" icon={X} onClick={() => setOutputFolder("")} title="Reset" />
-            )}
           </div>
-        </div>
+        )}
 
         <Select
           label="Kualitas Video (Download)"

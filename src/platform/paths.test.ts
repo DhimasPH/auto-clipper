@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fileName, parentDir } from "./paths";
+import { fileName, folderToOpen, parentDir } from "./paths";
 
 describe("paths", () => {
   it("finds the folder of a Windows or POSIX path and keeps its separators", () => {
@@ -11,5 +11,11 @@ describe("paths", () => {
     expect(fileName("C:\\a\\clip_1.mp4")).toBe("clip_1.mp4");
     expect(fileName("/a/b/clip_2.mp4")).toBe("clip_2.mp4");
     expect(fileName("", "clip.mp4")).toBe("clip.mp4");
+  });
+
+  it("opens the parent folder, or the path itself when it has no parent part", () => {
+    expect(folderToOpen("C:\\clips\\clip_1.mp4")).toBe("C:\\clips");
+    expect(folderToOpen("/clip_1.mp4")).toBe("/clip_1.mp4");
+    expect(folderToOpen("clip_1.mp4")).toBe("clip_1.mp4");
   });
 });

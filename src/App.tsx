@@ -21,10 +21,9 @@ import { ProviderId, DEFAULT_PROVIDER, LEGACY_PROVIDER_MIGRATION } from "./lib/p
 import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "./types/canvas";
 import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "./types/subtitle";
 
-export let API_URL = "http://127.0.0.1:8000";
-export function setApiUrl(url: string) {
-  API_URL = url;
-}
+// videoSrc below still reads API_URL; a re-export alone does not bring it into scope (removed in Task 9).
+import { API_URL } from "./platform/backendUrl";
+export { API_URL, setApiUrl } from "./platform/backendUrl";
 
 export const AppContext = React.createContext<any>(null);
 

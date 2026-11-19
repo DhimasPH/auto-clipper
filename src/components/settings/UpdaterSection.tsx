@@ -3,23 +3,29 @@ import { useTranslation } from 'react-i18next';
 import { DownloadCloud, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
+import { platform } from '../../platform';
+import type { UpdateHandle } from '../../platform';
 import { useToasts } from '../../hooks/useToasts';
 import UpdateOverlay from './UpdateOverlay';
 
 export const UpdaterSection: React.FC = () => {
   const { t } = useTranslation();
   const [checking, setChecking] = useState(false);
-  const [updateAvailable, setUpdateAvailable] = useState<any>(null);
+  const [updateAvailable, setUpdateAvailable] = useState<UpdateHandle | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
   const { toasts, notify } = useToasts();
-  
+  const updater = platform().updater;
+
   const checkForUpdates = async () => {
+    if (!updater) {
+      // Same message a browser got before SP1; Task 5 hides this section where there is no updater.
+      notify(t('updater.browser_dev_warning', 'Fitur pembaruan tidak dapat digunakan jika dijalankan di browser web (mode dev). Silakan jalankan via Tauri.'), 'error');
+      return;
+    }
     try {
       setChecking(true);
-      const update = await check();
+      const update = await updater.check();
       if (update) {
         setUpdateAvailable(update);
       } else {
@@ -27,8 +33,7 @@ export const UpdaterSection: React.FC = () => {
       }
     } catch (err: any) {
       const errMsg = err?.toString() || '';
-      // @ts-ignore - Check if running inside Tauri context
-      if (errMsg.includes('missing Tauri-Invoke-Key') || errMsg.includes('not supported in browser') || !window.__TAURI_INTERNALS__) {
+      if (errMsg.includes('missing Tauri-Invoke-Key') || errMsg.includes('not supported in browser')) {
         notify(t('updater.browser_dev_warning', 'Fitur pembaruan tidak dapat digunakan jika dijalankan di browser web (mode dev). Silakan jalankan via Tauri.'), 'error');
       } else {
         notify(t('updater.check_failed', 'Gagal memeriksa pembaruan: ') + errMsg, 'error');
@@ -39,7 +44,7 @@ export const UpdaterSection: React.FC = () => {
   };
   
   const installUpdate = async () => {
-    if (!updateAvailable) return;
+    if (!updateAvailable || !updater) return;
     try {
       setDownloading(true);
       setProgressPct(0);
@@ -47,7 +52,7 @@ export const UpdaterSection: React.FC = () => {
       let downloadedBytes = 0;
       let totalBytes = 0;
       
-      await updateAvailable.downloadAndInstall((event: any) => {
+      await updateAvailable.downloadAndInstall((event) => {
         if (event.event === 'Started') {
           totalBytes = event.data?.contentLength || 0;
         } else if (event.event === 'Progress') {
@@ -60,7 +65,7 @@ export const UpdaterSection: React.FC = () => {
       
       notify(t('updater.install_success', 'Pembaruan berhasil dipasang. Memulai ulang...'), 'success');
       setTimeout(async () => {
-        await relaunch();
+        await updater.relaunch();
       }, 1500);
     } catch (err: any) {
       notify(t('updater.install_failed', 'Gagal memasang pembaruan: ') + err, 'error');
