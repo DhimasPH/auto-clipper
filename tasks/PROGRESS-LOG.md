@@ -544,3 +544,10 @@ Langkah berikutnya:
 - Vitest 41 lulus (12 file); `npm run build` lulus (adapter dipecah jadi chunk sendiri); `oxlint src` 0 error, 27 peringatan. Backend tidak disentuh.
 - Cek browser (Edge headless lewat CDP, backend dev-token + `VITE_DEV_BACKEND=true npm run dev`): landing → app, sidebar "Terhubung", Riwayat termuat (`/history` membawa `Bearer dev-token`), Settings tanpa baris "Pilih Folder", izin notifikasi tetap `default` saat halaman dimuat, tanpa error konsol. Bagian updater masih tampil di Settings lokal (P5, disembunyikan di Task 5). Cek Tauri: checklist pemilik (Task 14).
 - Task 3 perbaikan review: pesan gagal mulai pindah ke `startup.*` di `id.json`/`en.json` (`src/startupError.ts`, detail teknis di `<details>`); tes handshake sidecar (`desktop/sidecar.test.ts`); pemilih gambar latar membuka input file secara sinkron bila tak ada dialog OS. Vitest 51 lulus (15 file), build lulus, oxlint 0 error.
+
+### 2026-11-19 · Berhenti di 80% kuota (SP1 eksekusi)
+
+- Eksekusi rencana SP1 dengan subagent-driven-development. Ledger lengkap (status per task, keputusan, temuan yang ditunda) ada di `.superpowers/sdd/2026-11-18-sp1-single-frontend-web-local/progress.md` (diabaikan git lewat `.git/info/exclude`; kalau hilang, pulihkan dari `git log`).
+- Selesai dan lolos review: Task 1 (`5652aec`), Task 2 (`69366dc`). Task 3 (`3f7bd3b`) + putaran perbaikan 1 (`caf2406`): perbaikan sudah di-commit, tetapi re-review terbatas belum dijalankan. Cek terakhir: Vitest 51/51, build desktop OK, oxlint 0 error.
+- Lanjutkan: re-review `3f7bd3b..caf2406` untuk 3 temuan (teks error startup ke locale, tes handshake sidecar, klik pemilih gambar sinkron), tandai Task 3 selesai, lalu Task 4 (brief siap di folder ledger). 20 keputusan pre-flight (P1–P20) ada di ledger dan harus dibawa ke task terkait (P1, P9, P10, P20 → Task 5; P2, P16 → Task 13; P3 → Task 10; P4 → Task 7/8; P6, P18 → Task 14; P7, P15 → Task 11; P11, P12 → Task 9; P14 → Task 4).
+- Catatan lingkungan: jalankan Vitest dari `C:\...` (huruf drive besar).
