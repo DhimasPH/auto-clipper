@@ -519,3 +519,12 @@ Langkah berikutnya:
 1. Baca kedua file WIP, cek apakah Task 6 lengkap, lalu tulis Task 7–14 dengan format yang sama (bisa lewat agen baru dengan brief: lanjutkan rencana dari file WIP, jangan tulis ulang Task 1–6).
 2. Gabungkan menjadi `docs/superpowers/plans/2026-11-18-sp1-single-frontend-web-local.md`, hapus folder `wip/`, lakukan self-review terhadap spec, commit.
 3. Sampaikan ke pemilik: daftar task, bagian "Questions for the owner" dan "Spec gaps" dari part1, lalu tanya cara eksekusi (subagent per task, model fable effort high).
+
+---
+
+## 2026-11-19 · Rencana implementasi SP1 selesai
+
+- `docs/superpowers/plans/2026-11-18-sp1-single-frontend-web-local.md` (`03f19bb`), 14 task, tabel cakupan spec di akhir; folder `wip/` dihapus. Task 3 dibetulkan (import `API_URL` lokal yang hilang akan membuat `tsc` gagal).
+- 15 pertanyaan untuk pemilik dengan pilihan bawaan (bagian "Questions for the owner" di rencana), 17 celah spec/kode (bagian "Spec gaps"). Baru di Task 7–14: paket web memakai folder data yang sama dengan desktop; karantina macOS dihapus oleh `.command`; peluncur Linux membuka terminal sendiri; PR Check membangun 4 paket di setiap PR; zip dilampirkan ke rilis `app-v<versi>`.
+- Perkiraan jumlah tes setelah semua task: 775 lulus, 11 dilewati (dihitung dari rencana, belum dijalankan).
+- Berikutnya: pemilik menyetujui pilihan bawaan, lalu eksekusi task demi task dengan subagen (fable, effort high), review di antara task.
