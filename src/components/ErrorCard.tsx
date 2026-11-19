@@ -15,6 +15,8 @@ import {
 import { Button } from "./ui/Button";
 import type { ErrorInfo } from "../types/errorInfo";
 import { ActionHandlers, localizedText, toLang, visibleActions } from "../lib/errorInfo";
+import { platform } from "../platform";
+import { actionLabels } from "../lib/errorActions";
 
 const ACTION_ICONS: Record<string, LucideIcon> = {
   upload_cookies: Cookie,
@@ -41,7 +43,7 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({ info, handlers = {}, annou
   const [copied, setCopied] = useState(false);
   const lang = toLang(i18n.language);
   const { title, message } = localizedText(info, lang);
-  const actions = visibleActions(info, handlers, lang);
+  const actions = visibleActions(info, handlers, lang, actionLabels(platform().caps, (key, fallback) => t(key, fallback)));
 
   const copyTechnical = async () => {
     try {

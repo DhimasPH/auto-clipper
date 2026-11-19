@@ -1,6 +1,8 @@
 import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppContext } from "../App";
+import { platform } from "../platform";
+import { errorActionHandlers } from "../lib/errorActions";
 import type { ActionHandlers } from "../lib/errorInfo";
 
 interface ErrorActionOptions {
@@ -15,7 +17,7 @@ interface ErrorActionOptions {
 }
 
 /**
- * What the action buttons of an error do in the desktop app
+ * What the action buttons of an error do in this app, per platform
  * (ids from backend/errors.py `_ACTIONS`).
  */
 export function useErrorActions(options: ErrorActionOptions = {}): ActionHandlers {
@@ -24,18 +26,21 @@ export function useErrorActions(options: ErrorActionOptions = {}): ActionHandler
   const { jobId, origin = "history", onRetry, onUploadVideo } = options;
 
   const resume = jobId ? () => ctx.handleResumeJob(jobId, origin) : undefined;
-  const rerun = onRetry ?? resume;
 
-  return {
-    upload_cookies: () => ctx.openCookies(rerun),
-    upload_video:
+  return errorActionHandlers(platform().caps, {
+    resume,
+    rerun: onRetry ?? resume,
+    openCookies: (retry) => ctx.openCookies(retry),
+    uploadVideo:
       onUploadVideo ??
       (() => {
         ctx.requestLocalUpload();
         navigate("/");
       }),
-    retry: rerun,
-    resume,
-    open_settings: () => navigate("/settings"),
-  };
+    openDriveBrowser: () => {
+      ctx.requestDriveBrowser();
+      navigate("/");
+    },
+    openSettings: () => navigate("/settings"),
+  });
 }
