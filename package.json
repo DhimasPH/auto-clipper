@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "vitest run",
+    "lint": "oxlint src"
   },
   "build": {
     "appId": "com.autoclipper.app",
@@ -51,21 +53,25 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.2",
     "@tauri-apps/cli": "^2.11.4",
-    "@types/react": "^18.2.15",
-    "@types/react-dom": "^18.2.7",
-    "@vitejs/plugin-react": "^4.0.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
     "autoprefixer": "^10.5.2",
     "axios": "^1.6.0",
     "i18next": "^26.3.6",
+    "jsdom": "^31.0.1",
     "lucide-react": "^1.24.0",
+    "oxlint": "^1.75.0",
     "postcss": "^8.5.16",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-i18next": "^17.0.9",
     "react-router-dom": "^7.18.1",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5.0.2",
-    "vite": "^4.4.5"
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0",
+    "vitest": "^5.1.1"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

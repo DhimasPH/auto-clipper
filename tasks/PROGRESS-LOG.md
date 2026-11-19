@@ -528,3 +528,11 @@ Langkah berikutnya:
 - 15 pertanyaan untuk pemilik dengan pilihan bawaan (bagian "Questions for the owner" di rencana), 17 celah spec/kode (bagian "Spec gaps"). Baru di Task 7–14: paket web memakai folder data yang sama dengan desktop; karantina macOS dihapus oleh `.command`; peluncur Linux membuka terminal sendiri; PR Check membangun 4 paket di setiap PR; zip dilampirkan ke rilis `app-v<versi>`.
 - Perkiraan jumlah tes setelah semua task: 775 lulus, 11 dilewati (dihitung dari rencana, belum dijalankan).
 - Berikutnya: pemilik menyetujui pilihan bawaan, lalu eksekusi task demi task dengan subagen (fable, effort high), review di antara task.
+
+---
+
+## 2026-11-18 · SP1
+
+- Task 1 (toolchain `src/`): React 19, Vite 8, TypeScript 6, plugin-react 6, oxlint, Vitest 5 + jsdom; skrip `npm test` dan `npm run lint`; `tsconfig` dengan `types: ["vite/client", "node"]`; `workflow_dispatch` di PR Check. Tes Vitest pertama: `src/lib/errorInfo.test.ts` (4 lulus).
+- `npm run build` lulus tanpa perubahan kode; `oxlint src` 0 error, 29 peringatan (oxlint 1.94 terpasang menambah aturan `immutability`/`purity`/`set-state-in-effect`; 1.78 milik `web/` memberi 14). Backend tetap 694 lulus, 7 dilewati.
+- Catatan: jalankan Vitest dari folder dengan huruf drive besar (`C:\...`). Dari cwd `c:\...` (huruf kecil, misalnya Git Bash di `/c/...`) suite gagal dengan `Cannot read properties of undefined (reading 'config')` karena vitest termuat dua kali.
