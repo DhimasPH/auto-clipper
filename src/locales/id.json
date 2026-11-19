@@ -471,5 +471,11 @@
   "queue": {
     "next": "Menunggu giliran. Proses ini berikutnya.",
     "position": "Menunggu giliran. Urutan ke-{{n}} dalam antrean."
+  },
+  "startup": {
+    "title": "Auto Clipper tidak bisa dimulai",
+    "body": "Aplikasi gagal menyiapkan sambungan ke mesin pemrosesnya. Biasanya ini karena ada file instalasi yang hilang atau diblokir (misalnya oleh antivirus).",
+    "action": "Tutup Auto Clipper lalu buka lagi. Kalau masih terjadi, pasang ulang aplikasinya.",
+    "details": "Detail teknis"
   }
 }

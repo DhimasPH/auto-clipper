@@ -35,6 +35,11 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
   const enlargeScale = config.enlarge_scale || 1.0;
 
   const handleSelectImage = async () => {
+    // No OS dialog (local/cloud): the browser file input, opened synchronously so the click still counts as a user gesture.
+    if (!platform().caps.localFilePicker) {
+      fileInputRef.current?.click();
+      return;
+    }
     try {
       const selected = await platform().pickImage();
       if (selected) {
@@ -43,10 +48,7 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
           background_type: "image",
           background_image_path: selected,
         });
-        return;
       }
-      // No OS dialog here (local/cloud): fall back to the browser file input as before.
-      if (!platform().caps.localFilePicker) fileInputRef.current?.click();
     } catch (err) {
       console.error("Error opening file dialog:", err);
       fileInputRef.current?.click();
