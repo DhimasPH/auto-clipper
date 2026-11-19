@@ -576,3 +576,19 @@ Langkah berikutnya:
 - `verify_token` di `backend/main.py` mewajibkan token peluncuran untuk semua path non-publik di mode web (termasuk `/heartbeat`), tanpa mengubah aturan desktop maupun cloud. `pytest`: 747 lulus, 8 dilewati (+24 di `test_web_ui.py`).
 - Task 11 (peluncur `backend --web`): `backend/web_mode.py` mengikat server ke `127.0.0.1` pada port kosong acak dengan token baru per peluncuran, menyimpan `web_instance.json` (`{port, pid, token}`, mode 0600 lewat helper bersama `path_guard.write_private_file` sesuai P11, dilindungi `path_guard`), dan mencetak teks konsol dwibahasa.
 - Peluncuran kedua mendeteksi instance aktif lewat `/` dan `POST /heartbeat` bertoken, lalu hanya membuka tab baru ke server yang sedang berjalan dan keluar (exit 0). Tes `ui_dir` menormalkan kedua sisi path (P7) dan `test_free_port` diberi assert eksplisit (P15). `pytest`: 763 lulus, 9 dilewati (+16 lulus, +1 dilewati di `test_web_mode.py`); uji jalankan langsung `python -m backend.main --web` lulus (server pertama melayani `dist/index.html`, peluncuran kedua menyerahkan ke port/token yang sama).
+
+### 2026-11-19 · Berhenti sesuai instruksi kuota pemilik (sisa 30%)
+
+- Selesai dan lolos review di sesi ini:
+  - Re-review perbaikan Task 3 (`3f7bd3b..caf2406`) → Approved (`69366dc..caf2406`).
+  - Task 4 (`0909a0e`) → Approved (`bc2b2a8..0909a0e`).
+  - Task 5 (`97716b3`) → Approved (`0909a0e..97716b3`).
+  - Task 6 (`ae835ed`) → Approved (`97716b3..ae835ed`).
+  - Task 7 (`092c907`) → Approved (`ae835ed..092c907`).
+  - Task 8 (`2ac1b3a`) → Approved (`092c907..2ac1b3a`).
+  - Task 9 (`df54bef`) → Approved (`2ac1b3a..df54bef`).
+  - Task 10 (`cd7d065`) → Approved (`df54bef..cd7d065`).
+- Task 11 (`8fe5570`): kode selesai dan di-commit, semua tes hijau (`pytest` 763 lulus, 9 dilewati; Vitest 74 lulus di 20 file; `npm run build` & `npm run build:cloud` OK; `oxlint src` 0 error), tetapi review Task 11 belum dijalankan karena dihentikan sesuai instruksi kuota pemilik.
+- Langkah berikutnya untuk sesi selanjutnya:
+  1. Review Task 11 (`cd7d065..8fe5570`) mengikuti `tasks/sp1-reviewer-instructions.md` (brief `task-11-brief.md`, laporan `task-11-report.md`, dan diff `review-cd7d065..8fe5570.diff` sudah siap di `.superpowers/sdd/2026-11-18-sp1-single-frontend-web-local/`), lalu tandai Task 11 selesai di `tasks/sp1-ledger.md`.
+  2. Lanjutkan Task 12 (adapter local token & `LocalGate`), Task 13 (paket web lokal & CI 4 target, bawa P2 dan P16), dan Task 14 (hapus `web/`, dokumen, ADR-013, versi 1.19.0, bawa P6 dan P18).

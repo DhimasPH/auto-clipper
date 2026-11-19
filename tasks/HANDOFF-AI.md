@@ -28,12 +28,20 @@ Jangan membuka PR, jangan push, jangan merge ke `main` kecuali pemilik memintany
 |---|---|
 | 1 Toolchain (React 19, Vite 8, TS 6, Vitest, oxlint) | selesai, lolos review (`5652aec`) |
 | 2 Platform core | selesai, lolos review (`69366dc`) |
-| 3 Desktop adapter, semua Tauri ke `src/platform/` | kode `3f7bd3b` + perbaikan `caf2406`; **re-review perbaikan belum dijalankan** |
-| 4–14 | belum dimulai |
+| 3 Desktop adapter, semua Tauri ke `src/platform/` | selesai, lolos review (`3f7bd3b` + perbaikan `caf2406`) |
+| 4 Single i18n (`src/locales`) | selesai, lolos review (`0909a0e`) |
+| 5 Cloud adapter, `AuthGate`, `GDriveBrowserModal`, `build:cloud` | selesai, lolos review (`97716b3`) |
+| 6 Error-card actions per platform | selesai, lolos review (`ae835ed`) |
+| 7 Backend: video signing key & HMAC signatures | selesai, lolos review (`092c907`) |
+| 8 Backend: `/video` wajib `sig`, `POST /video-url`, link di data klip | selesai, lolos review (`2ac1b3a`) |
+| 9 Frontend: signed video links, `useSignedVideo`, `localErrors` | selesai, lolos review (`df54bef`) |
+| 10 Backend: web mode menyajikan UI, aturan token | selesai, lolos review (`cd7d065`) |
+| 11 Backend: peluncur `--web` (satu instance, browser, teks konsol) | kode selesai & semua tes hijau (`8fe5570`); **review belum dijalankan** |
+| 12–14 | belum dimulai |
 
 Langkah berikutnya:
-1. Re-review terbatas atas `git diff 3f7bd3b..caf2406` untuk tiga temuan Task 3: (a) teks error startup di `src/main.tsx` pindah ke `src/locales/{id,en}.json` lewat `i18n.t` dengan isi "apa, kenapa, harus apa"; (b) tes Vitest handshake sidecar desktop (baris `PORT:`/`TOKEN:` terpotong antar chunk, token sampai ke `auth.ts`, `setApiUrl`, event `backend-port-found`, timeout 90 detik, respawn); (c) `CanvasConfigControls.tsx` mengklik input file secara sinkron bila `!caps.localFilePicker`. Bila ketiganya beres, tandai Task 3 selesai di `tasks/sp1-ledger.md`.
-2. Lanjut Task 4, lalu 5, dan seterusnya, berurutan.
+1. Jalankan review atas `git diff cd7d065..8fe5570` untuk Task 11 mengikuti `tasks/sp1-reviewer-instructions.md` (file brief `task-11-brief.md`, laporan `task-11-report.md`, dan paket diff `review-cd7d065..8fe5570.diff` sudah siap di `.superpowers/sdd/2026-11-18-sp1-single-frontend-web-local/`). Bila lolos, tandai Task 11 selesai di `tasks/sp1-ledger.md`.
+2. Lanjut Task 12, 13, dan 14 secara berurutan.
 
 ## 4. Cara mengerjakan setiap task
 

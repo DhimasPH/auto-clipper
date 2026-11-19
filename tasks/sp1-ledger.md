@@ -56,4 +56,29 @@ Ruling: include review minors 1 (mocked sidecar handshake test: PORT/TOKEN split
 Task 3: minor (deferred): askNotifyPermission not called on rerender/AI rerun/resume starts (useClipJobs.ts:309,354,398).
 Task 3: minor (deferred): duplicated updater.browser_dev_warning i18n call (UpdaterSection.tsx:23,37); Task 5 hides the section.
 Task 3: fix round 1 dispatched (FIX_BASE 3f7bd3b): startup text to locales; sidecar handshake test; image picker sync click
-Task 3: fix round 1 implementer committed caf2406 then was stopped (quota) before appending its fix report. Controller check: vitest 51/51, build OK, oxlint 0 errors. NEXT: scoped re-review of 3f7bd3b..caf2406 against the 3 fix-round findings (fix report missing from task-3-report.md: reviewer reads the diff), then Task 3 complete, then Task 4 (brief ready: task-4-brief.md).
+Task 3: fix round 1 implementer committed caf2406. Scoped re-review of 3f7bd3b..caf2406 Approved (all 3 items clean, vitest 51/51, build OK, oxlint 0 errors).
+Task 3: complete (commits 69366dc..caf2406, review clean)
+Task 4: dispatched (BASE bc2b2a8)
+Task 4: DONE, commit 0909a0e (P14 oxlint 0 errors, vitest 52/52, 138/138 web texts in src/locales)
+Task 4: complete (commits bc2b2a8..0909a0e, review clean)
+Task 5: dispatched (BASE 0909a0e)
+Task 5: DONE, commit 97716b3 (P1/P5/P9/P10/P11/P19/P20 applied, vitest 58/58, build + build:cloud OK, oxlint 0 errors, headless Edge cloud check passed)
+Task 5: complete (commits 0909a0e..97716b3, review clean)
+Task 6: dispatched (BASE 97716b3)
+Task 6: DONE, commit ae835ed (vitest 63/63, build + build:cloud OK, oxlint 0 errors)
+Task 6: complete (commits 97716b3..ae835ed, review clean)
+Task 7: dispatched (BASE ae835ed)
+Task 7: DONE, commit 092c907 (P4 batch key read + test, P11 path_guard.write_private_file, pytest 708 passed / 8 skipped)
+Task 7: complete (commits ae835ed..092c907, review clean)
+Task 8: dispatched (BASE 092c907)
+Task 8: DONE, commit 2ac1b3a (P4 single key read across /history entries + test, pytest 723 passed / 8 skipped)
+Task 8: minor (deferred): api_get_history checks clip path existence + load_key try/except before delegating to with_video_urls — main.py:842-849.
+Task 8: complete (commits 092c907..2ac1b3a, review clean)
+Task 9: dispatched (BASE 2ac1b3a)
+Task 9: DONE, commit df54bef (P11 shared sourceFiles, P12 useSignedVideo no double POST under StrictMode + test, vitest 74/74, build + build:cloud OK, oxlint 0 errors, headless Edge playback + key-delete recovery check passed)
+Task 9: complete (commits 2ac1b3a..df54bef, review clean)
+Task 10: dispatched (BASE df54bef)
+Task 10: DONE, commit cd7d065 (P3 path_guard.is_protected in web_ui._serve + test, pytest 747 passed / 8 skipped)
+Task 10: complete (commits df54bef..cd7d065, review clean)
+Task 11: dispatched (BASE cd7d065)
+Task 11: DONE, commit 8fe5570 (P7 normalized ui_dir test, P11 path_guard.write_private_file, P15 explicit port assertions, pytest 763 passed / 9 skipped, manual --web two-instance check passed). Stopped on owner quota instruction before dispatching Task 11 reviewer. NEXT: review cd7d065..8fe5570 (brief: task-11-brief.md, report: task-11-report.md, diff: review-cd7d065..8fe5570.diff), then Task 12, 13, 14.
