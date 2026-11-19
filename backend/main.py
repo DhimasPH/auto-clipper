@@ -10,7 +10,7 @@ from typing import List, Optional
 from backend.db import init_db, get_all_history, delete_history, get_app_data_dir
 from backend.logger import log_error, get_log_content
 from backend.errors import AppError
-from backend import video_sign
+from backend import video_sign, web_ui
 import os
 import sys
 import shutil
@@ -128,19 +128,27 @@ async def verify_token(request: Request, call_next):
     # /video carries its own signature (backend.video_sign) because the player cannot send a header.
     # Exactly "/video": a prefix match would also open /video-url.
     path = request.url.path
-    if request.method == "OPTIONS" or path == "/video" or path in ["/health", "/heartbeat"]:
+    if request.method == "OPTIONS" or path in ("/video", "/health"):
         return await call_next(request)
-        
-    # Enforce token verification in frozen bundles or cloud mode
-    cloud_mode = bool(os.environ.get("AUTO_CLIPPER_CLOUD_MODE"))
-    if not getattr(sys, 'frozen', False) and not cloud_mode:
-        return await call_next(request)
-        
+
+    if web_ui.is_web_mode():
+        # Local web mode (spec 4.4): only the UI files are open; everything else, /heartbeat
+        # included, needs the token of this launch.
+        if web_ui.is_public_path(path):
+            return await call_next(request)
+    else:
+        if path == "/heartbeat":
+            return await call_next(request)
+        # Enforce token verification in frozen bundles or cloud mode
+        cloud_mode = bool(os.environ.get("AUTO_CLIPPER_CLOUD_MODE"))
+        if not getattr(sys, 'frozen', False) and not cloud_mode:
+            return await call_next(request)
+
     auth_header = request.headers.get("Authorization")
     token = os.environ.get("AUTO_CLIPPER_WEB_TOKEN") or os.environ.get("AUTO_CLIPPER_DEV_TOKEN") or API_SECRET_TOKEN
     if not auth_header or auth_header != f"Bearer {token}":
         return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized API access"})
-        
+
     return await call_next(request)
 
 @app.post("/upload")
@@ -1040,6 +1048,11 @@ def api_video_url(req: VideoUrlRequest):
     if is_protected(path):
         return denied("video_url", path)
     return {"status": "success", "video_url": video_sign.signed_url(path)}
+
+
+# Local web mode (spec 4.4): "/", "/assets/*" and the UI's image files.
+# Registered after every API route so none of them can be shadowed.
+app.include_router(web_ui.router)
 
 
 if __name__ == "__main__":
