@@ -1059,6 +1059,22 @@ if __name__ == "__main__":
     # Setup logger and cleanup old temp files
     # freeze_support already called at the top of the file
 
+    if "--web" in sys.argv[1:]:
+        # Local web mode (spec 4.4): no PORT:/TOKEN: handshake and no watchdog;
+        # the console window owns the server. The launcher writes the console text.
+        if _original_stdout is not None:
+            sys.stdout = _original_stdout
+        if _original_stderr is not None:
+            sys.stderr = _original_stderr
+        try:
+            from backend.web_mode import launch
+            sys.exit(launch(app, sys.argv[1:], sys.stdout))
+        except Exception as e:
+            log_error("Backend web mode", e)
+            sys.stderr.write(f"Auto Clipper Web tidak bisa dimulai / could not start: {e}\n")
+            sys.stderr.flush()
+            sys.exit(1)
+
     try:
         import uvicorn
         import socket

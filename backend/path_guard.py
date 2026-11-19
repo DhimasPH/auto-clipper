@@ -2,7 +2,7 @@
 
 The stored cookies.txt (a YouTube login) and its working copies, the job
 history database with its snapshot and SQLite side files, the backend logs and
-the key that signs /video links (video_signing.key) sit next to the clips in
+the key that signs /video links (video_signing.key), the local web token (web_instance.json) sit next to the clips in
 the app data folder, which on Colab is the user's Google Drive. Every endpoint that opens a request-provided path asks
 ``is_protected`` first and answers a protected path with ``denied``.
 
@@ -21,8 +21,9 @@ from backend.logger import log_error
 _DB_PREFIX = "history.db"
 # backend_error.log, backend_app.log, backend_ai.log and anything rotated from them
 _LOG_PREFIXES = ("backend_error.log", "backend_app.log", "backend_ai.log")
-# video_signing.key (signs /video links, backend.video_sign) and its temp copies while it is written
-_PRIVATE_FILE_PREFIXES = ("video_signing.key",)
+# video_signing.key (signs /video links, backend.video_sign) and web_instance.json (port and
+# token of the local web server, backend.web_mode), with their temp copies while they are written
+_PRIVATE_FILE_PREFIXES = ("video_signing.key", "web_instance.json")
 
 DENIED_MESSAGE = "Access denied"
 
