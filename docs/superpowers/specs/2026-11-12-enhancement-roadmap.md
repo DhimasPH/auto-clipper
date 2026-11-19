@@ -51,11 +51,13 @@ Aturan: satu sub-proyek aktif pada satu waktu. Hasil ukur SP0 menentukan apakah 
 | 2026-11-12 | Dukungan cookies dikembalikan dalam bentuk **unggah `cookies.txt`** dengan peringatan risiko akun. Ini membalik keputusan spec `2026-09-12-ytdlp-bot-bypass`. | Tanpa cookies, pengguna tidak punya jalan keluar di IP datacenter. |
 | 2026-11-12 | Semua pesan pengguna menjawab: apa yang terjadi, kenapa, apa yang harus dilakukan. Istilah teknis hanya di "Detail teknis". | Syarat pengguna awam. |
 | 2026-11-12 | Error dikirim backend sebagai objek terstruktur, frontend hanya merender kartu generik. | Menghindari penulisan UI dua kali sebelum SP1. |
+| 2026-11-18 | SP1: desktop (`src/`) menjadi satu-satunya frontend dengan lapisan platform; `web/` dihapus. | Satu kode untuk desktop, web lokal, dan cloud (ADR-013). |
+| 2026-11-18 | SP1: web lokal sebagai paket siap pakai per OS dengan peluncur; token acak per peluncuran di `#t=`. | Pengguna tanpa instalasi desktop, tanpa Python. |
+| 2026-11-18 | SP1: `/video` memakai link bertanda tangan HMAC tanpa kedaluwarsa di semua platform. | Pemutar video tidak bisa mengirim header token (T0.19). |
 
 ## 5. Pertanyaan terbuka
 
-- SP1: apakah frontend digabung sebagai satu paket dengan adapter (Tauri, web lokal, Colab), atau `web/` dijadikan satu-satunya frontend dan Tauri hanya membungkusnya? Dibahas saat brainstorming SP1.
-- SP1: cara menjalankan web lokal (perintah tunggal / launcher) dan model token untuk akses localhost.
+- SP1: dijawab di spec `2026-11-18-sp1-single-frontend-web-local-design.md` dan ADR-013.
 - SP3: apakah mediapipe dijadikan unduhan opsional untuk mengecilkan installer.
 - SP4: daftar fitur kreator yang akan dikerjakan (lihat kandidat di bawah).
 

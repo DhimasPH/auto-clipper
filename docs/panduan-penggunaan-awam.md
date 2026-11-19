@@ -80,7 +80,8 @@ Langkah ini juga dilakukan sekali saja.
 
 1. Buka [Vercel](https://vercel.com) dan masuk.
 2. Klik **Add New...** -> **Project**. Pilih repository Auto Clipper dari GitHub Anda.
-3. Pada halaman pengaturan, cari **Root Directory**, klik Edit, dan pilih folder bernama `web`.
+3. Pada halaman pengaturan, biarkan **Root Directory** kosong (folder utama). Pengaturan lain terbaca otomatis dari file `vercel.json`. Setelah proyek dibuat, buka **Settings → Build and Deployment** dan pastikan **Node.js Version** `22.x`.
+   - Sudah punya proyek Vercel lama yang Root Directory-nya `web`? Kosongkan Root Directory di **Settings → Build and Deployment**, simpan, lalu **Redeploy**.
 4. Buka menu **Environment Variables**, lalu tambahkan:
    - **Name:** `VITE_API_URL`
    - **Value:** *Paste* link Ngrok / Cloudflare yang Anda *copy* di Langkah 1 tadi.
@@ -94,16 +95,15 @@ Langkah ini juga dilakukan sekali saja.
 Setelah mesin dan remote siap, Anda cukup menggunakan HP setiap harinya.
 
 1. Buka browser di HP, buka link Remote Control Anda (link Vercel tadi).
-2. Masukkan *Password* rahasia (`rahasia123`) yang Anda buat.
-3. **Mulai Bikin Video:**
-   - Tempel link video YouTube/TikTok, atau tekan tombol **Drive** (ikon hard disk di sebelah kolom link) untuk memilih video dari Google Drive Anda. Pilih rasio (Vertical 9:16) dan gaya tulisan.
-   - Klik **Start Transcription**. Mesin di Colab akan mengekstrak teks.
+2. Tekan **Masuk ke Workspace**, lalu masukkan *password* rahasia (`rahasia123`) yang Anda buat dan tekan **Masuk**.
+3. **Mulai Bikin Video** (halaman **Manual AI Editor**):
+   - Isi **Judul Proyek**. Tempel link video YouTube/TikTok, atau buka tab **Local Video (.mp4)** lalu tekan **Pilih video dari Google Drive**. Pilih rasio (Vertical 9:16) dan gaya tulisan.
+   - Tekan **Generate Viral Clips**. Mesin di Colab mengambil teks dari video, lalu aplikasi pindah ke menu **Riwayat**.
 4. **Pilih Bagian Terbaik Pakai AI:**
-   - Setelah muncul teks video, klik **Share Prompt**.
-   - Kirim teks ke aplikasi AI di HP Anda (ChatGPT / Gemini).
-   - *Copy* balasan AI yang berbentuk tanda kurung `[ ... ]` (*JSON*), lalu *Paste* di web Auto Clipper.
-5. Klik **Render Clips**.
-6. **Selesai!** HP boleh ditutup. Buka lagi web beberapa menit kemudian, klik **Download** untuk menyimpan videonya ke galeri HP.
+   - Di menu **Riwayat**, pada proyek Anda tekan **Lanjut Manual**, lalu **Salin Prompt**.
+   - Tempel ke aplikasi AI di HP Anda (ChatGPT / Gemini).
+   - *Copy* balasan AI yang berbentuk tanda kurung `[ ... ]` (*JSON*), tempel di kolom **Hasil JSON dari AI**, lalu tekan **Lanjutkan Proses**.
+5. **Selesai!** HP boleh ditutup. Buka lagi web beberapa menit kemudian, buka **Riwayat**, lalu tekan **Download** (atau **Download MP4**) untuk menyimpan videonya ke galeri HP.
 
 ### Tulisan "Menunggu giliran"
 

@@ -33,12 +33,12 @@ Transkripsi Whisper memakai GPU T4. Notebook memasang FFmpeg standar dari Ubuntu
    - [Langkah 5.2: Konfigurasi Root Directory & Build Settings](#langkah-52-konfigurasi-root-directory--build-settings)
    - [Langkah 5.3: Pengaturan Environment Variable (VITE_API_URL)](#langkah-53-pengaturan-environment-variable-vite_api_url)
    - [Langkah 5.4: Pengaturan Domain Frontend (Custom Domain vs Default Vercel)](#langkah-54-pengaturan-domain-frontend-custom-domain-vs-default-vercel)
-6. [SOP Pengoperasian Harian via Smartphone (4-Step Wizard)](#6-sop-pengoperasian-harian-via-smartphone-4-step-wizard)
-   - [Langkah 0: Inisialisasi Sesi & Login](#langkah-0-inisialisasi-sesi--login)
-   - [Step 1: Input URL & Pemilihan Gaya Video](#step-1-input-url--pemilihan-gaya-video)
-   - [Step 2: Transkripsi Whisper & Share Prompt ke AI](#step-2-transkripsi-whisper--share-prompt-ke-ai)
-   - [Step 3: Submit JSON Highlights dari AI](#step-3-submit-json-highlights-dari-ai)
-   - [Step 4: Background Rendering & Download MP4](#step-4-background-rendering--download-mp4)
+6. [SOP Pengoperasian Harian via Smartphone](#6-sop-pengoperasian-harian-via-smartphone)
+   - [Langkah 0: Masuk](#langkah-0-masuk)
+   - [Langkah 1: Video dan Gaya](#langkah-1-video-dan-gaya)
+   - [Langkah 2: Prompt untuk AI](#langkah-2-prompt-untuk-ai)
+   - [Langkah 3: Hasil JSON dari AI](#langkah-3-hasil-json-dari-ai)
+   - [Langkah 4: Render dan Unduh](#langkah-4-render-dan-unduh)
 7. [Panduan Pemeliharaan, Troubleshooting & FAQ](#7-panduan-pemeliharaan-troubleshooting--faq)
    - [Kendala 1: Sesi Google Colab Terputus / Idle Timeout](#kendala-1-sesi-google-colab-terputus--idle-timeout)
    - [Kendala 2: Error 401 Unauthorized / Token Mismatch](#kendala-2-error-401-unauthorized--token-mismatch)
@@ -64,7 +64,7 @@ graph TD
     end
 
     subgraph Hosting["☁️ Vercel Edge Network"]
-        Vercel["React + Vite Single-Page Wizard<br/>(Root Folder: web/)"]
+        Vercel["React + Vite (src/, build: npm run build:cloud)"]
     end
 
     subgraph Tunneling["🌐 Secure Reverse Tunnel Options"]
@@ -269,7 +269,7 @@ Gunakan metode ini jika Anda **tidak memiliki domain sendiri**. Seluruh proses 1
 
 ## 5. Setup & Deployment Frontend Web ke Vercel
 
-Frontend Web Auto Clipper terletak pada sub-direktori `web/` dan berbasis **React 18 + Vite + Tailwind CSS**.
+Frontend Web Auto Clipper memakai kode yang sama dengan aplikasi desktop (folder `src/`, **React 19 + Vite 8 + Tailwind CSS**) dan dibangun dengan `VITE_TARGET=cloud`.
 
 ### Langkah 5.1: Import Repositori ke Vercel
 
@@ -278,13 +278,14 @@ Frontend Web Auto Clipper terletak pada sub-direktori `web/` dan berbasis **Reac
 
 ### Langkah 5.2: Konfigurasi Root Directory & Build Settings
 
-Pada halaman konfigurasi proyek Vercel:
+Sejak v1.19.0 aplikasi web dibangun dari folder utama repositori. Setelan build ada di file `vercel.json`, jadi Anda cukup:
 - **Project Name:** `auto-clipper-web` (atau sesuai preferensi Anda).
-- **Framework Preset:** `Vite`.
-- **Root Directory:** Klik **Edit** dan pilih folder `web` (Penting!).
-- **Build Command:** `npm run build` (default).
-- **Output Directory:** `dist` (default).
-- **Install Command:** `npm install` (default).
+- **Root Directory:** biarkan kosong (folder utama). Jangan pilih folder `web` (folder itu sudah dihapus).
+- **Framework Preset, Build Command, Output Directory, Install Command:** biarkan bawaan. Vercel memakai isi `vercel.json`: `vite`, `npm run build:cloud`, `dist`, `npm ci`.
+- **Node.js Version** (Settings → Build and Deployment): `22.x`.
+
+> [!IMPORTANT]
+> **Proyek Vercel lama (Root Directory `web`):** buka **Settings → Build and Deployment**, kosongkan **Root Directory**, pilih Node.js **22.x**, simpan, lalu **Redeploy**. Tanpa langkah ini deploy berikutnya gagal karena folder `web` sudah tidak ada.
 
 ### Langkah 5.3: Pengaturan Environment Variable (`VITE_API_URL`)
 
@@ -296,7 +297,7 @@ Buka bagian **Environment Variables** di Vercel dan tambahkan variabel penunjuk 
 
 > [!TIP]
 > **Tidak Perlu Mengubah Kodingan:**
-> File [`web/src/api.ts`](../web/src/api.ts) secara otomatis membaca `import.meta.env.VITE_API_URL`. Anda cukup mengisi variabel ini di Vercel Dashboard tanpa perlu mengotak-atik file kode di Git.
+> File [`src/platform/cloud/index.ts`](../src/platform/cloud/index.ts) secara otomatis membaca `import.meta.env.VITE_API_URL`. Anda cukup mengisi variabel ini di Vercel Dashboard tanpa perlu mengotak-atik file kode di Git.
 >
 > *Catatan:* Jika Anda mengubah nilai `VITE_API_URL` di Vercel di kemudian hari (misal saat URL Ngrok berganti), buka tab **Deployments** $\rightarrow$ klik `...` pada deployment terakhir $\rightarrow$ pilih **Redeploy** agar Vite memperbarui bundle frontend.
 
@@ -315,112 +316,31 @@ Buka bagian **Environment Variables** di Vercel dan tambahkan variabel penunjuk 
 
 ---
 
-## 6. SOP Pengoperasian Harian via Smartphone (4-Step Wizard)
+## 6. SOP Pengoperasian Harian via Smartphone
 
-Setelah seluruh infrastruktur terpasang, berikut adalah alur kerja harian untuk memotong video langsung dari smartphone:
+Sejak v1.19.0 aplikasi web memakai halaman yang sama dengan aplikasi desktop. Alurnya:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as 📱 Pengguna (Smartphone)
-    participant Web as 🌐 Web UI (Vercel)
-    participant Colab as 🖥️ Backend Colab (GPU T4)
-    participant AI as 🤖 External AI (Gemini / ChatGPT / Claude)
+### Langkah 0: Masuk
+1. Pastikan notebook Colab sudah berjalan sampai server menyala.
+2. Buka alamat Vercel Anda di browser HP, tekan **Masuk ke Workspace**, lalu masukkan kode akses (`API_SECRET_TOKEN` dari notebook), lalu tekan **Masuk**. Kode disimpan di browser itu saja.
 
-    Note over User,Colab: Sesi Awal
-    User->>Web: Buka Web App & Masukkan Access Token
-    Web->>Colab: Verifikasi Autentikasi (Bearer Auth)
+### Langkah 1: Video dan Gaya
+1. Aplikasi terbuka di **Manual AI Editor**. Isi **Judul Proyek**.
+2. Tempel link pada tab **URL Video (YouTube)**, atau buka tab **Local Video (.mp4)** dan tekan **Pilih video dari Google Drive**.
+3. Pilih rasio, subtitle, dan gaya kanvas, lalu tekan **Generate Viral Clips**.
 
-    Note over User,Colab: Step 1 - Input Video & Visual Styling
-    User->>Web: Paste URL Video YouTube + Pilih Style + Subtitle Preset
-    Web->>Colab: POST /jobs/manual (URL, canvas_config, subtitle_config)
-    Colab->>Colab: Unduh Video (yt-dlp) + Transkripsi Kata (Whisper GPU)
-    Colab-->>Web: Status: AWAITING_MANUAL + manual_prompt
+### Langkah 2: Prompt untuk AI
+1. Setelah transkripsi selesai, aplikasi pindah ke **Riwayat** dengan pesan "Prompt manual berhasil dibuat".
+2. Pada proyek itu tekan **Lanjut Manual**, lalu **Salin Prompt**, dan tempel ke ChatGPT, Gemini, atau Claude.
 
-    Note over User,AI: Step 2 - Share Prompt ke AI
-    Web->>User: Tampilkan Prompt Transkrip
-    User->>Web: Klik tombol "📤 Share Prompt" (Web Share API)
-    Web->>AI: Buka native share sheet HP -> Kirim ke aplikasi Gemini / Claude
-    AI-->>User: AI merespons dengan JSON Highlights Klip Terbaik
+### Langkah 3: Hasil JSON dari AI
+1. Salin balasan AI yang berbentuk `[ ... ]`.
+2. Tempel di kolom **Hasil JSON dari AI**, lalu tekan **Lanjutkan Proses**.
 
-    Note over User,Colab: Step 3 - Submit JSON Highlights
-    User->>Web: Tempel JSON hasil AI ke textarea Web UI
-    User->>Web: Klik tombol "Render Clips"
-    Web->>Colab: POST /jobs/{id}/resume-manual (highlights_json)
-
-    Note over User,Colab: Step 4 - Background Processing & Download
-    Note over User: 📱 Pengguna bebas menutup browser HP!
-    Colab->>Colab: Render FFmpeg (Face Tracking / Split-Screen / Subtitle Karaoke), lalu salin klip ke Drive
-    User->>Web: Buka kembali Web UI saat selesai
-    Web->>Colab: GET /jobs/{id} -> Status: DONE
-    Web-->>User: Tampilkan Inline Player Video + Tombol Download MP4
-    User->>Colab: Unduh MP4 langsung ke Galeri HP
-```
-
----
-
-### Langkah 0: Inisialisasi Sesi & Login
-1. Buka notebook Google Colab di browser laptop atau tab HP, lalu klik **Run All**.
-2. Buka Web App Anda di browser smartphone (Safari di iOS / Chrome di Android):
-   - Contoh URL: `https://clipper.domainanda.com` atau `https://auto-clipper-web-xxxx.vercel.app`.
-3. Masukkan **API Secret Token** yang sudah Anda tentukan. Token ini otomatis disimpan di `localStorage` browser Anda.
-
----
-
-### Step 1: Input URL & Pemilihan Gaya Video
-1. **Tempel URL Video**: Masukkan tautan YouTube, TikTok, atau Instagram.
-2. **Pilih Gaya Tata Letak (Output Style)**:
-   - 🎯 **Face Crop (9:16)**: Memotong video landscape menjadi vertikal dengan pelacakan wajah otomatis (*dynamic face tracking*).
-   - 🧊 **Canvas Blur (9:16)**: Menempatkan video utuh di atas latar belakang blur estetik (pilihan blur: *Light*, *Medium*, *Heavy* serta zoom *1.0x - 2.0x*).
-   - 🖥️ **Landscape (16:9)**: Mempertahankan rasio horizontal asli.
-   - ⬜ **Square (1:1)**: Format persegi untuk feed media sosial.
-3. **Pilih Preset Subtitle**:
-   - 🎤 **Viral Pop (Default)**: Kata per kata aktif (*single-word pop karaoke*) huruf kapital tebal (Impact/Alex Hormozi style) dengan anti-overlap.
-   - 📺 **Podcast**: Subtitle kalimat dengan sorotan kata aktif warna-warni (Montserrat font).
-   - 📝 **Classic**: Subtitle kalimat standar elegan (Arial font).
-4. Klik tombol **Start Transcription**.
-
----
-
-### Step 2: Transkripsi Whisper & Share Prompt ke AI
-1. Backend Colab akan mengunduh video via `yt-dlp` dan mengekstrak transkrip kata ber-timestamp menggunakan `faster-whisper`.
-2. Setelah transkripsi selesai, status job berubah menjadi **`AWAITING_MANUAL`**.
-3. Di layar HP Anda akan muncul prompt AI yang sudah diformat lengkap dengan transkrip video.
-4. Tekan tombol **📤 Share Prompt**:
-   - Browser akan memicu *Web Share API* bawaan sistem operasi smartphone Anda.
-   - Pilih aplikasi AI yang Anda gunakan di HP (Google Gemini, ChatGPT, Claude, atau aplikasi Notes).
-   - *(Atau gunakan tombol **📋 Copy Prompt** jika ingin menyalin manual).*
-
----
-
-### Step 3: Submit JSON Highlights dari AI
-1. AI pada aplikasi chat Anda akan menganalisis transkrip dan memberikan rekomendasi klip paling viral dalam format JSON, contoh:
-```json
-[
-  {
-    "start": 45.2,
-    "end": 95.8,
-    "title": "Rahasia Sukses Bisnis di Usia Muda",
-    "hook_reason": "Pernyataan kontroversial pembicara di awal menit"
-  }
-]
-```
-2. Salin teks JSON tersebut dari chat AI.
-3. Kembali ke Web App Auto Clipper di HP Anda, tempel ke kolom teks yang disediakan.
-4. Klik tombol **🚀 Render Clips**.
-
----
-
-### Step 4: Background Rendering & Download MP4
-1. Backend Colab mulai memotong video, menghitung interpolasi tracking wajah, merender filter kanvas, dan menempelkan subtitle ASS. Setiap klip yang selesai disalin ke Google Drive.
-   - Backend hanya menjalankan **satu job berat dalam satu waktu** (`AUTO_CLIPPER_MAX_HEAVY_JOBS`, default 1). Job lain menunggu dan Web UI menampilkan "Menunggu giliran. Proses ini berikutnya." atau "Menunggu giliran. Urutan ke-N dalam antrean." Menekan Lanjutkan pada proyek yang masih diproses ditolak.
-2. **Kebebasan Menutup Browser:** Anda **bisa menutup browser smartphone** atau mematikan layar HP. Pemrosesan tetap berjalan aman di Colab.
-3. Saat Anda membuka kembali Web App, halaman otomatis memulihkan status job terakhir.
-4. Setelah status menjadi **`DONE`**, daftar klip video akan muncul:
-   - Putar video langsung di browser menggunakan inline player.
-   - Klik tombol **⬇️ Download MP4** untuk menyimpan video langsung ke galeri foto/video smartphone Anda.
-   - Buka **Detail waktu** di atas daftar klip (juga ada di menu History) untuk melihat lama tiap tahap, memori puncak, dan apakah subtitle serta render memakai GPU atau prosesor.
-5. Bila job gagal, Web UI menampilkan kartu error berisi judul, penjelasan, dan tombol aksi (**Lanjutkan**, **Unggah cookies.txt**, **Pilih video dari Google Drive**). Teks asli error ada di **Detail teknis** (tertutup secara bawaan) dengan tombol **Salin** untuk laporan bug.
+### Langkah 4: Render dan Unduh
+1. Klip dirender di Colab (`AUTO_CLIPPER_MAX_HEAVY_JOBS`, bawaan 1 job berat dalam satu waktu). Layar boleh ditutup; buka lagi aplikasi nanti.
+2. Di **Riwayat**, putar klip langsung atau tekan **Download** / **Download MP4** untuk menyimpannya ke HP. Buka **Detail waktu** di atas daftar klip untuk melihat lama tiap tahap.
+3. Bila job gagal, kartu error menampilkan judul, penjelasan, dan tombol aksi (**Lanjutkan**, **Unggah cookies.txt**, **Pilih video dari Google Drive**); pesan mentah ada di **Detail teknis** dengan tombol **Salin**.
 
 ---
 

@@ -95,11 +95,10 @@ Jika Anda sedang mengubah kode backend Python (`backend/`) secara terus-menerus 
    npm run tauri dev
    ```
 
-4. **Jalankan Frontend Web (UI Browser):** Jika Anda ingin menggunakan UI web murni:
+3. **Jalankan Frontend di Browser (Web Lokal atau Cloud dev):** Jika Anda ingin menjalankan UI langsung di browser saat pengembangan:
    ```bash
-   cd web
-   npm install
    npm run dev
+   # atau simulasi cloud: npm run dev -- --mode cloud
    ```
 
 
@@ -129,9 +128,20 @@ Jika Anda ingin memproses video dari smartphone atau PC Anda tidak memiliki GPU 
 1. Buka file **[`Auto_Clipper_Colab.ipynb`](Auto_Clipper_Colab.ipynb)** di Google Colab.
 2. Pastikan Runtime Colab di-set ke **T4 GPU** (*Runtime $\rightarrow$ Change runtime type $\rightarrow$ T4 GPU*).
 3. Masukkan `CLOUDFLARE_TUNNEL_TOKEN` (atau token Ngrok) dan `API_SECRET_TOKEN` rahasia Anda, lalu jalankan semua sel (*Run All*).
-4. Buka antarmuka Web UI di browser smartphone Anda (misal `https://clipper.dhims.web.id` yang di-deploy di Vercel, atau lokal `cd web && npm run dev`).
+4. Buka antarmuka Web UI di browser smartphone Anda (misal `https://clipper.dhims.web.id` yang di-deploy di Vercel dari root repo dengan `npm run build:cloud`; untuk mencobanya di komputer: `npm run dev -- --mode cloud`).
 5. Masukkan token rahasia Anda pada layar login Web UI.
 6. Nikmati kemudahan memotong klip dan transkripsi video otomatis berkecepatan tinggi langsung dari genggaman HP Anda!
+
+
+### Opsi 6: Auto Clipper Web (di Browser, Tanpa Instalasi)
+
+Untuk komputer yang tidak mau dipasangi aplikasi desktop. Semua proses tetap berjalan di komputer Anda.
+
+1. Unduh zip yang cocok dari [halaman rilis](https://github.com/DhimasPH/auto-clipper/releases): `Auto-Clipper-Web-windows.zip`, `Auto-Clipper-Web-macos-arm64.zip` (Mac Apple Silicon), `Auto-Clipper-Web-macos-x64.zip` (Mac Intel), atau `Auto-Clipper-Web-linux.zip`.
+2. Ekstrak seluruh isinya ke satu folder, lalu klik dua kali **Auto Clipper Web** (macOS, pertama kali: klik kanan → **Open**; Windows: bila SmartScreen muncul, **More info** → **Run anyway**).
+3. Jendela bertuliskan "Auto Clipper berjalan" terbuka dan browser membuka aplikasinya. Jangan tutup jendela itu selama memakai aplikasi.
+
+Panduan lengkapnya ada di `BACA-SAYA.txt` di dalam zip. Untuk developer: `npm run build`, lalu `python -m backend.main --web`.
 
 
 ---

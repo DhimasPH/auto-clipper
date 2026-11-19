@@ -2,6 +2,26 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.19.0] - belum dirilis
+
+Rilis SP1 (frontend tunggal dan web lokal). Tanggal diisi saat rilis (plan question 10).
+
+### Added
+- **Auto Clipper Web (tanpa instalasi)**: Paket zip untuk Windows, macOS Apple Silicon, macOS Intel, dan Linux. Klik dua kali "Auto Clipper Web", lalu aplikasi terbuka di browser; semua proses tetap di komputer sendiri. Jendela "Auto Clipper berjalan" harus tetap terbuka selama dipakai. Membuka "Auto Clipper Web" lagi hanya membuka tab baru pada aplikasi yang sudah berjalan.
+- **Kartu error baru**: "Video tidak bisa diputar" (dengan **Coba lagi**), serta untuk web lokal: halaman yang dibuka tanpa kunci akses, kunci akses yang sudah tidak berlaku, dan jendela Auto Clipper yang sudah ditutup.
+
+### Changed
+- **Satu Aplikasi untuk Desktop, Web Lokal, dan Cloud**: Aplikasi web untuk Google Colab kini memakai kode dan halaman yang sama dengan aplikasi desktop (Manual AI Editor, Riwayat, Pengaturan cookies). Gerbang kode akses, alamat backend, dan penjelajah Google Drive tetap ada.
+- **Vercel**: Aplikasi cloud dibangun dari folder utama repositori dengan `npm run build:cloud` (`vercel.json`). Proyek Vercel lama harus mengosongkan Root Directory dan memakai Node.js 22.x (lihat tutorial cloud, Langkah 5.2).
+- **Tombol aksi kartu error per platform**: **Pilih video dari Google Drive** di cloud, pemilih file di desktop dan web lokal; **Buka Pengaturan** untuk API key tidak tampil di cloud.
+- Frontend memakai React 19, Vite 8, dan TypeScript 6; uji frontend dengan Vitest.
+
+### Security
+- **Alamat video bertanda tangan**: `/video` tidak lagi bisa dibuka tanpa tanda tangan di semua platform (T0.19). Setiap link hanya membuka satu klip. Kunci tanda tangan (`video_signing.key`) disimpan di folder data aplikasi; menghapusnya membatalkan semua link lama.
+
+### Removed
+- Folder `web/` (aplikasi web lama). Isinya sudah dipindah ke `src/`.
+
 ## [1.18.0] - 2026-11-18
 
 Rilis SP0 (pipeline andal). Diukur di Google Colab T4 dengan video YouTube 30 menit dan 10 klip: sebelumnya job ini tidak selesai (unduhan ditolak YouTube, subtitle jatuh ke prosesor), sekarang selesai dalam sekitar 12 menit waktu mesin. Angka per tahap ada di `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md` bagian 7. Versi 1.17.2 sampai 1.17.4 tidak tercatat di file ini.

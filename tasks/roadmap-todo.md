@@ -101,15 +101,15 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 
 ---
 
-## SP1: Fondasi frontend tunggal + web lokal (belum dimulai)
+## SP1: Fondasi frontend tunggal + web lokal (selesai, menunggu PR bersama SP2)
 
-Brainstorming dan spec terpisah dimulai setelah SP0 selesai. Arah awal, belum final:
-
-- [ ] T1.0 Brainstorm dan spec SP1 (satu paket UI dengan adapter Tauri/web lokal/Colab, atau `web/` sebagai satu-satunya frontend)
-- [ ] T1.x Backend menyajikan UI sendiri sehingga cukup satu perintah lalu buka `localhost`
-- [ ] T1.x Model token untuk akses localhost
-- [ ] T1.x `/video` dikecualikan dari cek token: siapa pun yang tahu URL tunnel Colab bisa mengambil `.mp4` apa pun di app data, work dir, atau folder kerja proses. Perlu token atau URL bertanda tangan untuk pemutar video. Juga tinjau `canvas_config.background_image_path` dan `output_dir` (path bebas ke FFmpeg dan tujuan tulis). Ditemukan T0.19, 2026-11-18.
-- [ ] T1.x Hapus duplikasi `src/` dan `web/`, samakan versi React
+- [x] T1.0 Brainstorm dan spec SP1 (satu paket UI dengan adapter Tauri/web lokal/Colab, atau `web/` sebagai satu-satunya frontend) · `e531bbc` (`03f19bb`)
+- [x] T1.x Backend menyajikan UI sendiri sehingga cukup satu perintah lalu buka `localhost` · `cd7d065`
+- [x] T1.x Model token untuk akses localhost · `8fe5570`, `7c1838e`, `0e5da33`, `b207969`
+- [x] T1.x `/video` dikecualikan dari cek token: siapa pun yang tahu URL tunnel Colab bisa mengambil `.mp4` apa pun di app data, work dir, atau folder kerja proses. Perlu token atau URL bertanda tangan untuk pemutar video · `092c907`, `2ac1b3a`, `df54bef`. (Sisa `canvas_config.background_image_path` dan `output_dir` dicatat sebagai `T1.y` di bawah.)
+- [x] T1.x Hapus duplikasi `src/` dan `web/`, samakan versi React · `5652aec`, `3f7bd3b`, `97716b3`, `f45b1d1`
+- [ ] T1.y (dari T0.19, tidak dicakup spec SP1) `canvas_config.background_image_path` dan `output_dir` masih menerima path bebas (dibaca FFmpeg, tujuan tulis). Pindah ke SP2/SP3.
+- [ ] T1.y Gambar latar kanvas di web lokal dan cloud memakai alamat `blob:` yang tidak bisa dibaca backend (bug lama, plan question 6). Pindah ke SP2.
 
 ## SP2: Revamp UI/UX untuk orang awam, bebas AI slop (belum dimulai)
 
