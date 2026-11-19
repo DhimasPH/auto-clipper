@@ -7,7 +7,7 @@ import { getAuthToken, setAuthToken, UNAUTHORIZED_EVENT } from "../platform/auth
 import { AUTH_CHANGED_EVENT, saveCloudToken } from "../platform/cloud/token";
 
 // Cloud only (Vercel + Colab): asks for the access token the Colab notebook prints.
-// Moved from web/src/components/AuthGate.tsx; texts are in src/locales (auth.*).
+// Moved from the former cloud frontend; texts are in src/locales (auth.*).
 
 type AuthErrorKey = "auth.error_empty" | "auth.error_invalid" | "auth.error_offline" | "auth.error_expired";
 

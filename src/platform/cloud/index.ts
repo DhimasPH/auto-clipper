@@ -7,7 +7,7 @@ import { AUTH_CHANGED_EVENT, CLOUD_TOKEN_KEYS, saveCloudToken } from "./token";
 
 export { AUTH_CHANGED_EVENT, CLOUD_TOKEN_KEYS, saveCloudToken };
 
-// The Vercel app for a backend on Google Colab (spec 4.7). Same lookup as web/src/api.ts:
+// The Vercel app for a backend on Google Colab (spec 4.7). Same lookup as the former cloud client:
 // VITE_API_URL from the build, else the address saved in this browser, else localhost:8000;
 // the token is the one the user typed into AuthGate.
 

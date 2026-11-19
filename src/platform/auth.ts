@@ -2,7 +2,7 @@ import axios from "axios";
 import { API_URL } from "./backendUrl";
 
 // The backend token, attached to every request that goes to the backend.
-// Moved from useUserSettings.ts (desktop) and web/src/api.ts (cloud).
+// Moved from useUserSettings.ts (desktop) and the former cloud client (cloud).
 
 let token: string | null = null;
 let wired = false;
