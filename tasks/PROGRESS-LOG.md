@@ -551,3 +551,9 @@ Langkah berikutnya:
 - Selesai dan lolos review: Task 1 (`5652aec`), Task 2 (`69366dc`). Task 3 (`3f7bd3b`) + putaran perbaikan 1 (`caf2406`): perbaikan sudah di-commit, tetapi re-review terbatas belum dijalankan. Cek terakhir: Vitest 51/51, build desktop OK, oxlint 0 error.
 - Lanjutkan: re-review `3f7bd3b..caf2406` untuk 3 temuan (teks error startup ke locale, tes handshake sidecar, klik pemilih gambar sinkron), tandai Task 3 selesai, lalu Task 4 (brief siap di folder ledger). 20 keputusan pre-flight (P1–P20) ada di ledger dan harus dibawa ke task terkait (P1, P9, P10, P20 → Task 5; P2, P16 → Task 13; P3 → Task 10; P4 → Task 7/8; P6, P18 → Task 14; P7, P15 → Task 11; P11, P12 → Task 9; P14 → Task 4).
 - Catatan lingkungan: jalankan Vitest dari `C:\...` (huruf drive besar).
+
+### 2026-11-19 · Serah terima untuk AI lain
+
+- `tasks/HANDOFF-AI.md`: urutan membaca, posisi SP1, cara mengerjakan setiap task (TDD, pemeriksaan, commit, review sebelum lanjut), keputusan pre-flight per task, lingkungan mesin, aturan dan preferensi pemilik.
+- `tasks/sp1-ledger.md` kini ledger resmi SP1 (ikut git); `tasks/sp1-reviewer-instructions.md` panduan review per task.
+- Penunjuk di root untuk berbagai AI: `AGENTS.md` (Codex, Cursor, dll.), `CLAUDE.md` (Claude Code), `GEMINI.md` (Gemini CLI); `.agents/AGENTS.md` diberi catatan di bagian atas.

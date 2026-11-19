@@ -2,6 +2,8 @@
 
 Panduan arsitektur, standar kode, dan aturan kerja untuk AI Agent pada repositori `auto-clipper`.
 
+> **Ada pekerjaan yang sedang berjalan.** Sebelum mengerjakan apa pun, baca `tasks/HANDOFF-AI.md`: posisi terakhir, keputusan yang sudah diambil, cara kerja per task, dan lingkungan mesin ini.
+
 ---
 
 ## 1. Arsitektur Proyek & Tech Stack
