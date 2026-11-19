@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Auto Clipper Web (macOS). Double-click to start; the first time: right-click > Open.
+# Keep this Terminal window open while you use the app. Closing it stops Auto Clipper.
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Files from a downloaded zip carry the quarantine flag. The user already allowed this
+# script with right-click > Open; allow the bundled backend and FFmpeg too (plan question 11).
+xattr -dr com.apple.quarantine "$DIR" 2>/dev/null || true
+
+"$DIR/app/backend/backend" --web --ui-dir "$DIR/app/ui"
+status=$?
+if [ $status -ne 0 ]; then
+  echo
+  read -r -p "Tekan Enter untuk menutup / Press Enter to close. " _
+fi
+exit $status

@@ -1,0 +1,61 @@
+AUTO CLIPPER WEB
+================
+(English below)
+
+Auto Clipper Web menjalankan Auto Clipper di browser komputer Anda, tanpa memasang aplikasi.
+Video diproses di komputer ini. Data hanya keluar saat Anda mengunduh video dari internet
+atau memakai penyedia AI dengan API key.
+
+Cara memakai
+1. Ekstrak seluruh isi zip ini ke satu folder, misalnya Dokumen/Auto Clipper Web.
+   Jangan membukanya langsung dari dalam zip.
+2. Klik dua kali "Auto Clipper Web".
+   - Windows: bila muncul "Windows protected your PC", klik "More info", lalu "Run anyway".
+     Paket ini belum ditandatangani Microsoft, jadi peringatan ini muncul pada pembukaan pertama.
+   - macOS: pada pembukaan pertama, klik kanan "Auto Clipper Web.command", pilih "Open",
+     lalu "Open" lagi. Paket ini belum ditandatangani Apple.
+     Pilih zip yang cocok: macos-arm64 untuk Mac Apple Silicon (M1 dan sesudahnya),
+     macos-x64 untuk Mac Intel.
+   - Linux: klik kanan "Auto Clipper Web.sh", pilih "Run as a Program" atau "Run in Terminal".
+     Bisa juga dari terminal: bash "Auto Clipper Web.sh"
+3. Jendela bertuliskan "Auto Clipper berjalan" terbuka, lalu browser membuka aplikasinya.
+   Jangan tutup jendela itu selama memakai aplikasi. Menutupnya menghentikan Auto Clipper.
+4. Bila browser tidak terbuka sendiri, salin alamat yang tertulis di jendela itu ke browser.
+5. Tab tertutup? Klik dua kali "Auto Clipper Web" lagi; tab baru terbuka.
+   Alamat tanpa bagian #t=... (kunci akses) tidak bisa dipakai.
+
+Model Whisper (pengubah suara ke teks) diunduh saat pertama dipakai.
+Riwayat, klip, dan pengaturan disimpan di folder data Auto Clipper, sama dengan aplikasi desktop:
+   Windows: %APPDATA%\AutoClipper
+   macOS:   ~/Library/Application Support/AutoClipper
+   Linux:   ~/.local/share/AutoClipper
+Untuk menghapus Auto Clipper Web, hapus folder hasil ekstrak ini. Folder data tetap ada.
+
+------------------------------------------------------------------------------------------
+
+Auto Clipper Web runs Auto Clipper in your computer's browser, without installing an app.
+Videos are processed on this computer. Data only leaves it when you download a video from
+the internet or use an AI provider with an API key.
+
+How to use
+1. Extract everything in this zip into one folder, for example Documents/Auto Clipper Web.
+   Do not open it from inside the zip.
+2. Double-click "Auto Clipper Web".
+   - Windows: if "Windows protected your PC" appears, click "More info", then "Run anyway".
+     The package is not signed by Microsoft, so the warning appears the first time.
+   - macOS: the first time, right-click "Auto Clipper Web.command", choose "Open", then
+     "Open" again. The package is not signed by Apple.
+     Pick the right zip: macos-arm64 for Apple Silicon Macs (M1 and later),
+     macos-x64 for Intel Macs.
+   - Linux: right-click "Auto Clipper Web.sh" and choose "Run as a Program" or "Run in Terminal".
+     Or from a terminal: bash "Auto Clipper Web.sh"
+3. A window that says "Auto Clipper is running" opens, then your browser opens the app.
+   Do not close that window while you use the app. Closing it stops Auto Clipper.
+4. If your browser did not open, copy the address shown in that window into it.
+5. Closed the tab? Double-click "Auto Clipper Web" again; a new tab opens.
+   An address without the #t=... part (the access key) does not work.
+
+The Whisper model (speech to text) is downloaded the first time it is used.
+History, clips and settings are kept in the Auto Clipper data folder, the same one the
+desktop app uses (see the folders above). To remove Auto Clipper Web, delete the extracted
+folder. The data folder stays.

@@ -127,3 +127,47 @@ jobs:
 
       - name: Build Tauri App
         run: npm run tauri build -- --target ${{ matrix.target }}
+
+  checks:
+    # Spec SP1 section 6: Vitest, oxlint, the cloud build and pytest on every PR.
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: System libraries (FFmpeg, OpenCV)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libgl1 libglib2.0-0
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Vitest
+        run: npm test
+
+      - name: oxlint
+        run: npm run lint
+
+      - name: Cloud build (VITE_TARGET=cloud)
+        run: npm run build:cloud
+
+      - name: Backend tests
+        run: python -m pytest backend/tests -q -p no:cacheprovider
+
+  web-package:
+    uses: ./.github/workflows/web-package.yml
+    permissions:
+      contents: read

@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,6 +23,7 @@ jobs:
       - name: Check version change
         id: check
         run: |
+          echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
             OLD_VERSION=$(git show HEAD~1:package.json | jq -r .version || echo "0.0.0")
             NEW_VERSION=$(jq -r .version package.json)
@@ -181,3 +183,29 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
           args: --target ${{ matrix.target }}
+
+  web-package:
+    needs: [check-version]
+    if: needs.check-version.outputs.changed == 'true'
+    uses: ./.github/workflows/web-package.yml
+    permissions:
+      contents: read
+
+  web-release:
+    # After the desktop build creates release app-v<version>, attach the web zips to it.
+    needs: [check-version, build, web-package]
+    if: needs.check-version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download the zips
+        uses: actions/download-artifact@v4
+        with:
+          pattern: Auto-Clipper-Web-*
+          merge-multiple: true
+
+      - name: Attach the zips to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "app-v${{ needs.check-version.outputs.version }}" Auto-Clipper-Web-*.zip --clobber --repo "${{ github.repository }}"

@@ -20,6 +20,13 @@ bin/
 *.spec
 !backend.spec
 
+# Local web package (web-package.yml)
+web-ui/
+pkg/
+launcher-build/
+launcher-dist/
+Auto-Clipper-Web-*.zip
+
 # Local config/vaults
 ac_vault*
 .ac_vault*
