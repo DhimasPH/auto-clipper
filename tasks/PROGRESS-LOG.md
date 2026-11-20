@@ -633,3 +633,10 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 - Branch `feat/sp2-ux-for-everyone`, bercabang dari SP1 di `dc3ba66`.
 - Spec: `docs/superpowers/specs/2026-11-20-sp2-ux-for-everyone-design.md` (`4bed222`). Keputusan pemilik: HP dulu; AI manual dipandu sebagai jalur utama (API key opsi lanjutan); gaya bersih dan tenang; alur 4 langkah (Video → Siapkan → Pilih momen → Klip) dengan tiga menu (Buat klip, Riwayat, Pengaturan); diskusi lewat chat; sisanya ikut rekomendasi dengan patokan UX jelas untuk orang awam.
 - Berikutnya: pemilik membaca spec, lalu rencana implementasi (skill writing-plans) dan eksekusi task per task dengan review. Agen memakai opus (fable butuh kredit).
+
+### 2026-11-20 · Berhenti di ~80% kuota: rencana SP2 setengah jadi
+
+- Agen penyusun rencana SP2 dihentikan. Tersimpan dan ter-commit di `docs/superpowers/plans/wip-sp2/`: `part-00-header.md` (header, Global Constraints, pertanyaan pemilik, celah spec, struktur file, urutan 18 task) dan Task 1–12 (`part-01` sampai `part-06`, commit terakhir `78350e5`).
+- Belum ditulis: Task 13 (Riwayat), 14 (Pengaturan empat bagian), 15 (audit antislop), 16 (tiga item SP1 yang diparkir), 17 (dokumen, CHANGELOG, ADR-014, AGENTS.md), 18 (verifikasi akhir dan uji pemakaian pemilik).
+- Langkah berikutnya (untuk AI mana pun, lihat `tasks/HANDOFF-AI.md` bagian 3): baca `part-00` dan task terakhir yang sudah ada untuk nama dan antarmuka, tulis Task 13–18 dengan format yang sama ke `wip-sp2/part-07-...`, gabungkan semua menjadi `docs/superpowers/plans/2026-11-20-sp2-ux-for-everyone.md` (header + tabel cakupan spec di akhir), hapus `wip-sp2/`, commit; lalu pemindaian pre-flight dan Task 1.
+- Belum ada kode SP2 yang berubah; tes masih seperti akhir SP1 (pytest 805/12, Vitest 89).
