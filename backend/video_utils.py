@@ -9,7 +9,7 @@ from pathlib import Path
 from backend.cookies import ytdlp_cookiefile
 from backend.errors import classify_download_error
 from backend.logger import log_error
-from backend.stage_timer import stage
+from backend.stage_timer import report, stage
 
 
 def get_ffmpeg_path() -> str | None:
@@ -214,6 +214,17 @@ def _probe_formats(url: str, cookiefile: str | None) -> list:
     return sorted(heights, reverse=True)
 
 
+def download_percent(d) -> float:
+    """How far one yt-dlp progress update is, in percent, or None when yt-dlp does not know the size."""
+    if not isinstance(d, dict) or d.get("status") != "downloading":
+        return None
+    done = d.get("downloaded_bytes")
+    total = d.get("total_bytes") or d.get("total_bytes_estimate")
+    if not isinstance(done, (int, float)) or not isinstance(total, (int, float)) or total <= 0:
+        return None
+    return min(100.0, done * 100.0 / total)
+
+
 def download_youtube_video(url: str, output_path: str, quality: str = "best", is_cancelled: callable = None) -> Path:
     with stage("download"), ytdlp_cookiefile() as cookiefile:
         return _download_youtube_video(url, output_path, quality, is_cancelled, cookiefile)
@@ -235,11 +246,14 @@ def _download_youtube_video(url: str, output_path: str, quality: str, is_cancell
     if ffmpeg_loc:
         base_ydl_opts['ffmpeg_location'] = ffmpeg_loc
 
-    if is_cancelled:
-        def hook(d):
-            if is_cancelled():
-                raise DownloadCancelledError("Download cancelled by user")
-        base_ydl_opts['progress_hooks'] = [hook]
+    def hook(d):
+        if is_cancelled and is_cancelled():
+            raise DownloadCancelledError("Download cancelled by user")
+        percent = download_percent(d)
+        if percent is not None:
+            report(percent=percent)  # live status only (spec 4.4), not timings
+
+    base_ydl_opts['progress_hooks'] = [hook]
 
     _run_ytdlp(base_ydl_opts, cookiefile, lambda ydl: ydl.download([url]), is_cancelled)
     return Path(output_path)

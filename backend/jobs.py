@@ -12,7 +12,7 @@ from backend.db import save_history, get_app_data_dir
 from backend.errors import AppError, to_app_error
 from backend.job_queue import JobQueue
 from backend.logger import log_app, log_error
-from backend.stage_timer import collect_timings, set_context, stage
+from backend.stage_timer import DEVICE_FIELDS, collect_timings, current_stage, report, set_context, stage
 
 active_jobs = {}
 
@@ -75,7 +75,7 @@ def _reject_if_still_processing(history_id: str) -> None:
 
 # Fields that say which device really did the work; copied from the stage
 # timings to the top of the job metadata so the UI can show them.
-_DEVICE_FIELDS = ("whisper_device", "encoder", "tracking_engine_used")
+_DEVICE_FIELDS = DEVICE_FIELDS
 
 
 def _with_timings(run_fn):
@@ -90,9 +90,19 @@ def _with_timings(run_fn):
         timings = job.setdefault("timings", [])
         if isinstance(job.get("metadata"), dict):
             job["metadata"]["timings"] = timings
-        with collect_timings(timings):
+        # The stages running now, for GET /jobs/{id} (spec 4.4). Never saved.
+        live = job["_live"] = {}
+        with collect_timings(timings, live):
             return run_fn(job_id, *args, **kwargs)
     return wrapper
+
+
+def live_stage(job_id: str):
+    """The stage an active job is running now (the ``current`` of its status), or None."""
+    job = active_jobs.get(job_id)
+    if not job or job.get("status") in _FINISHED:
+        return None
+    return current_stage(job.get("_live"))
 
 def _get_clip_limit(max_clips: int, duration_seconds: float) -> int:
     if max_clips > 0:
@@ -710,6 +720,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
         # A resumed job only has the Pexels key the app sent: history keeps no keys.
         log_app(f"[{job_id}] B-roll dilewati: tidak ada kunci API Pexels untuk proses ini.")
 
+    report(clips_total=len(segments))
     for i, seg in enumerate(segments):
         set_context(clip=i + 1)
         if is_cancelled():
@@ -948,6 +959,7 @@ def _run_manual_job(job_id: str):
         
         rendered_count = len(job.get("clips", []))
         
+        report(clips_total=len(clips))
         for i, clip in enumerate(clips):
             set_context(clip=i + 1)
             if is_cancelled():
@@ -1072,6 +1084,7 @@ def _run_rerender_job(job_id: str):
 
         rendered_count = len(job.get("clips", []))
 
+        report(clips_total=len(segments))
         for i, seg in enumerate(segments):
             set_context(clip=i + 1)
             if job.get("cancelled", False):
@@ -1359,6 +1372,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
 
         rendered_count = len(job.get("clips", []))
 
+        report(clips_total=len(segments))
         for i, seg in enumerate(segments):
             set_context(clip=i + 1)
             if job.get("cancelled", False):
@@ -1788,6 +1802,9 @@ def _run_manual_resume_job(job_id: str, parsed_highlights: list):
     hist = get_history(job_id)
     metadata = hist.get("metadata", {})
     job["metadata"] = metadata
+    # Same list as job["timings"] (as _with_timings does for new jobs), so the status shows
+    # the stages of this run as they finish; _finalize_job saves the same value as before.
+    metadata["timings"] = job["timings"]
     try:
         def is_cancelled():
             return job.get("cancelled", False)

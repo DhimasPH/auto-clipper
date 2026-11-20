@@ -797,7 +797,10 @@ def api_get_job(job_id: str):
         "failed": job.get("failed", 0),
         "error": job.get("error"),
         "error_info": job.get("error_info"),
-        "metadata": job.get("metadata", {})
+        "metadata": job.get("metadata", {}),
+        # The stage running now (spec 4.4): {stage, started_at, elapsed_seconds, device?, clip?,
+        # clips_total?, percent?}, or None. Built at read time, never stored.
+        "current": jobs.live_stage(job_id),
     }
 
 @app.post("/jobs/{job_id}/clips/{clip_index}/social")
