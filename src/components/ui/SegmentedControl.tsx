@@ -28,6 +28,7 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
           <button
             key={option.value}
             type="button"
+            disabled={disabled}
             aria-pressed={isActive}
             className={`flex-1 min-h-[44px] px-3 py-1.5 text-label rounded-md transition-colors duration-150 ${
               isActive

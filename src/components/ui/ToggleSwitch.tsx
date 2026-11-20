@@ -4,6 +4,8 @@ export interface ToggleSwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label?: string;
+  id?: string;
+  "aria-label"?: string;
   disabled?: boolean;
   className?: string;
 }
@@ -12,6 +14,8 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   checked,
   onChange,
   label,
+  id,
+  "aria-label": ariaLabel,
   disabled = false,
   className = ''
 }) => {
@@ -19,9 +23,11 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
     <label className={`inline-flex min-h-[44px] items-center gap-3 cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}>
       <span className="relative inline-flex shrink-0">
         <input
+          id={id}
           type="checkbox"
           role="switch"
           aria-checked={checked}
+          aria-label={ariaLabel}
           className="peer sr-only"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}

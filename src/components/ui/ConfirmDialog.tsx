@@ -19,7 +19,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   title,
   message,
   confirmLabel = 'Konfirmasi',
-  cancelLabel = 'Batal',
+  cancelLabel,
   isDestructive = false,
   onConfirm,
   onCancel,
@@ -27,16 +27,24 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   const { t } = useTranslation();
   const titleId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const onCancelRef = useRef(onCancel);
+
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
+
+  useEffect(() => {
+    if (isOpen) cancelRef.current?.focus();
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
-    cancelRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape') onCancelRef.current();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen, onCancel]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -55,7 +63,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <p className="p-5 text-body text-text-primary">{message}</p>
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 p-5 border-t border-border">
           <Button ref={cancelRef} variant="outline" onClick={onCancel}>
-            {cancelLabel}
+            {cancelLabel ?? t('common.cancel', 'Batal')}
           </Button>
           <Button variant={isDestructive ? 'danger' : 'primary'} onClick={onConfirm}>
             {confirmLabel}

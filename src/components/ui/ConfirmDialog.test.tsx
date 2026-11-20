@@ -46,4 +46,20 @@ describe("ConfirmDialog", () => {
     });
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps focus on another button when the parent re-renders with a new onCancel", () => {
+    open();
+    const confirmBtn = [...container.querySelectorAll("button")].find((b) => b.textContent === "Ya")!;
+    act(() => confirmBtn.focus());
+    expect(document.activeElement).toBe(confirmBtn);
+
+    const nextCancel = vi.fn();
+    open(nextCancel);
+    expect(document.activeElement).toBe(confirmBtn);
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(nextCancel).toHaveBeenCalledTimes(1);
+  });
 });
