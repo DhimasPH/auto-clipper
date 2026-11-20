@@ -190,6 +190,15 @@ def test_unix_launchers_start_the_backend_in_web_mode(name, command):
     assert command.encode() in text
 
 
+def test_linux_launcher_passes_the_script_the_way_each_terminal_expects():
+    """xfce4-terminal -e takes one command string, so `-e bash <path>` would not run the script."""
+    text = (PACKAGING / "Auto Clipper Web.sh").read_text(encoding="utf-8")
+
+    assert 'gnome-terminal -- bash "$DIR/Auto Clipper Web.sh"' in text
+    assert 'xfce4-terminal -x bash "$DIR/Auto Clipper Web.sh"' in text
+    assert 'xfce4-terminal -e' not in text
+
+
 def test_readme_explains_every_os_in_both_languages():
     text = (PACKAGING / "BACA-SAYA.txt").read_text(encoding="utf-8")
 

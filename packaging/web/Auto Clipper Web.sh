@@ -8,10 +8,12 @@ if [ ! -t 1 ] && [ -z "$AUTO_CLIPPER_IN_TERMINAL" ] && { [ -n "$DISPLAY" ] || [ 
   export AUTO_CLIPPER_IN_TERMINAL=1
   for term in x-terminal-emulator gnome-terminal konsole xfce4-terminal xterm; do
     if command -v "$term" >/dev/null 2>&1; then
-      if [ "$term" = "gnome-terminal" ]; then
-        exec gnome-terminal -- bash "$DIR/Auto Clipper Web.sh"
-      fi
-      exec "$term" -e bash "$DIR/Auto Clipper Web.sh"
+      case "$term" in
+        gnome-terminal) exec gnome-terminal -- bash "$DIR/Auto Clipper Web.sh" ;;
+        # In xfce4-terminal, -e wants one command string; -x takes the rest of the line as the command.
+        xfce4-terminal) exec xfce4-terminal -x bash "$DIR/Auto Clipper Web.sh" ;;
+        *) exec "$term" -e bash "$DIR/Auto Clipper Web.sh" ;;
+      esac
     fi
   done
 fi
