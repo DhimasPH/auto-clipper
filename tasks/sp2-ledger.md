@@ -32,3 +32,6 @@ Owner accepted all plan defaults (2026-11-20: "ikuti rekomendasi, yang penting U
 - Task 3: complete (commits 66d5047..57b5e49, review clean after fix round 1) — pytest 844 passed, 12 skipped (+15), Vitest 92 passed (+3, P7 applied), oxlint 0 errors, build + build:cloud OK.
   - Ruling: `output_dir` free path not in spec SP2 — stays SP3 — cost if wrong: none new.
   - Deferred minor: switching `background_type` back to `blur`/`color` keeps prior `uploadFailed` alert if user toggles back to `image` without clearing/re-picking.
+- Task 4: complete (commits 4de37f9..c8e71f6, review clean after fix round 1) — Vitest 142 passed (+50, P4/P12/P13 applied), oxlint 0 errors (28 warnings), build + build:cloud OK.
+  - `contrast-check.py` output (all >= 4.5:1): `#1C1D1F on #F6F6F4: 15.59:1`, `#55585E on #ECECE9: 6.03:1`, `#FFFFFF on #1F5FCC: 5.89:1`, `#1F5FCC on #F6F6F4: 5.44:1`, `#B42318 on #FFFFFF: 6.57:1`, `#ECECEA on #141517: 15.45:1`, `#A6A8AD on #26272B: 6.27:1`, `#0D1B33 on #7EA8FF: 7.31:1`, `#7EA8FF on #141517: 7.77:1`, `#FF8A80 on #1C1D20: 7.38:1`.
+  - Deferred minors: `ConfirmDialog` lacks focus-trap / opener focus restoration and still defaults `confirmLabel` to `'Konfirmasi'`; UI built-app check via `backend.main --web` deferred to Task 15 / Task 18.
