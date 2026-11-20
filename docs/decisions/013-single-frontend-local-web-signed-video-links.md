@@ -30,7 +30,7 @@
 - Konsekuensi yang diterima: link yang tersebar tetap membuka klip itu (hanya klip itu) selama server dan alamatnya sama.
 
 ### C. Mode web lokal (`backend/web_ui.py`, `backend/web_mode.py`)
-- `backend --web`: bind `127.0.0.1` saja, port acak, token acak per peluncuran. Backend menyajikan `/` (`index.html`), `/assets/*`, dan file gambar di root folder UI. Navigasi memakai `HashRouter`, jadi tidak ada fallback SPA yang bisa menutupi endpoint API.
+- `backend --web`: bind `127.0.0.1` saja, token acak per peluncuran. Port: port peluncuran sebelumnya dipakai ulang bila masih kosong (`web_port.json`, mode 0600, ditolak `path_guard`), selain itu port acak yang kosong (keputusan pemilik 2026-11-20). Browser menyimpan pengaturan dan API key per alamat termasuk port, jadi port acak setiap kali membuat semuanya hilang. Backend menyajikan `/` (`index.html`), `/assets/*`, dan file gambar di root folder UI. Navigasi memakai `HashRouter`, jadi tidak ada fallback SPA yang bisa menutupi endpoint API.
 - Tanpa token di mode ini: `/`, `/assets/*`, file gambar root UI, `/health`; `/video` memakai `sig`. Semua yang lain, termasuk `/heartbeat`, wajib token.
 - Satu instance per komputer: `web_instance.json` (`{port, pid, token}`, mode 0600, ditolak `path_guard`). Instance dianggap hidup bila `/` menjawab 200 dan `POST /heartbeat` dengan tokennya menjawab 200; peluncur kedua hanya membuka tab baru.
 - Peluncur membuka `http://127.0.0.1:<port>/#t=<token>` dan menulis "Auto Clipper berjalan. Jangan tutup jendela ini selama memakai aplikasi." (id + en) beserta alamatnya. Frontend menyimpan token di `sessionStorage` dan menghapusnya dari alamat; `LocalGate` menangani token hilang, token lama, dan jendela yang ditutup.

@@ -25,10 +25,15 @@ Cara memakai
    Alamat tanpa bagian #t=... (kunci akses) tidak bisa dipakai.
 
 Model Whisper (pengubah suara ke teks) diunduh saat pertama dipakai.
-Riwayat, klip, dan pengaturan disimpan di folder data Auto Clipper, sama dengan aplikasi desktop:
+Riwayat, klip, dan cookies disimpan di folder data Auto Clipper, sama dengan aplikasi desktop:
    Windows: %APPDATA%\AutoClipper
    macOS:   ~/Library/Application Support/AutoClipper
    Linux:   ~/.local/share/AutoClipper
+Pengaturan dan API key disimpan di browser, per alamat (termasuk nomor port, misalnya
+127.0.0.1:51234). Auto Clipper Web memakai port yang sama setiap kali dibuka, jadi pengaturan
+tetap ada. Bila port itu sedang dipakai program lain, port baru dipilih dan pengaturan di
+browser kosong lagi: isi ulang API key Anda. Pengaturan tidak ikut pindah ke browser lain
+atau ke aplikasi desktop.
 Untuk menghapus Auto Clipper Web, hapus folder hasil ekstrak ini. Folder data tetap ada.
 
 ------------------------------------------------------------------------------------------
@@ -56,6 +61,11 @@ How to use
    An address without the #t=... part (the access key) does not work.
 
 The Whisper model (speech to text) is downloaded the first time it is used.
-History, clips and settings are kept in the Auto Clipper data folder, the same one the
-desktop app uses (see the folders above). To remove Auto Clipper Web, delete the extracted
-folder. The data folder stays.
+History, clips and cookies are kept in the Auto Clipper data folder, the same one the
+desktop app uses (see the folders above).
+Settings and API keys are kept in the browser, per address (the port number included, for
+example 127.0.0.1:51234). Auto Clipper Web uses the same port every time it opens, so your
+settings stay. If another program is using that port, a new port is chosen and the browser
+starts empty again: enter your API keys again. Settings do not move to another browser or
+to the desktop app.
+To remove Auto Clipper Web, delete the extracted folder. The data folder stays.

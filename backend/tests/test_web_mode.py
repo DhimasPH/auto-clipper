@@ -242,3 +242,87 @@ def test_a_launch_after_a_damaged_instance_file_starts_a_new_server(tmp_path, ui
 
     assert code == 0
     assert serve.calls
+
+# --- port kept across launches (owner decision 2026-11-20, spec 4.4) -----------------------------
+# The browser keeps settings and API keys per address, port included: a new port every launch
+# would empty them. So the last port is reused when it is free; the token stays new per launch.
+
+def _launch_once(data, ui):
+    serve = FakeServer(data / "web_instance.json")
+    web_mode.launch("APP", ["--web", "--ui-dir", str(ui)], io.StringIO(), serve=serve,
+                    open_browser=lambda url: True, is_alive=lambda info: False, data_dir=str(data))
+    [(_, port)] = serve.calls
+    return port, serve.instance_during_run["token"]
+
+
+def test_a_new_launch_reuses_the_port_of_the_last_launch_when_it_is_free(tmp_path, ui, web_env):
+    data = tmp_path / "data"
+
+    first_port, first_token = _launch_once(data, ui)
+    second_port, second_token = _launch_once(data, ui)
+
+    assert second_port == first_port
+    assert second_token != first_token  # the token is still new per launch
+    assert not (data / "web_instance.json").exists()
+
+
+def test_the_remembered_port_is_used_when_it_is_free(tmp_path, ui, web_env):
+    data = tmp_path / "data"
+    port = web_mode.free_port()
+    web_mode.write_last_port(web_mode.port_path(str(data)), port)
+
+    assert _launch_once(data, ui)[0] == port
+
+
+def test_a_taken_remembered_port_falls_back_to_a_free_one(tmp_path, ui, web_env):
+    data = tmp_path / "data"
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as busy:
+        busy.bind(("127.0.0.1", 0))
+        busy.listen(1)
+        taken = busy.getsockname()[1]
+        web_mode.write_last_port(web_mode.port_path(str(data)), taken)
+
+        port = _launch_once(data, ui)[0]
+
+    assert port != taken
+    assert 0 < port < 65536
+    assert web_mode.read_last_port(web_mode.port_path(str(data))) == port  # the new port is remembered
+
+
+@pytest.mark.parametrize("content", [
+    None,  # no file yet: the first launch
+    "",
+    "not json",
+    "[]",
+    '{"port": "5123"}',
+    '{"port": true}',
+    '{"port": 0}',
+    '{"port": 70000}',
+    '{"port": -1}',
+])
+def test_a_missing_or_invalid_remembered_port_falls_back_to_a_free_one(tmp_path, ui, web_env, content):
+    data = tmp_path / "data"
+    if content is not None:
+        data.mkdir()
+        (data / web_mode.PORT_FILE_NAME).write_text(content, encoding="utf-8")
+
+    port = _launch_once(data, ui)[0]
+
+    assert 0 < port < 65536
+    assert web_mode.read_last_port(web_mode.port_path(str(data))) == port
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
+def test_port_file_is_readable_by_its_owner_only(tmp_path):
+    path = tmp_path / "web_port.json"
+
+    web_mode.write_last_port(str(path), 5123)
+
+    assert path.stat().st_mode & 0o077 == 0
+
+
+def test_path_guard_protects_the_port_file(tmp_path):
+    assert path_guard.is_protected(str(tmp_path / "web_port.json"))
+    assert path_guard.is_protected(str(tmp_path / "web_port.json.1a2b3c4d.part"))
+
+
