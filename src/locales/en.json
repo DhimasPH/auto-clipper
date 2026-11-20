@@ -536,5 +536,22 @@
   },
   "local_gate": {
     "checking": "Connecting to Auto Clipper…"
+  },
+  "nav": {
+    "label": "Main menu",
+    "create": "Make clips",
+    "projects": "History",
+    "settings": "Settings"
+  },
+  "banner": {
+    "status_connecting": "Connecting…",
+    "status_connected": "Connected",
+    "status_disconnected": "Disconnected",
+    "status_reconnecting": "Reconnecting…",
+    "lost_title": "Auto Clipper is not connected",
+    "lost_app": "The part of the app that processes videos stopped. Press Reconnect to start it again.",
+    "lost_window": "The Auto Clipper Web window is not answering. Make sure it is still open, then press Reconnect.",
+    "lost_none": "The Google Colab server is not answering. Make sure the server cell in Colab is still running, then press Reconnect.",
+    "reconnect": "Reconnect"
   }
 }

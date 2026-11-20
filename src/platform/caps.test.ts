@@ -4,19 +4,23 @@ import { CAPS } from "./caps";
 describe("CAPS (spec 4.1)", () => {
   it("desktop can do everything except browse Google Drive", () => {
     expect(CAPS.desktop).toEqual({
-      apiKeys: true, localFilePicker: true, driveBrowser: false, openFolder: true, updater: true, preventSleep: true,
+      apiKeys: true, localFilePicker: true, driveBrowser: false, openFolder: true, updater: true, preventSleep: true, keepOpen: "app",
     });
   });
 
   it("local web keeps API keys and opening folders, has no OS dialogs, updater or sleep control", () => {
     expect(CAPS.local).toEqual({
-      apiKeys: true, localFilePicker: false, driveBrowser: false, openFolder: true, updater: false, preventSleep: false,
+      apiKeys: true, localFilePicker: false, driveBrowser: false, openFolder: true, updater: false, preventSleep: false, keepOpen: "window",
     });
   });
 
   it("cloud is manual AI only, browses Drive, cannot open folders", () => {
     expect(CAPS.cloud).toEqual({
-      apiKeys: false, localFilePicker: false, driveBrowser: true, openFolder: false, updater: false, preventSleep: false,
+      apiKeys: false, localFilePicker: false, driveBrowser: true, openFolder: false, updater: false, preventSleep: false, keepOpen: "none",
     });
+  });
+
+  it("says what must stay open while a job runs (spec 4.3)", () => {
+    expect([CAPS.desktop.keepOpen, CAPS.local.keepOpen, CAPS.cloud.keepOpen]).toEqual(["app", "window", "none"]);
   });
 });

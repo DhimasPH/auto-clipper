@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AppContext } from "../App";
 import { platform } from "../platform";
 import { errorActionHandlers } from "../lib/errorActions";
+import { ROUTES, SETTINGS_ANCHORS } from "../lib/routes";
 import type { ActionHandlers } from "../lib/errorInfo";
 
 interface ErrorActionOptions {
@@ -41,6 +42,6 @@ export function useErrorActions(options: ErrorActionOptions = {}): ActionHandler
       ctx.requestDriveBrowser();
       navigate("/");
     },
-    openSettings: () => navigate("/settings"),
+    openSettings: () => navigate(`${ROUTES.settings}#${SETTINGS_ANCHORS.advanced}`),
   });
 }

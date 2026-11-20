@@ -7,9 +7,13 @@ import { TranscriptionSection } from '../components/settings/TranscriptionSectio
 import { OutputSection } from '../components/settings/OutputSection';
 import { UpdaterSection } from '../components/settings/UpdaterSection';
 import { CookiesSection } from '../components/settings/CookiesSection';
+import { ManualDownloaderPage } from './ManualDownloaderPage';
+import { HelpPage } from './HelpPage';
+import { useScrollToHash } from '../hooks/useScrollToHash';
 import { platform } from '../platform';
 
 export const SettingsPage: React.FC = () => {
+  useScrollToHash();
   const ctx = useContext(AppContext);
   const caps = platform().caps;
 
@@ -47,6 +51,8 @@ export const SettingsPage: React.FC = () => {
         />
         <CookiesSection />
         {caps.updater && <UpdaterSection />}
+        <section id="pengunduh" tabIndex={-1}><ManualDownloaderPage /></section>
+        <section id="bantuan" tabIndex={-1}><HelpPage /></section>
       </div>
     </div>
   );

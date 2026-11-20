@@ -137,7 +137,7 @@ export function useClipJobs(p: ClipJobParams) {
             notify(t("toast.manual_prompt_ready", "Prompt manual berhasil dibuat. Anda dialihkan ke menu History."), "success");
             if (jobOrigin === "workspace") {
                setHistoryVersion((v) => v + 1);
-               window.location.hash = "#/history";
+               window.location.hash = "#/riwayat";
             }
             setActiveJobId(null);
             setProgress("");

@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { HashRouter, Navigate, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { WorkspacePage } from "./pages/WorkspacePage";
 import { ManualAIEditorPage } from "./pages/ManualAIEditorPage";
 import { HistoryPage } from "./pages/HistoryPage";
-import { ManualDownloaderPage } from "./pages/ManualDownloaderPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { HelpPage } from "./pages/HelpPage";
 import Toasts from "./components/Toasts";
 import { CookiesModal } from "./components/CookiesModal";
 import { AuthGate } from "./components/AuthGate";
 import { LocalGate } from "./components/LocalGate";
 import { GDriveBrowserModal } from "./components/GDriveBrowserModal";
 import { SplashScreen } from "./components/SplashScreen";
-import { LandingPage } from "./pages/LandingPage";
+import { legacyRouteElements } from "./components/nav/legacyRoutes";
 import { platform } from "./platform";
 
 import { useTheme } from "./hooks/useTheme";
@@ -56,7 +54,6 @@ export default function App() {
 
   const [url, setUrl] = useState("");
   const [splashComplete, setSplashComplete] = useState(false);
-  const [showLanding, setShowLanding] = useState(() => platform().kind !== "cloud"); // Cloud: AuthGate is the landing page
   const [provider, setProvider] = useState<ProviderId>(() => {
     const saved = localStorage.getItem("ac_provider");
     if (saved && LEGACY_PROVIDER_MIGRATION[saved]) {
@@ -283,18 +280,15 @@ export default function App() {
     handleResetWorkspace,
   };
 
-  const routes = showLanding ? (
-    <LandingPage onEnter={() => setShowLanding(false)} />
-  ) : (
+  const routes = (
     <Routes>
       <Route path="/" element={<AppLayout />}>
-        {/* Cloud has no API-key providers: start on the manual AI page. */}
-        <Route index element={platform().caps.apiKeys ? <WorkspacePage /> : <Navigate to="/manual-ai" replace />} />
-        <Route path="manual-ai" element={<ManualAIEditorPage />} />
-        <Route path="downloader" element={<ManualDownloaderPage />} />
-        <Route path="history" element={<HistoryPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="help" element={<HelpPage />} />
+        {/* Replaced by CreatePage in Task 8. Cloud has no API keys: the manual page. */}
+        <Route index element={platform().caps.apiKeys ? <WorkspacePage /> : <ManualAIEditorPage />} />
+        <Route path="riwayat" element={<HistoryPage />} />
+        <Route path="riwayat/:id" element={<HistoryPage />} />
+        <Route path="pengaturan" element={<SettingsPage />} />
+        {legacyRouteElements()}
       </Route>
     </Routes>
   );

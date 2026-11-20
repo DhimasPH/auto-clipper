@@ -536,5 +536,22 @@
   },
   "local_gate": {
     "checking": "Menghubungkan ke Auto Clipper…"
+  },
+  "nav": {
+    "label": "Menu utama",
+    "create": "Buat klip",
+    "projects": "Riwayat",
+    "settings": "Pengaturan"
+  },
+  "banner": {
+    "status_connecting": "Menghubungkan…",
+    "status_connected": "Terhubung",
+    "status_disconnected": "Terputus",
+    "status_reconnecting": "Menghubungkan ulang…",
+    "lost_title": "Auto Clipper tidak tersambung",
+    "lost_app": "Bagian aplikasi yang memproses video berhenti. Tekan Hubungkan ulang untuk menyalakannya lagi.",
+    "lost_window": "Jendela Auto Clipper Web tidak menjawab. Pastikan jendela itu masih terbuka, lalu tekan Hubungkan ulang.",
+    "lost_none": "Server di Google Colab tidak menjawab. Pastikan kotak server di Colab masih berjalan, lalu tekan Hubungkan ulang.",
+    "reconnect": "Hubungkan ulang"
   }
 }

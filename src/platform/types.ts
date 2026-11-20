@@ -3,6 +3,12 @@
 
 export type PlatformKind = "desktop" | "local" | "cloud";
 
+/**
+ * What must stay open for a running job to continue (spec 4.3): the desktop app, the
+ * "Auto Clipper Web" window, or nothing (cloud: the job runs on Colab).
+ */
+export type KeepOpen = "app" | "window" | "none";
+
 export interface Caps {
   /** AI providers that need an API key. Cloud: false (manual AI only). */
   apiKeys: boolean;
@@ -16,6 +22,8 @@ export interface Caps {
   updater: boolean;
   /** Keep the computer awake while rendering. Desktop only. */
   preventSleep: boolean;
+  /** See KeepOpen. Picks the "may I close this?" text and the disconnected-banner text. */
+  keepOpen: KeepOpen;
 }
 
 export interface BackendInfo {
