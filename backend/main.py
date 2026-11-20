@@ -113,16 +113,6 @@ if custom_cors:
         if custom_parts:
             cors_regex += "|" + "|".join(custom_parts)
 
-app.add_middleware(
-    CORSMiddleware,
-    # Allow local dev and all variations of Tauri custom protocols (including tauri.localhost on Windows), plus cloud web app
-    allow_origin_regex=cors_regex,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
 @app.middleware("http")
 async def verify_token(request: Request, call_next):
     # /video carries its own signature (backend.video_sign) because the player cannot send a header.
@@ -150,6 +140,20 @@ async def verify_token(request: Request, call_next):
         return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized API access"})
 
     return await call_next(request)
+
+
+# Registered after verify_token, so it is the outer middleware: a 401 from the token check also
+# carries the CORS headers (allowed origins only), and the cloud app can tell "wrong or expired
+# token" from "server offline". Preflight (OPTIONS) is answered here before the token check.
+app.add_middleware(
+    CORSMiddleware,
+    # Allow local dev and all variations of Tauri custom protocols (including tauri.localhost on Windows), plus cloud web app
+    allow_origin_regex=cors_regex,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.post("/upload")
 def api_upload_video(file: UploadFile = File(...)):
