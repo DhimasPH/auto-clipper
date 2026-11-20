@@ -27,3 +27,4 @@ Owner accepted all plan defaults (2026-11-20: "ikuti rekomendasi, yang penting U
 - P16 [Global / T10 / T12, Minor] Ruling: use `Co-Authored-By: Antigravity <noreply@anthropic.com>` on commits; render `<ProgressPanel>` above `<ClipsResult>` in `CreatePage.tsx` (using `liveMeta` tracking fallback cleanly); use `flex flex-wrap gap-2` + `variant="outline"` on `ClipCard` action buttons — cost if wrong: minor layout/credit mismatches.
 
 ## Tasks
+- Task 1: complete (commits 0f315db..684a272, review clean) — pytest 815 passed, 12 skipped (+10). Deferred minors: direct assertions for negative-percent clamp / `clips_total <= 0` / `tracking_engine_used`, and `dict | None` annotation alignment.
