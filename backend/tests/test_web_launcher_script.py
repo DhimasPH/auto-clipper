@@ -62,6 +62,27 @@ def test_launcher_explains_a_package_that_was_not_extracted(tmp_path):
     assert waited
 
 
+def test_launcher_explains_a_backend_that_cannot_start(tmp_path):
+    """Antivirus often blocks the unsigned backend.exe: explain it instead of closing on a traceback."""
+    launcher = _load("web_launcher")
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "backend.exe").write_bytes(b"")
+    out, waited = io.StringIO(), []
+
+    def blocked(cmd):
+        raise PermissionError(13, "Access is denied")
+
+    code = launcher.main(str(tmp_path), run=blocked, out=out, wait=lambda prompt: waited.append(prompt))
+
+    assert code == 1
+    text = out.getvalue()
+    assert "tidak bisa dijalankan" in text
+    assert "could not be started" in text
+    assert "antivirus" in text
+    assert "Access is denied" in text  # the technical detail, for a bug report
+    assert waited
+
+
 def test_launcher_survives_a_window_without_input(tmp_path):
     launcher = _load("web_launcher")
 
