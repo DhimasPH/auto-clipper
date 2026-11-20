@@ -1,94 +1,73 @@
 # Serah terima untuk AI mana pun yang melanjutkan pekerjaan
 
-Ditulis 2026-11-19 untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) yang melanjutkan pekerjaan di repo ini. Baca seluruh file ini sebelum menyentuh kode. Tujuannya: kamu bekerja dengan aturan, keputusan, dan cara kerja yang sama dengan sesi sebelumnya.
-
-> **Update 2026-11-20:** SP1 selesai dan lolos review akhir independen (lihat akhir `tasks/sp1-ledger.md`). SP2 aktif di branch `feat/sp2-ux-for-everyone` (bercabang dari SP1). Spec SP2: `docs/superpowers/specs/2026-11-20-sp2-ux-for-everyone-design.md`. Posisi terbaru selalu di entri terakhir `tasks/PROGRESS-LOG.md`. Aturan kerja di file ini (bagian 4, 6, 7) tetap berlaku untuk SP2.
+Ditulis ulang 2026-11-20 untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) yang melanjutkan **SP2** di repo ini. Baca seluruh file ini sebelum menyentuh kode. Tujuannya: kamu bekerja dengan aturan, keputusan, dan cara kerja yang sama dengan sesi sebelumnya.
 
 ## 1. Urutan membaca
 
 1. File ini.
-2. `.agents/AGENTS.md`: aturan repo. Wajib dipatuhi, terutama bagian E (invarian backend E.1–E.18), F (frontend & i18n F.1–F.8), G.8 (paket web lokal), H (ADR).
-3. Entri terakhir `tasks/PROGRESS-LOG.md`: posisi terakhir dan langkah berikutnya.
-4. `tasks/sp1-ledger.md`: status tiap task SP1, 20 keputusan pre-flight (P1–P20), dan temuan yang ditunda.
-5. Spec SP1: `docs/superpowers/specs/2026-11-18-sp1-single-frontend-web-local-design.md`. Ini otoritas tertinggi bila rencana bertentangan dengan dirinya sendiri.
-6. Rencana SP1: `docs/superpowers/plans/2026-11-18-sp1-single-frontend-web-local.md` (14 task). Baca bagian "Global Constraints", "Questions for the owner" (semua pilihan bawaan sudah DISETUJUI pemilik 2026-11-19), dan "Spec gaps". Baca isi task hanya untuk task yang sedang dikerjakan.
+2. `.agents/AGENTS.md`: aturan repo. Wajib dipatuhi, terutama bagian E (invarian backend E.1–E.18), F (frontend dan i18n F.1–F.8), G.8 (paket web lokal), H (ADR).
+3. Entri terakhir `tasks/PROGRESS-LOG.md`: posisi terakhir dan langkah berikutnya. Ini selalu lebih baru dari file ini.
+4. `tasks/sp2-ledger.md` (bila sudah ada): status tiap task SP2, keputusan, dan temuan yang ditunda.
+5. Spec SP2: `docs/superpowers/specs/2026-11-20-sp2-ux-for-everyone-design.md`. Otoritas tertinggi bila rencana bertentangan dengan dirinya sendiri.
+6. Rencana SP2: `docs/superpowers/plans/2026-11-20-sp2-ux-for-everyone.md`. Baca "Global Constraints", "Questions for the owner" (semua pilihan bawaan dianggap DISETUJUI: pemilik berkata "ikuti rekomendasi, yang penting UX-nya jelas untuk orang awam"), dan "Spec gaps". Baca isi task hanya untuk task yang sedang dikerjakan.
+7. Konteks SP1 bila perlu: `tasks/sp1-ledger.md` dan spec SP1 `docs/superpowers/specs/2026-11-18-sp1-single-frontend-web-local-design.md`.
 
 ## 2. Gambaran besar
 
-Roadmap: SP0 (pipeline andal, selesai) → SP1 (frontend tunggal + web lokal, selesai menunggu cek manual pemilik & PR bersama SP2) → SP2 (UI/UX untuk orang awam) → SP3 (ringan) → SP4 (fitur kreator). Daftar task: `tasks/roadmap-todo.md`.
+Roadmap: SP0 (pipeline andal, selesai) → SP1 (frontend tunggal + web lokal, selesai, lolos review akhir independen) → **SP2 (UI/UX untuk orang awam, sedang berjalan)** → SP3 (ringan) → SP4 (fitur kreator). Daftar task: `tasks/roadmap-todo.md`.
 
-Branch bertumpuk, satu PR ke `main` setelah SP2 (keputusan pemilik 2026-11-18):
-- `feat/sp0-pipeline-stability`: SP0, selesai.
-- `feat/sp1-single-frontend-web-local`: SP1, bercabang dari SP0. Kerja di sini.
-- SP2 nanti bercabang dari SP1.
+Branch bertumpuk, satu PR ke `main` setelah SP2 (keputusan pemilik 2026-11-18): `feat/sp0-pipeline-stability` → `feat/sp1-single-frontend-web-local` → **`feat/sp2-ux-for-everyone` (kerja di sini)**. Jangan membuka PR, push, atau merge ke `main` kecuali pemilik memintanya.
 
-Jangan membuka PR, jangan push, jangan merge ke `main` kecuali pemilik memintanya.
+Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke layar besar; jalur AI utama **AI manual dipandu** (salin perintah, buka ChatGPT/Gemini, tempel jawaban), API key hanya opsi lanjutan; gaya **bersih dan tenang** (latar netral, satu warna aksen); **alur 4 langkah** (Video → Siapkan → Pilih momen → Klip) dengan **tiga menu** (Buat klip, Riwayat, Pengaturan); sisanya ikut rekomendasi.
 
-## 3. Posisi SP1 saat ini
+## 3. Posisi SP2 saat ini
 
-| Task | Status |
-|---|---|
-| 1 Toolchain (React 19, Vite 8, TS 6, Vitest, oxlint) | selesai, lolos review (`5652aec`) |
-| 2 Platform core | selesai, lolos review (`69366dc`) |
-| 3 Desktop adapter, semua Tauri ke `src/platform/` | selesai, lolos review (`3f7bd3b` + perbaikan `caf2406`) |
-| 4 Single i18n (`src/locales`) | selesai, lolos review (`0909a0e`) |
-| 5 Cloud adapter, `AuthGate`, `GDriveBrowserModal`, `build:cloud` | selesai, lolos review (`97716b3`) |
-| 6 Error-card actions per platform | selesai, lolos review (`ae835ed`) |
-| 7 Backend: video signing key & HMAC signatures | selesai, lolos review (`092c907`) |
-| 8 Backend: `/video` wajib `sig`, `POST /video-url`, link di data klip | selesai, lolos review (`2ac1b3a`) |
-| 9 Frontend: signed video links, `useSignedVideo`, `localErrors` | selesai, lolos review (`df54bef`) |
-| 10 Backend: web mode menyajikan UI, aturan token | selesai, lolos review (`cd7d065`) |
-| 11 Backend: peluncur `--web` (satu instance, browser, teks konsol) | selesai, lolos review (`8fe5570`) |
-| 12 Frontend: adapter web lokal & `LocalGate` | selesai, lolos review (`7c1838e`) |
-| 13 Pemaketan `Auto Clipper Web`, smoke script, workflow CI 4 OS | selesai, lolos review (`0e5da33` + perbaikan `b207969`) |
-| 14 Hapus `web/`, ADR-013, `AGENTS.md`, panduan, versi `1.19.0`, roadmap | selesai, lolos review (`f45b1d1`, `e9d3369`) |
+- Spec selesai dan disetujui (`4bed222`).
+- Rencana implementasi: `docs/superpowers/plans/2026-11-20-sp2-ux-for-everyone.md`; status dan commit-nya di entri terakhir `tasks/PROGRESS-LOG.md`. Bila file rencana belum ada tetapi folder `docs/superpowers/plans/wip-sp2/` ada, rencana masih setengah jadi: lanjutkan dari bagian terakhir di folder itu (jangan menulis ulang yang sudah ada), gabungkan jadi satu file, hapus `wip-sp2/`, commit. Contoh format rencana: rencana SP1 `docs/superpowers/plans/2026-11-18-sp1-single-frontend-web-local.md`.
+- Belum ada task SP2 yang dikerjakan.
 
-Langkah berikutnya (seluruh kode SP1 selesai):
-1. Pemilik menjalankan daftar cek manual lintas platform di akhir `tasks/PROGRESS-LOG.md` ("Daftar cek manual SP1 (pemilik)"), termasuk memicu workflow `Web Package` dan `PR Check` di GitHub Actions.
-2. Mulai SP2 dengan membuat branch baru bertumpuk dari `feat/sp1-single-frontend-web-local` (`tasks/roadmap-todo.md`, termasuk sisa `T1.y` dan temuan minor di `tasks/sp1-ledger.md` bila relevan).
-3. Saat PR gabungan SP1+SP2 nantinya di-merge ke `main`: pastikan proyek Vercel produksi mengosongkan **Root Directory**, memakai Node.js **22.x**, dan di-redeploy.
+Langkah berikutnya:
+1. **Pemindaian pre-flight** (sekali, sebelum Task 1). Baca seluruh rencana dan spec, cari: (a) pasangan task yang memakai file atau antarmuka yang sama tetapi tidak cocok; (b) task yang tes dan kodenya sendiri tidak cocok (tes tidak akan lulus dengan kode yang diberikan); (c) bentrok dengan Global Constraints; (d) hal yang akan dianggap cacat oleh reviewer (tes tanpa assert, logika disalin persis, `print()` di modul backend, akses file tanpa `path_guard`); (e) teks "lama" yang akan diganti tetapi tidak cocok dengan isi file sekarang. Tulis hasilnya ke `tasks/sp2-ledger.md` (buat bila belum ada, format seperti `tasks/sp1-ledger.md`), satu baris per temuan: `- P<n> [Task, langkah, tingkat] Ruling: <apa> — <kenapa> — <akibat bila salah>`. Di SP1 pemindaian ini menemukan dua bug yang akan menggagalkan build dan CI.
+2. Kerjakan Task 1, 2, dan seterusnya berurutan dengan cara di bagian 4.
 
 ## 4. Cara mengerjakan setiap task
 
 1. Catat BASE: `git rev-parse --short HEAD`.
-2. Ambil teks task dari rencana (bagian `### Task N: ...` sampai sebelum `### Task N+1`). Itu kebutuhanmu, termasuk nilai persis yang harus dipakai.
-3. Terapkan keputusan pre-flight untuk task itu (tabel di bagian 5). Keputusan mengalahkan teks rencana bila berbeda.
-4. TDD: tulis tes yang gagal dulu, jalankan dan pastikan gagal karena alasan yang benar, baru implementasi, lalu jalankan lagi sampai lulus.
-5. Jalankan semua pemeriksaan (bagian 6). Semua harus hijau sebelum commit.
-6. Commit. Pesan commit diakhiri dengan baris `Co-Authored-By:` sesuai attribution AI yang kamu pakai (sesi sebelumnya: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`).
-7. Tambahkan entri 3–6 baris di bawah heading `## 2026-11-18 · SP1` di akhir `tasks/PROGRESS-LOG.md` (apa yang berubah, jumlah tes, yang tersisa), ikut dalam commit task itu.
-8. **Review sebelum lanjut.** Ikuti `tasks/sp1-reviewer-instructions.md` atas `git diff <BASE>..HEAD` dengan pikiran segar (sebaiknya sesi atau agen terpisah). Perbaiki semua temuan Critical/Important, lalu review ulang khusus bagian yang diperbaiki. Temuan Minor dicatat di ledger sebagai "minor (deferred)". Pengalaman sesi ini: Task 3 lolos semua tes tetapi reviewer tetap menemukan masalah, jadi jangan lewati langkah ini.
-9. Perbarui `tasks/sp1-ledger.md`: `Task N: complete (commits <base>..<head>, review clean)` atau keputusan yang kamu ambil, dengan format `Ruling: <apa> — <kenapa> — <akibat bila salah>`.
+2. Ambil teks task dari rencana (`### Task N: ...` sampai sebelum `### Task N+1`). Itu kebutuhanmu, termasuk nilai persis yang harus dipakai.
+3. Terapkan keputusan pre-flight untuk task itu (dari `tasks/sp2-ledger.md`). Keputusan mengalahkan teks rencana bila berbeda.
+4. TDD: tulis tes yang gagal dulu, pastikan gagal karena alasan yang benar, baru implementasi, lalu jalankan lagi sampai lulus.
+5. Task yang menyentuh teks atau tampilan: jalankan audit yang diminta rencana (skill `antislop`, `antislop-copywriting`, `antislop-ui`, `antislop-layoutmobile`, `antislop-human`). AI tanpa skill itu menerapkan aturan spec bagian 4.6: kalimat pendek, tombol berupa kata kerja, tanpa istilah teknis di layar utama, tanpa emoji dekoratif, tanpa gradien atau kilau, huruf isi minimal 16 px di HP, area sentuh minimal 44 × 44 px, kontras WCAG AA, bisa dipakai dengan keyboard.
+6. Jalankan semua pemeriksaan (bagian 6). Semua harus hijau sebelum commit.
+7. Commit. Pesan commit diakhiri dengan baris `Co-Authored-By:` sesuai attribution AI yang kamu pakai (sesi sebelumnya: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`).
+8. Tambahkan entri 3–6 baris di bawah heading `## 2026-11-20 · SP2` di akhir `tasks/PROGRESS-LOG.md` (apa yang berubah, jumlah tes, yang tersisa), ikut dalam commit task itu.
+9. **Review sebelum lanjut.** Ikuti `tasks/sp1-reviewer-instructions.md` (berlaku juga untuk SP2) atas `git diff <BASE>..HEAD` dengan pikiran segar (sebaiknya sesi atau agen terpisah). Perbaiki semua temuan Critical/Important, lalu review ulang khusus bagian yang diperbaiki. Temuan Minor dicatat di ledger sebagai "minor (deferred)". Pengalaman SP1: task yang lolos semua tes tetap bisa punya masalah yang hanya ditemukan reviewer.
+10. Perbarui `tasks/sp2-ledger.md`: `Task N: complete (commits <base>..<head>, review clean)` atau keputusan yang kamu ambil (`Ruling: <apa> — <kenapa> — <akibat bila salah>`).
+11. Setelah semua task: satu review menyeluruh independen atas seluruh perubahan SP2 (`git diff dc3ba66..HEAD`, tanpa lockfile; `dc3ba66` adalah awal SP2), satu gelombang perbaikan, satu review ulang terbatas, lalu catat di ledger dan log (contoh: akhir `tasks/sp1-ledger.md`).
 
 Jangan menunggu persetujuan pemilik di antara task. Putuskan sendiri hal yang ambigu (spec adalah otoritas), catat sebagai Ruling, lalu lanjut. Berhenti dan tanya pemilik hanya untuk: operasi yang tidak bisa dibatalkan atau destruktif, tindakan sensitif keamanan, push/merge/publish, atau rencana yang rusak sehingga semua jalan hanya tebakan.
 
-## 5. Keputusan pre-flight per task (isi lengkap di `tasks/sp1-ledger.md`)
+## 5. Hal terbawa dari SP1 yang harus selesai di SP2 (spec 4.7)
 
-| Task | Keputusan |
-|---|---|
-| 4 | P14: jalankan `npx oxlint src` juga di langkah pemeriksaan. |
-| 5 | P1: di salinan `AuthGate.tsx` ganti `setErrorMsg(null)` dengan `if (errorKey) setErrorKey(null);`. P9: sebut kemunculan persis "Discord Community"/"Community"; tambah kunci `auth.*_alt` (id + en). P10: cari blok di `App.tsx` dari teksnya, bukan nomor baris. P20: pisahkan `src/platform/cloud/token.ts` yang bebas efek samping dan import itu dari AuthGate. Dari Task 3: adapter cloud wajib mengimplementasikan `askNotifyPermission()` dengan `askBrowserNotifyPermission`; anggota browser yang sama dengan local diambil dari `src/platform/browser.ts`; sembunyikan bagian updater di Pengaturan bila tidak ada updater (P5). |
-| 7, 8 | P4: baca `video_signing.key` sekali per request lalu teruskan byte kunci ke `sign`/`with_video_urls`; jangan disimpan antar request. |
-| 9 | P11: pakai helper bersama `src/test/sourceFiles.ts` untuk tes pemindai sumber. P12: `useSignedVideo` meminta link baru hanya bila path atau link benar-benar berubah. |
-| 10 | P3: `web_ui._serve` memanggil `path_guard.is_protected()` sebelum membuka file apa pun, jawab 404, dan beri tes. |
-| 11 | P7: tes `ui_dir` menormalkan kedua sisi (`os.path.normcase(os.path.realpath(...))`). P15: `test_free_port` diberi assert eksplisit. |
-| 13 | P2: `web-package.yml` cukup `contents: read`; unggah ke rilis dipindah ke job baru di `build.yml` (unduh artefak zip, `gh release upload --clobber`). P16: `TemporaryDirectory(ignore_cleanup_errors=True)` di skrip smoke. |
-| 14 | P6: README "Opsi 3" (`cd web`, sekitar baris 100) ikut diperbarui dan grep diperluas. P18: tambahkan rujukan silang dari AGENTS.md E.12 ke pengecualian F.7 / ADR-013. |
-| semua | P11: logika yang sama jangan disalin; satu helper penulisan atomik 0600 di backend dipakai bersama. P13 (sudah di Task 2): token hanya dikirim bila origin request sama dengan origin backend, jadi setiap panggilan backend wajib membangun URL dari `API_URL`. |
+- Cek port bebas web lokal (`backend/web_mode.py` `port_is_free`/`choose_port`) juga menganggap port terpakai bila `connect(("127.0.0.1", port))` berhasil.
+- `docs/tutorial-auto-clipper-cloud.md` sekitar baris 437–438 (Kendala 9): `$\rightarrow$` rusak menjadi dua baris; perbaiki.
+- Komentar menyesatkan di `backend/tests/test_web_mode.py` (`test_a_launch_after_a_damaged_instance_file_starts_a_new_server`, "the real liveness check").
+- `platform().pickVideo()` dipakai di langkah 1; gambar latar kanvas di web lokal/cloud diunggah ke backend (bukan `blob:`).
 
 ## 6. Lingkungan (Windows, mesin pemilik)
 
-- Tes Python: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q -p no:cacheprovider`. Jangan pakai `python` dari PATH (hanya pintasan Microsoft Store). Baseline awal SP1: 694 lulus, 7 dilewati; akhir SP1: 780 lulus, 11 dilewati.
-- Frontend (dari root repo): `npm run build`, `npx vitest run`, `npx oxlint src` (0 error; warning boleh). Mulai Task 5 juga `npm run build:cloud`.
-- **Vitest harus dijalankan dari path dengan huruf drive besar** (`C:\Users\...`). Dari `c:\...` (misalnya Git Bash `/c/...`) Vitest termuat dua kali dan gagal "Cannot read properties of undefined (reading 'config')". Di Git Bash: `cd 'C:/Users/dhima/projects/auto-clipper'`.
+- Tes Python: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q -p no:cacheprovider`. Jangan pakai `python` dari PATH (hanya pintasan Microsoft Store). Baseline awal SP2: 805 lulus, 12 dilewati.
+- Frontend (dari root repo): `npm run build`, `npm run build:cloud`, `npx vitest run` (baseline awal SP2: 89 lulus), `npx oxlint src` (0 error; warning boleh).
+- **Vitest harus dijalankan dari path dengan huruf drive besar** (`C:\Users\...`). Dari `c:\...` (misalnya Git Bash `/c/...`) Vitest termuat dua kali dan gagal "Cannot read properties of undefined (reading 'config')". Di Git Bash, pindah dulu ke `C:/Users/dhima/projects/auto-clipper` (huruf C besar).
 - Tidak ada Rust: `npm run tauri build` tidak bisa dijalankan. Desktop diverifikasi lewat tes dengan plugin di-mock, workflow PR Check, dan daftar cek manual pemilik.
 - FFmpeg untuk eksperimen: `C:\Users\dhima\projects\auto-clipper\node_modules\ffmpeg-static\ffmpeg.exe`.
+- Melihat UI di browser tanpa Tauri: `npm run build`, lalu backend mode web (`C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m backend.main --web`, lihat `backend/web_mode.py`), atau `npm run dev` bersama backend dev.
 
 ## 7. Aturan kerja dan preferensi pemilik
 
-- Semua teks yang dilihat pengguna: bahasa Indonesia yang mudah dipahami orang awam, plus bahasa Inggris, menjawab "apa yang terjadi, kenapa, harus apa". Istilah teknis hanya di "Detail teknis". Tanpa gaya tulisan AI yang berlebihan.
-- Backend: tidak boleh `print()` ke stdout di modul backend (handshake sidecar desktop bergantung pada stdout), kecuali entry point CLI. Error lewat `log_error(...)`. Jangan pernah mencatat isi cookies atau kunci API.
+- Semua teks yang dilihat pengguna: bahasa Indonesia sehari-hari yang mudah dipahami orang awam, plus bahasa Inggris, menjawab "apa yang terjadi, kenapa, harus apa". Istilah teknis hanya di "Detail teknis". Tanpa gaya tulisan AI yang berlebihan.
+- Backend: tidak boleh `print()` ke stdout di modul backend (handshake sidecar desktop bergantung pada stdout), kecuali entry point CLI. Error lewat `log_error(...)`. Jangan pernah mencatat isi cookies atau kunci API. Akses file dari path request wajib lewat `path_guard` (E.14).
 - Jangan mencentang task di `tasks/roadmap-todo.md` tanpa hasil tes yang benar-benar dijalankan.
-- **Protokol kuota:** bila pemilik bilang kuota sesinya hampir habis ("80%"), hentikan pekerjaan, pastikan semua tersimpan (commit `wip(sp1): ...` bila belum hijau), dan tulis entri baru di `tasks/PROGRESS-LOG.md` berisi posisi terakhir dan langkah berikutnya, supaya sesi berikutnya bisa melanjutkan.
+- **Protokol kuota:** bila pemilik bilang kuota sesinya hampir habis ("80%"), hentikan pekerjaan, pastikan semua tersimpan (commit `wip(sp2): ...` bila belum hijau), dan tulis entri baru di `tasks/PROGRESS-LOG.md` berisi posisi terakhir dan langkah berikutnya.
 - Laporan ke pemilik ditulis dalam bahasa Indonesia, singkat, berisi hasil nyata (angka tes, commit), dan jujur soal yang belum diverifikasi.
-- Setelah SP1 selesai: SP2 dimulai dengan brainstorm + spec yang disetujui pemilik sebelum kode apa pun. Cek manual tampilan T0.12 dan uji notebook Colab T0.13 dari SP0 masih menunggu pemilik dan dilakukan sebelum PR akhir.
+- Masih menunggu pemilik, dilakukan sebelum PR akhir: daftar cek manual SP1 (di `tasks/PROGRESS-LOG.md`, termasuk CI setelah push dan proyek Vercel kedua), cek manual tampilan T0.12 dan uji notebook Colab T0.13 dari SP0, dan uji pemakaian SP2 oleh orang awam (langkah terakhir rencana SP2).
+- Draf deskripsi PR akhir bagian SP0: `tasks/pr-draft-sp0.md`; bagian SP1 dan SP2 ditambahkan saat PR dibuka.
