@@ -28,3 +28,4 @@ Owner accepted all plan defaults (2026-11-20: "ikuti rekomendasi, yang penting U
 
 ## Tasks
 - Task 1: complete (commits 0f315db..684a272, review clean) — pytest 815 passed, 12 skipped (+10). Deferred minors: direct assertions for negative-percent clamp / `clips_total <= 0` / `tracking_engine_used`, and `dict | None` annotation alignment.
+- Task 2: complete (commits 00c7c20..6acf284, review clean) — pytest 829 passed, 12 skipped (+14, P5 applied). Deferred minors: `download_percent`/`live_stage` return type hints (`float | None`, `dict | None`), sibling loop runtime assertions, and mid-run HTTP check on manual resume.
