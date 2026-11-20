@@ -280,7 +280,8 @@
   },
   "common": {
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "close": "Close"
   },
   "smartEditor": {
     "title": "Smart Manual Clipper",
@@ -454,13 +455,13 @@
     "stage_transcribe": "Making subtitles",
     "stage_ai_analysis": "Picking the best moments",
     "stage_tracking": "Tracking faces",
-    "stage_render": "Rendering clips",
+    "stage_render": "Making the clips",
     "stage_hook_concat": "Adding the opening hook",
     "stage_publish": "Saving to the storage folder",
     "stage_clip": "Making clips",
     "devices_title": "What did the work",
     "device_whisper_device": "Subtitles",
-    "device_encoder": "Clip rendering",
+    "device_encoder": "Making the clips",
     "device_tracking_engine_used": "Face tracking",
     "whisper_device_cuda": "GPU (fast)",
     "whisper_device_cpu": "Regular processor, no GPU (slower)",

@@ -1,5 +1,6 @@
-import React from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import React, { useEffect, useId, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
 import { Button } from './Button';
 
 export interface ConfirmDialogProps {
@@ -23,38 +24,40 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const { t } = useTranslation();
+  const titleId = useId();
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    cancelRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onCancel]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-bg-secondary w-full max-w-md rounded-card shadow-dropdown border border-border overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-        <div className="flex justify-between items-start p-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            {isDestructive && (
-              <div className="p-2 bg-error/10 rounded-full text-error">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-            )}
-            <h2 className="text-section-title text-text-primary">{title}</h2>
-          </div>
-          <button
-            onClick={onCancel}
-            className="text-text-secondary hover:text-text-primary transition-colors p-1"
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-scrim p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-bg-secondary w-full max-w-md rounded-card border border-border shadow-dropdown"
+      >
+        <div className="flex justify-between items-start gap-3 p-5 border-b border-border">
+          <h2 id={titleId} className="text-section-title text-text-primary">{title}</h2>
+          <Button variant="ghost" icon={X} aria-label={t('common.close', 'Tutup')} onClick={onCancel} />
         </div>
-        <div className="p-6">
-          <p className="text-body text-text-secondary">{message}</p>
-        </div>
-        <div className="flex justify-end gap-3 p-6 bg-bg-surface border-t border-border">
-          <Button variant="ghost" onClick={onCancel}>
+        <p className="p-5 text-body text-text-primary">{message}</p>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 p-5 border-t border-border">
+          <Button ref={cancelRef} variant="outline" onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button 
-            variant={isDestructive ? 'danger' : 'primary'} 
-            onClick={onConfirm}
-          >
+          <Button variant={isDestructive ? 'danger' : 'primary'} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </div>

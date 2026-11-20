@@ -28,9 +28,10 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
           <button
             key={option.value}
             type="button"
-            className={`flex-1 px-3 py-1.5 text-label rounded-md transition-all duration-200 ${
-              isActive 
-                ? 'bg-bg-elevated text-text-primary shadow-sm border border-border-active' 
+            aria-pressed={isActive}
+            className={`flex-1 min-h-[44px] px-3 py-1.5 text-label rounded-md transition-colors duration-150 ${
+              isActive
+                ? 'bg-bg-secondary text-text-primary shadow-sm border border-border-active'
                 : 'text-text-secondary hover:text-text-primary border border-transparent'
             }`}
             onClick={() => onChange(option.value)}

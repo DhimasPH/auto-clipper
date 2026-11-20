@@ -15,16 +15,22 @@ export default {
           secondary: 'var(--bg-secondary)',
           elevated: 'var(--bg-elevated)',
           surface: 'var(--bg-surface)',
+          tertiary: 'var(--bg-surface)',
         },
         accent: {
           DEFAULT: 'var(--accent)',
           hover: 'var(--accent-hover)',
           muted: 'var(--accent-muted)',
         },
+        'on-accent': 'var(--on-accent)',
+        'input-bg': 'var(--bg-secondary)',
+        scrim: 'var(--scrim)',
+        danger: 'var(--error)',
         text: {
           primary: 'var(--text-primary)',
           secondary: 'var(--text-secondary)',
           tertiary: 'var(--text-tertiary)',
+          muted: 'var(--text-secondary)',
         },
         border: {
           DEFAULT: 'var(--border)',

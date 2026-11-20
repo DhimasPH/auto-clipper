@@ -3,83 +3,114 @@
 @tailwind utilities;
 
 @layer base {
+  /* SP2 (spec 4.6): calm and neutral, one blue accent, light and dark. Dark is the default,
+     light applies with data-theme="light" (useTheme). Every text/background pair is checked
+     for WCAG AA by src/styles/contrast.test.ts; change a value only with that test green. */
   :root {
-    --bg-primary: #0c0d11;
-    --bg-secondary: #14161e;
-    --bg-elevated: #1a1d28;
-    --bg-surface: #21242f;
+    color-scheme: dark;
+    --bg-primary: #141517;
+    --bg-secondary: #1C1D20;
+    --bg-elevated: #1C1D20;
+    --bg-surface: #26272B;
 
-    --accent: #6366f1;
-    --accent-hover: #818cf8;
-    --accent-muted: rgba(99, 102, 241, 0.12);
+    --accent: #7EA8FF;
+    --accent-hover: #A3C1FF;
+    --accent-muted: #1E2A40;
+    --on-accent: #0D1B33;
 
-    --text-primary: #f0f1f4;
-    --text-secondary: #7c8097;
-    --text-tertiary: #4a4f65;
+    --text-primary: #ECECEA;
+    --text-secondary: #A6A8AD;
+    --text-tertiary: #A6A8AD;
 
-    --border: rgba(255, 255, 255, 0.08);
-    --border-active: rgba(255, 255, 255, 0.16);
+    --border: #2E3034;
+    --border-active: #7A7D84;
 
-    --success: #10b981;
-    --error: #ef4444;
-    --warning: #f59e0b;
-    --info: #3b82f6;
+    --success: #6FD39A;
+    --error: #FF8A80;
+    --warning: #F2B866;
+    --info: #7EA8FF;
+    --scrim: rgba(0, 0, 0, 0.6);
   }
 
   [data-theme="light"] {
-    --bg-primary: #f8f9fb;
-    --bg-secondary: #ffffff;
-    --bg-elevated: #ffffff;
-    --bg-surface: #f1f3f7;
+    color-scheme: light;
+    --bg-primary: #F6F6F4;
+    --bg-secondary: #FFFFFF;
+    --bg-elevated: #FFFFFF;
+    --bg-surface: #ECECE9;
 
-    --accent: #4f46e5;
-    --accent-hover: #4338ca;
-    --accent-muted: rgba(79, 70, 229, 0.08);
+    --accent: #1F5FCC;
+    --accent-hover: #194FAA;
+    --accent-muted: #E8EEFB;
+    --on-accent: #FFFFFF;
 
-    --text-primary: #111827;
-    --text-secondary: #6b7280;
-    --text-tertiary: #9ca3af;
+    --text-primary: #1C1D1F;
+    --text-secondary: #55585E;
+    --text-tertiary: #55585E;
 
-    --border: rgba(0, 0, 0, 0.08);
-    --border-active: rgba(0, 0, 0, 0.16);
+    --border: #DCDDD9;
+    --border-active: #85888E;
 
-    --success: #059669;
-    --error: #dc2626;
-    --warning: #d97706;
-    --info: #2563eb;
+    --success: #1E7A3E;
+    --error: #B42318;
+    --warning: #9A5B00;
+    --info: #1F5FCC;
+    --scrim: rgba(0, 0, 0, 0.45);
   }
 
   body {
     @apply bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen font-sans;
     margin: 0;
   }
+
+  /* 16 px in form fields: readable on a phone, and iOS does not zoom in on focus. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Visible keyboard focus everywhere (antislop R-32); components may add a ring on top. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer utilities {
   .text-page-title {
-    @apply text-[24px] font-bold;
+    @apply text-[24px] leading-tight font-bold;
   }
   .text-section-title {
-    @apply text-[18px] font-semibold;
+    @apply text-[20px] leading-snug font-semibold;
   }
   .text-card-title {
-    @apply text-[16px] font-semibold;
+    @apply text-[18px] leading-snug font-semibold;
   }
   .text-body {
-    @apply text-[14px] font-normal;
+    @apply text-[16px] leading-relaxed font-normal;
   }
   .text-label {
-    @apply text-[13px] font-medium;
+    @apply text-[14px] font-medium;
   }
   .text-caption {
-    @apply text-[12px] font-normal;
+    @apply text-[14px] font-normal;
   }
   .text-overline {
-    @apply text-[11px] font-semibold uppercase tracking-wider;
+    @apply text-[12px] font-semibold uppercase tracking-wide;
   }
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -87,9 +118,6 @@
   background: var(--bg-primary);
 }
 ::-webkit-scrollbar-thumb {
-  background: #374151;
+  background: var(--border-active);
   border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #4b5563;
 }

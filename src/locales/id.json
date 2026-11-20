@@ -280,7 +280,8 @@
   },
   "common": {
     "cancel": "Batal",
-    "save": "Simpan"
+    "save": "Simpan",
+    "close": "Tutup"
   },
   "smartEditor": {
     "title": "Manual Clipper",
@@ -454,13 +455,13 @@
     "stage_transcribe": "Membuat subtitle",
     "stage_ai_analysis": "Memilih momen terbaik",
     "stage_tracking": "Melacak wajah",
-    "stage_render": "Merender klip",
+    "stage_render": "Membuat klip",
     "stage_hook_concat": "Menambahkan hook pembuka",
     "stage_publish": "Menyimpan ke folder penyimpanan",
     "stage_clip": "Membuat klip",
     "devices_title": "Yang mengerjakan",
     "device_whisper_device": "Subtitle",
-    "device_encoder": "Render klip",
+    "device_encoder": "Pembuatan klip",
     "device_tracking_engine_used": "Pelacakan wajah",
     "whisper_device_cuda": "GPU (cepat)",
     "whisper_device_cpu": "Prosesor biasa, tanpa GPU (lebih lambat)",
