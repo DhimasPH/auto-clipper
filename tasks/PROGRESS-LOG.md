@@ -607,8 +607,14 @@ Langkah berikutnya:
 Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputar, simpan klip, buka folder (desktop dan web lokal), Pengaturan, cookies (unggah dan hapus), kartu error (mis. URL salah, video unggahan hilang), Riwayat, Rerender All.
 
 - [ ] Desktop Windows (installer dari "PR Check" atau build lokal): semua butir di atas; pembaruan aplikasi masih terdeteksi; komputer tidak tidur saat render.
-- [ ] Web lokal Windows (zip dari "Web Package"): semua butir; SmartScreen "Run anyway"; peluncur kedua membuka tab baru; menutup jendela → kartu "Jendela Auto Clipper sudah ditutup".
+- [ ] Web lokal Windows (zip dari "Web Package"): semua butir; SmartScreen "Run anyway"; peluncur kedua membuka tab baru; tutup lalu buka lagi → port sama dan API key/pengaturan masih ada; menutup jendela → kartu "Jendela Auto Clipper sudah ditutup".
 - [ ] Web lokal macOS (arm64 atau x64): pembukaan pertama lewat System Settings → Privacy & Security → Open Anyway (macOS 15+) atau klik kanan → Open (macOS 14 ke bawah); cek juga backend dan FFmpeg jalan tanpa peringatan lagi; semua butir.
 - [ ] Web lokal Linux (bila ada mesin): semua butir.
-- [ ] Cloud: proyek Vercel kedua dari branch ini (Root Directory kosong, Node 22.x, `VITE_API_URL`), Colab dengan branch ini: masuk dengan kode akses, Manual AI Editor → Riwayat → Lanjut Manual, Drive, cookies, putar dan unduh klip dari HP.
+- [ ] Cloud: proyek Vercel kedua dari branch ini (Root Directory kosong, Node 22.x, `VITE_API_URL`), Colab dengan branch ini: masuk dengan kode akses (kode salah → pesan "Kode akses ditolak", bukan "Server Colab tidak bisa dihubungi"), Manual AI Editor → Riwayat → Lanjut Manual, Drive, cookies, putar dan unduh klip dari HP.
 - [ ] Saat PR akhir digabung: proyek Vercel produksi → Root Directory kosong, Node 22.x, Redeploy.
+
+### 2026-11-20 · Perbaikan review akhir SP1
+
+- Review akhir (Needs fixes: Important 2, Minor 8) diperbaiki dalam satu gelombang, 8 commit `3683d0a..6313443`: I1 web lokal memakai ulang port peluncuran sebelumnya (`web_port.json`, 0600) sehingga API key/pengaturan di browser tidak hilang; I2 panduan macOS 15+ "Open Anyway"; M1 `xfce4-terminal -x`; M2 pesan antivirus di peluncur Windows; M3 `web_instance.json` rusak tidak lagi menghentikan peluncuran; M4 tombol Drive di dua panduan; M5 401 cloud membawa header CORS; M7 Linux butuh glibc 2.35; M8 `npm audit fix` (0 kerentanan).
+- Tes: `pytest` 805 lulus / 12 dilewati; Vitest 22 file / 89 lulus; `npm run build` & `build:cloud` OK; `oxlint src` 0 error (30 peringatan lama). Cek nyata: dua peluncuran `backend.main --web` (yang pertama dimatikan paksa) mendapat port yang sama dengan token baru.
+- Tersisa: M6 (`pickVideo()` tak terpakai) ke SP2; daftar cek manual pemilik di atas (macOS 15+, Xfce, antivirus, cloud 401 dari HP).

@@ -107,3 +107,13 @@ Range 2afbb42..89fce4f. Verdict: Needs fixes — Critical 0, Important 2, Minor 
 - Ruling: fix I1, I2, M1–M5 in one fix wave — all small, M5 changes what a cloud user sees on a wrong token — cost: one fix wave.
 - Ruling: M8 run `npm audit fix` (no --force), keep only if every check stays green — axios/react-router ship in the bundle — cost if wrong: reverted.
 - Ruling: M6 `pickVideo()` unused → SP2 (UI rework decides the picker); M7 Linux zip needs glibc ≥ 2.35 → document in BACA-SAYA — cost: none.
+- Final: I1 fixed in 698f9a3 (port kept in `web_port.json`, reused while free; BACA-SAYA, AGENTS.md E.14/E.18, ADR-013 C); docs on macOS/Linux in 612f479.
+- Final: I2 fixed in 612f479 (BACA-SAYA id + en, README Opsi 6, CHANGELOG, ADR-013 D, spec 4.6, `.command` header, owner checklist). Needs owner check on a real macOS 15+ machine.
+- Final: M1 fixed in 71c44ab (`xfce4-terminal -x`).
+- Final: M2 fixed in 2fa6935 (OSError → bilingual antivirus message, window stays open).
+- Final: M3 fixed in 3683d0a (`valid_port`, bool pid refused, `_status` catches every request error).
+- Final: M4 fixed in 5da975b (both guides point to the Local Video (.mp4) tab button).
+- Final: M5 fixed in c502f98 (CORSMiddleware registered after `verify_token`; ADR-011 regex unchanged; AGENTS.md A.4 notes the order; AuthGate Vitest pins 401 → token messages, no frontend change needed).
+- Final: M6 not fixed — deferred to SP2 per ruling above.
+- Final: M7 fixed in 612f479 (BACA-SAYA, README, CHANGELOG).
+- Final: M8 fixed in 6313443 (`npm audit fix`, no --force: axios 1.21.1, react-router 7.18.6; `npm audit` 0; all checks green).
