@@ -59,6 +59,11 @@ MISSING_UI_TEXT = (
 
 # --- instance file ------------------------------------------------------------------------------
 
+def valid_port(value) -> bool:
+    """A TCP port number. bool is an int subclass in Python, so it is refused explicitly."""
+    return type(value) is int and 0 < value < 65536
+
+
 def instance_path(data_dir: Optional[str] = None) -> str:
     return os.path.join(data_dir or get_app_data_dir(), INSTANCE_FILE_NAME)
 
@@ -73,7 +78,7 @@ def read_instance(path: str) -> Optional[dict]:
     if not isinstance(data, dict):
         return None
     port, pid, token = data.get("port"), data.get("pid"), data.get("token")
-    if not isinstance(port, int) or not isinstance(pid, int) or not isinstance(token, str) or not token:
+    if not valid_port(port) or type(pid) is not int or not isinstance(token, str) or not token:
         return None
     return {"port": port, "pid": pid, "token": token}
 
@@ -104,7 +109,9 @@ def _status(request: urllib.request.Request, timeout: float) -> Optional[int]:
             return response.status
     except urllib.error.HTTPError as e:
         return e.code
-    except (OSError, ValueError):
+    except Exception:
+        # Not reachable, or an address urllib refuses (InvalidURL, OverflowError on a damaged
+        # instance file): no server there. A failing check must never stop the launch.
         return None
 
 

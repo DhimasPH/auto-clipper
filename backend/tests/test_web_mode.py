@@ -209,3 +209,36 @@ def test_backend_main_with_web_flag_runs_the_launcher(tmp_path):
 
     assert result.returncode == 1
     assert "was not found" in result.stdout
+
+
+# --- a damaged web_instance.json must not stop every launch (review M3) --------------------------
+
+@pytest.mark.parametrize("content", [
+    '{"port": true, "pid": 1, "token": "t"}',
+    '{"port": 0, "pid": 1, "token": "t"}',
+    '{"port": 70000, "pid": 1, "token": "t"}',
+    '{"port": 5123, "pid": true, "token": "t"}',
+])
+def test_an_instance_file_with_a_bad_port_or_pid_counts_as_no_instance(tmp_path, content):
+    path = tmp_path / "web_instance.json"
+    path.write_text(content, encoding="utf-8")
+
+    assert web_mode.read_instance(str(path)) is None
+
+
+@pytest.mark.parametrize("port", [True, 70000, -1])
+def test_instance_alive_answers_false_for_a_port_it_cannot_reach(port):
+    assert web_mode.instance_alive({"port": port, "pid": 1, "token": "t"}, timeout=0.5) is False
+
+
+def test_a_launch_after_a_damaged_instance_file_starts_a_new_server(tmp_path, ui, web_env):
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "web_instance.json").write_text('{"port": true, "pid": 1, "token": "t"}', encoding="utf-8")
+    serve = FakeServer(data / "web_instance.json")
+
+    code = web_mode.launch("APP", ["--web", "--ui-dir", str(ui)], io.StringIO(), serve=serve,
+                           open_browser=lambda url: True, data_dir=str(data))  # the real liveness check
+
+    assert code == 0
+    assert serve.calls
