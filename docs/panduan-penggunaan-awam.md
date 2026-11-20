@@ -182,7 +182,7 @@ Yang perlu diketahui:
 - Cookies punya masa berlaku. Kalau muncul "Cookies YouTube sudah kedaluwarsa", login lagi dengan akun cadangan, ekspor ulang, lalu unggah file baru.
 - Kalau muncul "File ini bukan dari akun yang sedang login", Anda mengekspor saat belum login. Login dulu, baru ekspor.
 
-*Cara 2: Pakai file videonya langsung.* Unduh videonya sendiri, simpan ke Google Drive Anda, lalu tekan **Pilih video dari Google Drive** di kotak merah (atau tombol **Drive** di sebelah kolom link) dan pilih file tersebut.
+*Cara 2: Pakai file videonya langsung.* Unduh videonya sendiri, simpan ke Google Drive Anda, lalu tekan **Pilih video dari Google Drive** di kotak merah (atau buka tab **Local Video (.mp4)** dan tekan tombol **Pilih video dari Google Drive** di sana) dan pilih file tersebut.
 
 **8. Muncul "YouTube membatasi unduhan untuk sementara"?**
 **J:** YouTube menerima terlalu banyak permintaan dari mesin yang sama. Tunggu hingga satu jam lalu coba lagi, atau pakai Cara 2 di nomor 7.
