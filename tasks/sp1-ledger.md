@@ -98,3 +98,12 @@ Task 14: DONE, commits f45b1d1 & e9d3369 (web/ + check-web-strings.mjs deleted +
 Task 14: minor (deferred): untouched troubleshooting sections still mention Drive button near URL field — docs/tutorial-auto-clipper-cloud.md:424 & docs/panduan-penggunaan-awam.md:185; menu Riwayat/Manual AI Editor vs page header History/Manual AI Clipper left for SP2 — docs/ & src/pages/; untouched SP2 backlog T2.x mentions `web/` — tasks/roadmap-todo.md:118; condensed Task 14 PROGRESS-LOG bullet — tasks/PROGRESS-LOG.md:603; 30 pre-existing oxlint warnings.
 Task 14: complete (commits b207969..e9d3369, review clean)
 SP1: COMPLETE (Tasks 1-14 all complete and review-approved on feat/sp1-single-frontend-web-local; owner manual checklist in tasks/PROGRESS-LOG.md)
+
+## Final whole-branch review (2026-11-20, independent, opus; fable unavailable — needs usage credits)
+Range 2afbb42..89fce4f. Verdict: Needs fixes — Critical 0, Important 2, Minor 8. No security holes found. Report: `.superpowers/sdd/2026-11-18-sp1-single-frontend-web-local/final-review-report.md` (local).
+- I1 local web forgets browser settings/API keys every launch (random port → new origin). Owner decision 2026-11-20: reuse the last port when free, else random; token stays per launch. Spec 4.4 updated.
+- I2 macOS first-launch docs ("klik kanan → Open") wrong for macOS 15+: add System Settings → Privacy & Security → "Open Anyway" (id + en).
+- M1 xfce4-terminal `-e` arg; M2 uncaught OSError in Windows launcher; M3 bad port in web_instance.json crashes every launch; M4 stale Drive-button wording in two guides; M5 cloud 401 without CORS headers shows "server offline" instead of a token error.
+- Ruling: fix I1, I2, M1–M5 in one fix wave — all small, M5 changes what a cloud user sees on a wrong token — cost: one fix wave.
+- Ruling: M8 run `npm audit fix` (no --force), keep only if every check stays green — axios/react-router ship in the bundle — cost if wrong: reverted.
+- Ruling: M6 `pickVideo()` unused → SP2 (UI rework decides the picker); M7 Linux zip needs glibc ≥ 2.35 → document in BACA-SAYA — cost: none.

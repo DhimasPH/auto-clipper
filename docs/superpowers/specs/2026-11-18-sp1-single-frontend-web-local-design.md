@@ -102,7 +102,7 @@ Tidak dipindah: `Dashboard/HeroInput`, `ResultsModal`, `PromptJsonModal`, `Histo
 ### 4.4 Backend menyajikan UI (mode web lokal)
 
 - Mode baru, diaktifkan peluncur (`--web`). Backend menyajikan hasil build UI: `GET /` → `index.html`, `/assets/*` → file statis. Navigasi memakai `HashRouter`, jadi tidak perlu fallback SPA dan tidak bentrok dengan endpoint API yang ada.
-- Bind ke `127.0.0.1` saja, port acak yang kosong.
+- Bind ke `127.0.0.1` saja. Port: pakai ulang port peluncuran sebelumnya bila masih kosong, selain itu port acak yang kosong (keputusan pemilik 2026-11-20: browser menyimpan pengaturan per alamat termasuk port, jadi port acak setiap kali membuat API key dan pengaturan hilang). Token tetap baru setiap peluncuran.
 - Token acak per peluncuran, wajib untuk semua endpoint di mode ini (seperti build terpasang dan mode cloud sekarang). `/`, `/assets/*`, `/health` tanpa token.
 - Satu instance: peluncur menulis `{port, pid}` ke app data. Bila instance hidup ditemukan (`/health` menjawab), peluncur hanya membuka browser ke server itu lalu keluar.
 - Peluncur membuka `http://127.0.0.1:<port>/#t=<token>` dengan `webbrowser.open`, lalu menampilkan di jendela konsol: "Auto Clipper berjalan. Jangan tutup jendela ini selama memakai aplikasi." beserta alamatnya (bila browser tidak terbuka sendiri). Menutup jendela menghentikan server.
