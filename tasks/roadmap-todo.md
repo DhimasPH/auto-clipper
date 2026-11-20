@@ -108,9 +108,9 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 - [x] T1.x Model token untuk akses localhost · `8fe5570`, `7c1838e`, `0e5da33`, `b207969`
 - [x] T1.x `/video` dikecualikan dari cek token: siapa pun yang tahu URL tunnel Colab bisa mengambil `.mp4` apa pun di app data, work dir, atau folder kerja proses. Perlu token atau URL bertanda tangan untuk pemutar video · `092c907`, `2ac1b3a`, `df54bef`. (Sisa `canvas_config.background_image_path` dan `output_dir` dicatat sebagai `T1.y` di bawah.)
 - [x] T1.x Hapus duplikasi `src/` dan `web/`, samakan versi React · `5652aec`, `3f7bd3b`, `97716b3`, `f45b1d1`
-- [x] T1.y (dari T0.19) `canvas_config.background_image_path` kini lewat `/upload-image` + `path_guard` (SP2 Task 3).
+- [x] T1.y (dari T0.19) `canvas_config.background_image_path` kini lewat `/upload-image` + `path_guard` (SP2 Task 3, `960768d`).
 - [ ] T1.y (dari T0.19, tidak dicakup spec SP1) `output_dir` masih menerima path bebas (tujuan tulis). Pindah ke SP3 (`output_dir` stays a free path).
-- [x] T1.y Gambar latar kanvas di web lokal dan cloud tidak lagi memakai `blob:`, diunggah lewat `POST /upload-image` (SP2 Task 3).
+- [x] T1.y Gambar latar kanvas di web lokal dan cloud tidak lagi memakai `blob:`, diunggah lewat `POST /upload-image` (SP2 Task 3, `960768d`).
 
 ## SP2: Revamp UI/UX untuk orang awam, bebas AI slop (belum dimulai)
 

@@ -114,4 +114,40 @@ describe("CanvasConfigControls background image picker", () => {
     expect(onChange).not.toHaveBeenCalled();
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(i18n.t("canvas.upload_failed"));
   });
+
+  it("disables uploading again while in flight and merges against the latest config", async () => {
+    let finish!: (path: string) => void;
+    vi.mocked(uploadCanvasImage).mockReturnValue(new Promise<string>((r) => { finish = r; }));
+    setPlatform(fakePlatform(CAPS.local, vi.fn(async () => null)));
+    const onChange = vi.fn();
+    const button = renderControls(onChange);
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", {
+      value: [new File(["png"], "latar.png", { type: "image/png" })],
+      configurable: true,
+    });
+    act(() => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(button.disabled).toBe(true);
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(i18n.t("canvas.uploading_image"));
+
+    // User changes enlarge_scale while upload is still in flight.
+    act(() => {
+      root.render(<CanvasConfigControls config={{ ...imageConfig, enlarge_scale: 1.5 }} onChange={onChange} />);
+    });
+
+    await act(async () => {
+      finish("/work/temp_downloads/images/bg_new.png");
+    });
+
+    expect(button.disabled).toBe(false);
+    expect(onChange).toHaveBeenCalledWith({
+      ...imageConfig,
+      enlarge_scale: 1.5,
+      background_image_path: "/work/temp_downloads/images/bg_new.png",
+    });
+  });
 });

@@ -1,6 +1,7 @@
 """Canvas background images go to the backend (SP2 spec 4.7) and job requests cannot point the
 canvas image at a private app file (AGENTS.md E.14)."""
 import os
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -34,7 +35,7 @@ def test_upload_image_stores_the_file_and_returns_its_backend_path(library):
     path = r.json()["path"]
     assert os.path.normcase(os.path.abspath(path)).startswith(_images(library))
     assert path.endswith("latar.png")
-    assert open(path, "rb").read() == b"\x89PNG data"
+    assert Path(path).read_bytes() == b"\x89PNG data"
 
 
 def test_two_uploads_with_the_same_name_keep_both_files(library):
@@ -42,8 +43,8 @@ def test_two_uploads_with_the_same_name_keep_both_files(library):
     second = _upload("latar.jpg", b"two", "image/jpeg").json()["path"]
 
     assert first != second
-    assert open(first, "rb").read() == b"one"
-    assert open(second, "rb").read() == b"two"
+    assert Path(first).read_bytes() == b"one"
+    assert Path(second).read_bytes() == b"two"
 
 
 @pytest.mark.parametrize("name", ["notes.txt", "clip.mp4", "history.db", "no-extension"])

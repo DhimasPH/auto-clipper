@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Sparkles, Palette, Image as ImageIcon, Check, Upload, Trash2, Info, Monitor, Smartphone } from "lucide-react";
 import { uploadCanvasImage } from "../../api";
@@ -27,6 +27,11 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
 }) => {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const configRef = useRef(config);
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+  const uploadSeq = useRef(0);
   const [uploading, setUploading] = useState(false);
   const [uploadFailed, setUploadFailed] = useState(false);
 
@@ -38,6 +43,7 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
   const enlargeScale = config.enlarge_scale || 1.0;
 
   const handleSelectImage = async () => {
+    if (uploading) return;
     // No OS dialog (local/cloud): the browser file input, opened synchronously so the click still counts as a user gesture.
     if (!platform().caps.localFilePicker) {
       fileInputRef.current?.click();
@@ -46,8 +52,9 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
     try {
       const selected = await platform().pickImage();
       if (selected) {
+        setUploadFailed(false);
         onChange({
-          ...config,
+          ...configRef.current,
           background_type: "image",
           background_image_path: selected,
         });
@@ -63,20 +70,22 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const seq = ++uploadSeq.current;
     setUploading(true);
     setUploadFailed(false);
     try {
       const path = await uploadCanvasImage(file);
+      if (seq !== uploadSeq.current) return;
       onChange({
-        ...config,
-        background_type: "image",
+        ...configRef.current,
         background_image_path: path,
       });
     } catch (err) {
+      if (seq !== uploadSeq.current) return;
       console.error("Canvas image upload failed:", err);
       setUploadFailed(true);
     } finally {
-      setUploading(false);
+      if (seq === uploadSeq.current) setUploading(false);
     }
   };
 
@@ -293,6 +302,7 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
               <input
                 type="file"
                 ref={fileInputRef}
+                disabled={uploading}
                 onChange={handleWebFileChange}
                 accept="image/png, image/jpeg, image/jpg, image/webp"
                 className="hidden"
@@ -300,8 +310,9 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
               <div className="flex items-center gap-3">
                 <button
                   type="button"
+                  disabled={uploading}
                   onClick={handleSelectImage}
-                  className="px-3.5 py-2 rounded-lg bg-bg-surface border border-border hover:border-accent hover:text-accent text-text-primary text-xs font-medium flex items-center gap-2 transition-colors"
+                  className="px-3.5 py-2 rounded-lg bg-bg-surface border border-border hover:border-accent hover:text-accent text-text-primary text-xs font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Upload className="w-4 h-4" />
                   {bgImage
@@ -313,7 +324,10 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
                     <span className="truncate">{bgImage.split(/[\\/]/).pop()}</span>
                     <button
                       type="button"
-                      onClick={() => onChange({ ...config, background_image_path: "" })}
+                      onClick={() => {
+                        setUploadFailed(false);
+                        onChange({ ...config, background_image_path: "" });
+                      }}
                       className="text-red-400 hover:text-red-300 p-0.5"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
