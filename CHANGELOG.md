@@ -7,7 +7,7 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file in
 Rilis SP1 (frontend tunggal dan web lokal). Tanggal diisi saat rilis (plan question 10).
 
 ### Added
-- **Auto Clipper Web (tanpa instalasi)**: Paket zip untuk Windows, macOS Apple Silicon, macOS Intel, dan Linux. Klik dua kali "Auto Clipper Web", lalu aplikasi terbuka di browser; semua proses tetap di komputer sendiri. Jendela "Auto Clipper berjalan" harus tetap terbuka selama dipakai. Membuka "Auto Clipper Web" lagi hanya membuka tab baru pada aplikasi yang sudah berjalan.
+- **Auto Clipper Web (tanpa instalasi)**: Paket zip untuk Windows, macOS Apple Silicon, macOS Intel, dan Linux. Klik dua kali "Auto Clipper Web", lalu aplikasi terbuka di browser; semua proses tetap di komputer sendiri. Jendela "Auto Clipper berjalan" harus tetap terbuka selama dipakai. Membuka "Auto Clipper Web" lagi hanya membuka tab baru pada aplikasi yang sudah berjalan. Port yang sama dipakai lagi setiap kali dibuka (bila masih kosong), jadi pengaturan dan API key yang tersimpan di browser tetap ada. macOS 15 ke atas: pembukaan pertama lewat System Settings → Privacy & Security → **Open Anyway**. Paket Linux butuh Ubuntu 22.04 atau lebih baru (glibc 2.35).
 - **Kartu error baru**: "Video tidak bisa diputar" (dengan **Coba lagi**), serta untuk web lokal: halaman yang dibuka tanpa kunci akses, kunci akses yang sudah tidak berlaku, dan jendela Auto Clipper yang sudah ditutup.
 
 ### Changed

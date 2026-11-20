@@ -137,8 +137,8 @@ Jika Anda ingin memproses video dari smartphone atau PC Anda tidak memiliki GPU 
 
 Untuk komputer yang tidak mau dipasangi aplikasi desktop. Semua proses tetap berjalan di komputer Anda.
 
-1. Unduh zip yang cocok dari [halaman rilis](https://github.com/DhimasPH/auto-clipper/releases): `Auto-Clipper-Web-windows.zip`, `Auto-Clipper-Web-macos-arm64.zip` (Mac Apple Silicon), `Auto-Clipper-Web-macos-x64.zip` (Mac Intel), atau `Auto-Clipper-Web-linux.zip`.
-2. Ekstrak seluruh isinya ke satu folder, lalu klik dua kali **Auto Clipper Web** (macOS, pertama kali: klik kanan → **Open**; Windows: bila SmartScreen muncul, **More info** → **Run anyway**).
+1. Unduh zip yang cocok dari [halaman rilis](https://github.com/DhimasPH/auto-clipper/releases): `Auto-Clipper-Web-windows.zip`, `Auto-Clipper-Web-macos-arm64.zip` (Mac Apple Silicon), `Auto-Clipper-Web-macos-x64.zip` (Mac Intel), atau `Auto-Clipper-Web-linux.zip` (Ubuntu 22.04 atau lebih baru, atau distro lain dengan glibc 2.35 ke atas).
+2. Ekstrak seluruh isinya ke satu folder, lalu klik dua kali **Auto Clipper Web**. Windows: bila SmartScreen muncul, **More info** → **Run anyway**. macOS 15 (Sequoia) atau lebih baru, pertama kali: tutup pesan peringatan dengan **Done**, buka **System Settings** → **Privacy & Security**, klik **Open Anyway** di samping `Auto Clipper Web.command`, lalu masukkan kata sandi Mac. macOS 14 atau lebih lama: klik kanan → **Open**.
 3. Jendela bertuliskan "Auto Clipper berjalan" terbuka dan browser membuka aplikasinya. Jangan tutup jendela itu selama memakai aplikasi.
 
 Panduan lengkapnya ada di `BACA-SAYA.txt` di dalam zip. Untuk developer: `npm run build`, lalu `python -m backend.main --web`.

@@ -38,7 +38,7 @@
 
 ### D. Paket "Auto Clipper Web"
 - `.github/workflows/web-package.yml` membangun `Auto-Clipper-Web-<windows|macos-arm64|macos-x64|linux>.zip` dari `backend.spec` yang sama dengan desktop (onefile di Windows/Linux, onedir di macOS), `ffmpeg-static@5`, dan build UI; uji asap di CI; zip dilampirkan ke rilis `app-v<versi>`.
-- Peluncur: `Auto Clipper Web.exe` (`scripts/web_launcher.py`), `Auto Clipper Web.command` (macOS), `Auto Clipper Web.sh` (Linux). Tidak ditandatangani; `BACA-SAYA.txt` menjelaskan SmartScreen dan klik kanan → Open.
+- Peluncur: `Auto Clipper Web.exe` (`scripts/web_launcher.py`), `Auto Clipper Web.command` (macOS), `Auto Clipper Web.sh` (Linux). Tidak ditandatangani; `BACA-SAYA.txt` menjelaskan SmartScreen dan, untuk macOS, System Settings → Privacy & Security → **Open Anyway** (macOS 15 ke atas; klik kanan → Open tidak lagi melewati Gatekeeper) atau klik kanan → Open (macOS 14 ke bawah). Paket Linux dibangun di Ubuntu 22.04, jadi butuh glibc 2.35 ke atas.
 - Folder data sama dengan aplikasi desktop.
 
 ### E. Kartu error buatan frontend

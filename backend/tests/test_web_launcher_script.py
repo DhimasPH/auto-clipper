@@ -202,7 +202,11 @@ def test_linux_launcher_passes_the_script_the_way_each_terminal_expects():
 def test_readme_explains_every_os_in_both_languages():
     text = (PACKAGING / "BACA-SAYA.txt").read_text(encoding="utf-8")
 
-    for phrase in ("Windows", "macOS", "Linux", "Run anyway", "Open", "Jangan tutup", "Do not close", "#t="):
+    for phrase in ("Windows", "macOS", "Linux", "Run anyway", "Open", "Jangan tutup", "Do not close", "#t=",
+                   # macOS 15+: right-click > Open no longer passes Gatekeeper (final review I2)
+                   "Privacy & Security", "Open Anyway", "macOS 15",
+                   # settings live in the browser per address (I1); the Linux build needs glibc 2.35 (M7)
+                   "disimpan di browser", "kept in the browser", "glibc 2.35"):
         assert phrase in text, phrase
 
 

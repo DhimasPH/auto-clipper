@@ -123,7 +123,7 @@ Pemutar `<video>` tidak bisa mengirim header `Authorization`, karena itu `/video
 
 - GitHub Actions membangun per OS (Windows, macOS arm64/x64, Linux): backend PyInstaller yang sama dengan desktop (onedir), FFmpeg (`ffmpeg-static@5`, sama dengan installer desktop), dan `dist/` UI. Diunggah ke rilis sebagai `Auto-Clipper-Web-<os>.zip`.
 - Isi zip: folder aplikasi dan peluncur yang diberi nama "Auto Clipper Web" (`.exe` di Windows, skrip `.command` di macOS, skrip `.sh` di Linux) yang menjalankan backend dengan `--web`.
-- macOS: tidak ditandatangani Apple; panduan menjelaskan klik kanan → Open pada pembukaan pertama.
+- macOS: tidak ditandatangani Apple; panduan menjelaskan pembukaan pertama: System Settings → Privacy & Security → Open Anyway di macOS 15 ke atas, klik kanan → Open di macOS 14 ke bawah (review akhir I2, 2026-11-20).
 - Model Whisper diunduh saat pertama dipakai, sama dengan desktop.
 
 ### 4.7 Cloud (Vercel + Colab)

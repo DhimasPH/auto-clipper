@@ -12,11 +12,20 @@ Cara memakai
 2. Klik dua kali "Auto Clipper Web".
    - Windows: bila muncul "Windows protected your PC", klik "More info", lalu "Run anyway".
      Paket ini belum ditandatangani Microsoft, jadi peringatan ini muncul pada pembukaan pertama.
-   - macOS: pada pembukaan pertama, klik kanan "Auto Clipper Web.command", pilih "Open",
-     lalu "Open" lagi. Paket ini belum ditandatangani Apple.
+   - macOS: paket ini belum ditandatangani Apple, jadi pembukaan pertama perlu izin.
+     macOS 15 (Sequoia) atau lebih baru:
+       a. Klik dua kali "Auto Clipper Web.command". Pada pesan yang muncul, pilih "Done"
+          (jangan "Move to Trash").
+       b. Buka System Settings > Privacy & Security, gulir ke bawah, lalu klik "Open Anyway"
+          di samping "Auto Clipper Web.command".
+       c. Masukkan kata sandi Mac Anda, lalu pilih "Open Anyway" sekali lagi.
+     macOS 14 atau lebih lama: klik kanan "Auto Clipper Web.command", pilih "Open",
+     lalu "Open" lagi.
+     Setelah itu klik dua kali saja seperti biasa.
      Pilih zip yang cocok: macos-arm64 untuk Mac Apple Silicon (M1 dan sesudahnya),
      macos-x64 untuk Mac Intel.
-   - Linux: klik kanan "Auto Clipper Web.sh", pilih "Run as a Program" atau "Run in Terminal".
+   - Linux: butuh Ubuntu 22.04 atau lebih baru (atau distro lain dengan glibc 2.35 ke atas).
+     Klik kanan "Auto Clipper Web.sh", pilih "Run as a Program" atau "Run in Terminal".
      Bisa juga dari terminal: bash "Auto Clipper Web.sh"
 3. Jendela bertuliskan "Auto Clipper berjalan" terbuka, lalu browser membuka aplikasinya.
    Jangan tutup jendela itu selama memakai aplikasi. Menutupnya menghentikan Auto Clipper.
@@ -48,11 +57,20 @@ How to use
 2. Double-click "Auto Clipper Web".
    - Windows: if "Windows protected your PC" appears, click "More info", then "Run anyway".
      The package is not signed by Microsoft, so the warning appears the first time.
-   - macOS: the first time, right-click "Auto Clipper Web.command", choose "Open", then
-     "Open" again. The package is not signed by Apple.
+   - macOS: the package is not signed by Apple, so the first launch needs your permission.
+     macOS 15 (Sequoia) or later:
+       a. Double-click "Auto Clipper Web.command". In the message that appears, choose "Done"
+          (not "Move to Trash").
+       b. Open System Settings > Privacy & Security, scroll down, and click "Open Anyway"
+          next to "Auto Clipper Web.command".
+       c. Enter your Mac password, then choose "Open Anyway" once more.
+     macOS 14 or earlier: right-click "Auto Clipper Web.command", choose "Open", then
+     "Open" again.
+     After that, a double-click is enough.
      Pick the right zip: macos-arm64 for Apple Silicon Macs (M1 and later),
      macos-x64 for Intel Macs.
-   - Linux: right-click "Auto Clipper Web.sh" and choose "Run as a Program" or "Run in Terminal".
+   - Linux: needs Ubuntu 22.04 or later (or another distribution with glibc 2.35 or newer).
+     Right-click "Auto Clipper Web.sh" and choose "Run as a Program" or "Run in Terminal".
      Or from a terminal: bash "Auto Clipper Web.sh"
 3. A window that says "Auto Clipper is running" opens, then your browser opens the app.
    Do not close that window while you use the app. Closing it stops Auto Clipper.

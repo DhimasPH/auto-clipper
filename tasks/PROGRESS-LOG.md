@@ -608,7 +608,7 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 
 - [ ] Desktop Windows (installer dari "PR Check" atau build lokal): semua butir di atas; pembaruan aplikasi masih terdeteksi; komputer tidak tidur saat render.
 - [ ] Web lokal Windows (zip dari "Web Package"): semua butir; SmartScreen "Run anyway"; peluncur kedua membuka tab baru; menutup jendela → kartu "Jendela Auto Clipper sudah ditutup".
-- [ ] Web lokal macOS (arm64 atau x64): klik kanan → Open; semua butir.
+- [ ] Web lokal macOS (arm64 atau x64): pembukaan pertama lewat System Settings → Privacy & Security → Open Anyway (macOS 15+) atau klik kanan → Open (macOS 14 ke bawah); cek juga backend dan FFmpeg jalan tanpa peringatan lagi; semua butir.
 - [ ] Web lokal Linux (bila ada mesin): semua butir.
 - [ ] Cloud: proyek Vercel kedua dari branch ini (Root Directory kosong, Node 22.x, `VITE_API_URL`), Colab dengan branch ini: masuk dengan kode akses, Manual AI Editor → Riwayat → Lanjut Manual, Drive, cookies, putar dan unduh klip dari HP.
 - [ ] Saat PR akhir digabung: proyek Vercel produksi → Root Directory kosong, Node 22.x, Redeploy.
