@@ -618,3 +618,10 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 - Review akhir (Needs fixes: Important 2, Minor 8) diperbaiki dalam satu gelombang, 8 commit `3683d0a..6313443`: I1 web lokal memakai ulang port peluncuran sebelumnya (`web_port.json`, 0600) sehingga API key/pengaturan di browser tidak hilang; I2 panduan macOS 15+ "Open Anyway"; M1 `xfce4-terminal -x`; M2 pesan antivirus di peluncur Windows; M3 `web_instance.json` rusak tidak lagi menghentikan peluncuran; M4 tombol Drive di dua panduan; M5 401 cloud membawa header CORS; M7 Linux butuh glibc 2.35; M8 `npm audit fix` (0 kerentanan).
 - Tes: `pytest` 805 lulus / 12 dilewati; Vitest 22 file / 89 lulus; `npm run build` & `build:cloud` OK; `oxlint src` 0 error (30 peringatan lama). Cek nyata: dua peluncuran `backend.main --web` (yang pertama dimatikan paksa) mendapat port yang sama dengan token baru.
 - Tersisa: M6 (`pickVideo()` tak terpakai) ke SP2; daftar cek manual pemilik di atas (macOS 15+, Xfce, antivirus, cloud 401 dari HP).
+
+### 2026-11-20 · SP1 diverifikasi independen
+
+- Review menyeluruh independen (opus; fable butuh kredit) atas `2afbb42..89fce4f`: 0 Critical, 2 Important, 8 Minor, tanpa celah keamanan. Satu gelombang perbaikan `7cfacb6..247141c` (port web lokal dipakai ulang sesuai keputusan pemilik, dokumen macOS 15+, header CORS pada 401, peluncur Linux/Windows, `npm audit` 0). Re-review: semua tertangani.
+- Pemeriksaan controller: pytest 805 lulus / 12 dilewati, Vitest 89, build desktop dan cloud OK, `npm audit` 0.
+- Diparkir untuk dikerjakan sebelum PR akhir: cek port bebas juga menguji `connect` ke 127.0.0.1; `$\rightarrow$` rusak di tutorial Kendala 9; komentar tes yang menyesatkan. Detail di `tasks/sp1-ledger.md`.
+- Berikutnya: pemilik menjalankan daftar cek manual SP1 dan memicu CI setelah push; lalu SP2 dimulai dengan brainstorm + spec.

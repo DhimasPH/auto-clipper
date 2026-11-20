@@ -117,3 +117,8 @@ Range 2afbb42..89fce4f. Verdict: Needs fixes — Critical 0, Important 2, Minor 
 - Final: M6 not fixed — deferred to SP2 per ruling above.
 - Final: M7 fixed in 612f479 (BACA-SAYA, README, CHANGELOG).
 - Final: M8 fixed in 6313443 (`npm audit fix`, no --force: axios 1.21.1, react-router 7.18.6; `npm audit` 0; all checks green).
+Final fix wave re-review (opus, 7cfacb6..247141c): all findings addressed (I1, I2, M1–M5, M7, M8; M6 deferred to SP2 by ruling). No new Critical/Important.
+Final: parked — port_is_free() only test-binds 127.0.0.1, so on macOS/Windows a remembered port held by another program on 0.0.0.0 can be reused and shadow its loopback traffic — Ruling: fix before the final PR (also treat the port as taken when connect(("127.0.0.1", port)) succeeds); unlikely in practice — cost if wrong: another local program on that exact port loses loopback traffic while Auto Clipper runs.
+Final: parked — docs/tutorial-auto-clipper-cloud.md:437-438 (Kendala 9) `$\rightarrow$` corrupted into two lines (old CR corruption) — Ruling: fix before the final PR (doc-only).
+Final: parked — test comment in test_web_mode.py ("the real liveness check") is misleading after M3 — Ruling: fix with the port fix.
+SP1: complete (code), review clean after one fix wave. Awaiting owner manual checklist (end of tasks/PROGRESS-LOG.md) and CI runs after push.
