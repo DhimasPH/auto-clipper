@@ -640,3 +640,7 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 - Belum ditulis: Task 13 (Riwayat), 14 (Pengaturan empat bagian), 15 (audit antislop), 16 (tiga item SP1 yang diparkir), 17 (dokumen, CHANGELOG, ADR-014, AGENTS.md), 18 (verifikasi akhir dan uji pemakaian pemilik).
 - Langkah berikutnya (untuk AI mana pun, lihat `tasks/HANDOFF-AI.md` bagian 3): baca `part-00` dan task terakhir yang sudah ada untuk nama dan antarmuka, tulis Task 13–18 dengan format yang sama ke `wip-sp2/part-07-...`, gabungkan semua menjadi `docs/superpowers/plans/2026-11-20-sp2-ux-for-everyone.md` (header + tabel cakupan spec di akhir), hapus `wip-sp2/`, commit; lalu pemindaian pre-flight dan Task 1.
 - Belum ada kode SP2 yang berubah; tes masih seperti akhir SP1 (pytest 805/12, Vitest 89).
+
+## 2026-11-20 · SP2
+
+- Rencana SP2 selesai digabung (`docs/superpowers/plans/2026-11-20-sp2-ux-for-everyone.md`, Task 1–18 + tabel cakupan spec) dan `wip-sp2/` dihapus. Pemindaian pra-kerja selesai: 16 keputusan P1–P16 (4 Kritis, 6 Penting, 6 Kecil) dicatat di `tasks/sp2-ledger.md`. Siap mulai Task 1.
