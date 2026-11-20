@@ -29,3 +29,6 @@ Owner accepted all plan defaults (2026-11-20: "ikuti rekomendasi, yang penting U
 ## Tasks
 - Task 1: complete (commits 0f315db..684a272, review clean) — pytest 815 passed, 12 skipped (+10). Deferred minors: direct assertions for negative-percent clamp / `clips_total <= 0` / `tracking_engine_used`, and `dict | None` annotation alignment.
 - Task 2: complete (commits 00c7c20..6acf284, review clean) — pytest 829 passed, 12 skipped (+14, P5 applied). Deferred minors: `download_percent`/`live_stage` return type hints (`float | None`, `dict | None`), sibling loop runtime assertions, and mid-run HTTP check on manual resume.
+- Task 3: complete (commits 66d5047..57b5e49, review clean after fix round 1) — pytest 844 passed, 12 skipped (+15), Vitest 92 passed (+3, P7 applied), oxlint 0 errors, build + build:cloud OK.
+  - Ruling: `output_dir` free path not in spec SP2 — stays SP3 — cost if wrong: none new.
+  - Deferred minor: switching `background_type` back to `blur`/`color` keeps prior `uploadFailed` alert if user toggles back to `image` without clearing/re-picking.
