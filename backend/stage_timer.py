@@ -16,6 +16,12 @@ a failing memory probe only yields ``rss_mb_peak: None``.
 
 Memory is the resident set size of this process. When ``psutil`` is installed
 (it is on Google Colab) child processes such as ffmpeg are included too.
+
+While a job runs, ``collect_timings(timings, live)`` also keeps the running stages
+on a stack in ``live`` (a dict owned by the job). ``current_stage(live)`` turns the
+innermost one into the ``current`` object of the job status (SP2 spec 4.4), and
+``report()`` adds live-only facts (``percent``, ``clips_total``). None of this is
+ever written to ``timings``.
 """
 import os
 import sys
@@ -28,6 +34,8 @@ from backend.logger import log_app
 SAMPLE_INTERVAL = 1.0  # seconds between memory samples while a stage runs
 
 _local = threading.local()
+# Fields that say which device really did the work (see jobs._finalize_job).
+DEVICE_FIELDS = ("whisper_device", "encoder", "tracking_engine_used")
 
 
 def _rss_psutil():
@@ -141,17 +149,24 @@ class _PeakSampler:
 
 
 @contextmanager
-def collect_timings(timings: list):
-    """Send every ``stage`` finished on this thread, inside the block, to ``timings``."""
+def collect_timings(timings: list, live: dict = None):
+    """Send every ``stage`` finished on this thread, inside the block, to ``timings``.
+
+    ``live`` (optional, owned by the job) holds the stages that are running now,
+    for the job status. It is never copied into ``timings``.
+    """
     previous = getattr(_local, "timings", None)
     previous_fields = getattr(_local, "fields", {})
+    previous_live = getattr(_local, "live", None)
     _local.timings = timings
     _local.fields = {}
+    _local.live = live
     try:
         yield timings
     finally:
         _local.timings = previous
         _local.fields = previous_fields
+        _local.live = previous_live
 
 
 def set_context(**fields):
@@ -175,6 +190,12 @@ def stage(name: str, **fields):
     sampler = _PeakSampler()
     sampler.start()
     started = time.monotonic()
+    live = getattr(_local, "live", None)
+    entry = None
+    if live is not None:
+        # Replaced, never mutated in place: the status request reads it from another thread.
+        entry = {"rec": rec, "started": started, "started_at": time.time()}
+        live["stack"] = [*(live.get("stack") or []), entry]
     ok = True
     try:
         yield rec
@@ -182,6 +203,8 @@ def stage(name: str, **fields):
         ok = False
         raise
     finally:
+        if entry is not None:
+            live["stack"] = [e for e in (live.get("stack") or []) if e is not entry]
         rec["seconds"] = round(time.monotonic() - started, 3)
         peak = sampler.stop()
         rec["rss_mb_peak"] = round(peak, 1) if peak is not None else None
@@ -195,3 +218,54 @@ def stage(name: str, **fields):
             f" {k}={v}" for k, v in rec.items() if k not in ("stage", "seconds", "rss_mb_peak")
         )
         log_app(f"[timing] end stage={name} seconds={rec['seconds']} rss_mb_peak={rec['rss_mb_peak']}{extras}")
+
+
+def report(**fields):
+    """Live facts for the job status only: ``clips_total`` for the run, ``percent`` for the running stage."""
+    live = getattr(_local, "live", None)
+    if live is None:
+        return
+    if "clips_total" in fields:
+        live["clips_total"] = fields.pop("clips_total")
+    stack = live.get("stack") or []
+    if stack and fields:
+        stack[-1].update(fields)
+
+
+def _is_int(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def current_stage(live) -> dict:
+    """The innermost running stage as the ``current`` object of the job status, or None.
+
+    ``{stage, started_at, elapsed_seconds, device?, clip?, clips_total?, percent?}``.
+    ``elapsed_seconds`` comes from this server's clock, so a phone with another time still
+    shows the right running time.
+    """
+    if not isinstance(live, dict):
+        return None
+    stack = live.get("stack") or []
+    if not stack:
+        return None
+    top = stack[-1]
+    rec = top["rec"]
+    out = {
+        "stage": rec.get("stage"),
+        "started_at": round(top["started_at"], 3),
+        "elapsed_seconds": round(max(0.0, time.monotonic() - top["started"]), 1),
+    }
+    for field in DEVICE_FIELDS:
+        value = rec.get(field)
+        if isinstance(value, str) and value:
+            out["device"] = value
+            break
+    if _is_int(rec.get("clip")):
+        out["clip"] = rec["clip"]
+        total = live.get("clips_total")
+        if _is_int(total) and total > 0:
+            out["clips_total"] = total
+    percent = top.get("percent")
+    if isinstance(percent, (int, float)) and not isinstance(percent, bool):
+        out["percent"] = round(min(100.0, max(0.0, float(percent))), 1)
+    return out

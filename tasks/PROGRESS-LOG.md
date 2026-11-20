@@ -644,3 +644,4 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 ## 2026-11-20 · SP2
 
 - Rencana SP2 selesai digabung (`docs/superpowers/plans/2026-11-20-sp2-ux-for-everyone.md`, Task 1–18 + tabel cakupan spec) dan `wip-sp2/` dihapus. Pemindaian pra-kerja selesai: 16 keputusan P1–P16 (4 Kritis, 6 Penting, 6 Kecil) dicatat di `tasks/sp2-ledger.md`. Siap mulai Task 1.
+- Task 1 (`stage_timer` tahap berjalan): `collect_timings(timings, live)` menyimpan tahap yang sedang berjalan di tumpukan milik job; `current_stage(live)` membentuk objek `current` (spec 4.4) dengan `elapsed_seconds` dari jam server; `report()` untuk `percent` dan `clips_total`, tidak pernah masuk `timings`. pytest: 815 lulus, 12 dilewati (+10).

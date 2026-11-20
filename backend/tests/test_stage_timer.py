@@ -182,3 +182,103 @@ def test_read_rss_mb_returns_a_plausible_value_on_this_platform():
     value = stage_timer.read_rss_mb()
     assert value is not None
     assert 1 < value < 1024 * 1024
+
+
+# --- live stage for the job status (SP2 spec 4.4) ---------------------------------------------
+
+def test_current_stage_is_none_without_a_running_stage():
+    live = {}
+    assert stage_timer.current_stage(live) is None
+    assert stage_timer.current_stage(None) is None
+    with collect_timings([], live):
+        assert stage_timer.current_stage(live) is None
+
+
+def test_current_stage_shows_the_running_stage_and_clears_when_it_ends():
+    live = {}
+    with collect_timings([], live):
+        before = time.time()
+        with stage("download"):
+            cur = stage_timer.current_stage(live)
+            assert cur["stage"] == "download"
+            assert before - 1 <= cur["started_at"] <= time.time() + 1
+            assert cur["elapsed_seconds"] >= 0
+        assert stage_timer.current_stage(live) is None
+
+
+def test_nested_stage_shows_the_inner_one_then_the_outer_again():
+    live = {}
+    with collect_timings([], live):
+        with stage("clip", clip=1):
+            with stage("render"):
+                assert stage_timer.current_stage(live)["stage"] == "render"
+            assert stage_timer.current_stage(live)["stage"] == "clip"
+        assert stage_timer.current_stage(live) is None
+
+
+def test_device_comes_from_the_field_the_stage_records():
+    live = {}
+    with collect_timings([], live):
+        with stage("transcribe", whisper_model="small") as rec:
+            assert "device" not in stage_timer.current_stage(live)
+            rec["whisper_device"] = "cpu"
+            assert stage_timer.current_stage(live)["device"] == "cpu"
+
+
+def test_clip_number_and_total_while_rendering():
+    live = {}
+    with collect_timings([], live):
+        stage_timer.report(clips_total=3)
+        stage_timer.set_context(clip=2)
+        with stage("render") as rec:
+            rec["encoder"] = "libx264"
+            cur = stage_timer.current_stage(live)
+    assert (cur["clip"], cur["clips_total"], cur["device"]) == (2, 3, "libx264")
+
+
+def test_percent_is_rounded_and_clamped():
+    live = {}
+    with collect_timings([], live):
+        with stage("download"):
+            stage_timer.report(percent=42.1234)
+            assert stage_timer.current_stage(live)["percent"] == 42.1
+            stage_timer.report(percent=180)
+            assert stage_timer.current_stage(live)["percent"] == 100.0
+
+
+def test_live_data_never_reaches_timings():
+    timings, live = [], {}
+    with collect_timings(timings, live):
+        stage_timer.report(clips_total=4)
+        stage_timer.set_context(clip=1)
+        with stage("download"):
+            stage_timer.report(percent=50)
+    assert set(timings[0]) == {"stage", "clip", "seconds", "rss_mb_peak", "ok"}
+
+
+def test_report_without_a_live_dict_is_harmless():
+    stage_timer.report(percent=10, clips_total=2)
+    timings = []
+    with collect_timings(timings):
+        with stage("download"):
+            stage_timer.report(percent=10)
+    assert "percent" not in timings[0]
+
+
+def test_a_failing_stage_still_leaves_the_live_stack():
+    live = {}
+    with collect_timings([], live):
+        with pytest.raises(RuntimeError):
+            with stage("render"):
+                raise RuntimeError("ffmpeg died")
+        assert stage_timer.current_stage(live) is None
+
+
+def test_each_collector_block_has_its_own_live_dict():
+    outer, inner = {}, {}
+    with collect_timings([], outer):
+        with collect_timings([], inner):
+            with stage("render"):
+                assert stage_timer.current_stage(outer) is None
+                assert stage_timer.current_stage(inner)["stage"] == "render"
+
