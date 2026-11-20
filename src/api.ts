@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { API_URL } from './App';
+import axios from "axios";
+import { API_URL } from "./platform/backendUrl";
 
 export const apiGetClipWords = async (jobId: string, clipIndex: number) => {
   const res = await axios.get(`${API_URL}/jobs/${jobId}/clips/${clipIndex}/words`);
@@ -33,4 +33,15 @@ export const apiBrowseGDrive = async (dirPath?: string): Promise<GDriveListing> 
   const res = await axios.get(`${API_URL}/gdrive-browser`, { params: dirPath ? { dir_path: dirPath } : {} });
   if (res.data?.status !== "success") throw new Error(res.data?.message || "gdrive-browser failed");
   return { items: res.data.items || [], current_dir: res.data.current_dir || "", parent_dir: res.data.parent_dir ?? null };
+};
+
+/** Upload a canvas background image (spec 4.7); returns the path the backend reads it from. */
+export const uploadCanvasImage = async (file: File): Promise<string> => {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await axios.post(`${API_URL}/upload-image`, form);
+  if (res.data?.status !== "success" || typeof res.data.path !== "string") {
+    throw new Error(res.data?.message || "upload-image failed");
+  }
+  return res.data.path;
 };

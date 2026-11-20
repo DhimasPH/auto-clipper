@@ -359,7 +359,9 @@
     "enlarge_1_5": "1.5x",
     "enlarge_1_8": "1.8x",
     "enlarge_2_0": "2.0x",
-    "preview_hint": "Tip: Subtitle akan otomatis diposisikan tepat di bawah video utama secara rapi."
+    "preview_hint": "Tip: Subtitle akan otomatis diposisikan tepat di bawah video utama secara rapi.",
+    "uploading_image": "Mengunggah gambar…",
+    "upload_failed": "Gambar belum terunggah. Periksa sambungan ke Auto Clipper, lalu pilih gambarnya lagi."
   },
   "subtitle_custom": {
     "title": "Kustomisasi Tampilan Subtitle",

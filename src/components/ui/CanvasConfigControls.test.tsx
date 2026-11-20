@@ -1,10 +1,13 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import "../../i18n";
+import i18n from "../../i18n";
+import { uploadCanvasImage } from "../../api";
 import { CAPS, setPlatform, type Platform } from "../../platform";
 import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "../../types/canvas";
 import { CanvasConfigControls } from "./CanvasConfigControls";
+
+vi.mock("../../api", () => ({ uploadCanvasImage: vi.fn() }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -70,5 +73,45 @@ describe("CanvasConfigControls background image picker", () => {
     await act(async () => button.click());
     expect(inputClick).toHaveBeenCalledTimes(1);
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  async function chooseFile(file: File) {
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  it("without OS dialogs uploads the image and keeps the backend path, never a blob: address", async () => {
+    vi.mocked(uploadCanvasImage).mockResolvedValue("/work/temp_downloads/images/bg_1a2b3c4d_latar.png");
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:http://127.0.0.1/1");
+    setPlatform(fakePlatform(CAPS.local, vi.fn(async () => null)));
+    const onChange = vi.fn();
+    renderControls(onChange);
+    const file = new File(["png"], "latar.png", { type: "image/png" });
+
+    await chooseFile(file);
+
+    expect(uploadCanvasImage).toHaveBeenCalledWith(file);
+    expect(onChange).toHaveBeenCalledWith({
+      ...imageConfig,
+      background_type: "image",
+      background_image_path: "/work/temp_downloads/images/bg_1a2b3c4d_latar.png",
+    });
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("says under the button that the upload failed and keeps the old image", async () => {
+    vi.mocked(uploadCanvasImage).mockRejectedValue(new Error("offline"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    setPlatform(fakePlatform(CAPS.cloud, vi.fn(async () => null)));
+    const onChange = vi.fn();
+    renderControls(onChange);
+
+    await chooseFile(new File(["png"], "latar.png", { type: "image/png" }));
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(i18n.t("canvas.upload_failed"));
   });
 });

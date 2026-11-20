@@ -1,6 +1,7 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Sparkles, Palette, Image as ImageIcon, Check, Upload, Trash2, Info, Monitor, Smartphone } from "lucide-react";
+import { uploadCanvasImage } from "../../api";
 import { CanvasConfig } from "../../types/canvas";
 import { platform } from "../../platform";
 
@@ -26,6 +27,8 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
 }) => {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadFailed, setUploadFailed] = useState(false);
 
   const isEnabled = config.enabled;
   const bgType = config.background_type || "blur";
@@ -55,16 +58,25 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
     }
   };
 
-  const handleWebFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // The backend cannot read a browser blob: address (spec 4.7): upload the image, keep its backend path.
+  const handleWebFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // In web fallback, we use object URL or name
-      const fakePath = URL.createObjectURL(file);
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    setUploadFailed(false);
+    try {
+      const path = await uploadCanvasImage(file);
       onChange({
         ...config,
         background_type: "image",
-        background_image_path: (file as any).path || fakePath,
+        background_image_path: path,
       });
+    } catch (err) {
+      console.error("Canvas image upload failed:", err);
+      setUploadFailed(true);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -313,6 +325,16 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
                   </span>
                 )}
               </div>
+              {uploading && (
+                <p role="status" className="text-body text-text-secondary">
+                  {t("canvas.uploading_image")}
+                </p>
+              )}
+              {uploadFailed && (
+                <p role="alert" className="text-body text-error">
+                  {t("canvas.upload_failed")}
+                </p>
+              )}
             </div>
           )}
 

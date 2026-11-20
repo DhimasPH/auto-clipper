@@ -359,7 +359,9 @@
     "enlarge_1_5": "1.5x",
     "enlarge_1_8": "1.8x",
     "enlarge_2_0": "2.0x",
-    "preview_hint": "Tip: Subtitles will automatically be positioned neatly below the foreground video."
+    "preview_hint": "Tip: Subtitles will automatically be positioned neatly below the foreground video.",
+    "uploading_image": "Uploading the image…",
+    "upload_failed": "The image was not uploaded. Check the connection to Auto Clipper, then pick the image again."
   },
   "subtitle_custom": {
     "title": "Subtitle Appearance & Typography",

@@ -167,6 +167,42 @@ def api_upload_video(file: UploadFile = File(...)):
     # Return local path prefixed with local: so jobs.py knows to skip download
     return {"status": "success", "url": f"local:{file_path}"}
 
+
+CANVAS_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
+
+
+@app.post("/upload-image")
+def api_upload_image(file: UploadFile = File(...)):
+    """A canvas background image from the browser (spec 4.7): the backend cannot read a blob: address."""
+    from backend.path_guard import denied, is_protected, safe_upload_name
+    from backend.workspace import uploads_dir
+    name = safe_upload_name(file.filename)
+    if not name.lower().endswith(CANVAS_IMAGE_EXTENSIONS):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Only PNG, JPG or WEBP images."})
+    folder = os.path.abspath(os.path.join(uploads_dir(), "images"))
+    # A random part keeps two images with the same name apart.
+    path = os.path.join(folder, f"bg_{secrets.token_hex(4)}_{name}")
+    if is_protected(path):
+        return denied("upload_image", path)
+    os.makedirs(folder, exist_ok=True)
+    with open(path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"status": "success", "path": path}
+
+
+def _canvas_image_refused(canvas_config, endpoint: str):
+    """E.14: the canvas image is a path from the request like any other. Returns the 403 or None."""
+    from backend.path_guard import denied, is_protected
+    if canvas_config is None:
+        return None
+    if isinstance(canvas_config, dict):
+        path = canvas_config.get("background_image_path") or ""
+    else:
+        path = getattr(canvas_config, "background_image_path", "") or ""
+    if path and is_protected(path):
+        return denied(endpoint, path)
+    return None
+
 @app.get("/probe")
 def api_probe(url: str):
     """Return available video heights (descending) for a source URL."""
@@ -469,6 +505,9 @@ def _requested_engine(req: BaseModel):
 
 @app.post("/jobs/{job_id}/rerender")
 def api_rerender_job(job_id: str, req: RerenderJobRequest):
+    refused = _canvas_image_refused(req.canvas_config, "jobs_rerender")
+    if refused:
+        return refused
     try:
         from backend.jobs import create_rerender_job
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
@@ -479,6 +518,9 @@ def api_rerender_job(job_id: str, req: RerenderJobRequest):
 
 @app.post("/jobs/{job_id}/rerun_ai")
 def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
+    refused = _canvas_image_refused(req.canvas_config, "jobs_rerun_ai")
+    if refused:
+        return refused
     try:
         from backend.ai_utils import ping_provider
         ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip(), model=req.model.strip() if req.model else None)
@@ -581,6 +623,9 @@ class RerenderClipRequest(BaseModel):
 
 @app.post("/jobs/{job_id}/clips/{clip_index}/rerender")
 async def api_rerender_clip(job_id: str, clip_index: int, req: RerenderClipRequest):
+    refused = _canvas_image_refused(req.canvas_config, "clip_rerender")
+    if refused:
+        return refused
     from backend.jobs import create_rerender_clip_job
     new_job_id = create_rerender_clip_job(
         job_id=job_id,
@@ -752,6 +797,9 @@ def check_watchdog_condition(now_monotonic, last_heartbeat_monotonic, loop_delta
 
 @app.post("/jobs")
 def api_create_job(req: CreateJobRequest):
+    refused = _canvas_image_refused(req.canvas_config, "jobs")
+    if refused:
+        return refused
     if not req.url:
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL is required"})
 
@@ -954,6 +1002,9 @@ class ManualJobRequest(BaseModel):
 
 @app.post("/jobs/manual")
 def api_create_manual_job(req: ManualJobRequest):
+    refused = _canvas_image_refused(req.canvas_config, "jobs_manual")
+    if refused:
+        return refused
     if not req.url:
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL is required"})
     if not req.title or not req.title.strip():
