@@ -625,3 +625,11 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 - Pemeriksaan controller: pytest 805 lulus / 12 dilewati, Vitest 89, build desktop dan cloud OK, `npm audit` 0.
 - Diparkir untuk dikerjakan sebelum PR akhir: cek port bebas juga menguji `connect` ke 127.0.0.1; `$\rightarrow$` rusak di tutorial Kendala 9; komentar tes yang menyesatkan. Detail di `tasks/sp1-ledger.md`.
 - Berikutnya: pemilik menjalankan daftar cek manual SP1 dan memicu CI setelah push; lalu SP2 dimulai dengan brainstorm + spec.
+
+---
+
+## 2026-11-20 · SP2 dimulai: spec selesai
+
+- Branch `feat/sp2-ux-for-everyone`, bercabang dari SP1 di `dc3ba66`.
+- Spec: `docs/superpowers/specs/2026-11-20-sp2-ux-for-everyone-design.md` (`4bed222`). Keputusan pemilik: HP dulu; AI manual dipandu sebagai jalur utama (API key opsi lanjutan); gaya bersih dan tenang; alur 4 langkah (Video → Siapkan → Pilih momen → Klip) dengan tiga menu (Buat klip, Riwayat, Pengaturan); diskusi lewat chat; sisanya ikut rekomendasi dengan patokan UX jelas untuk orang awam.
+- Berikutnya: pemilik membaca spec, lalu rencana implementasi (skill writing-plans) dan eksekusi task per task dengan review. Agen memakai opus (fable butuh kredit).

@@ -2,6 +2,8 @@
 
 Ditulis 2026-11-19 untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) yang melanjutkan pekerjaan di repo ini. Baca seluruh file ini sebelum menyentuh kode. Tujuannya: kamu bekerja dengan aturan, keputusan, dan cara kerja yang sama dengan sesi sebelumnya.
 
+> **Update 2026-11-20:** SP1 selesai dan lolos review akhir independen (lihat akhir `tasks/sp1-ledger.md`). SP2 aktif di branch `feat/sp2-ux-for-everyone` (bercabang dari SP1). Spec SP2: `docs/superpowers/specs/2026-11-20-sp2-ux-for-everyone-design.md`. Posisi terbaru selalu di entri terakhir `tasks/PROGRESS-LOG.md`. Aturan kerja di file ini (bagian 4, 6, 7) tetap berlaku untuk SP2.
+
 ## 1. Urutan membaca
 
 1. File ini.
