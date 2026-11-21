@@ -81,7 +81,8 @@ export const ClipOptions: React.FC<ClipOptionsProps> = ({
             <CanvasConfigControls config={choices.canvasConfig} onChange={(canvasConfig) => onChange({ canvasConfig })} showModeSwitch={true} />
           </Row>
         ) : (
-          <Row label={t("create.face_label")}>
+          <fieldset className="flex flex-col gap-2 border-t border-border pt-4">
+            <legend className="mb-2 text-label text-text-primary">{t("create.face_label")}</legend>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {(["auto", "center"] as const).map((mode) => (
                 <label key={mode} className="flex min-h-[44px] cursor-pointer items-center gap-3">
@@ -96,7 +97,7 @@ export const ClipOptions: React.FC<ClipOptionsProps> = ({
                 </label>
               ))}
             </div>
-          </Row>
+          </fieldset>
         )}
 
         <Row help={t("create.hook_help")}>

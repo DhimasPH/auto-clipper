@@ -22,10 +22,14 @@ describe("VideoStep (spec 4.2 step 1)", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
+    document.body.appendChild(container);
     root = createRoot(container);
   });
 
-  afterEach(() => act(() => root.unmount()));
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+  });
 
   const render = (props: Partial<typeof base> & { onPickDrive?: () => void }) =>
     act(() => root.render(<VideoStep {...base} {...props} />));
@@ -35,7 +39,7 @@ describe("VideoStep (spec 4.2 step 1)", () => {
     render({ link: "https://vimeo.com/1" });
     const input = container.querySelector("input[type='url']")!;
     expect(input.getAttribute("aria-invalid")).toBe("true");
-    expect(document.getElementById(input.getAttribute("aria-describedby")!)?.textContent ?? container.textContent).toContain(
+    expect(document.getElementById(input.getAttribute("aria-describedby")!)?.textContent).toContain(
       i18n.t("create.link_unsupported"),
     );
   });

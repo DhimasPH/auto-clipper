@@ -9,10 +9,10 @@ import { CanvasConfig } from "../types/canvas";
 import { SubtitleConfig } from "../types/subtitle";
 import type { ErrorInfo } from "../types/errorInfo";
 import { asErrorInfo, localizedText, requestError, toLang } from "../lib/errorInfo";
-import type { AiMode } from "../lib/createFlow";
+import { effectiveProvider, type AiMode } from "../lib/createFlow";
 
 export interface ClipJobParams {
-  aiMode?: AiMode;
+  aiMode: AiMode;
   inputType: "url" | "local";
   url: string;
   localFile: File | null;
@@ -409,7 +409,7 @@ export function useClipJobs(p: ClipJobParams) {
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/resume`, {
         api_key: p.apiKey,
         pexels_api_key: p.pexelsApiKey,
-        provider: p.provider,
+        provider: effectiveProvider(platform().caps, p.aiMode, p.provider),
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,
         whisper_model: p.whisperModel,

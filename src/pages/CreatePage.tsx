@@ -49,9 +49,9 @@ export const CreatePage: React.FC = () => {
 
   // Spec 5: an error shows at the step where the job stopped.
   const [stoppedAt, setStoppedAt] = useState<FlowStep>(2);
-  useEffect(() => {
-    if (flow.running) setStoppedAt(step);
-  }, [flow.running, step]);
+  if (flow.running && stoppedAt !== step) {
+    setStoppedAt(step);
+  }
   const failed = ctx.status === "ERROR" && !!ctx.errorMsg;
   const shownStep: FlowStep = failed ? stoppedAt : step;
 
