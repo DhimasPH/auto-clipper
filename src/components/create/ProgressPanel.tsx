@@ -40,7 +40,7 @@ export const ProgressPanel: React.FC<ProgressPanelProps> = ({
   const [confirming, setConfirming] = useState(false);
 
   // Count up from the backend's elapsed time between two polls (the phone's clock may differ).
-  const [base, setBase] = useState(() => ({ at: Date.now(), elapsed: 0 }));
+  const [base, setBase] = useState(() => ({ at: Date.now(), elapsed: current?.elapsed_seconds ?? 0 }));
   useEffect(() => {
     setBase({ at: Date.now(), elapsed: current?.elapsed_seconds ?? 0 });
   }, [current?.stage, current?.elapsed_seconds, current?.clip]);
@@ -82,15 +82,15 @@ export const ProgressPanel: React.FC<ProgressPanelProps> = ({
         </p>
       ) : null}
 
-      <ol className="flex flex-col gap-1" aria-live="polite">
+      <ol className="flex flex-col gap-1">
         {rows.map((row) => (
           <li key={row.stage} className="flex min-h-[44px] items-start gap-3 py-1">
             {row.state === "done" ? (
-              <CircleCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-label={t("progress.state_done")} />
+              <CircleCheck role="img" className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-label={t("progress.state_done")} />
             ) : row.state === "running" ? (
-              <Circle className="mt-0.5 h-5 w-5 shrink-0 fill-accent text-accent" aria-label={t("progress.state_running")} />
+              <Circle role="img" className="mt-0.5 h-5 w-5 shrink-0 fill-accent text-accent" aria-label={t("progress.state_running")} />
             ) : (
-              <Circle className="mt-0.5 h-5 w-5 shrink-0 text-text-secondary" aria-label={t("progress.state_todo")} />
+              <Circle role="img" className="mt-0.5 h-5 w-5 shrink-0 text-text-secondary" aria-label={t("progress.state_todo")} />
             )}
             <div className="min-w-0">
               <p className={`text-body ${row.state === "todo" ? "text-text-secondary" : "text-text-primary"} ${row.state === "running" ? "font-semibold" : ""}`}>

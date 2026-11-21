@@ -71,6 +71,8 @@ export const CreatePage: React.FC = () => {
   const hasVideo = !!chosenFile || linkProblem(ctx.url) === null;
   const canStart = hasVideo && connected && preflight.blockers.length === 0 && !ctx.isRunning;
   const jobErrorActions = useErrorActions({ jobId: ctx.failedJobId, origin: "workspace" });
+  const liveTrackingMode = typeof ctx.liveMeta?.tracking_mode === "string" ? ctx.liveMeta.tracking_mode : ctx.choices.trackingMode;
+  const liveAspectRatio = typeof ctx.liveMeta?.aspect_ratio === "string" ? ctx.liveMeta.aspect_ratio : ctx.choices.aspectRatio;
 
   const setLink = (value: string) => {
     ctx.setInputType("url");
@@ -154,7 +156,7 @@ export const CreatePage: React.FC = () => {
         <ProgressPanel
           step={step as 2 | 3 | 4}
           autoAi={effectiveProvider(caps, ctx.aiMode, ctx.provider) !== MANUAL_PROVIDER}
-          tracking={ctx.choices.trackingMode === "auto" && ctx.choices.aspectRatio !== "16:9"}
+          tracking={liveTrackingMode === "auto" && liveAspectRatio !== "16:9"}
           localSource={!!chosenFile}
           current={ctx.current}
           timings={ctx.liveMeta?.timings}

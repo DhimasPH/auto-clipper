@@ -17,8 +17,11 @@ function makeContext(overrides: Record<string, unknown> = {}) {
     status: "IDLE",
     isRunning: false,
     current: null,
+    liveMeta: null,
     awaiting: null,
     makePhase: false,
+    queuePosition: null,
+    cancelJob: vi.fn(),
     clips: [],
     failedCount: 0,
     resultJobId: "",
@@ -120,5 +123,21 @@ describe("CreatePage (Step 1 integration)", () => {
     const pickBtn = [...container.querySelectorAll("button")].find((b) => b.textContent === i18n.t("create.pick_file"))!;
     expect(document.activeElement).toBe(pickBtn);
     expect(clearPendingLocalUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders ProgressPanel using liveMeta tracking settings over workspace choices while running (Ruling P16)", async () => {
+    setPlatform({ caps: CAPS.desktop, pickVideo: vi.fn() } as unknown as Platform);
+    vi.spyOn(axios, "get").mockResolvedValue({ data: { checks: [] } });
+    await renderPage({
+      status: "CROPPING",
+      isRunning: true,
+      makePhase: true,
+      current: { stage: "render", started_at: 1, elapsed_seconds: 2 },
+      liveMeta: { aspect_ratio: "16:9", tracking_mode: "auto", timings: [] },
+      choices: { ...DEFAULT_CLIP_CHOICES, aspectRatio: "9:16", trackingMode: "auto" },
+    });
+
+    expect(container.textContent).toContain(i18n.t("timing.stage_render"));
+    expect(container.textContent).not.toContain(i18n.t("timing.stage_tracking"));
   });
 });
