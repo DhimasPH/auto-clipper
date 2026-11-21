@@ -116,7 +116,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 
 - [ ] T2.0 Brainstorm dan spec SP2 (alur utama, onboarding, bahasa, antislop: skill `antislop-*`)
 - [ ] T2.x Audit alur dan copy saat ini, sasaran: pengguna awam selesai dari link ke klip tanpa panduan
-- [ ] T2.x Teks layar proses (BusyOverlay) jujur, di `src/` dan `web/`. Diminta pemilik 2026-11-18 setelah uji Colab: di menit ke-24 layar menampilkan teks generik padahal subtitle masih dibuat dengan prosesor. Masalah yang ada sekarang:
+- [x] T2.x Teks layar proses (BusyOverlay) jujur, di `src/` dan `web/`. Diminta pemilik 2026-11-18 setelah uji Colab: di menit ke-24 layar menampilkan teks generik padahal subtitle masih dibuat dengan prosesor. (SP2 Task 1–2 + Task 9–10, `bd48e0d..6afd704`; `BusyOverlay.tsx` digantikan `ProgressPanel.tsx` dengan tahap & perangkat nyata, `web/` sudah dihapus di SP1). Masalah yang ada sebelumnya:
   - Setelah 10/20/40 menit, pesan berdasarkan waktu menggantikan tahap sebenarnya ("Sedang diproses di GPU Cloud...", "Sabar yaa, lagi proses nih...", "Video kamu hampir siap!").
   - Web selalu mengklaim GPU ("Menyiapkan proses di Google Colab GPU…", catatan "Video sedang diproses di GPU Colab"), juga saat jatuh ke prosesor.
   - Status `TRANSCRIBING` memutar empat pesan tiap 4,5 detik, termasuk "Menganalisis momen-momen terbaik" sebelum AI mulai.
