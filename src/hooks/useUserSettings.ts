@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { AiMode } from "../lib/createFlow";
 import { platform } from "../platform";
 
 export type Quality = "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p";
@@ -40,6 +41,7 @@ export function useUserSettings() {
   const [outputFolder, setOutputFolder] = useState(() => localStorage.getItem("ac_output_folder") || "");
   const [quality, setQuality] = useState<Quality>(() => (localStorage.getItem("ac_quality") as Quality) || "best");
   const [whisperModel, setWhisperModel] = useState(() => localStorage.getItem("ac_whisper_model") || "small");
+  const [aiMode, setAiMode] = useState<AiMode>(() => (localStorage.getItem("ac_ai_mode") === "auto" ? "auto" : "manual"));
 
   const setApiKey = (id: string, value: string) =>
     setApiKeys((prev) => ({ ...prev, [id]: value }));
@@ -85,11 +87,16 @@ export function useUserSettings() {
     localStorage.setItem("ac_whisper_model", whisperModel);
   }, [whisperModel]);
 
+  useEffect(() => {
+    localStorage.setItem("ac_ai_mode", aiMode);
+  }, [aiMode]);
+
   return {
     isInitializing,
     apiKeys, setApiKey,
     outputFolder, setOutputFolder,
     quality, setQuality,
     whisperModel, setWhisperModel,
+    aiMode, setAiMode,
   };
 }

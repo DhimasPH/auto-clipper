@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
-import { WorkspacePage } from "./pages/WorkspacePage";
-import { ManualAIEditorPage } from "./pages/ManualAIEditorPage";
+import { CreatePage } from "./pages/CreatePage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import Toasts from "./components/Toasts";
@@ -20,12 +19,21 @@ import { useUserSettings } from "./hooks/useUserSettings";
 import { useClipJobs } from "./hooks/useClipJobs";
 import { useStartupUpdateCheck } from "./hooks/useStartupUpdateCheck";
 import { ProviderId, DEFAULT_PROVIDER, LEGACY_PROVIDER_MIGRATION } from "./lib/providers";
-import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "./types/canvas";
-import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "./types/subtitle";
+import { loadClipChoices, saveClipChoices, type ClipChoices, type ShapeValue } from "./lib/clipChoices";
+import { CanvasConfig } from "./types/canvas";
+import { SubtitleConfig } from "./types/subtitle";
 
 export { API_URL, setApiUrl } from "./platform/backendUrl";
 
 export const AppContext = React.createContext<any>(null);
+
+function storageOrNull(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 /** The sign-in step of each platform: the one place that checks the platform kind. */
 function gate(content: React.ReactNode): React.ReactNode {
@@ -46,6 +54,8 @@ export default function App() {
     setQuality,
     whisperModel,
     setWhisperModel,
+    aiMode,
+    setAiMode,
   } = useUserSettings();
   const { theme, setTheme } = useTheme();
   const { toasts, notify } = useToasts();
@@ -76,16 +86,12 @@ export default function App() {
 
   const [inputType, setInputType] = useState<"url" | "local">("url");
   const [localFile, setLocalFile] = useState<File | null>(null);
-  const [aspectRatio, setAspectRatio] = useState<
-    "1:1" | "4:5" | "9:16" | "16:9"
-  >("9:16");
-  const [trackingMode, setTrackingMode] = useState<"auto" | "center">("auto");
+  // "Atur tampilan klip" (spec 4.2): remembered for the next video.
+  const [choices, setChoices] = useState<ClipChoices>(() => loadClipChoices(storageOrNull()));
+  useEffect(() => saveClipChoices(storageOrNull(), choices), [choices]);
+  const patchChoices = (patch: Partial<ClipChoices>) => setChoices((c) => ({ ...c, ...patch }));
+  const { aspectRatio, trackingMode, burnSubtitles, canvasConfig, subtitleConfig, enableBroll, enableHook, maxClips, isGamingVideo } = choices;
   const [faceTrackingEngine, setFaceTrackingEngine] = useState<"haar" | "mediapipe">(() => (localStorage.getItem("ac_face_engine") as any) || "haar");
-  const [captionStyle, setCaptionStyle] = useState<"standard" | "karaoke" | "single_word">(
-    "single_word",
-  );
-  const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
-  const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(DEFAULT_SUBTITLE_CONFIG);
 
   useEffect(() => {
     localStorage.setItem("ac_face_engine", faceTrackingEngine);
@@ -99,12 +105,7 @@ export default function App() {
     localStorage.setItem("ac_model", selectedModel);
   }, [selectedModel]);
 
-  const [burnSubtitles, setBurnSubtitles] = useState(true);
   const [title, setTitle] = useState("");
-  const [enableBroll, setEnableBroll] = useState(false);
-  const [enableHook, setEnableHook] = useState(false);
-  const [maxClips, setMaxClips] = useState(0);
-  const [isGamingVideo, setIsGamingVideo] = useState(false);
   const pexelsApiKey = apiKeys["pexels"] || "";
 
   // Smart Manual Clipper state, lifted here so it survives route changes
@@ -143,6 +144,7 @@ export default function App() {
     cancelJob,
     resetJobState,
   } = useClipJobs({
+    aiMode,
     inputType,
     url,
     localFile,
@@ -175,8 +177,7 @@ export default function App() {
     setUrl("");
     setTitle("");
     setLocalFile(null);
-    setCanvasConfig(DEFAULT_CANVAS_CONFIG);
-    setSubtitleConfig(DEFAULT_SUBTITLE_CONFIG);
+    setInputType("url");
     resetJobState();
   };
 
@@ -209,42 +210,38 @@ export default function App() {
     setInputType,
     url,
     setUrl,
+    localFile,
     setLocalFile,
+    choices,
+    patchChoices,
+    aiMode,
+    setAiMode,
     aspectRatio,
-    setAspectRatio,
+    setAspectRatio: (v: ShapeValue) => patchChoices({ aspectRatio: v }),
     trackingMode,
-    setTrackingMode,
+    setTrackingMode: (v: "auto" | "center") => patchChoices({ trackingMode: v }),
     faceTrackingEngine,
     setFaceTrackingEngine,
     captionStyle: subtitleConfig.style,
-    setCaptionStyle: (style: "standard" | "karaoke") => {
-      setCaptionStyle(style);
-      setSubtitleConfig((prev) => ({ ...prev, style }));
-    },
+    setCaptionStyle: (style: SubtitleConfig["style"]) =>
+      setChoices((c) => ({ ...c, subtitleConfig: { ...c.subtitleConfig, style } })),
     burnSubtitles,
-    setBurnSubtitles,
+    setBurnSubtitles: (v: boolean) => patchChoices({ burnSubtitles: v }),
     canvasConfig,
-    setCanvasConfig,
+    setCanvasConfig: (v: CanvasConfig) => patchChoices({ canvasConfig: v }),
     subtitleConfig,
-    setSubtitleConfig: (cfgOrFn: any) => {
-      setSubtitleConfig((prev) => {
-        const next = typeof cfgOrFn === "function" ? cfgOrFn(prev) : cfgOrFn;
-        if (next.style && next.style !== captionStyle) {
-          setCaptionStyle(next.style);
-        }
-        return next;
-      });
-    },
+    setSubtitleConfig: (cfgOrFn: SubtitleConfig | ((prev: SubtitleConfig) => SubtitleConfig)) =>
+      setChoices((c) => ({ ...c, subtitleConfig: typeof cfgOrFn === "function" ? cfgOrFn(c.subtitleConfig) : cfgOrFn })),
     title,
     setTitle,
     enableBroll,
-    setEnableBroll,
+    setEnableBroll: (v: boolean) => patchChoices({ enableBroll: v }),
     enableHook,
-    setEnableHook,
+    setEnableHook: (v: boolean) => patchChoices({ enableHook: v }),
     maxClips,
-    setMaxClips,
+    setMaxClips: (v: number) => patchChoices({ maxClips: v }),
     isGamingVideo,
-    setIsGamingVideo,
+    setIsGamingVideo: (v: boolean) => patchChoices({ isGamingVideo: v }),
     errorMsg,
     errorInfo,
     failedJobId,
@@ -252,10 +249,8 @@ export default function App() {
     jobMeta,
     openCookies: (onRetry?: () => void) => setCookiesModal({ onRetry }),
     pendingLocalUpload,
-    requestLocalUpload: () => {
-      setInputType("local");
-      setPendingLocalUpload(true);
-    },
+    // Ruling P6: keep existing url/local inputType intact until a local file is actually chosen.
+    requestLocalUpload: () => setPendingLocalUpload(true),
     clearPendingLocalUpload: () => setPendingLocalUpload(false),
     requestDriveBrowser: () => setDriveBrowserOpen(true),
     isRunning,
@@ -283,8 +278,7 @@ export default function App() {
   const routes = (
     <Routes>
       <Route path="/" element={<AppLayout />}>
-        {/* Replaced by CreatePage in Task 8. Cloud has no API keys: the manual page. */}
-        <Route index element={platform().caps.apiKeys ? <WorkspacePage /> : <ManualAIEditorPage />} />
+        <Route index element={<CreatePage />} />
         <Route path="riwayat" element={<HistoryPage />} />
         <Route path="riwayat/:id" element={<HistoryPage />} />
         <Route path="pengaturan" element={<SettingsPage />} />
@@ -306,6 +300,7 @@ export default function App() {
             onClose={() => setDriveBrowserOpen(false)}
             onSelectFile={(filePath) => {
               setDriveBrowserOpen(false);
+              setLocalFile(null);
               setInputType("url");
               setUrl(`local:${filePath}`);
             }}

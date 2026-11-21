@@ -9,8 +9,10 @@ import { CanvasConfig } from "../types/canvas";
 import { SubtitleConfig } from "../types/subtitle";
 import type { ErrorInfo } from "../types/errorInfo";
 import { asErrorInfo, localizedText, requestError, toLang } from "../lib/errorInfo";
+import type { AiMode } from "../lib/createFlow";
 
 export interface ClipJobParams {
+  aiMode?: AiMode;
   inputType: "url" | "local";
   url: string;
   localFile: File | null;
@@ -177,7 +179,8 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
-  const handleGenerate = async (overrideProvider?: string) => {
+  const handleGenerate = async (overrideProvider?: string, overrideTitle?: string) => {
+    const title = (overrideTitle ?? p.title ?? "").trim();
     if (p.inputType === "url" && !p.url) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.url_empty', 'URL kosong!') }), "error");
       return;
@@ -196,7 +199,7 @@ export function useClipJobs(p: ClipJobParams) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.api_key_req', 'API Key belum diisi! Silakan isi di Settings.') }), "error");
       return;
     }
-    if (!p.title || !p.title.trim()) {
+    if (!title) {
       notify(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
       return;
     }
@@ -240,7 +243,7 @@ export function useClipJobs(p: ClipJobParams) {
         subtitle_config: p.subtitleConfig,
         output_dir: p.outputFolder,
         quality: p.quality,
-        title: p.title,
+        title,
         enable_broll: p.enableBroll,
         enable_hook: p.enableHook,
         pexels_api_key: p.pexelsApiKey,
