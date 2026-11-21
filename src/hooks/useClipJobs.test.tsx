@@ -61,11 +61,17 @@ describe("useClipJobs handleResumeJob (Ruling P2)", () => {
   afterEach(() => {
     act(() => root.unmount());
     setPlatform(null);
+    vi.useRealTimers();
     vi.restoreAllMocks();
+    window.location.hash = "";
   });
 
   function mockPlatform(caps: Platform["caps"]) {
-    setPlatform({ caps, setPreventSleep: vi.fn().mockResolvedValue(undefined) } as unknown as Platform);
+    setPlatform({
+      caps,
+      setPreventSleep: vi.fn().mockResolvedValue(undefined),
+      askNotifyPermission: vi.fn(),
+    } as unknown as Platform);
   }
 
   it("sends manual_ai on cloud even when stored provider is openai", async () => {
@@ -90,5 +96,36 @@ describe("useClipJobs handleResumeJob (Ruling P2)", () => {
     await act(async () => root.render(<Probe params={makeParams({ aiMode: "auto", provider: "openai" })} />));
     await act(async () => latest.handleResumeJob("job-3", "workspace"));
     expect(post).toHaveBeenCalledWith(expect.stringMatching(/\/jobs\/job-3\/resume$/), expect.objectContaining({ provider: "openai" }));
+  });
+
+  it("sets awaiting on AWAITING_MANUAL when on Create route even if jobOrigin was history (P9) and submits AI answer", async () => {
+    vi.useFakeTimers();
+    window.location.hash = "#/";
+    mockPlatform(CAPS.cloud);
+    const notify = vi.fn();
+    vi.spyOn(axios, "post")
+      .mockResolvedValueOnce({ data: { status: "success", job_id: "job-aw" } })
+      .mockResolvedValueOnce({ data: { status: "success", job_id: "job-aw" } });
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: { status: "AWAITING_MANUAL", metadata: { manual_prompt: "PROMPT", title: "Vid" } },
+    });
+
+    await act(async () => root.render(<Probe params={makeParams({ notify, pexelsApiKey: "px-1" })} />));
+    await act(async () => latest.handleResumeJob("job-aw", "history"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+
+    expect(notify).toHaveBeenCalledWith(expect.any(String), "success");
+    expect(latest.awaiting).toEqual({ jobId: "job-aw", prompt: "PROMPT", title: "Vid" });
+
+    await act(async () => latest.submitAiAnswer('{"highlights":[]}'));
+    expect(axios.post).toHaveBeenLastCalledWith(
+      expect.stringMatching(/\/jobs\/job-aw\/resume-manual$/),
+      { json_payload: '{"highlights":[]}', pexels_api_key: "px-1" },
+    );
+    expect(latest.awaiting).toBeNull();
+    expect(latest.status).toBe("PENDING");
+    expect(latest.makePhase).toBe(true);
   });
 });

@@ -44,6 +44,12 @@ export interface ClipJobParams {
 
 export type CreateJobParams = ClipJobParams;
 
+export interface AwaitingAnswer {
+  jobId: string;
+  prompt: string;
+  title: string;
+}
+
 /**
  * Owns the async job lifecycle: create/rerender/rerun-AI requests, status
  * polling, cancellation and the derived progress/running flags.
@@ -75,6 +81,10 @@ export function useClipJobs(p: ClipJobParams) {
   const [liveMeta, setLiveMeta] = useState<Record<string, unknown> | null>(null);
   // The running job started at clip making (answer sent, re-render): "no stage yet" means step 4.
   const [makePhase, setMakePhase] = useState(false);
+  // Step 3 (spec 4.2): a project waits for the pasted AI answer.
+  const [awaiting, setAwaiting] = useState<AwaitingAnswer | null>(null);
+  const [sendingAnswer, setSendingAnswer] = useState(false);
+  const [answerError, setAnswerError] = useState<{ message: string; info: ErrorInfo | null } | null>(null);
 
   const clearError = () => {
     setErrorMsg("");
@@ -147,10 +157,13 @@ export function useClipJobs(p: ClipJobParams) {
           } else if (job.status === "AWAITING_MANUAL") {
             setStatus("IDLE");
             setCurrent(null);
+            setHistoryVersion((v) => v + 1);
+            // Ruling P9: always notify and open MomentStep on workspace jobs or when user is already on CreatePage.
             notify(t("toast.manual_prompt_ready"), "success");
-            if (jobOrigin === "workspace") {
-               setHistoryVersion((v) => v + 1);
-               window.location.hash = "#/riwayat";
+            const onCreateRoute = !window.location.hash || window.location.hash === "#/" || window.location.hash === "#";
+            if (jobOrigin === "workspace" || onCreateRoute) {
+              setAwaiting({ jobId: activeJobId, prompt: job.metadata?.manual_prompt || "", title: job.metadata?.title || "" });
+              setAnswerError(null);
             }
             setActiveJobId(null);
             setProgress("");
@@ -476,6 +489,49 @@ export function useClipJobs(p: ClipJobParams) {
     setCurrent(null);
     setLiveMeta(null);
     setMakePhase(false);
+    setAwaiting(null);
+    setAnswerError(null);
+  };
+
+  const submitAiAnswer = async (payload: string) => {
+    if (!awaiting) return;
+    setSendingAnswer(true);
+    setAnswerError(null);
+    try {
+      // History keeps no API keys: B-roll needs the Pexels key from Settings.
+      const res = await axios.post(`${API_URL}/jobs/${awaiting.jobId}/resume-manual`, {
+        json_payload: payload,
+        pexels_api_key: p.pexelsApiKey,
+      });
+      if (res.data.status !== "success") throw new Error(res.data.message || "resume-manual failed");
+      platform().askNotifyPermission();
+      clearError();
+      setAwaiting(null);
+      setClips([]);
+      setFailedCount(0);
+      setJobMeta(null);
+      setLiveMeta(null);
+      setJobOrigin("workspace");
+      setMakePhase(true);
+      setStatus("PENDING");
+      setActiveJobId(res.data.job_id);
+    } catch (err) {
+      console.error(err);
+      setAnswerError(requestError(err, t("moment.send_failed")));
+    } finally {
+      setSendingAnswer(false);
+    }
+  };
+
+  /** "Tempel jawaban AI" in Riwayat: back to step 3 for that project. */
+  const openAwaiting = (job: { id: string; metadata?: { manual_prompt?: string; title?: string } | null }) => {
+    resetJobState();
+    setAwaiting({ jobId: job.id, prompt: job.metadata?.manual_prompt || "", title: job.metadata?.title || "" });
+  };
+
+  const leaveAwaiting = () => {
+    setAwaiting(null);
+    setAnswerError(null);
   };
 
   const startManualResumePolling = (jobId: string) => {
@@ -499,6 +555,7 @@ export function useClipJobs(p: ClipJobParams) {
   return {
     status, progress, errorMsg, errorInfo, failedJobId, queuePosition, jobMeta, clips, failedCount,
     isRunning, historyVersion, activeJobId, current, liveMeta, makePhase, jobOrigin,
+    awaiting, sendingAnswer, answerError, submitAiAnswer, openAwaiting, leaveAwaiting,
     handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, startManualResumePolling, cancelJob, resetJobState,
   };
 }

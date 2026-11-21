@@ -623,5 +623,31 @@
     "cancel_keep": "Keep going",
     "running_bar": "A job is running.",
     "running_bar_link": "See progress"
+  },
+  "moment": {
+    "title": "Pick the best moments with an AI chat",
+    "intro": "The three steps below use ChatGPT or Gemini. No API key needed.",
+    "copy": "Copy the instructions",
+    "copied": "Copied",
+    "copy_help": "This text holds the video transcript and instructions for the AI.",
+    "copy_failed": "The instructions were not copied automatically. Press and hold the text below, select all, then copy.",
+    "copy_box_label": "Instructions text",
+    "open_chatgpt": "Open ChatGPT",
+    "open_gemini": "Open Gemini",
+    "open_help": "Paste the instructions, then send.",
+    "answer_label": "Paste the AI's answer here",
+    "submit": "Make clips",
+    "problem_empty": "The answer box is empty. Paste the answer from ChatGPT or Gemini here.",
+    "problem_cut_off": "The answer is not complete. Copy the AI's whole answer, including the brackets at the start and end.",
+    "problem_not_answer": "This text is not the answer to the instructions. Copy the AI's answer that starts with a { or [ bracket.",
+    "problem_no_moments": "The AI's answer has no moments in it. Send the instructions to the AI again, then copy the new answer.",
+    "problem_missing_times": "Moment {{n}} has no start and end time. Ask the AI to send its answer again, then copy it.",
+    "prompt_missing": "The instructions for this project were not found. Open it from History, or start again from the video.",
+    "send_failed": "The answer was not sent. Check the connection, then press Make clips again.",
+    "saved": "This project is saved in History. You can paste the answer later.",
+    "later": "Make clips from another video"
+  },
+  "projects": {
+    "action_paste_answer": "Paste the AI answer"
   }
 }

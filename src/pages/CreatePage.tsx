@@ -4,6 +4,7 @@ import { AppContext } from "../App";
 import ClipsResult from "../components/ClipsResult";
 import { ErrorCard } from "../components/ErrorCard";
 import { ClipOptions } from "../components/create/ClipOptions";
+import { MomentStep } from "../components/create/MomentStep";
 import { PreflightNotices } from "../components/create/PreflightNotices";
 import { ProgressPanel } from "../components/create/ProgressPanel";
 import { StepIndicator } from "../components/create/StepIndicator";
@@ -108,6 +109,20 @@ export const CreatePage: React.FC = () => {
       <StepIndicator states={stepStates(shownStep, finished)} />
 
       {failed && ctx.errorInfo && <ErrorCard info={ctx.errorInfo} handlers={jobErrorActions} announce />}
+
+      {ctx.awaiting && (
+        <MomentStep
+          prompt={ctx.awaiting.prompt}
+          projectTitle={ctx.awaiting.title}
+          submitting={ctx.sendingAnswer}
+          error={ctx.answerError}
+          onSubmit={(payload) => void ctx.submitAiAnswer(payload)}
+          onLater={() => {
+            ctx.leaveAwaiting();
+            ctx.handleResetWorkspace();
+          }}
+        />
+      )}
 
       {step === 1 && (
         <>

@@ -623,5 +623,31 @@
     "cancel_keep": "Lanjutkan proses",
     "running_bar": "Ada proses yang sedang berjalan.",
     "running_bar_link": "Lihat progres"
+  },
+  "moment": {
+    "title": "Pilih momen terbaik dengan bantuan AI",
+    "intro": "Tiga langkah di bawah memakai ChatGPT atau Gemini. Tidak perlu kunci API.",
+    "copy": "Salin perintah",
+    "copied": "Tersalin",
+    "copy_help": "Teks ini berisi transkrip video dan petunjuk untuk AI.",
+    "copy_failed": "Perintah belum tersalin otomatis. Tekan lama teks di bawah, pilih semua, lalu salin.",
+    "copy_box_label": "Teks perintah",
+    "open_chatgpt": "Buka ChatGPT",
+    "open_gemini": "Buka Gemini",
+    "open_help": "Tempel perintah tadi, lalu kirim.",
+    "answer_label": "Tempel jawaban AI di sini",
+    "submit": "Buat klip",
+    "problem_empty": "Kotak jawaban masih kosong. Tempel jawaban dari ChatGPT atau Gemini di sini.",
+    "problem_cut_off": "Jawaban belum lengkap. Salin seluruh jawaban AI, termasuk tanda kurung di awal dan akhir.",
+    "problem_not_answer": "Teks ini bukan jawaban untuk perintah tadi. Salin jawaban AI yang dimulai dengan tanda kurung { atau [.",
+    "problem_no_moments": "Jawaban AI tidak berisi momen apa pun. Kirim ulang perintah ke AI, lalu salin jawabannya lagi.",
+    "problem_missing_times": "Momen ke-{{n}} tidak punya waktu mulai dan selesai. Minta AI mengirim ulang jawabannya, lalu salin lagi.",
+    "prompt_missing": "Teks perintah untuk proyek ini tidak ditemukan. Buka proyek ini dari Riwayat, atau mulai lagi dari video.",
+    "send_failed": "Jawaban belum terkirim. Periksa sambungan, lalu tekan Buat klip lagi.",
+    "saved": "Proyek ini tersimpan di Riwayat. Kamu bisa menempel jawabannya nanti.",
+    "later": "Buat klip dari video lain"
+  },
+  "projects": {
+    "action_paste_answer": "Tempel jawaban AI"
   }
 }

@@ -1,15 +1,16 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
 import { Trash2, RefreshCw, Wand2, Play } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { AppContext, API_URL } from "../App";
 import { canRerunAI, canResumeJob } from "../lib/history";
+import { ROUTES } from "../lib/routes";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Select } from "../components/ui/Select";
 import ClipCard from "../components/ClipCard";
-import { ManualResumeModal } from "../components/ManualResumeModal";
 import { ClipEditModal } from "../components/ClipEditModal";
 import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { CanvasConfigControls } from "../components/ui/CanvasConfigControls";
@@ -20,12 +21,12 @@ import { asErrorInfo, hasRerunAction } from "../lib/errorInfo";
 
 export const HistoryPage: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const ctx = useContext(AppContext);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeRerenderId, setActiveRerenderId] = useState<string | null>(null);
   const [activeAiId, setActiveAiId] = useState<string | null>(null);
-  const [activeManualJob, setActiveManualJob] = useState<any | null>(null);
   const [activeEditClip, setActiveEditClip] = useState<{job: any, index: number} | null>(null);
   const [extraPrompt, setExtraPrompt] = useState("");
 
@@ -333,9 +334,12 @@ export const HistoryPage: React.FC = () => {
                   <Button
                     variant="primary"
                     icon={Play}
-                    onClick={() => setActiveManualJob(job)}
+                    onClick={() => {
+                      ctx.openAwaiting(job);
+                      navigate(ROUTES.create);
+                    }}
                   >
-                    {t("history.lanjut_manual")}
+                    {t("projects.action_paste_answer")}
                   </Button>
                 )}
                 {/* The error card already has this button when the error offers "Coba lagi" or "Lanjutkan". */}
@@ -353,17 +357,6 @@ export const HistoryPage: React.FC = () => {
             </div>
           ))}
         </div>
-      )}
-
-      {activeManualJob && (
-        <ManualResumeModal
-          job={activeManualJob}
-          onClose={() => setActiveManualJob(null)}
-          onSuccess={(jobId: string) => {
-            setActiveManualJob(null);
-            ctx.startManualResumePolling(jobId);
-          }}
-        />
       )}
 
       {activeEditClip && (
