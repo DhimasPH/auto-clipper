@@ -128,4 +128,62 @@ describe("useClipJobs handleResumeJob (Ruling P2)", () => {
     expect(latest.status).toBe("PENDING");
     expect(latest.makePhase).toBe(true);
   });
+
+  it("keeps awaiting null when AWAITING_MANUAL arrives while viewing #/riwayat (P9)", async () => {
+    vi.useFakeTimers();
+    window.location.hash = "#/riwayat";
+    mockPlatform(CAPS.cloud);
+    const notify = vi.fn();
+    vi.spyOn(axios, "post").mockResolvedValueOnce({ data: { status: "success", job_id: "job-hist" } });
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: { status: "AWAITING_MANUAL", metadata: { manual_prompt: "PROMPT", title: "Vid" } },
+    });
+
+    await act(async () => root.render(<Probe params={makeParams({ notify })} />));
+    await act(async () => latest.handleResumeJob("job-hist", "history"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+
+    expect(notify).toHaveBeenCalledWith(expect.any(String), "success");
+    expect(latest.awaiting).toBeNull();
+  });
+
+  it("preserves awaiting and sets answerError when submitAiAnswer fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockPlatform(CAPS.cloud);
+    vi.spyOn(axios, "post").mockRejectedValueOnce(new Error("network down"));
+
+    await act(async () => root.render(<Probe params={makeParams()} />));
+    act(() => latest.openAwaiting({ id: "job-err", metadata: { manual_prompt: "P", title: "T" } }));
+    await act(async () => latest.submitAiAnswer('{"highlights":[]}'));
+
+    expect(consoleError).toHaveBeenCalled();
+    expect(latest.awaiting).toEqual({ jobId: "job-err", prompt: "P", title: "T" });
+    expect(latest.answerError?.message).toBe("network down");
+  });
+
+  it("clears stale awaiting and answerError when handleResumeJob or handleRerender starts another job", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockPlatform(CAPS.cloud);
+    vi.spyOn(axios, "post")
+      .mockRejectedValueOnce(new Error("first submit failed"))
+      .mockResolvedValueOnce({ data: { status: "success", job_id: "job-2" } })
+      .mockResolvedValueOnce({ data: { status: "success", job_id: "job-3" } });
+
+    await act(async () => root.render(<Probe params={makeParams()} />));
+    act(() => latest.openAwaiting({ id: "job-1", metadata: { manual_prompt: "P", title: "T" } }));
+    await act(async () => latest.submitAiAnswer('{"highlights":[]}'));
+    expect(latest.answerError).not.toBeNull();
+
+    await act(async () => latest.handleResumeJob("job-2", "history"));
+    expect(latest.awaiting).toBeNull();
+    expect(latest.answerError).toBeNull();
+
+    act(() => latest.openAwaiting({ id: "job-1", metadata: { manual_prompt: "P", title: "T" } }));
+    await act(async () => latest.handleRerender("job-3", "9:16", "single_word", true));
+    expect(latest.awaiting).toBeNull();
+    expect(latest.answerError).toBeNull();
+    expect(consoleError).toHaveBeenCalled();
+  });
 });

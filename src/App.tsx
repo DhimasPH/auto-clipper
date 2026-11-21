@@ -150,7 +150,6 @@ export default function App() {
     handleRerunAI,
     handleResumeJob,
     handleRerenderClip,
-    startManualResumePolling,
     cancelJob,
     resetJobState,
   } = useClipJobs({
@@ -279,7 +278,6 @@ export default function App() {
     jobId: activeJobId,
     handleGenerate,
     handleManualGenerate,
-    startManualResumePolling,
     cancelJob,
     manualFile, setManualFile,
     manualLocalUrl, setManualLocalUrl,

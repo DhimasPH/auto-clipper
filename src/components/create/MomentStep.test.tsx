@@ -88,4 +88,32 @@ describe("MomentStep (spec 4.2 step 3)", () => {
     expect(container.textContent).toContain(i18n.t("moment.prompt_missing"));
     expect(button(i18n.t("moment.copy"))).toBeUndefined();
   });
+
+  it("shows readonly fallback textarea when copy fails, renders backend error, and disables onLater while submitting", async () => {
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+    });
+    const prevExec = (document as { execCommand?: unknown }).execCommand;
+    document.execCommand = vi.fn(() => false);
+    const onLater = vi.fn();
+    try {
+      render({
+        submitting: true,
+        error: { message: "Server down", info: null },
+        onLater,
+      });
+
+      await act(async () => button(i18n.t("moment.copy")).click());
+      expect(container.textContent).toContain(i18n.t("moment.copy_failed"));
+      expect((container.querySelector("textarea[readonly]") as HTMLTextAreaElement)?.value).toBe("PERINTAH");
+      const alerts = [...container.querySelectorAll('[role="alert"]')].map((el) => el.textContent).join(" ");
+      expect(alerts).toContain("Server down");
+      const laterBtn = button(i18n.t("moment.later")) as HTMLButtonElement;
+      expect(laterBtn.disabled).toBe(true);
+    } finally {
+      if (prevExec === undefined) delete (document as { execCommand?: unknown }).execCommand;
+      else document.execCommand = prevExec as typeof document.execCommand;
+    }
+  });
 });

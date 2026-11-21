@@ -112,6 +112,7 @@ export const CreatePage: React.FC = () => {
 
       {ctx.awaiting && (
         <MomentStep
+          key={ctx.awaiting.jobId}
           prompt={ctx.awaiting.prompt}
           projectTitle={ctx.awaiting.title}
           submitting={ctx.sendingAnswer}

@@ -92,6 +92,15 @@ export function useClipJobs(p: ClipJobParams) {
     setFailedJobId(null);
   };
 
+  const beginJob = (origin: "workspace" | "history", nextMakePhase: boolean) => {
+    clearError();
+    setAwaiting(null);
+    setAnswerError(null);
+    setJobOrigin(origin);
+    setMakePhase(nextMakePhase);
+    setLiveMeta(null);
+  };
+
   /** Show a failed request: the structured card when the backend sent error_info, else the raw text. */
   const showRequestError = (err: unknown, fallback: string) => {
     const { message, info } = requestError(err, fallback);
@@ -233,14 +242,11 @@ export function useClipJobs(p: ClipJobParams) {
 
     // Still inside the click: browsers only allow the permission prompt from a user gesture.
     platform().askNotifyPermission();
-    clearError();
+    beginJob("workspace", false);
     setProgress("");
     setClips([]);
     setFailedCount(0);
     setJobMeta(null);
-    setJobOrigin("workspace");
-    setMakePhase(false);
-    setLiveMeta(null);
 
     try {
       setStatus("GENERATING");
@@ -304,14 +310,11 @@ export function useClipJobs(p: ClipJobParams) {
       return;
     }
     platform().askNotifyPermission();
-    clearError();
+    beginJob("workspace", false);
     setProgress("");
     setClips([]);
     setFailedCount(0);
     setJobMeta(null);
-    setJobOrigin("workspace");
-    setMakePhase(false);
-    setLiveMeta(null);
 
     try {
       setStatus("GENERATING");
@@ -348,12 +351,9 @@ export function useClipJobs(p: ClipJobParams) {
     customCanvasConfig?: CanvasConfig,
     customSubtitleConfig?: SubtitleConfig
   ) => {
-    setJobOrigin("history");
-    setMakePhase(true);
-    setLiveMeta(null);
+    beginJob("history", true);
     setStatus("TRANSCRIBING");
     setProgress("");
-    clearError();
 
     try {
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerender`, {
@@ -388,12 +388,9 @@ export function useClipJobs(p: ClipJobParams) {
   };
 
   const handleRerunAI = async (historyJobId: string, extraPrompt: string) => {
-    setJobOrigin("history");
-    setMakePhase(false);
-    setLiveMeta(null);
+    beginJob("history", false);
     setStatus("TRANSCRIBING");
     setProgress("");
-    clearError();
 
     try {
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerun_ai`, {
@@ -434,12 +431,9 @@ export function useClipJobs(p: ClipJobParams) {
   // origin "workspace": the clips of the resumed job appear in the Workspace
   // (Resume pressed on the Workspace error card). Default: History is refreshed.
   const handleResumeJob = async (historyJobId: string, origin: "workspace" | "history" = "history") => {
-    setJobOrigin(origin);
-    setMakePhase(false);
-    setLiveMeta(null);
+    beginJob(origin, false);
     setStatus("TRANSCRIBING");
     setProgress("");
-    clearError();
 
     try {
       // History keeps no API keys, so the keys from Settings go with every resume.
@@ -467,12 +461,9 @@ export function useClipJobs(p: ClipJobParams) {
   };
 
   const handleRerenderClip = (newJobId: string) => {
-    setJobOrigin("history");
-    setMakePhase(true);
-    setLiveMeta(null);
+    beginJob("history", true);
     setStatus("CROPPING");
     setProgress("");
-    clearError();
     setActiveJobId(newJobId);
     // Polling loop in useEffect will pick up the new job automatically
   };
@@ -505,14 +496,10 @@ export function useClipJobs(p: ClipJobParams) {
       });
       if (res.data.status !== "success") throw new Error(res.data.message || "resume-manual failed");
       platform().askNotifyPermission();
-      clearError();
-      setAwaiting(null);
+      beginJob("workspace", true);
       setClips([]);
       setFailedCount(0);
       setJobMeta(null);
-      setLiveMeta(null);
-      setJobOrigin("workspace");
-      setMakePhase(true);
       setStatus("PENDING");
       setActiveJobId(res.data.job_id);
     } catch (err) {
@@ -534,17 +521,6 @@ export function useClipJobs(p: ClipJobParams) {
     setAnswerError(null);
   };
 
-  const startManualResumePolling = (jobId: string) => {
-    setActiveJobId(jobId);
-    setJobOrigin("history");
-    setMakePhase(true);
-    setLiveMeta(null);
-    setStatus("CROPPING");
-    setProgress("Memproses klip manual...");
-    clearError();
-    p.closeHistory();
-  };
-
   const isRunning = !!activeJobId || status === "GENERATING";
 
   useEffect(() => {
@@ -556,6 +532,6 @@ export function useClipJobs(p: ClipJobParams) {
     status, progress, errorMsg, errorInfo, failedJobId, queuePosition, jobMeta, clips, failedCount,
     isRunning, historyVersion, activeJobId, current, liveMeta, makePhase, jobOrigin,
     awaiting, sendingAnswer, answerError, submitAiAnswer, openAwaiting, leaveAwaiting,
-    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, startManualResumePolling, cancelJob, resetJobState,
+    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, cancelJob, resetJobState,
   };
 }

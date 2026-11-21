@@ -103,10 +103,10 @@ export const MomentStep: React.FC<MomentStepProps> = ({ prompt, projectTitle, su
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex flex-col gap-2 sm:flex-row">
               {/* The icon says "opens a new tab". */}
-              <Button variant="outline" icon={ExternalLink} onClick={() => void platform().openExternal(CHATGPT_URL)}>
+              <Button variant="outline" icon={ExternalLink} onClick={() => void platform().openExternal(CHATGPT_URL).catch(console.error)}>
                 {t("moment.open_chatgpt")}
               </Button>
-              <Button variant="outline" icon={ExternalLink} onClick={() => void platform().openExternal(GEMINI_URL)}>
+              <Button variant="outline" icon={ExternalLink} onClick={() => void platform().openExternal(GEMINI_URL).catch(console.error)}>
                 {t("moment.open_gemini")}
               </Button>
             </div>
@@ -146,7 +146,7 @@ export const MomentStep: React.FC<MomentStepProps> = ({ prompt, projectTitle, su
 
       <div className="flex flex-col gap-2 border-t border-border pt-4">
         <p className="text-body text-text-secondary">{t("moment.saved", { title: projectTitle })}</p>
-        <Button variant="ghost" className="self-start" onClick={onLater}>
+        <Button variant="ghost" className="self-start" disabled={submitting} onClick={onLater}>
           {t("moment.later")}
         </Button>
       </div>
