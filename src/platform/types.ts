@@ -67,6 +67,8 @@ export interface Platform {
   backend(): Promise<BackendInfo>;
   pickVideo(): Promise<VideoSource | null>;
   saveClip(clip: ClipRef): Promise<void>;
+  /** Save several clips at once ("Unduh semua"): desktop asks for one folder, browsers download one by one. */
+  saveClips(clips: ClipRef[]): Promise<void>;
   openFolder(path: string): Promise<void>;
   secrets: { get(name: string): Promise<string | null>; set(name: string, value: string): Promise<void> };
   notify(title: string, body: string): void;

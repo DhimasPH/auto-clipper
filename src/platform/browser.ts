@@ -31,6 +31,14 @@ export async function browserDownload(clip: ClipRef): Promise<void> {
   a.remove();
 }
 
+/** Several clips one after another; the short pause lets the browser start each download. */
+export async function browserDownloadAll(clips: ClipRef[], gapMs = 400): Promise<void> {
+  for (const [i, clip] of clips.entries()) {
+    if (i > 0) await new Promise((resolve) => setTimeout(resolve, gapMs));
+    await browserDownload(clip);
+  }
+}
+
 let permissionAsked = false;
 
 /**
@@ -76,6 +84,7 @@ export const browserPlatformParts: Pick<
   Platform,
   | "pickVideo"
   | "saveClip"
+  | "saveClips"
   | "notify"
   | "askNotifyPermission"
   | "openExternal"
@@ -86,6 +95,7 @@ export const browserPlatformParts: Pick<
 > = {
   pickVideo: pickBrowserVideo,
   saveClip: browserDownload,
+  saveClips: (clips) => browserDownloadAll(clips),
   notify: browserNotify,
   askNotifyPermission: askBrowserNotifyPermission,
   openExternal: openInBrowser,

@@ -649,5 +649,19 @@
   },
   "projects": {
     "action_paste_answer": "Tempel jawaban AI"
+  },
+  "result": {
+    "title_done": "{{count}} klip siap",
+    "title_partial": "{{count}} klip sudah jadi, sisanya sedang dibuat",
+    "failed": "{{count}} klip gagal dibuat.",
+    "download_all": "Unduh semua",
+    "download": "Unduh",
+    "download_failed": "Klip belum terunduh. Tekan Unduh sekali lagi.",
+    "share": "Bagikan",
+    "more": "Pilihan lain untuk klip {{n}}",
+    "edit": "Ubah subtitle atau tampilan",
+    "open_folder": "Buka folder",
+    "clip_n": "Klip {{n}}",
+    "new": "Buat klip dari video lain"
   }
 }

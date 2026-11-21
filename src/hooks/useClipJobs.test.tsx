@@ -186,4 +186,37 @@ describe("useClipJobs handleResumeJob (Ruling P2)", () => {
     expect(latest.answerError).toBeNull();
     expect(consoleError).toHaveBeenCalled();
   });
+
+  it("reloads the active workspace result after a single-clip rerender completes (Ruling P8)", async () => {
+    vi.useFakeTimers();
+    mockPlatform(CAPS.cloud);
+    vi.spyOn(axios, "post").mockResolvedValueOnce({ data: { status: "success", job_id: "ws-1" } });
+    const get = vi
+      .spyOn(axios, "get")
+      .mockResolvedValueOnce({
+        data: { status: "DONE", failed: 0, clips: [{ path: "C:\\c1.mp4", description: "v1", start: "0", end: "1", subs: true, v: 0 }], metadata: {} },
+      })
+      .mockResolvedValueOnce({
+        data: { status: "DONE", failed: 0, clips: [] },
+      })
+      .mockResolvedValueOnce({
+        data: { clips: [{ path: "C:\\c1.mp4", description: "v2", start: "0", end: "1", subs: true, v: 0 }], metadata: { reloaded: true } },
+      });
+
+    await act(async () => root.render(<Probe params={makeParams({ url: "https://youtu.be/abc", title: "My vid", aiMode: "manual" })} />));
+    await act(async () => latest.handleGenerate("manual_ai", "My vid"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(latest.resultJobId).toBe("ws-1");
+
+    act(() => latest.handleRerenderClip("clip-job-2"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+
+    expect(get).toHaveBeenLastCalledWith(expect.stringMatching(/\/jobs\/ws-1$/));
+    expect(latest.clips[0]?.description).toBe("v2");
+    expect(latest.jobMeta).toEqual({ reloaded: true });
+  });
 });

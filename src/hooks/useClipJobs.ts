@@ -85,11 +85,24 @@ export function useClipJobs(p: ClipJobParams) {
   const [awaiting, setAwaiting] = useState<AwaitingAnswer | null>(null);
   const [sendingAnswer, setSendingAnswer] = useState(false);
   const [answerError, setAnswerError] = useState<{ message: string; info: ErrorInfo | null } | null>(null);
+  const [resultJobId, setResultJobId] = useState<string | null>(null);
 
   const clearError = () => {
     setErrorMsg("");
     setErrorInfo(null);
     setFailedJobId(null);
+  };
+
+  /** After a single clip was made again from the results: show the new clip files. */
+  const reloadResult = async (jobId: string) => {
+    try {
+      const res = await axios.get(`${API_URL}/jobs/${jobId}`);
+      const stamp = Date.now();
+      setClips((res.data.clips || []).map((clip: Clip) => ({ ...clip, v: stamp })));
+      setJobMeta(res.data.metadata || null);
+    } catch (e) {
+      console.error("Reloading the result failed", e);
+    }
   };
 
   const beginJob = (origin: "workspace" | "history", nextMakePhase: boolean) => {
@@ -131,9 +144,11 @@ export function useClipJobs(p: ClipJobParams) {
               setClips(job.clips);
               setFailedCount(failedN);
               setJobMeta(job.metadata || null);
+              setResultJobId(activeJobId);
             } else {
               // History-origin job (re-render / AI correction): refresh History, leave Workspace untouched.
               setHistoryVersion((v) => v + 1);
+              if (resultJobId) void reloadResult(resultJobId);
             }
             setActiveJobId(null);
             setProgress("");
@@ -194,7 +209,7 @@ export function useClipJobs(p: ClipJobParams) {
       }, 1500);
     }
     return () => clearInterval(interval);
-  }, [activeJobId, status, clips.length, jobOrigin]);
+  }, [activeJobId, status, clips.length, jobOrigin, resultJobId]);
 
   const cancelJob = async () => {
     const jid = activeJobId;
@@ -247,6 +262,7 @@ export function useClipJobs(p: ClipJobParams) {
     setClips([]);
     setFailedCount(0);
     setJobMeta(null);
+    setResultJobId(null);
 
     try {
       setStatus("GENERATING");
@@ -315,6 +331,7 @@ export function useClipJobs(p: ClipJobParams) {
     setClips([]);
     setFailedCount(0);
     setJobMeta(null);
+    setResultJobId(null);
 
     try {
       setStatus("GENERATING");
@@ -482,6 +499,7 @@ export function useClipJobs(p: ClipJobParams) {
     setMakePhase(false);
     setAwaiting(null);
     setAnswerError(null);
+    setResultJobId(null);
   };
 
   const submitAiAnswer = async (payload: string) => {
@@ -531,7 +549,7 @@ export function useClipJobs(p: ClipJobParams) {
   return {
     status, progress, errorMsg, errorInfo, failedJobId, queuePosition, jobMeta, clips, failedCount,
     isRunning, historyVersion, activeJobId, current, liveMeta, makePhase, jobOrigin,
-    awaiting, sendingAnswer, answerError, submitAiAnswer, openAwaiting, leaveAwaiting,
+    awaiting, sendingAnswer, answerError, submitAiAnswer, openAwaiting, leaveAwaiting, resultJobId,
     handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, cancelJob, resetJobState,
   };
 }

@@ -649,5 +649,19 @@
   },
   "projects": {
     "action_paste_answer": "Paste the AI answer"
+  },
+  "result": {
+    "title_done": "{{count}} clips ready",
+    "title_partial": "{{count}} clips done, the rest are being made",
+    "failed": "{{count}} clips could not be made.",
+    "download_all": "Download all",
+    "download": "Download",
+    "download_failed": "The clip was not downloaded. Press Download once more.",
+    "share": "Share",
+    "more": "More for clip {{n}}",
+    "edit": "Change subtitles or look",
+    "open_folder": "Open folder",
+    "clip_n": "Clip {{n}}",
+    "new": "Make clips from another video"
   }
 }

@@ -3,12 +3,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // No Tauri runtime in Vitest: the plugins are mocked, the adapter's own logic is what is checked.
 const shellOpen = vi.fn(async (_target: string) => {});
+const openDialog = vi.fn(async (_opts: unknown): Promise<string | null> => null);
 const saveDialog = vi.fn(async (_opts: unknown): Promise<string | null> => null);
 const invoke = vi.fn(async (_cmd: string) => {});
 const requestPermission = vi.fn(async () => "granted");
 
 vi.mock("@tauri-apps/plugin-shell", () => ({ open: shellOpen, Command: { sidecar: vi.fn() } }));
-vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(async () => null), save: saveDialog }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: openDialog, save: saveDialog }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/plugin-notification", () => ({
   isPermissionGranted: vi.fn(async () => false),
@@ -63,6 +64,23 @@ describe("desktop adapter", () => {
     await p.saveClip({ path: "C:\\app\\clip_1.mp4", filename: "clip_1.mp4" }); // cancelled
     expect(post.mock.calls).toEqual([
       ["http://127.0.0.1:5123/save_file", { src: "C:\\app\\clip_1.mp4", dest: "D:\\out\\clip_1.mp4" }],
+    ]);
+  });
+
+  it("saves all clips into one chosen folder, or nothing when cancelled", async () => {
+    setApiUrl("http://127.0.0.1:5123");
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: {} });
+    openDialog.mockResolvedValueOnce("D:\\out").mockResolvedValueOnce(null);
+    const p = createPlatform();
+    const clips = [
+      { path: "C:\\app\\clip_1.mp4", filename: "clip_1.mp4" },
+      { path: "C:\\app\\clip_2.mp4", filename: "clip_2.mp4" },
+    ];
+    await p.saveClips(clips);
+    await p.saveClips(clips);
+    expect(post.mock.calls).toEqual([
+      ["http://127.0.0.1:5123/save_file", { src: "C:\\app\\clip_1.mp4", dest: "D:\\out" }],
+      ["http://127.0.0.1:5123/save_file", { src: "C:\\app\\clip_2.mp4", dest: "D:\\out" }],
     ]);
   });
 

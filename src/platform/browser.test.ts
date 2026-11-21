@@ -68,3 +68,22 @@ describe("browserDownload", () => {
     click.mockRestore();
   });
 });
+
+describe("browserDownloadAll", () => {
+  it("downloads the clips one after another", async () => {
+    const { browserDownloadAll } = await import("./browser");
+    const names: string[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      names.push(this.download);
+    });
+    await browserDownloadAll(
+      [
+        { path: "a", filename: "clip_1.mp4", videoUrl: "http://x/video?p=1" },
+        { path: "b", filename: "clip_2.mp4", videoUrl: "http://x/video?p=2" },
+      ],
+      0,
+    );
+    expect(names).toEqual(["clip_1.mp4", "clip_2.mp4"]);
+    click.mockRestore();
+  });
+});

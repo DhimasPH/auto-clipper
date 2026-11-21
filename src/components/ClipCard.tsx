@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, Folder, Sparkles, Pencil, Star } from "lucide-react";
+import { Download, Share2 } from "lucide-react";
 import { Button } from "./ui/Button";
+import { OverflowMenu, type OverflowItem } from "./ui/OverflowMenu";
 import { platform } from "../platform";
 import { fileName } from "../platform/paths";
 import { API_URL } from "../platform/backendUrl";
 import { useSignedVideo } from "../hooks/useSignedVideo";
+import { clipSeconds, clipTitle, formatClock } from "../lib/clipInfo";
+import { toLang } from "../lib/errorInfo";
 import { localErrorInfo } from "../lib/localErrors";
 import { videoHref } from "../lib/videoUrl";
 import { ErrorCard } from "./ErrorCard";
@@ -46,26 +50,48 @@ interface ClipCardProps {
   onEdit?: () => void;
 }
 
-import { useState } from "react";
-
-export default function ClipCard({
-  clip,
-  index,
-  jobId,
-  onEdit
-}: ClipCardProps) {
+export default function ClipCard({ clip, index, jobId, onEdit }: ClipCardProps) {
   const { t, i18n } = useTranslation();
   const [showModal, setShowModal] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [localSocial, setLocalSocial] = useState<SocialData | undefined>(clip.social);
   const video = useSignedVideo(clip.path, clip.video_url);
+  const caps = platform().caps;
+  const lang = toLang(i18n.language);
+  const title = clipTitle({ ...clip, social: localSocial }, lang) ?? t("result.clip_n", { n: index + 1 });
+  const seconds = clipSeconds(clip);
+  const description = lang === "en" ? clip.description_en || clip.description : clip.description_id || clip.description;
 
-  const currentDescription = i18n.language === 'id' 
-    ? (clip.description_id || clip.description)
-    : (clip.description_en || clip.description);
+  const save = async () => {
+    setSaveFailed(false);
+    try {
+      await platform().saveClip({
+        path: clip.path,
+        filename: fileName(clip.path),
+        videoUrl: videoHref(video.src, API_URL, { dl: true }) || undefined,
+      });
+    } catch (err) {
+      console.error("Save failed", err);
+      setSaveFailed(true);
+    }
+  };
+
+  const items: OverflowItem[] = [
+    ...(onEdit ? [{ id: "edit", label: t("result.edit"), onSelect: onEdit }] : []),
+    ...(caps.openFolder
+      ? [
+          {
+            id: "folder",
+            label: t("result.open_folder"),
+            onSelect: () => void platform().openFolder(clip.path).catch((err) => console.error("Open folder failed", err)),
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="bg-bg-secondary rounded-card border border-border p-4 flex flex-col gap-4 w-72 shadow-sm">
-      <div className="aspect-[9/16] bg-scrim rounded-lg overflow-hidden border border-border/50">
+    <article className="flex flex-col gap-3 rounded-card border border-border bg-bg-secondary p-3">
+      <div className="mx-auto aspect-[9/16] w-full max-w-[360px] overflow-hidden rounded-input bg-black">
         {video.failed ? (
           <ErrorCard
             info={localErrorInfo("VIDEO_LINK_REFUSED")}
@@ -80,94 +106,47 @@ export default function ClipCard({
             controls
             playsInline
             preload="metadata"
-            className="w-full h-full object-contain bg-black"
+            className="h-full w-full object-contain"
           />
         )}
       </div>
-        <div className="flex flex-col flex-1">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="text-body font-bold text-text-primary">
-            {t('clip.title_ai', { num: index + 1 })}
-          </h3>
-          {clip.score && (
-            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold shrink-0">
-              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-              <span>{clip.score}/10</span>
-            </div>
-          )}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="text-card-title text-text-primary break-words">{title}</h3>
+          <p className="text-caption text-text-secondary">
+            {t("result.clip_n", { n: index + 1 })}
+            {seconds !== null && ` · ${formatClock(seconds)}`}
+          </p>
         </div>
-        <p className="text-caption text-text-secondary leading-relaxed mb-4 flex-1">
-          {currentDescription}
-        </p>
-
-        {(currentDescription || localSocial) && (
-          <div className="mb-4">
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 py-2 px-3 bg-accent/10 text-accent rounded-button text-caption font-medium hover:bg-accent/20 transition-all cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4" />
-              {t('clip.social_kit', 'Social Kit')}
-            </button>
-          </div>
-        )}
-
-        <div className="flex gap-2 mt-auto">
-          {onEdit && (
-            <Button
-              variant="outline"
-              className="!px-3"
-              icon={Pencil}
-              title={t("clip_rerender.edit_btn_title", "Correct Subtitle & Rerender")}
-              onClick={onEdit}
-            />
-          )}
-          <button
-            onClick={async (e) => {
-              e.preventDefault();
-              try {
-                await platform().saveClip({
-                  path: clip.path,
-                  filename: fileName(clip.path),
-                  videoUrl: videoHref(video.src, API_URL, { dl: true }) || undefined,
-                });
-              } catch (err) {
-                console.error("Save failed", err);
-              }
-            }}
-            className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-accent text-on-accent rounded-button text-caption font-medium hover:brightness-110 transition-all cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            {t('clip.btn_download', 'Download')}
-          </button>
-          {platform().caps.openFolder && (
-            <Button
-              variant="outline"
-              className="!px-3"
-              icon={Folder}
-              title="Buka Folder"
-              onClick={async () => {
-                try {
-                  await platform().openFolder(clip.path);
-                } catch (err) {
-                  console.error("Open folder failed", err);
-                }
-              }}
-            />
-          )}
-        </div>
+        <OverflowMenu label={t("result.more", { n: index + 1 })} items={items} />
       </div>
-      {(currentDescription || localSocial) && (
-        <SocialKitModal 
-          isOpen={showModal} 
-          onClose={() => setShowModal(false)} 
-          social={localSocial} 
+      {/* Ruling P16: wrap cleanly instead of clipping button labels on narrow viewports, with matching outline controls. */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" icon={Download} onClick={() => void save()}>
+          {t("result.download")}
+        </Button>
+        {(description || localSocial) && (
+          <Button variant="outline" icon={Share2} onClick={() => setShowModal(true)}>
+            {t("result.share")}
+          </Button>
+        )}
+      </div>
+      {saveFailed && (
+        <p role="alert" className="text-body text-error">
+          {t("result.download_failed")}
+        </p>
+      )}
+      {(description || localSocial) && (
+        <SocialKitModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          social={localSocial}
           clip={clip}
           jobId={jobId}
-          clipIndex={index} 
-          onUpdate={(newSocial) => setLocalSocial(newSocial)}
+          clipIndex={index}
+          onUpdate={(next) => setLocalSocial(next)}
         />
       )}
-    </div>
+    </article>
   );
 }

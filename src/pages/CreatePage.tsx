@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "../App";
 import ClipsResult from "../components/ClipsResult";
+import { ClipEditModal } from "../components/ClipEditModal";
 import { ErrorCard } from "../components/ErrorCard";
 import { ClipOptions } from "../components/create/ClipOptions";
 import { MomentStep } from "../components/create/MomentStep";
@@ -38,6 +39,7 @@ export const CreatePage: React.FC = () => {
   const connected = backend === "connected";
   const preflight = usePreflight(connected);
   const pickButton = useRef<HTMLButtonElement>(null);
+  const [editClip, setEditClip] = useState<number | null>(null);
 
   const flow: FlowState = {
     status: ctx.status,
@@ -183,8 +185,34 @@ export const CreatePage: React.FC = () => {
         />
       )}
 
-      {finished && !ctx.isRunning && (
-        <ClipsResult clips={ctx.clips} status={ctx.status} failedCount={ctx.failedCount} jobId={ctx.resultJobId ?? ""} />
+      {flow.hasClips && (finished || flow.running) && (
+        <ClipsResult
+          clips={ctx.clips}
+          status={ctx.status}
+          failedCount={ctx.failedCount}
+          jobId={ctx.resultJobId ?? ""}
+          metadata={ctx.jobMeta}
+          onEditClip={finished && ctx.resultJobId ? setEditClip : undefined}
+          onNew={ctx.handleResetWorkspace}
+        />
+      )}
+      {editClip !== null && ctx.resultJobId && (
+        <ClipEditModal
+          jobId={ctx.resultJobId}
+          clipIndex={editClip}
+          clipTitle={t("result.clip_n", { n: editClip + 1 })}
+          initialAspectRatio={ctx.jobMeta?.aspect_ratio || "9:16"}
+          initialTrackingMode={ctx.jobMeta?.tracking_mode || "auto"}
+          initialFaceTrackingEngine={ctx.jobMeta?.face_tracking_engine || "haar"}
+          initialBurnSubs={ctx.jobMeta?.burn_subs ?? true}
+          initialCanvasConfig={ctx.jobMeta?.canvas_config}
+          initialSubtitleConfig={ctx.jobMeta?.subtitle_config}
+          onClose={() => setEditClip(null)}
+          onRerenderStart={(newJobId) => {
+            setEditClip(null);
+            ctx.handleRerenderClip(newJobId);
+          }}
+        />
       )}
     </div>
   );

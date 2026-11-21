@@ -164,4 +164,19 @@ describe("CreatePage (Step 1 integration)", () => {
     });
     expect(container.textContent).toContain(i18n.t("timing.stage_tracking"));
   });
+
+  it("renders ProgressPanel above partial ClipsResult while running with existing clips (Ruling P16)", async () => {
+    setPlatform({ caps: CAPS.local, saveClips: vi.fn(), saveClip: vi.fn(), openFolder: vi.fn() } as unknown as Platform);
+    vi.spyOn(axios, "get").mockResolvedValue({ data: { checks: [] } });
+    await renderPage({
+      status: "CROPPING",
+      isRunning: true,
+      makePhase: true,
+      current: { stage: "render", started_at: 1, elapsed_seconds: 3, clip: 1, clips_total: 2 },
+      clips: [{ path: "C:\\clip_1.mp4", video_url: "/video?p=1&sig=s", description: "Clip A", start: "00:00:00", end: "00:00:15", subs: true, v: 0 }],
+    });
+
+    const text = container.textContent!;
+    expect(text.indexOf(i18n.t("progress.title_make"))).toBeLessThan(text.indexOf("Clip A"));
+  });
 });
