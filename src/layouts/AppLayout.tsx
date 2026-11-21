@@ -1,9 +1,9 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
-import BusyOverlay from "../components/BusyOverlay";
 import { BackendBanner } from "../components/nav/BackendBanner";
 import { BottomNav } from "../components/nav/BottomNav";
 import { ConnectionStatus } from "../components/nav/ConnectionStatus";
+import { RunningBar } from "../components/nav/RunningBar";
 import { SideNav } from "../components/nav/SideNav";
 import { BackendStatusProvider } from "../hooks/useBackendStatus";
 
@@ -18,12 +18,12 @@ export const AppLayout: React.FC = () => (
           <ConnectionStatus />
         </header>
         <BackendBanner />
+        <RunningBar />
         <main className="w-full flex-1 px-4 pb-28 pt-4 md:px-8 md:pb-10 md:pt-6">
           <Outlet />
         </main>
       </div>
       <BottomNav />
-      <BusyOverlay />
     </div>
   </BackendStatusProvider>
 );

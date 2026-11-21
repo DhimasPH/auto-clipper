@@ -5,6 +5,7 @@ import ClipsResult from "../components/ClipsResult";
 import { ErrorCard } from "../components/ErrorCard";
 import { ClipOptions } from "../components/create/ClipOptions";
 import { PreflightNotices } from "../components/create/PreflightNotices";
+import { ProgressPanel } from "../components/create/ProgressPanel";
 import { StepIndicator } from "../components/create/StepIndicator";
 import { VideoStep } from "../components/create/VideoStep";
 import { Button } from "../components/ui/Button";
@@ -12,6 +13,7 @@ import { useBackendStatus } from "../hooks/useBackendStatus";
 import { useErrorActions } from "../hooks/useErrorActions";
 import { usePreflight } from "../hooks/usePreflight";
 import {
+  MANUAL_PROVIDER,
   activeStep,
   autoProjectTitle,
   effectiveProvider,
@@ -146,6 +148,19 @@ export const CreatePage: React.FC = () => {
             {!hasVideo && <p className="text-body text-text-secondary">{t("create.start_hint")}</p>}
           </div>
         </>
+      )}
+
+      {flow.running && step !== 1 && (
+        <ProgressPanel
+          step={step as 2 | 3 | 4}
+          autoAi={effectiveProvider(caps, ctx.aiMode, ctx.provider) !== MANUAL_PROVIDER}
+          tracking={ctx.choices.trackingMode === "auto" && ctx.choices.aspectRatio !== "16:9"}
+          localSource={!!chosenFile}
+          current={ctx.current}
+          timings={ctx.liveMeta?.timings}
+          queuePosition={ctx.queuePosition}
+          onCancel={ctx.cancelJob}
+        />
       )}
 
       {finished && !ctx.isRunning && (

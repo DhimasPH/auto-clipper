@@ -10,6 +10,7 @@ import { SubtitleConfig } from "../types/subtitle";
 import type { ErrorInfo } from "../types/errorInfo";
 import { asErrorInfo, localizedText, requestError, toLang } from "../lib/errorInfo";
 import { effectiveProvider, type AiMode } from "../lib/createFlow";
+import { asLiveStage, type LiveStage } from "../lib/progress";
 
 export interface ClipJobParams {
   aiMode: AiMode;
@@ -52,7 +53,7 @@ export function useClipJobs(p: ClipJobParams) {
   const { notify } = p;
 
   const [status, setStatus] = useState<
-    "IDLE" | "GENERATING" | "DOWNLOADING" | "TRANSCRIBING" | "ANALYZING" | "CROPPING" | "DONE" | "ERROR"
+    "IDLE" | "GENERATING" | "PENDING" | "DOWNLOADING" | "TRANSCRIBING" | "ANALYZING" | "CROPPING" | "DONE" | "ERROR"
   >("IDLE");
   const [errorMsg, setErrorMsg] = useState("");
   // Structured form of the error, when the backend sent one (error_info).
@@ -69,6 +70,11 @@ export function useClipJobs(p: ClipJobParams) {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [jobOrigin, setJobOrigin] = useState<"workspace" | "history">("workspace");
   const [historyVersion, setHistoryVersion] = useState(0);
+  // Spec 4.3/4.4: the stage running now and the job's live metadata (finished stage timings).
+  const [current, setCurrent] = useState<LiveStage | null>(null);
+  const [liveMeta, setLiveMeta] = useState<Record<string, unknown> | null>(null);
+  // The running job started at clip making (answer sent, re-render): "no stage yet" means step 4.
+  const [makePhase, setMakePhase] = useState(false);
 
   const clearError = () => {
     setErrorMsg("");
@@ -82,7 +88,7 @@ export function useClipJobs(p: ClipJobParams) {
     setErrorMsg(message);
     setErrorInfo(info);
     setFailedJobId(null);
-    notify(info ? localizedText(info, toLang(i18n.language)).title : `⚠️ ${message}`, "error");
+    notify(info ? localizedText(info, toLang(i18n.language)).title : message, "error");
   };
 
   // Polling effect for async job status.
@@ -100,6 +106,8 @@ export function useClipJobs(p: ClipJobParams) {
           if (job.status === "DONE") {
             const failedN = job.failed || 0;
             setStatus("DONE");
+            setCurrent(null);
+            setLiveMeta(job.metadata || null);
             if (jobOrigin === "workspace") {
               setClips(job.clips);
               setFailedCount(failedN);
@@ -112,17 +120,18 @@ export function useClipJobs(p: ClipJobParams) {
             setProgress("");
             setQueuePosition(null);
             const doneMsg = failedN > 0
-              ? t('toast.done_partial', { count: job.clips.length, failed: failedN, defaultValue: `🎉 Selesai! ${job.clips.length} klip berhasil, ${failedN} gagal` })
-              : t('toast.done_all', { count: job.clips.length, defaultValue: `🎉 Selesai! ${job.clips.length} clip berhasil dibuat` });
+              ? t('toast.done_partial', { count: job.clips.length, failed: failedN })
+              : t('toast.done_all', { count: job.clips.length });
             notify(doneMsg, "success");
 
           } else if (job.status === "ERROR") {
             const info = asErrorInfo(job.error_info);
             setStatus("ERROR");
+            setCurrent(null);
             setErrorMsg(job.error || "Unknown error occurred.");
             setErrorInfo(info);
             setFailedJobId(activeJobId);
-            notify(info ? localizedText(info, toLang(i18n.language)).title : `⚠️ ${job.error || "Unknown error"}`, "error");
+            notify(info ? localizedText(info, toLang(i18n.language)).title : (job.error || "Unknown error"), "error");
             setActiveJobId(null);
             setProgress("");
             setQueuePosition(null);
@@ -130,13 +139,15 @@ export function useClipJobs(p: ClipJobParams) {
             setHistoryVersion((v) => v + 1);
           } else if (job.status === "CANCELLED") {
             setStatus("IDLE");
-            notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
+            setCurrent(null);
+            notify(t('toast.cancelled'), "error");
             setActiveJobId(null);
             setProgress("");
             setQueuePosition(null);
           } else if (job.status === "AWAITING_MANUAL") {
             setStatus("IDLE");
-            notify(t("toast.manual_prompt_ready", "Prompt manual berhasil dibuat. Anda dialihkan ke menu History."), "success");
+            setCurrent(null);
+            notify(t("toast.manual_prompt_ready"), "success");
             if (jobOrigin === "workspace") {
                setHistoryVersion((v) => v + 1);
                window.location.hash = "#/riwayat";
@@ -148,6 +159,8 @@ export function useClipJobs(p: ClipJobParams) {
             // In progress
             setStatus(job.status as any);
             setProgress(job.progress);
+            setCurrent(asLiveStage(job.current));
+            setLiveMeta(job.metadata || null);
             setQueuePosition(typeof job.queue_position === "number" && job.queue_position > 0 ? job.queue_position : null);
             if (jobOrigin === "workspace" && job.clips && job.clips.length > clips.length) {
               setClips(job.clips);
@@ -164,10 +177,11 @@ export function useClipJobs(p: ClipJobParams) {
   const cancelJob = async () => {
     const jid = activeJobId;
     setStatus("IDLE");
+    setCurrent(null);
     setActiveJobId(null);
     setProgress("");
     setQueuePosition(null);
-    notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
+    notify(t('toast.cancelled'), "error");
     setHistoryVersion((v) => v + 1);
 
     if (jid) {
@@ -182,25 +196,25 @@ export function useClipJobs(p: ClipJobParams) {
   const handleGenerate = async (overrideProvider?: string, overrideTitle?: string) => {
     const title = (overrideTitle ?? p.title ?? "").trim();
     if (p.inputType === "url" && !p.url) {
-      notify(t('toast.clip_failed', { num: '', msg: t('toast.url_empty', 'URL kosong!') }), "error");
+      notify(t('toast.clip_failed', { msg: t('toast.url_empty') }), "error");
       return;
     }
     if (p.inputType === "local" && !p.localFile) {
-      notify(t('toast.clip_failed', { num: '', msg: t('toast.local_file_empty', 'Video lokal belum dipilih!') }), "error");
+      notify(t('toast.clip_failed', { msg: t('toast.local_file_empty') }), "error");
       return;
     }
     const currentProvider = overrideProvider || p.provider;
     if (currentProvider === "custom") {
       if (!p.customBaseUrl || !p.customModelName) {
-        notify(t('toast.clip_failed', { num: '', msg: t('toast.custom_config_req', 'Base URL dan Model Name custom belum diisi! Silakan atur di Settings.') }), "error");
+        notify(t('toast.clip_failed', { msg: t('toast.custom_config_req') }), "error");
         return;
       }
     } else if (currentProvider !== "manual_ai" && !p.apiKey) {
-      notify(t('toast.clip_failed', { num: '', msg: t('toast.api_key_req', 'API Key belum diisi! Silakan isi di Settings.') }), "error");
+      notify(t('toast.clip_failed', { msg: t('toast.api_key_req') }), "error");
       return;
     }
     if (!title) {
-      notify(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
+      notify(t('toast.clip_failed', { msg: t('toast.title_required') }), "error");
       return;
     }
 
@@ -212,13 +226,15 @@ export function useClipJobs(p: ClipJobParams) {
     setFailedCount(0);
     setJobMeta(null);
     setJobOrigin("workspace");
+    setMakePhase(false);
+    setLiveMeta(null);
 
     try {
       setStatus("GENERATING");
 
       let finalUrl = p.url;
       if (p.inputType === "local" && p.localFile) {
-        notify(t('toast.uploading', '🚀 Mengunggah video lokal...'));
+        notify(t('toast.uploading'));
         const formData = new FormData();
         formData.append("file", p.localFile);
         const uploadRes = await axios.post(`${API_URL}/upload`, formData, {
@@ -228,7 +244,7 @@ export function useClipJobs(p: ClipJobParams) {
         finalUrl = uploadRes.data.url;
       }
 
-      notify(t('toast.starting_bg', '🚀 Memulai proses di latar belakang...'));
+      notify(t('toast.starting_bg'));
 
       const res = await axios.post(`${API_URL}/jobs`, {
         url: finalUrl,
@@ -267,11 +283,11 @@ export function useClipJobs(p: ClipJobParams) {
 
   const handleManualGenerate = async (sourceUrl: string, manualClips: { start: number; end: number }[], allowEmptyClips: boolean = false) => {
     if (!sourceUrl || (!allowEmptyClips && manualClips.length === 0)) {
-      notify(t('toast.clip_failed', { num: '', msg: t('smartEditor.noClips', 'Belum ada klip.') }), "error");
+      notify(t('toast.clip_failed', { msg: t('smartEditor.noClips') }), "error");
       return;
     }
     if (!p.title || !p.title.trim()) {
-      notify(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
+      notify(t('toast.clip_failed', { msg: t('toast.title_required') }), "error");
       return;
     }
     platform().askNotifyPermission();
@@ -281,10 +297,12 @@ export function useClipJobs(p: ClipJobParams) {
     setFailedCount(0);
     setJobMeta(null);
     setJobOrigin("workspace");
+    setMakePhase(false);
+    setLiveMeta(null);
 
     try {
       setStatus("GENERATING");
-      notify(t('smartEditor.submitted', '🚀 Memproses klip manual...'));
+      notify(t('toast.starting_bg'));
       const res = await axios.post(`${API_URL}/jobs/manual`, {
         url: sourceUrl,
         clips: manualClips,
@@ -318,6 +336,8 @@ export function useClipJobs(p: ClipJobParams) {
     customSubtitleConfig?: SubtitleConfig
   ) => {
     setJobOrigin("history");
+    setMakePhase(true);
+    setLiveMeta(null);
     setStatus("TRANSCRIBING");
     setProgress("");
     clearError();
@@ -345,17 +365,19 @@ export function useClipJobs(p: ClipJobParams) {
 
       setActiveJobId(res.data.job_id);
       p.closeHistory();
-      notify(t('toast.starting_rerender', '🚀 Memulai re-render dari history...'));
+      notify(t('toast.starting_rerender'));
     } catch (err: any) {
       console.error(err);
       setStatus("ERROR");
       setProgress("");
-      showRequestError(err, t('toast.rerender_fail', 'Gagal memulai re-render.'));
+      showRequestError(err, t('toast.rerender_fail'));
     }
   };
 
   const handleRerunAI = async (historyJobId: string, extraPrompt: string) => {
     setJobOrigin("history");
+    setMakePhase(false);
+    setLiveMeta(null);
     setStatus("TRANSCRIBING");
     setProgress("");
     clearError();
@@ -387,12 +409,12 @@ export function useClipJobs(p: ClipJobParams) {
 
       setActiveJobId(res.data.job_id);
       p.closeHistory();
-      notify(t('toast.starting_ai_correct', '✨ Memulai proses AI Koreksi dari history...'));
+      notify(t('toast.starting_ai_correct'));
     } catch (err: any) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      showRequestError(err, t('toast.ai_correct_fail', 'Gagal memulai AI Koreksi.'));
+      showRequestError(err, t('toast.ai_correct_fail'));
     }
   };
 
@@ -400,6 +422,8 @@ export function useClipJobs(p: ClipJobParams) {
   // (Resume pressed on the Workspace error card). Default: History is refreshed.
   const handleResumeJob = async (historyJobId: string, origin: "workspace" | "history" = "history") => {
     setJobOrigin(origin);
+    setMakePhase(false);
+    setLiveMeta(null);
     setStatus("TRANSCRIBING");
     setProgress("");
     clearError();
@@ -420,17 +444,19 @@ export function useClipJobs(p: ClipJobParams) {
 
       setActiveJobId(res.data.job_id);
       p.closeHistory();
-      notify(t('toast.starting_resume', '🔄 Melanjutkan proses AI...'));
+      notify(t('toast.starting_resume'));
     } catch (err: any) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      showRequestError(err, t('toast.resume_fail', 'Gagal melanjutkan proses AI.'));
+      showRequestError(err, t('toast.resume_fail'));
     }
   };
 
   const handleRerenderClip = (newJobId: string) => {
     setJobOrigin("history");
+    setMakePhase(true);
+    setLiveMeta(null);
     setStatus("CROPPING");
     setProgress("");
     clearError();
@@ -447,11 +473,16 @@ export function useClipJobs(p: ClipJobParams) {
     setFailedCount(0);
     setQueuePosition(null);
     setJobMeta(null);
+    setCurrent(null);
+    setLiveMeta(null);
+    setMakePhase(false);
   };
 
   const startManualResumePolling = (jobId: string) => {
     setActiveJobId(jobId);
     setJobOrigin("history");
+    setMakePhase(true);
+    setLiveMeta(null);
     setStatus("CROPPING");
     setProgress("Memproses klip manual...");
     clearError();
@@ -467,7 +498,7 @@ export function useClipJobs(p: ClipJobParams) {
 
   return {
     status, progress, errorMsg, errorInfo, failedJobId, queuePosition, jobMeta, clips, failedCount,
-    isRunning, historyVersion, activeJobId,
+    isRunning, historyVersion, activeJobId, current, liveMeta, makePhase, jobOrigin,
     handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, startManualResumePolling, cancelJob, resetJobState,
   };
 }
