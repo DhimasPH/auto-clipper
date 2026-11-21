@@ -66,4 +66,12 @@ describe("ClipsResult (spec 4.5)", () => {
     expect(text).toContain(i18n.t("result.share"));
     expect(text).toContain("0:30");
   });
+
+  it("hides Unduh semua for a single clip and while cropping", () => {
+    act(() => root.render(<ClipsResult clips={[clip(1)]} status="DONE" failedCount={0} jobId="j1" />));
+    expect(container.textContent).not.toContain(i18n.t("result.download_all"));
+
+    act(() => root.render(<ClipsResult clips={[clip(1), clip(2)]} status="CROPPING" failedCount={0} jobId="j1" />));
+    expect(container.textContent).not.toContain(i18n.t("result.download_all"));
+  });
 });

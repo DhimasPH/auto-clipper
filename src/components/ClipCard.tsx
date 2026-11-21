@@ -54,7 +54,8 @@ export default function ClipCard({ clip, index, jobId, onEdit }: ClipCardProps) 
   const { t, i18n } = useTranslation();
   const [showModal, setShowModal] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
-  const [localSocial, setLocalSocial] = useState<SocialData | undefined>(clip.social);
+  const [editedSocial, setEditedSocial] = useState<SocialData | undefined>(undefined);
+  const localSocial = editedSocial ?? clip.social;
   const video = useSignedVideo(clip.path, clip.video_url);
   const caps = platform().caps;
   const lang = toLang(i18n.language);
@@ -144,7 +145,7 @@ export default function ClipCard({ clip, index, jobId, onEdit }: ClipCardProps) 
           clip={clip}
           jobId={jobId}
           clipIndex={index}
-          onUpdate={(next) => setLocalSocial(next)}
+          onUpdate={(next) => setEditedSocial(next)}
         />
       )}
     </article>

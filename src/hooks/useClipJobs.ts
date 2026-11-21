@@ -114,6 +114,24 @@ export function useClipJobs(p: ClipJobParams) {
     setLiveMeta(null);
   };
 
+  const finishCancelled = () => {
+    setCurrent(null);
+    setActiveJobId(null);
+    setProgress("");
+    setQueuePosition(null);
+    setMakePhase(false);
+    if (resultJobId) {
+      // Keep finished workspace results on screen when cancelling a follow-up clip rerender.
+      setStatus("DONE");
+    } else {
+      setStatus("IDLE");
+      setClips([]);
+      setFailedCount(0);
+      setJobMeta(null);
+      setLiveMeta(null);
+    }
+  };
+
   /** Show a failed request: the structured card when the backend sent error_info, else the raw text. */
   const showRequestError = (err: unknown, fallback: string) => {
     const { message, info } = requestError(err, fallback);
@@ -139,6 +157,7 @@ export function useClipJobs(p: ClipJobParams) {
             const failedN = job.failed || 0;
             setStatus("DONE");
             setCurrent(null);
+            setMakePhase(false);
             setLiveMeta(job.metadata || null);
             if (jobOrigin === "workspace") {
               setClips(job.clips);
@@ -162,6 +181,7 @@ export function useClipJobs(p: ClipJobParams) {
             const info = asErrorInfo(job.error_info);
             setStatus("ERROR");
             setCurrent(null);
+            setMakePhase(false);
             setErrorMsg(job.error || "Unknown error occurred.");
             setErrorInfo(info);
             setFailedJobId(activeJobId);
@@ -172,15 +192,13 @@ export function useClipJobs(p: ClipJobParams) {
             // The failed job is in History now, with its own error card.
             setHistoryVersion((v) => v + 1);
           } else if (job.status === "CANCELLED") {
-            setStatus("IDLE");
-            setCurrent(null);
+            finishCancelled();
             notify(t('toast.cancelled'), "error");
-            setActiveJobId(null);
-            setProgress("");
-            setQueuePosition(null);
+            setHistoryVersion((v) => v + 1);
           } else if (job.status === "AWAITING_MANUAL") {
             setStatus("IDLE");
             setCurrent(null);
+            setMakePhase(false);
             setHistoryVersion((v) => v + 1);
             // Ruling P9: always notify and open MomentStep on workspace jobs or when user is already on CreatePage.
             notify(t("toast.manual_prompt_ready"), "success");
@@ -213,11 +231,7 @@ export function useClipJobs(p: ClipJobParams) {
 
   const cancelJob = async () => {
     const jid = activeJobId;
-    setStatus("IDLE");
-    setCurrent(null);
-    setActiveJobId(null);
-    setProgress("");
-    setQueuePosition(null);
+    finishCancelled();
     notify(t('toast.cancelled'), "error");
     setHistoryVersion((v) => v + 1);
 
@@ -518,6 +532,7 @@ export function useClipJobs(p: ClipJobParams) {
       setClips([]);
       setFailedCount(0);
       setJobMeta(null);
+      setResultJobId(null);
       setStatus("PENDING");
       setActiveJobId(res.data.job_id);
     } catch (err) {

@@ -31,5 +31,5 @@ export function formatClock(seconds: number): string {
 export function clipTitle(clip: Clip, lang: "id" | "en"): string | null {
   const titles = lang === "en" ? clip.social?.titles_en : clip.social?.titles_id;
   const description = lang === "en" ? clip.description_en : clip.description_id;
-  return titles?.find((x) => x?.trim()) || description?.trim() || clip.description?.trim() || null;
+  return titles?.find((x) => x?.trim())?.trim() || description?.trim() || clip.description?.trim() || null;
 }

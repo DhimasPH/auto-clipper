@@ -219,4 +219,98 @@ describe("useClipJobs handleResumeJob (Ruling P2)", () => {
     expect(latest.clips[0]?.description).toBe("v2");
     expect(latest.jobMeta).toEqual({ reloaded: true });
   });
+
+  it("restores DONE with existing clips when cancelling a single-clip rerender", async () => {
+    vi.useFakeTimers();
+    mockPlatform(CAPS.cloud);
+    const post = vi
+      .spyOn(axios, "post")
+      .mockResolvedValueOnce({ data: { status: "success", job_id: "ws-1" } })
+      .mockResolvedValueOnce({ data: { status: "cancelled" } });
+    vi.spyOn(axios, "get").mockResolvedValueOnce({
+      data: { status: "DONE", failed: 0, clips: [{ path: "C:\\c1.mp4", description: "v1", start: "0", end: "1", subs: true, v: 0 }], metadata: {} },
+    });
+
+    await act(async () => root.render(<Probe params={makeParams({ url: "https://youtu.be/abc", title: "My vid", aiMode: "manual" })} />));
+    await act(async () => latest.handleGenerate("manual_ai", "My vid"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(latest.status).toBe("DONE");
+    expect(latest.resultJobId).toBe("ws-1");
+
+    act(() => latest.handleRerenderClip("clip-job-2"));
+    expect(latest.status).toBe("CROPPING");
+    expect(latest.makePhase).toBe(true);
+
+    await act(async () => latest.cancelJob());
+    expect(post).toHaveBeenLastCalledWith(expect.stringMatching(/\/jobs\/clip-job-2\/cancel$/));
+    expect(latest.status).toBe("DONE");
+    expect(latest.makePhase).toBe(false);
+    expect(latest.clips).toHaveLength(1);
+    expect(latest.resultJobId).toBe("ws-1");
+  });
+
+  it("clears partial clips and returns to IDLE when cancelling an initial job", async () => {
+    vi.useFakeTimers();
+    mockPlatform(CAPS.cloud);
+    const post = vi
+      .spyOn(axios, "post")
+      .mockResolvedValueOnce({ data: { status: "success", job_id: "ws-part" } })
+      .mockResolvedValueOnce({ data: { status: "cancelled" } });
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: {
+        status: "CROPPING",
+        clips: [{ path: "C:\\p1.mp4", description: "partial", start: "0", end: "1", subs: true, v: 0 }],
+        metadata: { aspect_ratio: "9:16" },
+      },
+    });
+
+    await act(async () => root.render(<Probe params={makeParams({ url: "https://youtu.be/abc", title: "My vid", aiMode: "manual" })} />));
+    await act(async () => latest.handleGenerate("manual_ai", "My vid"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(latest.status).toBe("CROPPING");
+    expect(latest.clips).toHaveLength(1);
+
+    await act(async () => latest.cancelJob());
+    expect(post).toHaveBeenLastCalledWith(expect.stringMatching(/\/jobs\/ws-part\/cancel$/));
+    expect(latest.status).toBe("IDLE");
+    expect(latest.clips).toEqual([]);
+    expect(latest.failedCount).toBe(0);
+    expect(latest.jobMeta).toBeNull();
+    expect(latest.liveMeta).toBeNull();
+    expect(latest.makePhase).toBe(false);
+  });
+
+  it("clears partial clips when polling receives CANCELLED", async () => {
+    vi.useFakeTimers();
+    mockPlatform(CAPS.cloud);
+    vi.spyOn(axios, "post").mockResolvedValueOnce({ data: { status: "success", job_id: "ws-poll-cancel" } });
+    vi.spyOn(axios, "get")
+      .mockResolvedValueOnce({
+        data: {
+          status: "CROPPING",
+          clips: [{ path: "C:\\p1.mp4", description: "partial", start: "0", end: "1", subs: true, v: 0 }],
+          metadata: { aspect_ratio: "9:16" },
+        },
+      })
+      .mockResolvedValueOnce({ data: { status: "CANCELLED" } });
+
+    await act(async () => root.render(<Probe params={makeParams({ url: "https://youtu.be/abc", title: "My vid", aiMode: "manual" })} />));
+    await act(async () => latest.handleGenerate("manual_ai", "My vid"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(latest.clips).toHaveLength(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(latest.status).toBe("IDLE");
+    expect(latest.clips).toEqual([]);
+    expect(latest.liveMeta).toBeNull();
+    expect(latest.makePhase).toBe(false);
+  });
 });

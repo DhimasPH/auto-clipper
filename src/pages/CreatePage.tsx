@@ -190,7 +190,7 @@ export const CreatePage: React.FC = () => {
           clips={ctx.clips}
           status={ctx.status}
           failedCount={ctx.failedCount}
-          jobId={ctx.resultJobId ?? ""}
+          jobId={ctx.resultJobId ?? ctx.jobId ?? ""}
           metadata={ctx.jobMeta}
           onEditClip={finished && ctx.resultJobId ? setEditClip : undefined}
           onNew={ctx.handleResetWorkspace}

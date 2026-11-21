@@ -48,7 +48,12 @@ export const OverflowMenu: React.FC<{ label: string; items: OverflowItem[] }> = 
   };
 
   return (
-    <div className="relative shrink-0">
+    <div
+      className="relative shrink-0"
+      onBlur={(e) => {
+        if (open && !e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
+      }}
+    >
       <Button
         ref={buttonRef}
         variant="ghost"
@@ -77,7 +82,7 @@ export const OverflowMenu: React.FC<{ label: string; items: OverflowItem[] }> = 
                 setOpen(false);
                 item.onSelect();
               }}
-              className={`flex min-h-[44px] w-full items-center px-4 text-left text-body hover:bg-bg-surface focus:bg-bg-surface focus:outline-none ${
+              className={`flex min-h-[44px] w-full items-center px-4 text-left text-body hover:bg-bg-surface focus:bg-bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
                 item.danger ? "text-error" : "text-text-primary"
               }`}
             >

@@ -43,6 +43,7 @@ export function createPlatform(): Platform {
       if (dest) await axios.post(`${API_URL}/save_file`, { src: clip.path, dest });
     },
     async saveClips(clips) {
+      if (clips.length === 0) return;
       // One folder for all clips, not one save dialog per clip (plan Spec gap 8).
       const folder = await openDialog({ directory: true, multiple: false });
       if (typeof folder !== "string") return;

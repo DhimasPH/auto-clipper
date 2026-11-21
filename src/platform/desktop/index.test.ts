@@ -84,6 +84,14 @@ describe("desktop adapter", () => {
     ]);
   });
 
+  it("does nothing when saveClips is called with an empty list", async () => {
+    openDialog.mockClear();
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: {} });
+    await createPlatform().saveClips([]);
+    expect(openDialog).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it("keeps the computer awake through the Tauri commands", async () => {
     const p = createPlatform();
     await p.setPreventSleep(true);

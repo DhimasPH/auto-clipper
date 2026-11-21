@@ -45,19 +45,32 @@ describe("OverflowMenu", () => {
     expect(toggle().getAttribute("aria-expanded")).toBe("true");
     expect(items().map((i) => i.textContent)).toEqual(["Ubah", "Folder"]);
     expect(document.activeElement).toBe(items()[0]);
+    expect(items()[0].className).toContain("focus-visible:ring-2");
+    expect(items()[0].className).toContain("focus-visible:ring-accent");
   });
 
-  it("moves with the arrow keys and closes with Escape, back on the button", () => {
+  it("moves with the arrow keys, wraps with ArrowUp, and closes with Escape or outside click", () => {
     act(() => toggle().click());
     act(() => {
-      items()[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+      items()[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
     });
     expect(document.activeElement).toBe(items()[1]);
+    act(() => {
+      items()[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    });
+    expect(document.activeElement).toBe(items()[0]);
     act(() => {
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     });
     expect(items()).toHaveLength(0);
     expect(document.activeElement).toBe(toggle());
+
+    act(() => toggle().click());
+    expect(items()).toHaveLength(2);
+    act(() => {
+      document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    });
+    expect(items()).toHaveLength(0);
   });
 
   it("runs the chosen item and closes", () => {
