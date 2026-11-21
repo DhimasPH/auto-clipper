@@ -71,8 +71,10 @@ export const CreatePage: React.FC = () => {
   const hasVideo = !!chosenFile || linkProblem(ctx.url) === null;
   const canStart = hasVideo && connected && preflight.blockers.length === 0 && !ctx.isRunning;
   const jobErrorActions = useErrorActions({ jobId: ctx.failedJobId, origin: "workspace" });
-  const liveTrackingMode = typeof ctx.liveMeta?.tracking_mode === "string" ? ctx.liveMeta.tracking_mode : ctx.choices.trackingMode;
-  const liveAspectRatio = typeof ctx.liveMeta?.aspect_ratio === "string" ? ctx.liveMeta.aspect_ratio : ctx.choices.aspectRatio;
+  const liveTrackingMode =
+    typeof ctx.liveMeta?.tracking_mode === "string" && ctx.liveMeta.tracking_mode ? ctx.liveMeta.tracking_mode : ctx.choices.trackingMode;
+  const liveAspectRatio =
+    typeof ctx.liveMeta?.aspect_ratio === "string" && ctx.liveMeta.aspect_ratio ? ctx.liveMeta.aspect_ratio : ctx.choices.aspectRatio;
 
   const setLink = (value: string) => {
     ctx.setInputType("url");

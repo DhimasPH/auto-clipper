@@ -125,19 +125,43 @@ describe("CreatePage (Step 1 integration)", () => {
     expect(clearPendingLocalUpload).toHaveBeenCalledTimes(1);
   });
 
-  it("renders ProgressPanel using liveMeta tracking settings over workspace choices while running (Ruling P16)", async () => {
+  it("uses liveMeta tracking settings over workspace choices in ProgressPanel (Ruling P16)", async () => {
     setPlatform({ caps: CAPS.desktop, pickVideo: vi.fn() } as unknown as Platform);
     vi.spyOn(axios, "get").mockResolvedValue({ data: { checks: [] } });
+
+    // 1. liveMeta aspect_ratio 16:9 overrides choices (9:16 + auto) -> tracking omitted
     await renderPage({
       status: "CROPPING",
       isRunning: true,
       makePhase: true,
-      current: { stage: "render", started_at: 1, elapsed_seconds: 2 },
+      current: null,
       liveMeta: { aspect_ratio: "16:9", tracking_mode: "auto", timings: [] },
       choices: { ...DEFAULT_CLIP_CHOICES, aspectRatio: "9:16", trackingMode: "auto" },
     });
-
     expect(container.textContent).toContain(i18n.t("timing.stage_render"));
     expect(container.textContent).not.toContain(i18n.t("timing.stage_tracking"));
+
+    // 2. liveMeta tracking_mode center overrides choices (9:16 + auto) -> tracking omitted
+    await renderPage({
+      status: "CROPPING",
+      isRunning: true,
+      makePhase: true,
+      current: null,
+      liveMeta: { aspect_ratio: "9:16", tracking_mode: "center", timings: [] },
+      choices: { ...DEFAULT_CLIP_CHOICES, aspectRatio: "9:16", trackingMode: "auto" },
+    });
+    expect(container.textContent).toContain(i18n.t("timing.stage_render"));
+    expect(container.textContent).not.toContain(i18n.t("timing.stage_tracking"));
+
+    // 3. liveMeta enables tracking (9:16 + auto) while choices disables it (16:9 + center) -> tracking shown
+    await renderPage({
+      status: "CROPPING",
+      isRunning: true,
+      makePhase: true,
+      current: null,
+      liveMeta: { aspect_ratio: "9:16", tracking_mode: "auto", timings: [] },
+      choices: { ...DEFAULT_CLIP_CHOICES, aspectRatio: "16:9", trackingMode: "center" },
+    });
+    expect(container.textContent).toContain(i18n.t("timing.stage_tracking"));
   });
 });
