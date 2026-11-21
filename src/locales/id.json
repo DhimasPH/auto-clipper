@@ -553,5 +553,9 @@
     "lost_window": "Jendela Auto Clipper Web tidak menjawab. Pastikan jendela itu masih terbuka, lalu tekan Hubungkan ulang.",
     "lost_none": "Server di Google Colab tidak menjawab. Pastikan kotak server di Colab masih berjalan, lalu tekan Hubungkan ulang.",
     "reconnect": "Hubungkan ulang"
+  },
+  "create": {
+    "recheck": "Periksa lagi",
+    "notes_label": "Catatan sebelum mulai"
   }
 }

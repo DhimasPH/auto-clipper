@@ -553,5 +553,9 @@
     "lost_window": "The Auto Clipper Web window is not answering. Make sure it is still open, then press Reconnect.",
     "lost_none": "The Google Colab server is not answering. Make sure the server cell in Colab is still running, then press Reconnect.",
     "reconnect": "Reconnect"
+  },
+  "create": {
+    "recheck": "Check again",
+    "notes_label": "Notes before you start"
   }
 }
