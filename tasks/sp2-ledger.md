@@ -65,3 +65,6 @@ Task 13: fix round 1/5 (4 addressed, 0 open — delete failure alert + retry, on
 Task 13: minor (deferred → Task 15): retry button unmounts on click so keyboard focus drops to body; dialog re-render test exists only for ProjectsPage, not ProjectPage.
 Task 13: complete (commits 788261d..1d120a7, review clean after fix round 1) — Vitest 283 passed, oxlint 0 errors, build + build:cloud OK.
 Task 14: dispatched (BASE 1d120a7), implementer opus
+Task 14: implementer ae91ec83d0f188258
+Task 14: implementer DONE_WITH_CONCERNS, commit 2a8d423. Deviations: separate PexelsKeySection (showPexelsKey) so B-roll hint still points at a visible field in manual AI mode; DownloaderPanel no longer writes ctx.setTitle/setQuality (leaked into Buat klip); no placeholder (key missing); help_faqs object keyed by id; legacy card headings h2→h3; unused help.*/faq.* keys removed.
+Task 14: concern → Task 15 (P11): legacy Provider/Transcription/Cookies/Updater sections still have icon tiles, text-xs, "⚙️" label, raw backend error text; browser check 360/768/1280 pending.
