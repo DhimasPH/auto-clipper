@@ -77,4 +77,4 @@ Ruling: downloader with subtitles on uses the default subtitle look, not the sav
 Task 14: fix round 1/5 (5 addressed, 0 open — downloader own shape/subtitle controls, single folder-row source, pickFolder failure message, PexelsKeySection test + plain errors + API_URL import, API-key FAQ sentences gated; commits 2a8d423..34884e3)
 Task 14: minor (deferred): redundant comment lines HelpSection.tsx:8-9; non-override handleManualGenerate path omits tracking_mode/face_tracking_engine (pre-existing, backend defaults).
 Task 14: complete (commits b24cd60..34884e3, review clean after fix round 1) — Vitest 325 passed, oxlint 0 errors, build + build:cloud OK.
-Task 15: dispatched (BASE 34884e3), implementer opus
+Task 15: dispatched (BASE a068ee6), implementer opus afa2822b9b56be459

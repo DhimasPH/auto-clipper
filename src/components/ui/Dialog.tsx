@@ -60,6 +60,8 @@ export const Dialog: React.FC<DialogProps> = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const keepEditingRef = useRef<HTMLButtonElement>(null);
   const [askDiscard, setAskDiscard] = useState(false);
+  // Where the user was before "discard?" appeared; focus goes back there on "Kembali mengisi".
+  const beforeAskRef = useRef<HTMLElement | null>(null);
 
   const latest = useRef({ onClose, dirty, askDiscard });
   latest.current = { onClose, dirty, askDiscard };
@@ -67,8 +69,10 @@ export const Dialog: React.FC<DialogProps> = ({
   const requestClose = useCallback(() => {
     const { onClose: close, dirty: isDirty } = latest.current;
     if (!close) return;
-    if (isDirty) setAskDiscard(true);
-    else close();
+    if (isDirty) {
+      beforeAskRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setAskDiscard(true);
+    } else close();
   }, []);
 
   // Opening: remember the opener, move focus in, lock the page behind. Closing: undo all three.
@@ -91,6 +95,13 @@ export const Dialog: React.FC<DialogProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const keepEditing = useCallback(() => {
+    setAskDiscard(false);
+    const back = beforeAskRef.current;
+    // After the guard row is gone: back to the field, else the dialog itself.
+    setTimeout(() => (back && back.isConnected ? back : panelRef.current)?.focus(), 0);
+  }, []);
+
   useEffect(() => {
     if (askDiscard) keepEditingRef.current?.focus();
   }, [askDiscard]);
@@ -102,7 +113,7 @@ export const Dialog: React.FC<DialogProps> = ({
       if (e.key === "Escape") {
         if (!latest.current.onClose) return;
         e.preventDefault();
-        if (latest.current.askDiscard) setAskDiscard(false);
+        if (latest.current.askDiscard) keepEditing();
         else requestClose();
         return;
       }
@@ -127,7 +138,7 @@ export const Dialog: React.FC<DialogProps> = ({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [id, requestClose]);
+  }, [id, requestClose, keepEditing]);
 
   return (
     <div
@@ -159,7 +170,7 @@ export const Dialog: React.FC<DialogProps> = ({
           <div role="alert" className="flex flex-col gap-3 border-t border-border p-4 sm:p-5">
             <p className="text-body text-text-primary">{t("dialog.discard_question")}</p>
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <Button ref={keepEditingRef} variant="outline" onClick={() => setAskDiscard(false)}>
+              <Button ref={keepEditingRef} variant="outline" onClick={keepEditing}>
                 {t("dialog.keep_editing")}
               </Button>
               <Button variant="danger" onClick={() => latest.current.onClose?.()}>

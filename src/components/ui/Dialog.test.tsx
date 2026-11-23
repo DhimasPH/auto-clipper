@@ -103,11 +103,12 @@ describe("Dialog", () => {
     expect(document.activeElement).toBe(opener);
   });
 
-  it("asks before throwing away typed input; Escape keeps editing, Discard closes", () => {
+  it("asks before throwing away typed input; Escape keeps editing, Discard closes", async () => {
     const { onClose } = openWith({ dirtyText: true });
     const input = dialog()!.querySelector("input")!;
     const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
     act(() => {
+      input.focus();
       setValue.call(input, "catatan");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
@@ -121,6 +122,9 @@ describe("Dialog", () => {
     press("Escape");
     expect(dialog()!.querySelector('[role="alert"]')).toBeNull();
     expect(dialog()!.querySelector("input")!.value).toBe("catatan");
+    // Focus goes back to the field, not to <body>.
+    await act(async () => new Promise((r) => setTimeout(r, 0)));
+    expect(document.activeElement).toBe(dialog()!.querySelector("input"));
 
     press("Escape");
     const discard = [...dialog()!.querySelectorAll("button")].find((b) => b.textContent === i18n.t("dialog.discard"))!;

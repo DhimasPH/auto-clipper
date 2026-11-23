@@ -139,7 +139,7 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
           {bgType === "blur" && (
             <div className="flex flex-col gap-2">
               <GroupLabel id={`${ids}-blur`}>{t("canvas.blur_level_label")}</GroupLabel>
-              <div role="group" aria-labelledby={`${ids}-blur`} className="grid grid-cols-3 gap-2">
+              <div role="group" aria-labelledby={`${ids}-blur`} className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {BLUR_LEVELS.map((lvl) => (
                   <ChoiceButton
                     key={lvl}
@@ -254,7 +254,7 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
           <div className="flex flex-col gap-2">
             <GroupLabel id={`${ids}-scale`}>{t("canvas.enlarge_label")}</GroupLabel>
             <p className="text-caption text-text-secondary">{t("canvas.enlarge_desc")}</p>
-            <div role="group" aria-labelledby={`${ids}-scale`} className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            <div role="group" aria-labelledby={`${ids}-scale`} className="grid grid-cols-2 gap-2 sm:grid-cols-5">
               {SCALES.map((scale) => (
                 <ChoiceButton
                   key={scale}

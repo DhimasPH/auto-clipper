@@ -38,7 +38,7 @@ const FailedRowError: React.FC<FailedRowErrorProps> = ({ job }) => {
   const info = asErrorInfo(meta.error_info);
   const raw = typeof meta.error === "string" ? meta.error : "";
   const handlers = useErrorActions({ jobId: canResumeJob(job) ? job.id : null });
-  if (info) return <ErrorCard info={info} handlers={handlers} />;
+  if (info) return <ErrorCard info={info} handlers={handlers} quiet />;
   if (raw) return <p className="text-body text-error break-words m-0">{raw}</p>;
   return null;
 };
@@ -179,8 +179,12 @@ export const ProjectsPage: React.FC = () => {
                     </h2>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-caption text-text-secondary">
                       <ProjectStatusBadge statusKey={statusKey} />
-                      {clips.length > 0 && <span>· {t("projects.clip_count", { count: clips.length })}</span>}
-                      {dateText && <span>· {dateText}</span>}
+                      {/* Separators only between items, so a wrapped line never starts with "·". */}
+                      {[clips.length > 0 ? t("projects.clip_count", { count: clips.length }) : "", dateText]
+                        .filter(Boolean)
+                        .map((text, i) => (
+                          <span key={i}>{i > 0 ? `· ${text}` : text}</span>
+                        ))}
                     </div>
                   </div>
                   <OverflowMenu label={t("projects.menu_label", { title })} items={menuItems} />

@@ -32,13 +32,15 @@ interface ErrorCardProps {
   handlers?: ActionHandlers;
   /** Read the card out when it appears. Off for lists of old failures. */
   announce?: boolean;
+  /** All action buttons outlined: for cards in a list, where the screen's one filled button is elsewhere (spec 4.6). */
+  quiet?: boolean;
   /** Extra buttons, drawn after the action buttons. */
   children?: React.ReactNode;
   className?: string;
 }
 
 /** A failure in plain words, with what the user can do about it. */
-export const ErrorCard: React.FC<ErrorCardProps> = ({ info, handlers = {}, announce = false, children, className = "" }) => {
+export const ErrorCard: React.FC<ErrorCardProps> = ({ info, handlers = {}, announce = false, quiet = false, children, className = "" }) => {
   const { t, i18n } = useTranslation();
   const [copied, setCopied] = useState(false);
   const lang = toLang(i18n.language);
@@ -75,7 +77,7 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({ info, handlers = {}, annou
               key={action.id}
               type="button"
               size="sm"
-              variant={i === 0 ? "primary" : "outline"}
+              variant={i === 0 && !quiet ? "primary" : "outline"}
               icon={ACTION_ICONS[action.id]}
               onClick={action.run}
             >

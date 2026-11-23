@@ -237,7 +237,7 @@ export const SubtitleConfigControls: React.FC<SubtitleConfigControlsProps> = ({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <p id={`${ids}-size`} className="text-label text-text-primary">{t("subtitle_custom.font_size_label")}</p>
-              <div role="group" aria-labelledby={`${ids}-size`} className="grid grid-cols-4 gap-2">
+              <div role="group" aria-labelledby={`${ids}-size`} className="grid grid-cols-2 gap-2">
                 {SIZES.map((scale) => (
                   <ChoiceButton key={scale} selected={fontSizeScale === scale} label={`${scale}x`} onClick={() => set({ font_size_scale: scale })} />
                 ))}

@@ -29,7 +29,7 @@ export const TimingDetails: React.FC<TimingDetailsProps> = ({ metadata, classNam
 
   return (
     <details className={`group ${className}`}>
-      <summary className="inline-flex items-center gap-1.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-label text-text-primary hover:text-accent rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+      <summary className="inline-flex min-h-[44px] items-center gap-1.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-label text-text-primary hover:text-accent rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
         <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90" aria-hidden="true" />
         <Clock className="w-4 h-4 text-text-secondary" aria-hidden="true" />
         {t("timing.summary", "Detail waktu")}

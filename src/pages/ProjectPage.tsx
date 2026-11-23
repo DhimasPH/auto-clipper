@@ -157,7 +157,7 @@ export const ProjectPage: React.FC = () => {
           <h1 ref={headingRef} tabIndex={-1} className="text-page-title text-text-primary break-words focus:outline-none">{title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-caption text-text-secondary">
             <ProjectStatusBadge statusKey={statusKey} />
-            {clips.length > 0 && <span>· {t("projects.clip_count", { count: clips.length })}</span>}
+            {clips.length > 0 && <span>{t("projects.clip_count", { count: clips.length })}</span>}
           </div>
         </div>
         <OverflowMenu label={t("projects.menu_label", { title })} items={menuItems} />

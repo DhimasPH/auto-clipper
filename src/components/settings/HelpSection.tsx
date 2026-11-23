@@ -5,10 +5,10 @@ import { APP_VERSION } from "../../lib/settingsLayout";
 import { UpdaterSection } from "./UpdaterSection";
 import { LogViewer } from "./LogViewer";
 
-// keysText: an extra sentence about API key mode, shown only where caps.apiKeys.
 // Answers with an "a_keys" sentence (API key mode) add it only where caps.apiKeys.
 const FAQ_WITH_KEYS = new Set(["free", "moments"]);
 
+// keysText: an extra sentence about API key mode, shown only where caps.apiKeys.
 const STEPS: { title: string; text: string; keysText?: string }[] = [
   { title: "create.step_video", text: "settings.help_step_video" },
   { title: "create.step_prepare", text: "settings.help_step_prepare" },

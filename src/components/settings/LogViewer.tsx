@@ -82,7 +82,7 @@ export const LogViewer: React.FC = () => {
                   setLogType(type);
                   void load(type);
                 }}
-                className={`min-h-[44px] rounded-button border px-3 text-label transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary ${
+                className={`min-h-[44px] min-w-[44px] rounded-button border px-3 text-label transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary ${
                   logType === type
                     ? "border-accent bg-accent-muted text-text-primary"
                     : "border-border-active bg-bg-secondary text-text-primary hover:bg-bg-surface"
