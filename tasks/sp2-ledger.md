@@ -73,3 +73,8 @@ Ruling: DownloaderPanel gets its own two controls, independent of Buat klip and 
 Ruling: include minors 1 (drop or use showOutputFolder — single source of truth), 2 (catch rejected pickFolder with a visible message), 4 (PexelsKeySection: component test, what/why/what-to-do error text instead of raw err.message, import API_URL from platform/backendUrl, remove unused pexels_api_key_note or use it), 6 (FAQ items that mention API-key actions gated on caps.apiKeys) in fix round 1.
 Task 14: minor (deferred → Task 15): OutputSection title "Folder dan kualitas" shows only quality off desktop; emoji test mocks the legacy sections; no in-place completion message in DownloaderPanel; P11 legacy sections (icon tiles, text-xs, "AI Provider", "⚙️", raw errors).
 Task 14: fix round 1 dispatched (FIX_BASE 2a8d423)
+Ruling: downloader with subtitles on uses the default subtitle look, not the saved Buat klip style — the panel is deliberately independent of Buat klip — cost if wrong: one-line change in downloaderLook.
+Task 14: fix round 1/5 (5 addressed, 0 open — downloader own shape/subtitle controls, single folder-row source, pickFolder failure message, PexelsKeySection test + plain errors + API_URL import, API-key FAQ sentences gated; commits 2a8d423..34884e3)
+Task 14: minor (deferred): redundant comment lines HelpSection.tsx:8-9; non-override handleManualGenerate path omits tracking_mode/face_tracking_engine (pre-existing, backend defaults).
+Task 14: complete (commits b24cd60..34884e3, review clean after fix round 1) — Vitest 325 passed, oxlint 0 errors, build + build:cloud OK.
+Task 15: dispatched (BASE 34884e3), implementer opus
