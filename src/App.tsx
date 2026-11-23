@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { CreatePage } from "./pages/CreatePage";
-import { HistoryPage } from "./pages/HistoryPage";
+import { ProjectsPage } from "./pages/ProjectsPage";
+import { ProjectPage } from "./pages/ProjectPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import Toasts from "./components/Toasts";
 import { CookiesModal } from "./components/CookiesModal";
@@ -299,8 +300,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<AppLayout />}>
         <Route index element={<CreatePage />} />
-        <Route path="riwayat" element={<HistoryPage />} />
-        <Route path="riwayat/:id" element={<HistoryPage />} />
+        <Route path="riwayat" element={<ProjectsPage />} />
+        <Route path="riwayat/:id" element={<ProjectPage />} />
         <Route path="pengaturan" element={<SettingsPage />} />
         {legacyRouteElements()}
       </Route>
