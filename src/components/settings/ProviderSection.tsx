@@ -22,13 +22,10 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
 }) => {
   const { t } = useTranslation();
   const [showKey, setShowKey] = useState(false);
-  const [showPexels, setShowPexels] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
 
   const [testAiStatus, setTestAiStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [testAiMessage, setTestAiMessage] = useState('');
-  const [testPexelsStatus, setTestPexelsStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [testPexelsMessage, setTestPexelsMessage] = useState('');
   const current = PROVIDERS.find((p) => p.id === provider);
   const keyVal = apiKeys[provider] || '';
   const isCustom = provider === 'custom';
@@ -125,43 +122,13 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
     }
   };
 
-  const handleTestPexels = async () => {
-    const pexelsKey = apiKeys["pexels"] || '';
-    if (!pexelsKey) {
-      setTestPexelsStatus('error');
-      setTestPexelsMessage(t('settings.test_pexels_empty', 'Pexels API Key cannot be empty'));
-      return;
-    }
-    
-    setTestPexelsStatus('loading');
-    setTestPexelsMessage('');
-    
-    try {
-      const res = await axios.post(`${API_URL}/api/settings/test-pexels`, {
-        api_key: pexelsKey
-      });
-      
-      if (res.data?.status === 'success') {
-        setTestPexelsStatus('success');
-        setTestPexelsMessage(t('settings.test_pexels_success', 'Pexels API Key is valid!'));
-      } else {
-        setTestPexelsStatus('error');
-        setTestPexelsMessage(res.data?.message || t('settings.test_error', 'Error occurred'));
-      }
-    } catch (err: any) {
-      setTestPexelsStatus('error');
-      const errMsg = err.response?.data?.message || err.response?.data?.detail || err.message || t('settings.test_failed', 'Failed to connect to backend');
-      setTestPexelsMessage(errMsg);
-    }
-  };
-
   return (
     <div className="bg-bg-secondary rounded-card border border-border p-6 shadow-sm">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-accent/10 rounded-lg text-accent">
           <Brain className="w-5 h-5" />
         </div>
-        <h2 className="text-section-title text-text-primary">AI Provider</h2>
+        <h3 className="text-card-title text-text-primary">AI Provider</h3>
       </div>
 
       <div className="space-y-6">
@@ -236,9 +203,9 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
         {/* Model Selection Dropdown */}
         {!isCustom && (
           <div className="mt-4 p-4 border border-border rounded-lg bg-bg-surface">
-            <h3 className="text-body font-medium text-text-primary mb-3">
+            <h4 className="text-body font-medium text-text-primary mb-3">
               {t('settings.model_label', 'AI Model')}
-            </h3>
+            </h4>
             
             {testAiStatus === 'success' || (modelsFetched && availableModels.length > 0) ? (
               isFetchingModels ? (
@@ -268,46 +235,6 @@ export const ProviderSection: React.FC<ProviderSectionProps> = ({
             )}
           </div>
         )}
-
-        <div className="relative pt-4 border-t border-border">
-          <InputGroup
-            label={t('settings.pexels_api_key', 'Pexels API Key (Optional)')}
-            type={showPexels ? 'text' : 'password'}
-            value={apiKeys["pexels"] || ''}
-            onChange={(e) => {
-              setApiKey("pexels", e.target.value);
-              setTestPexelsStatus('idle');
-              setTestPexelsMessage('');
-            }}
-            placeholder="..."
-            icon={Lock}
-            helperText={t('settings.pexels_api_key_note', 'Required for Dynamic B-Roll feature')}
-          />
-          <button
-            className="absolute right-3 top-[67px] text-text-secondary hover:text-text-primary p-1"
-            onClick={() => setShowPexels(!showPexels)}
-          >
-            {showPexels ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-
-          <div className="mt-4">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleTestPexels} 
-              disabled={testPexelsStatus === 'loading'}
-              icon={testPexelsStatus === 'loading' ? Loader2 : undefined}
-            >
-              {testPexelsStatus === 'loading' ? t('settings.testing', 'Testing...') : t('settings.test_pexels_btn', 'Test Pexels Connection')}
-            </Button>
-            
-            {testPexelsStatus !== 'idle' && testPexelsMessage && (
-              <p className={`text-sm mt-2 ${testPexelsStatus === 'success' ? 'text-green-500' : 'text-red-500'}`}>
-                {testPexelsMessage}
-              </p>
-            )}
-          </div>
-        </div>
       </div>
 
       {showCustomModal && (

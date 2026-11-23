@@ -1,54 +1,55 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Palette } from 'lucide-react';
 import { SegmentedControl } from '../ui/SegmentedControl';
 
+type Theme = "dark" | "light" | "system";
+
 interface AppearanceSectionProps {
-  theme: "dark" | "light" | "system";
-  setTheme: (t: "dark" | "light" | "system") => void;
+  theme: Theme;
+  setTheme: (t: Theme) => void;
 }
 
+const THEMES: Theme[] = ["dark", "light", "system"];
+
+/** Pengaturan, Umum (spec 4.5): theme and language. */
 export const AppearanceSection: React.FC<AppearanceSectionProps> = ({ theme, setTheme }) => {
   const { t, i18n } = useTranslation();
+  const themeLabel = useId();
+  const languageLabel = useId();
 
   return (
-    <div className="bg-bg-secondary rounded-card border border-border p-6 shadow-sm">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-accent/10 rounded-lg text-accent">
-          <Palette className="w-5 h-5" />
+    <div className="flex flex-col gap-6 rounded-card border border-border bg-bg-secondary p-5">
+      <div className="flex flex-col gap-2">
+        <p id={themeLabel} className="text-label text-text-primary">{t('settings.theme')}</p>
+        <div role="group" aria-labelledby={themeLabel} className="grid grid-cols-3 gap-2">
+          {THEMES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={theme === option}
+              onClick={() => setTheme(option)}
+              className={`min-h-[44px] rounded-button border px-3 text-body transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary ${
+                theme === option
+                  ? 'border-accent bg-accent-muted font-medium text-text-primary'
+                  : 'border-border-active bg-bg-secondary text-text-primary hover:bg-bg-surface'
+              }`}
+            >
+              {t(`settings.theme_${option}`)}
+            </button>
+          ))}
         </div>
-        <h2 className="text-section-title text-text-primary">Appearance</h2>
       </div>
 
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <label className="text-label text-text-secondary">{t('settings.theme', 'Theme')}</label>
-          <div className="grid grid-cols-3 gap-3">
-            {(["dark", "light", "system"] as const).map((tOpt) => (
-              <button
-                key={tOpt}
-                onClick={() => setTheme(tOpt)}
-                className={`py-2 px-3 rounded-button border text-body transition-colors flex items-center justify-center gap-2 ${
-                  theme === tOpt 
-                    ? 'border-accent bg-accent/10 text-accent font-medium' 
-                    : 'border-border bg-bg-surface text-text-primary hover:border-border-active'
-                }`}
-              >
-                {tOpt === "dark" ? '🌙 Dark' : tOpt === "light" ? '☀️ Light' : '💻 System'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-label text-text-secondary">{t('settings.language', 'Language')}</label>
+      <div className="flex flex-col gap-2">
+        <p id={languageLabel} className="text-label text-text-primary">{t('settings.language')}</p>
+        <div role="group" aria-labelledby={languageLabel}>
           <SegmentedControl
             options={[
-              { label: '🇮🇩 Indonesia', value: 'id' },
-              { label: '🇬🇧 English', value: 'en' }
+              { label: t('settings.language_id'), value: 'id' },
+              { label: t('settings.language_en'), value: 'en' },
             ]}
-            value={i18n.language}
-            onChange={(val) => i18n.changeLanguage(val)}
+            value={i18n.language?.startsWith('en') ? 'en' : 'id'}
+            onChange={(val) => void i18n.changeLanguage(val)}
             className="w-full"
           />
         </div>

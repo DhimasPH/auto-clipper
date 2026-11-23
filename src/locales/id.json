@@ -93,8 +93,8 @@
     "testing": "Menguji...",
     "test_ai_btn": "Tes Koneksi AI",
     "test_pexels_btn": "Tes Koneksi Pexels",
-    "transcription_title": "Transkripsi AI (Speech-to-Text)",
-    "transcription_subtitle": "Konfigurasi model faster-whisper lokal & VAD untuk akurasi transkrip subtitle.",
+    "transcription_title": "Model subtitle",
+    "transcription_subtitle": "Model yang mengubah ucapan di video menjadi teks subtitle. Model yang lebih besar lebih tepat, tetapi lebih lama.",
     "whisper_fetch_error": "Gagal memuat daftar model Whisper. Pastikan backend aktif.",
     "whisper_downloading": "Memulai unduhan model... Harap tunggu.",
     "whisper_download_success": "Model berhasil diunduh dan siap digunakan!",
@@ -116,21 +116,89 @@
     "fetch_models": "Muat Ulang Model",
     "fetch_models_loading": "Memuat model...",
     "fetch_models_error": "Gagal memuat model. Menggunakan default.",
-    "test_first": "Uji API Key terlebih dahulu untuk melihat model yang tersedia"
-  },
-  "faq": {
-    "title": "Panduan Penggunaan",
-    "desc": "Ubah video panjang jadi puluhan klip viral siap upload dalam hitungan menit:",
-    "step1_title": "Pilih Sumber Video:",
-    "step1_desc": "Masukkan link YouTube atau pilih file video langsung dari komputer Anda.",
-    "step2_title": "Pilih AI Provider:",
-    "step2_desc": "Masukkan API Key OpenAI atau Gemini di menu Settings agar AI bisa menganalisis videonya.",
-    "step3_title": "Mulai Generate:",
-    "step3_desc": "Klik 'Generate Viral Clips'. AI akan memilah momen paling menarik, menyusun transkrip, dan memasang subtitle otomatis.",
-    "step4_title": "Review & Download:",
-    "step4_desc": "Gunakan fitur AI Koreksi atau Re-render untuk mengubah rasio dan gaya subtitle. Klik Download jika sudah puas.",
-    "note_title": "B-Roll Otomatis (Opsional)",
-    "note_desc": "Masukkan Pexels API Key di Settings untuk menambahkan video ilustrasi dinamis pada klip Anda."
+    "test_first": "Uji API Key terlebih dahulu untuk melihat model yang tersedia",
+    "sec_general": "Umum",
+    "sec_youtube": "YouTube",
+    "sec_advanced": "Lanjutan",
+    "sec_help": "Bantuan",
+    "language_id": "Bahasa Indonesia",
+    "language_en": "English",
+    "ai_mode_title": "AI otomatis dengan API key",
+    "ai_mode_desc": "Bawaannya, kamu menyalin perintah ke ChatGPT atau Gemini, lalu menempel jawabannya. Dengan API key, aplikasi memilih momen sendiri tanpa langkah itu.",
+    "ai_mode_toggle": "Pakai API key",
+    "pexels_title": "Video ilustrasi (B-roll)",
+    "pexels_desc": "Kunci Pexels dipakai untuk mencari potongan video yang cocok dengan isi klip. Berlaku dengan atau tanpa API key AI.",
+    "show_key": "Tampilkan kunci",
+    "hide_key": "Sembunyikan kunci",
+    "face_engine_label": "Cara mengikuti wajah",
+    "face_engine_standard": "Standar",
+    "face_engine_precise": "Teliti",
+    "face_engine_help": "Berlaku saat posisi gambar diatur Ikuti wajah. Coba Teliti bila wajah sering tidak terikuti.",
+    "output_title": "Folder dan kualitas",
+    "folder_label": "Folder hasil",
+    "folder_default": "Folder bawaan aplikasi",
+    "pick_folder": "Pilih folder",
+    "folder_reset": "Pakai folder bawaan",
+    "quality_label": "Kualitas unduhan video",
+    "downloader_title": "Unduh video tanpa membuat klip",
+    "downloader_subtitle": "Mengunduh seluruh video dari link. Hasilnya tersimpan di Riwayat.",
+    "downloader_btn": "Unduh video",
+    "downloader_running": "Ada video yang sedang diproses. Tunggu sampai selesai sebelum mengunduh video lain.",
+    "downloader_view_progress": "Lihat progres",
+    "help_steps_title": "Cara membuat klip",
+    "help_step_video": "Tempel link video atau pilih file video. Pilih bentuk klip, lalu tekan Mulai.",
+    "help_step_prepare": "Aplikasi mengambil video dan mencatat semua ucapannya. Tunggu sampai selesai.",
+    "help_step_choose": "Salin perintah, tempel ke ChatGPT atau Gemini, lalu tempel jawabannya kembali. Dengan API key, langkah ini berjalan sendiri.",
+    "help_step_clips": "Aplikasi memotong momen terpilih menjadi klip. Unduh atau bagikan dari hasil, atau buka lagi di Riwayat.",
+    "help_faq_title": "Pertanyaan umum",
+    "help_faqs": {
+      "free": {
+        "q": "Apakah Auto Clipper gratis?",
+        "a": "Ya. Cara bawaannya memakai ChatGPT atau Gemini di browser, jadi tidak perlu API key. API key hanya untuk AI otomatis, dan biayanya ditagih oleh penyedia AI itu."
+      },
+      "sources": {
+        "q": "Video apa saja yang bisa dipakai?",
+        "a": "Link YouTube, TikTok, atau Instagram, atau file video dari perangkat ini. Di versi Colab, video juga bisa dipilih dari Google Drive."
+      },
+      "youtube": {
+        "q": "Video YouTube gagal diunduh. Harus apa?",
+        "a": "YouTube kadang menolak unduhan sampai kamu masuk ke akunmu. Buka Pengaturan, bagian YouTube, lalu ikuti langkah cookies di sana. Setelah itu, coba lagi."
+      },
+      "moments": {
+        "q": "Momen yang dipilih AI kurang pas. Harus apa?",
+        "a": "Buat klip lagi dari video yang sama dan minta AI memilih momen lain. Dengan API key, kamu juga bisa membuka proyeknya di Riwayat, lalu pilih Pilih ulang momen dengan AI."
+      },
+      "slow": {
+        "q": "Kenapa prosesnya lama?",
+        "a": "Video diolah di komputer ini, atau di Google Colab untuk versi cloud. Video panjang dan komputer tanpa kartu grafis (GPU) butuh waktu lebih lama. Layar progres menunjukkan tahap yang sedang berjalan."
+      },
+      "change": {
+        "q": "Bisakah bentuk atau subtitle diubah setelah klip jadi?",
+        "a": "Bisa. Pada klip di hasil, buka menu titik tiga, lalu pilih Ubah subtitle atau tampilan. Untuk semua klip sekaligus, buka proyeknya di Riwayat, lalu pilih Buat ulang semua klip."
+      },
+      "custom_ai": {
+        "q": "Bisakah memakai AI di komputer sendiri, misalnya Ollama?",
+        "a": "Bisa, bila Pakai API key aktif. Di bagian Lanjutan, pilih penyedia Custom (OpenAI Compatible), lalu isi alamat server dan nama modelnya. Kosongkan API key bila servernya tidak memintanya."
+      },
+      "mac": {
+        "q": "macOS: aplikasi terbuka, tetapi statusnya terus Terputus.",
+        "a": "macOS memblokir bagian aplikasi yang mengolah video karena aplikasinya belum disahkan Apple. Buka Terminal, jalankan xattr -cr \"/Applications/Auto Clipper.app\", lalu buka lagi Auto Clipper. Cukup sekali setiap kali memasang."
+      }
+    },
+    "help_version": "Versi {{version}}",
+    "logs_title": "Detail teknis",
+    "logs_desc": "Catatan kerja aplikasi. Salin dan kirim catatan ini saat meminta bantuan.",
+    "logs_kind_label": "Jenis catatan",
+    "logs_type_app": "Aplikasi",
+    "logs_type_error": "Masalah",
+    "logs_type_ai": "AI",
+    "logs_refresh": "Muat ulang",
+    "logs_copy": "Salin catatan",
+    "logs_copied": "Tersalin",
+    "logs_copy_failed": "Tidak bisa menyalin otomatis. Pilih teksnya, lalu salin sendiri.",
+    "logs_empty": "Belum ada catatan.",
+    "logs_loading": "Memuat catatan...",
+    "logs_fetch_error": "Catatan tidak bisa dimuat karena aplikasi belum tersambung. Tunggu sebentar, lalu tekan Muat ulang."
   },
   "history": {
     "title": "🕒 Riwayat",
@@ -212,56 +280,6 @@
     "status_reconnecting": "Menghubungkan ulang...",
     "reconnect": "Hubungkan Ulang",
     "reconnecting_btn": "Menghubungkan ulang..."
-  },
-  "help": {
-    "title": "Bantuan & Panduan",
-    "tab_guide": "Panduan Pengguna",
-    "tab_faq": "FAQ",
-    "tab_logs": "Log Sistem",
-    "logs_type_app": "Aplikasi",
-    "logs_type_error": "Error",
-    "logs_type_ai": "Interaksi AI",
-    "logs_refresh": "Muat Ulang",
-    "logs_copy": "Salin Log",
-    "logs_copied": "Tersalin!",
-    "logs_empty": "Belum ada log tercatat.",
-    "logs_fetch_error": "Gagal memuat log. Apakah backend sedang berjalan?",
-    "guide_title": "Cara Penggunaan",
-    "faq_title": "Pertanyaan Umum (FAQ)",
-    "faqs": [
-      {
-        "q": "Apakah Auto Clipper benar-benar gratis?",
-        "a": "Aplikasinya 100% gratis dan berjalan di komputer Anda. Anda hanya perlu menyediakan API Key (OpenAI/Gemini) Anda sendiri yang biayanya sangat terjangkau per penggunaannya."
-      },
-      {
-        "q": "Sumber video apa saja yang bisa digunakan?",
-        "a": "Anda bisa menggunakan link video YouTube publik (termasuk Shorts) atau file video lokal langsung dari komputer Anda."
-      },
-      {
-        "q": "Klip yang dihasilkan AI kurang pas. Apa yang harus dilakukan?",
-        "a": "Gunakan fitur 'AI Koreksi' di menu Riwayat (History). Anda bisa memberi instruksi spesifik, misalnya 'Fokus pada topik SEO saja', lalu AI akan membuatkan klip yang lebih relevan."
-      },
-      {
-        "q": "Bagaimana cara kerja fitur Dynamic B-Roll?",
-        "a": "Jika Anda memasukkan Pexels API Key di pengaturan, AI akan otomatis mencari dan menyisipkan video ilustrasi (B-Roll) yang relevan, membuat klip Anda jauh lebih menarik."
-      },
-      {
-        "q": "Apakah saya bisa mengubah format video untuk Instagram atau TikTok?",
-        "a": "Tentu. Melalui menu Riwayat (History), Anda bisa melakukan Re-render untuk mengubah rasio video menjadi 9:16 (TikTok/Reels), 4:5 (IG), 1:1, atau 16:9, lengkap dengan opsi gaya subtitle."
-      },
-      {
-        "q": "Kenapa proses pembuatan klip terasa lambat?",
-        "a": "Karena Auto Clipper memproses rendering video (ffmpeg) secara offline di komputer Anda demi privasi. Kecepatannya sangat bergantung pada spesifikasi PC/Laptop yang Anda gunakan."
-      },
-      {
-        "q": "Bisakah saya memakai model AI sendiri atau lokal (Ollama, LM Studio, dll.)?",
-        "a": "Bisa. Di Settings → AI Provider, pilih \"Custom (OpenAI Compatible)\", lalu klik \"Atur Konfigurasi Custom\" dan isi tiga kolom: Base URL (contoh http://localhost:11434/v1 untuk Ollama), Model Name (contoh llama3), dan API Key. Kosongkan API Key jika server lokal Anda tidak membutuhkannya. Fitur ini memungkinkan Anda menghubungkan endpoint apa pun yang kompatibel dengan format OpenAI — Ollama/LM Studio/vLLM yang di-host sendiri maupun API pihak ketiga — sehingga Anda bisa memakai model lokal gratis tanpa batas pemakaian. Catatan: transkripsi tetap berjalan lokal; model custom hanya bertugas memilih highlight."
-      },
-      {
-        "q": "macOS: status backend terus \"Disconnected\". Bagaimana memperbaikinya?",
-        "a": "Ini terjadi pada pengguna macOS yang memasang dari file .dmg. Aplikasi macOS belum dinotarisasi Apple, sehingga saat diunduh, macOS menandai aplikasi beserta komponen backend di dalamnya dengan atribut karantina, lalu Gatekeeper memblokir backend untuk berjalan — jendela terbuka tetapi status tetap \"Disconnected\". Perbaiki sekali saja: buka aplikasi Terminal lalu jalankan  xattr -cr \"/Applications/Auto Clipper.app\"  kemudian buka kembali Auto Clipper. Status akan berubah menjadi \"Connected\". Catatan: klik kanan → Open saja seringkali tidak cukup, karena hanya membersihkan cangkang aplikasi, bukan backend di dalamnya. Cukup lakukan sekali per pemasangan."
-      }
-    ]
   },
   "updater": {
     "title": "Pembaruan Aplikasi",

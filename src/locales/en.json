@@ -93,8 +93,8 @@
     "testing": "Testing...",
     "test_ai_btn": "Test AI Connection",
     "test_pexels_btn": "Test Pexels Connection",
-    "transcription_title": "AI Transcription (Speech-to-Text)",
-    "transcription_subtitle": "Configure local faster-whisper model & VAD for subtitle transcription accuracy.",
+    "transcription_title": "Subtitle model",
+    "transcription_subtitle": "The model that turns speech in the video into subtitle text. Larger models are more accurate but slower.",
     "whisper_fetch_error": "Failed to load Whisper models. Ensure backend is running.",
     "whisper_downloading": "Downloading model... Please wait.",
     "whisper_download_success": "Model downloaded successfully and ready to use!",
@@ -116,21 +116,89 @@
     "fetch_models": "Refresh Models",
     "fetch_models_loading": "Fetching models...",
     "fetch_models_error": "Failed to fetch models. Using defaults.",
-    "test_first": "Test your API Key first to see available models"
-  },
-  "faq": {
-    "title": "How to Use",
-    "desc": "Turn your long-form videos into dozens of viral, ready-to-post clips in minutes:",
-    "step1_title": "Choose Video Source:",
-    "step1_desc": "Paste a YouTube URL or select a local video file from your computer.",
-    "step2_title": "Connect Your AI:",
-    "step2_desc": "Enter your OpenAI or Gemini API Key in Settings to power the AI analysis.",
-    "step3_title": "Generate Clips:",
-    "step3_desc": "Hit 'Generate Viral Clips'. The AI will find the best hooks, create transcripts, and add subtitles automatically.",
-    "step4_title": "Review & Download:",
-    "step4_desc": "Not quite right? Use AI Correction or Re-render to tweak aspect ratios and subtitle styles before downloading.",
-    "note_title": "Dynamic B-Roll (Optional)",
-    "note_desc": "Add a Pexels API Key in Settings to instantly spice up your clips with relevant b-roll footage."
+    "test_first": "Test your API Key first to see available models",
+    "sec_general": "General",
+    "sec_youtube": "YouTube",
+    "sec_advanced": "Advanced",
+    "sec_help": "Help",
+    "language_id": "Bahasa Indonesia",
+    "language_en": "English",
+    "ai_mode_title": "Automatic AI with an API key",
+    "ai_mode_desc": "By default you copy the instructions to ChatGPT or Gemini, then paste the answer back. With an API key, the app picks the moments itself and skips that step.",
+    "ai_mode_toggle": "Use an API key",
+    "pexels_title": "Illustration footage (B-roll)",
+    "pexels_desc": "The Pexels key is used to find footage that matches what the clip is about. It works with or without an AI API key.",
+    "show_key": "Show key",
+    "hide_key": "Hide key",
+    "face_engine_label": "How faces are followed",
+    "face_engine_standard": "Standard",
+    "face_engine_precise": "Precise",
+    "face_engine_help": "Used when framing is set to Follow the face. Try Precise if the face is often missed.",
+    "output_title": "Folder and quality",
+    "folder_label": "Output folder",
+    "folder_default": "The app's default folder",
+    "pick_folder": "Choose folder",
+    "folder_reset": "Use the default folder",
+    "quality_label": "Video download quality",
+    "downloader_title": "Download a video without making clips",
+    "downloader_subtitle": "Downloads the whole video from a link. The result is saved in History.",
+    "downloader_btn": "Download video",
+    "downloader_running": "A video is being processed. Wait until it finishes before downloading another one.",
+    "downloader_view_progress": "See progress",
+    "help_steps_title": "How to make clips",
+    "help_step_video": "Paste a video link or choose a video file. Pick the clip shape, then press Start.",
+    "help_step_prepare": "The app gets the video and writes down everything that is said. Wait until it is done.",
+    "help_step_choose": "Copy the instructions, paste them into ChatGPT or Gemini, then paste the answer back. With an API key this step runs by itself.",
+    "help_step_clips": "The app cuts the chosen moments into clips. Download or share them from the result, or open them again in History.",
+    "help_faq_title": "Common questions",
+    "help_faqs": {
+      "free": {
+        "q": "Is Auto Clipper free?",
+        "a": "Yes. By default it uses ChatGPT or Gemini in your browser, so no API key is needed. An API key is only for automatic AI, and the AI provider bills you for it."
+      },
+      "sources": {
+        "q": "Which videos can I use?",
+        "a": "A YouTube, TikTok, or Instagram link, or a video file from this device. In the Colab version you can also pick a video from Google Drive."
+      },
+      "youtube": {
+        "q": "A YouTube video will not download. What now?",
+        "a": "YouTube sometimes refuses downloads until you sign in. Open Settings, YouTube, and follow the cookies steps there. Then try again."
+      },
+      "moments": {
+        "q": "The AI picked the wrong moments. What now?",
+        "a": "Make clips again from the same video and ask the AI for other moments. With an API key you can also open the project in History and choose Pick moments again with AI."
+      },
+      "slow": {
+        "q": "Why does it take so long?",
+        "a": "The video is processed on this computer, or on Google Colab for the cloud version. Long videos and computers without a graphics card (GPU) take longer. The progress screen shows the step that is running."
+      },
+      "change": {
+        "q": "Can I change the shape or subtitles after the clips are made?",
+        "a": "Yes. On a clip in the result, open the three-dot menu and choose Change subtitles or look. For all clips at once, open the project in History and choose Make all clips again."
+      },
+      "custom_ai": {
+        "q": "Can I use an AI that runs on my own computer, such as Ollama?",
+        "a": "Yes, when Use an API key is on. In Advanced, choose the Custom (OpenAI Compatible) provider, then fill in the server address and model name. Leave the API key empty if the server does not ask for one."
+      },
+      "mac": {
+        "q": "macOS: the app opens, but the status stays Disconnected.",
+        "a": "macOS blocks the part of the app that processes video because the app is not yet approved by Apple. Open Terminal, run xattr -cr \"/Applications/Auto Clipper.app\", then open Auto Clipper again. Once per install is enough."
+      }
+    },
+    "help_version": "Version {{version}}",
+    "logs_title": "Technical details",
+    "logs_desc": "The app's work log. Copy it and send it when you ask for help.",
+    "logs_kind_label": "Log type",
+    "logs_type_app": "App",
+    "logs_type_error": "Problems",
+    "logs_type_ai": "AI",
+    "logs_refresh": "Reload",
+    "logs_copy": "Copy log",
+    "logs_copied": "Copied",
+    "logs_copy_failed": "Could not copy automatically. Select the text and copy it yourself.",
+    "logs_empty": "Nothing recorded yet.",
+    "logs_loading": "Loading the log...",
+    "logs_fetch_error": "The log could not be loaded because the app is not connected. Wait a moment, then press Reload."
   },
   "history": {
     "title": "🕒 History",
@@ -212,56 +280,6 @@
     "status_reconnecting": "Reconnecting...",
     "reconnect": "Reconnect",
     "reconnecting_btn": "Reconnecting..."
-  },
-  "help": {
-    "title": "Help & Guide",
-    "tab_guide": "User Guide",
-    "tab_faq": "FAQ",
-    "tab_logs": "System Logs",
-    "logs_type_app": "Application",
-    "logs_type_error": "Errors",
-    "logs_type_ai": "AI Requests",
-    "logs_refresh": "Refresh",
-    "logs_copy": "Copy Log",
-    "logs_copied": "Copied!",
-    "logs_empty": "No logs recorded yet.",
-    "logs_fetch_error": "Failed to load logs. Is the backend running?",
-    "guide_title": "How to Use",
-    "faq_title": "Frequently Asked Questions (FAQ)",
-    "faqs": [
-      {
-        "q": "Is Auto Clipper totally free?",
-        "a": "The app is 100% free and runs locally on your machine. You only need to provide your own API Key (OpenAI/Gemini), which typically costs pennies per usage."
-      },
-      {
-        "q": "What video sources can I use?",
-        "a": "You can paste any public YouTube link (including Shorts) or upload local video files directly from your computer."
-      },
-      {
-        "q": "The AI picked the wrong highlights. How can I fix this?",
-        "a": "Use the 'AI Correction' feature in the History tab. You can give the AI specific instructions like 'Focus only on the SEO tips' and it will regenerate the clip selection."
-      },
-      {
-        "q": "How does Dynamic B-Roll work?",
-        "a": "Once you add a free Pexels API Key in settings, the AI automatically finds and inserts relevant stock footage (B-Roll) based on what's being said, making your clips much more engaging."
-      },
-      {
-        "q": "Can I resize clips for TikTok, Instagram Reels, or YouTube Shorts?",
-        "a": "Absolutely. Go to History and click Re-render on any clip. You can switch aspect ratios (9:16, 4:5, 1:1, 16:9) and change subtitle styles without starting from scratch."
-      },
-      {
-        "q": "Why does the video rendering take a while?",
-        "a": "For maximum privacy, Auto Clipper processes all video rendering (ffmpeg) locally on your computer. The speed depends entirely on your hardware specs."
-      },
-      {
-        "q": "Can I use my own or a local AI model (Ollama, LM Studio, etc.)?",
-        "a": "Yes. In Settings → AI Provider, choose \"Custom (OpenAI Compatible)\", then click \"Set Custom Configuration\" and fill in three fields: Base URL (e.g. http://localhost:11434/v1 for Ollama), Model Name (e.g. llama3), and API Key. Leave the API Key empty if your local server doesn't need one. This lets you connect any OpenAI-compatible endpoint — self-hosted Ollama/LM Studio/vLLM or third-party APIs — so you can use free local models without usage limits. Note: transcription still runs locally; the custom model only picks the highlights."
-      },
-      {
-        "q": "macOS: the backend status stays \"Disconnected\". How do I fix it?",
-        "a": "This affects macOS users who install from the .dmg. The macOS build isn't notarized by Apple yet, so downloading it tags the app and its bundled backend with a quarantine flag, and macOS Gatekeeper blocks the backend from starting — the window opens but the status stays \"Disconnected\". Fix it once: open the Terminal app and run  xattr -cr \"/Applications/Auto Clipper.app\"  then reopen Auto Clipper. The status should turn \"Connected\". Note: right-click → Open alone is often not enough, because it only clears the app shell and not the backend inside it. You only need to do this once per install."
-      }
-    ]
   },
   "updater": {
     "title": "Application Update",

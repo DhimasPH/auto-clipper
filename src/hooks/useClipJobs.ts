@@ -330,12 +330,21 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
-  const handleManualGenerate = async (sourceUrl: string, manualClips: { start: number; end: number }[], allowEmptyClips: boolean = false) => {
+  // The overrides let a caller (Pengaturan, pengunduh) start with values it has not put in app state.
+  const handleManualGenerate = async (
+    sourceUrl: string,
+    manualClips: { start: number; end: number }[],
+    allowEmptyClips: boolean = false,
+    overrideTitle?: string,
+    overrideQuality?: string,
+  ) => {
+    const resolvedTitle = (overrideTitle ?? p.title ?? "").trim();
+    const resolvedQuality = overrideQuality || p.quality;
     if (!sourceUrl || (!allowEmptyClips && manualClips.length === 0)) {
       notify(t('toast.clip_failed', { msg: t('smartEditor.noClips') }), "error");
       return;
     }
-    if (!p.title || !p.title.trim()) {
+    if (!resolvedTitle) {
       notify(t('toast.clip_failed', { msg: t('toast.title_required') }), "error");
       return;
     }
@@ -359,8 +368,8 @@ export function useClipJobs(p: ClipJobParams) {
         canvas_config: p.canvasConfig,
         subtitle_config: p.subtitleConfig,
         output_dir: p.outputFolder,
-        quality: p.quality,
-        title: p.title,
+        quality: resolvedQuality,
+        title: resolvedTitle,
         is_gaming_video: p.isGamingVideo,
         whisper_model: p.whisperModel,
       });

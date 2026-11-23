@@ -12,7 +12,7 @@ export const CookiesSection: React.FC = () => {
         <div className="p-2 bg-accent/10 rounded-lg text-accent">
           <Cookie className="w-5 h-5" />
         </div>
-        <h2 className="text-section-title text-text-primary">{t('cookies.title', 'Cookies YouTube')}</h2>
+        <h3 className="text-card-title text-text-primary">{t('cookies.title', 'Cookies YouTube')}</h3>
       </div>
       <CookiesPanel />
     </div>

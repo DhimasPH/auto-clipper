@@ -90,9 +90,9 @@ export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({
           <Mic className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="text-section-title text-text-primary">
+          <h3 className="text-card-title text-text-primary">
             {t('settings.transcription_title', 'AI Transcription (Speech-to-Text)')}
-          </h2>
+          </h3>
           <p className="text-xs text-text-secondary mt-0.5">
             {t('settings.transcription_subtitle', 'Konfigurasi model faster-whisper lokal & VAD untuk akurasi transkrip subtitle.')}
           </p>

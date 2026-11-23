@@ -91,7 +91,7 @@ export const UpdaterSection: React.FC = () => {
         <div className="p-2 bg-accent/10 rounded-lg text-accent">
           <DownloadCloud className="w-5 h-5" />
         </div>
-        <h2 className="text-section-title text-text-primary">{t('updater.title', 'Pembaruan Aplikasi')}</h2>
+        <h3 className="text-card-title text-text-primary">{t('updater.title', 'Pembaruan Aplikasi')}</h3>
       </div>
 
       <div className="space-y-4">

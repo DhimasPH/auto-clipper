@@ -314,3 +314,47 @@ describe("useClipJobs handleResumeJob (Ruling P2)", () => {
     expect(latest.makePhase).toBe(false);
   });
 });
+
+describe("useClipJobs handleManualGenerate overrides (Task 14 downloader)", () => {
+  let root: Root;
+
+  beforeEach(() => {
+    root = createRoot(document.createElement("div"));
+    setPlatform({
+      caps: CAPS.desktop,
+      askNotifyPermission: vi.fn(),
+      setPreventSleep: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Platform);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    setPlatform(null);
+    vi.restoreAllMocks();
+  });
+
+  it("sends the title and quality passed in, not the ones in app state", async () => {
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { status: "success", job_id: "dl1" } });
+    await act(async () => root.render(<Probe params={makeParams({ title: "", quality: "best" })} />));
+    await act(async () => latest.handleManualGenerate("https://youtu.be/abc", [], true, "  YouTube 2026-11-23  ", "720p"));
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post.mock.calls[0][0]).toMatch(/\/jobs\/manual$/);
+    expect(post.mock.calls[0][1]).toMatchObject({ url: "https://youtu.be/abc", clips: [], title: "YouTube 2026-11-23", quality: "720p" });
+  });
+
+  it("still falls back to the app state title and quality without overrides", async () => {
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { status: "success", job_id: "dl2" } });
+    await act(async () => root.render(<Probe params={makeParams({ title: "Podcast", quality: "1080p" })} />));
+    await act(async () => latest.handleManualGenerate("https://youtu.be/abc", [{ start: 0, end: 5 }]));
+    expect(post.mock.calls[0][1]).toMatchObject({ title: "Podcast", quality: "1080p" });
+  });
+
+  it("refuses to start without any title", async () => {
+    const notify = vi.fn();
+    const post = vi.spyOn(axios, "post");
+    await act(async () => root.render(<Probe params={makeParams({ title: "", notify })} />));
+    await act(async () => latest.handleManualGenerate("https://youtu.be/abc", [], true, "   "));
+    expect(post).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(expect.any(String), "error");
+  });
+});
