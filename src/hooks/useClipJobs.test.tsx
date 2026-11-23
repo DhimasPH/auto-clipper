@@ -349,6 +349,32 @@ describe("useClipJobs handleManualGenerate overrides (Task 14 downloader)", () =
     expect(post.mock.calls[0][1]).toMatchObject({ title: "Podcast", quality: "1080p" });
   });
 
+  it("replaces the whole Buat klip look when a look is passed", async () => {
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { status: "success", job_id: "dl3" } });
+    await act(async () =>
+      root.render(<Probe params={makeParams({ aspectRatio: "9:16", burnSubtitles: true, isGamingVideo: true, captionStyle: "karaoke" })} />),
+    );
+    const look = {
+      aspectRatio: "16:9",
+      burnSubtitles: false,
+      captionStyle: "single_word",
+      canvasConfig: DEFAULT_CANVAS_CONFIG,
+      subtitleConfig: DEFAULT_SUBTITLE_CONFIG,
+      isGamingVideo: false,
+      trackingMode: "auto",
+    };
+    await act(async () => latest.handleManualGenerate("https://youtu.be/abc", [], true, "Dl", "best", look));
+    expect(post.mock.calls[0][1]).toMatchObject({
+      aspect_ratio: "16:9",
+      burn_subs: false,
+      caption_style: "single_word",
+      is_gaming_video: false,
+      tracking_mode: "auto",
+      canvas_config: DEFAULT_CANVAS_CONFIG,
+      subtitle_config: DEFAULT_SUBTITLE_CONFIG,
+    });
+  });
+
   it("refuses to start without any title", async () => {
     const notify = vi.fn();
     const post = vi.spyOn(axios, "post");

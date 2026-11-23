@@ -5,10 +5,14 @@ import { APP_VERSION } from "../../lib/settingsLayout";
 import { UpdaterSection } from "./UpdaterSection";
 import { LogViewer } from "./LogViewer";
 
-const STEPS = [
+// keysText: an extra sentence about API key mode, shown only where caps.apiKeys.
+// Answers with an "a_keys" sentence (API key mode) add it only where caps.apiKeys.
+const FAQ_WITH_KEYS = new Set(["free", "moments"]);
+
+const STEPS: { title: string; text: string; keysText?: string }[] = [
   { title: "create.step_video", text: "settings.help_step_video" },
   { title: "create.step_prepare", text: "settings.help_step_prepare" },
-  { title: "create.step_choose", text: "settings.help_step_choose" },
+  { title: "create.step_choose", text: "settings.help_step_choose", keysText: "settings.help_step_choose_keys" },
   { title: "create.step_clips", text: "settings.help_step_clips" },
 ];
 
@@ -48,7 +52,10 @@ export const HelpSection: React.FC<HelpSectionProps> = ({ showUpdater }) => {
               </span>
               <div>
                 <p className="text-body font-medium text-text-primary">{t(step.title)}</p>
-                <p className="text-body text-text-secondary">{t(step.text)}</p>
+                <p className="text-body text-text-secondary">
+                  {t(step.text)}
+                  {caps.apiKeys && step.keysText && ` ${t(step.keysText)}`}
+                </p>
               </div>
             </li>
           ))}
@@ -61,7 +68,10 @@ export const HelpSection: React.FC<HelpSectionProps> = ({ showUpdater }) => {
           {faqs.map((id) => (
             <div key={id}>
               <dt className="text-body font-medium text-text-primary">{t(`settings.help_faqs.${id}.q`)}</dt>
-              <dd className="mt-1 text-body text-text-secondary break-words">{t(`settings.help_faqs.${id}.a`)}</dd>
+              <dd className="mt-1 text-body text-text-secondary break-words">
+                {t(`settings.help_faqs.${id}.a`)}
+                {caps.apiKeys && FAQ_WITH_KEYS.has(id) && ` ${t(`settings.help_faqs.${id}.a_keys`)}`}
+              </dd>
             </div>
           ))}
         </dl>

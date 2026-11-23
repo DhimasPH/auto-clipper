@@ -1,12 +1,28 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
+import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { AppContext } from "../../App";
 import { CAPS, setPlatform, type Platform } from "../../platform";
 import type { ErrorInfo } from "../../types/errorInfo";
+import { DEFAULT_CANVAS_CONFIG } from "../../types/canvas";
+import { DEFAULT_SUBTITLE_CONFIG } from "../../types/subtitle";
+import { useClipJobs, type ClipJobParams } from "../../hooks/useClipJobs";
+import { downloaderLook } from "../../lib/settingsLayout";
 import { DownloaderPanel } from "./DownloaderPanel";
+
+function baseParams(): ClipJobParams {
+  return {
+    aiMode: "manual", inputType: "url", url: "", localFile: null, provider: "openai", apiKey: "",
+    customBaseUrl: "", customModelName: "", model: "", aspectRatio: "9:16", trackingMode: "auto",
+    faceTrackingEngine: "haar", captionStyle: "single_word", burnSubtitles: true,
+    canvasConfig: DEFAULT_CANVAS_CONFIG, subtitleConfig: DEFAULT_SUBTITLE_CONFIG, outputFolder: "",
+    quality: "best", title: "", enableBroll: false, enableHook: false, pexelsApiKey: "", notify: vi.fn(),
+    closeHistory: vi.fn(), maxClips: 0, isGamingVideo: false, whisperModel: "small",
+  };
+}
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -112,7 +128,7 @@ describe("DownloaderPanel (spec 4.5, Lanjutan #pengunduh)", () => {
     });
     await act(async () => downloadButton().click());
 
-    expect(ctx.handleManualGenerate).toHaveBeenCalledWith("https://youtu.be/abc", [], true, "YouTube 2026-11-23 14.05.09", "720p");
+    expect(ctx.handleManualGenerate).toHaveBeenCalledWith("https://youtu.be/abc", [], true, "YouTube 2026-11-23 14.05.09", "720p", downloaderLook("16:9", false));
     expect(ctx.setTitle).not.toHaveBeenCalled();
     expect(ctx.setQuality).not.toHaveBeenCalled();
   });
@@ -124,7 +140,7 @@ describe("DownloaderPanel (spec 4.5, Lanjutan #pengunduh)", () => {
     await act(async () => setInput(link, "https://youtu.be/abc"));
     await act(async () => setInput(name, "  Podcast penuh "));
     await act(async () => downloadButton().click());
-    expect(ctx.handleManualGenerate).toHaveBeenCalledWith("https://youtu.be/abc", [], true, "Podcast penuh", "best");
+    expect(ctx.handleManualGenerate).toHaveBeenCalledWith("https://youtu.be/abc", [], true, "Podcast penuh", "best", downloaderLook("16:9", false));
   });
 
   it("explains an unsupported link under the field and keeps the button off", async () => {
@@ -163,5 +179,100 @@ describe("DownloaderPanel (spec 4.5, Lanjutan #pengunduh)", () => {
     const link = [...container.querySelectorAll("a")].find((a) => a.textContent?.includes("Lihat progres"));
     expect(link?.getAttribute("href")).toBe("/");
     expect(downloadButton().disabled).toBe(true);
+  });
+});
+
+describe("DownloaderPanel request body (review ruling: own shape and subtitle switch)", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(async () => {
+    await i18n.changeLanguage("id");
+    setPlatform({
+      caps: CAPS.desktop,
+      askNotifyPermission: vi.fn(),
+      setPreventSleep: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Platform);
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    setPlatform(null);
+    vi.restoreAllMocks();
+  });
+
+  // Buat klip choices saved as vertical, subtitles on, game layout, canvas on: none may reach the download.
+  const savedChoices: Partial<ClipJobParams> = {
+    aspectRatio: "9:16",
+    burnSubtitles: true,
+    captionStyle: "karaoke",
+    isGamingVideo: true,
+    trackingMode: "center",
+    canvasConfig: { ...DEFAULT_CANVAS_CONFIG, enabled: true, background_type: "color" },
+    subtitleConfig: { ...DEFAULT_SUBTITLE_CONFIG, style: "karaoke", font_size_scale: 2 },
+  };
+  const appSetters = {
+    patchChoices: vi.fn(),
+    setAspectRatio: vi.fn(),
+    setBurnSubtitles: vi.fn(),
+    setCaptionStyle: vi.fn(),
+    setCanvasConfig: vi.fn(),
+    setSubtitleConfig: vi.fn(),
+    setTitle: vi.fn(),
+    setQuality: vi.fn(),
+  };
+
+  function Harness() {
+    const jobs = useClipJobs({ ...baseParams(), ...savedChoices });
+    return (
+      <AppContext.Provider value={makeCtx({ ...jobs, ...appSetters, quality: "best" })}>
+        <MemoryRouter>
+          <DownloaderPanel />
+        </MemoryRouter>
+      </AppContext.Provider>
+    );
+  }
+
+  const start = async (pick?: () => void) => {
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { status: "success", job_id: "dl" } });
+    vi.spyOn(axios, "get").mockResolvedValue({ data: { status: "DOWNLOADING" } });
+    await act(async () => root.render(<Harness />));
+    await act(async () => setInput(container.querySelector("input")!, "https://youtu.be/abc"));
+    if (pick) await act(async () => pick());
+    const button = [...container.querySelectorAll("button")].find((b) => b.textContent?.includes("Unduh video"))!;
+    await act(async () => button.click());
+    expect(post).toHaveBeenCalledTimes(1);
+    return post.mock.calls[0][1] as Record<string, unknown>;
+  };
+
+  it("by default sends a wide video without subtitles, nothing from Buat klip", async () => {
+    const body = await start();
+    expect(body).toMatchObject({
+      aspect_ratio: "16:9",
+      burn_subs: false,
+      is_gaming_video: false,
+      tracking_mode: "auto",
+      canvas_config: DEFAULT_CANVAS_CONFIG,
+      subtitle_config: DEFAULT_SUBTITLE_CONFIG,
+      caption_style: DEFAULT_SUBTITLE_CONFIG.style,
+      clips: [],
+    });
+    for (const setter of Object.values(appSetters)) expect(setter).not.toHaveBeenCalled();
+  });
+
+  it("sends the chosen shape and the subtitle switch", async () => {
+    const body = await start(() => {
+      const vertical = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')].find(
+        (r) => r.value === "9:16",
+      )!;
+      vertical.click();
+      container.querySelector<HTMLInputElement>('input[role="switch"]')!.click();
+    });
+    expect(body).toMatchObject({ aspect_ratio: "9:16", burn_subs: true, is_gaming_video: false });
+    for (const setter of Object.values(appSetters)) expect(setter).not.toHaveBeenCalled();
   });
 });

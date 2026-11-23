@@ -44,6 +44,20 @@ export interface ClipJobParams {
 
 export type CreateJobParams = ClipJobParams;
 
+/**
+ * How a manual job looks, given whole by a caller that must not use the Buat klip choices
+ * (the downloader in Pengaturan). Every field replaces the app state value.
+ */
+export interface ManualLook {
+  aspectRatio: string;
+  burnSubtitles: boolean;
+  captionStyle: string;
+  canvasConfig: CanvasConfig;
+  subtitleConfig: SubtitleConfig;
+  isGamingVideo: boolean;
+  trackingMode: string;
+}
+
 export interface AwaitingAnswer {
   jobId: string;
   prompt: string;
@@ -337,6 +351,7 @@ export function useClipJobs(p: ClipJobParams) {
     allowEmptyClips: boolean = false,
     overrideTitle?: string,
     overrideQuality?: string,
+    overrideLook?: ManualLook,
   ) => {
     const resolvedTitle = (overrideTitle ?? p.title ?? "").trim();
     const resolvedQuality = overrideQuality || p.quality;
@@ -362,15 +377,27 @@ export function useClipJobs(p: ClipJobParams) {
       const res = await axios.post(`${API_URL}/jobs/manual`, {
         url: sourceUrl,
         clips: manualClips,
-        aspect_ratio: p.aspectRatio,
-        caption_style: p.captionStyle,
-        burn_subs: p.burnSubtitles,
-        canvas_config: p.canvasConfig,
-        subtitle_config: p.subtitleConfig,
+        ...(overrideLook
+          ? {
+              aspect_ratio: overrideLook.aspectRatio,
+              caption_style: overrideLook.captionStyle,
+              burn_subs: overrideLook.burnSubtitles,
+              canvas_config: overrideLook.canvasConfig,
+              subtitle_config: overrideLook.subtitleConfig,
+              is_gaming_video: overrideLook.isGamingVideo,
+              tracking_mode: overrideLook.trackingMode,
+            }
+          : {
+              aspect_ratio: p.aspectRatio,
+              caption_style: p.captionStyle,
+              burn_subs: p.burnSubtitles,
+              canvas_config: p.canvasConfig,
+              subtitle_config: p.subtitleConfig,
+              is_gaming_video: p.isGamingVideo,
+            }),
         output_dir: p.outputFolder,
         quality: resolvedQuality,
         title: resolvedTitle,
-        is_gaming_video: p.isGamingVideo,
         whisper_model: p.whisperModel,
       });
       if (res.data.status === "error") throw new Error(res.data.message);

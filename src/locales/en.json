@@ -71,8 +71,6 @@
     "provider_label": "AI Provider",
     "api_key_openai": "OpenAI API Key",
     "api_key_gemini": "Gemini API Key",
-    "pexels_api_key": "Pexels API Key (Optional)",
-    "pexels_api_key_note": "Required for Dynamic B-Roll feature",
     "api_key_note": "Encrypted and stored securely on your device",
     "api_key_req": "API key required for AI mode",
     "close": "Close",
@@ -88,11 +86,8 @@
     "test_ai_success": "API Key is valid!",
     "test_error": "Error occurred",
     "test_failed": "Failed to connect to backend",
-    "test_pexels_empty": "Pexels API Key cannot be empty",
-    "test_pexels_success": "Pexels API Key is valid!",
     "testing": "Testing...",
     "test_ai_btn": "Test AI Connection",
-    "test_pexels_btn": "Test Pexels Connection",
     "transcription_title": "Subtitle model",
     "transcription_subtitle": "The model that turns speech in the video into subtitle text. Larger models are more accurate but slower.",
     "whisper_fetch_error": "Failed to load Whisper models. Ensure backend is running.",
@@ -141,20 +136,21 @@
     "folder_reset": "Use the default folder",
     "quality_label": "Video download quality",
     "downloader_title": "Download a video without making clips",
-    "downloader_subtitle": "Downloads the whole video from a link. The result is saved in History.",
+    "downloader_subtitle": "Downloads the whole video from the link in the shape you choose. Subtitles are added only when switched on. The result appears in History.",
     "downloader_btn": "Download video",
     "downloader_running": "A video is being processed. Wait until it finishes before downloading another one.",
     "downloader_view_progress": "See progress",
     "help_steps_title": "How to make clips",
     "help_step_video": "Paste a video link or choose a video file. Pick the clip shape, then press Start.",
     "help_step_prepare": "The app gets the video and writes down everything that is said. Wait until it is done.",
-    "help_step_choose": "Copy the instructions, paste them into ChatGPT or Gemini, then paste the answer back. With an API key this step runs by itself.",
+    "help_step_choose": "Copy the instructions, paste them into ChatGPT or Gemini, then paste the answer back.",
     "help_step_clips": "The app cuts the chosen moments into clips. Download or share them from the result, or open them again in History.",
     "help_faq_title": "Common questions",
     "help_faqs": {
       "free": {
         "q": "Is Auto Clipper free?",
-        "a": "Yes. By default it uses ChatGPT or Gemini in your browser, so no API key is needed. An API key is only for automatic AI, and the AI provider bills you for it."
+        "a": "Yes. You only use ChatGPT or Gemini in your browser to pick the moments.",
+        "a_keys": "An API key is only for automatic AI, and the AI provider bills you for it."
       },
       "sources": {
         "q": "Which videos can I use?",
@@ -166,7 +162,8 @@
       },
       "moments": {
         "q": "The AI picked the wrong moments. What now?",
-        "a": "Make clips again from the same video and ask the AI for other moments. With an API key you can also open the project in History and choose Pick moments again with AI."
+        "a": "Make clips again from the same video and ask the AI for other moments.",
+        "a_keys": "With an API key you can also open the project in History and choose Pick moments again with AI."
       },
       "slow": {
         "q": "Why does it take so long?",
@@ -198,7 +195,19 @@
     "logs_copy_failed": "Could not copy automatically. Select the text and copy it yourself.",
     "logs_empty": "Nothing recorded yet.",
     "logs_loading": "Loading the log...",
-    "logs_fetch_error": "The log could not be loaded because the app is not connected. Wait a moment, then press Reload."
+    "logs_fetch_error": "The log could not be loaded because the app is not connected. Wait a moment, then press Reload.",
+    "downloader_shape": "Shape",
+    "downloader_shape_wide": "Wide (16:9)",
+    "downloader_shape_vertical": "Vertical (9:16)",
+    "downloader_subtitles": "Add subtitles",
+    "downloader_subtitles_help": "The speech is written down first, so the download takes longer.",
+    "folder_pick_failed": "The folder could not be chosen because the folder window did not open. Try again. If it keeps failing, restart the app.",
+    "pexels_key_label": "Pexels key (optional)",
+    "pexels_test": "Test the Pexels key",
+    "pexels_empty": "Fill in the Pexels key first, then test again.",
+    "pexels_ok": "The Pexels key works.",
+    "pexels_failed": "The Pexels key does not work yet. The key may be wrong, or the app cannot reach Pexels. Check the key and your internet connection, then test again.",
+    "help_step_choose_keys": "With an API key this step runs by itself."
   },
   "history": {
     "title": "🕒 History",

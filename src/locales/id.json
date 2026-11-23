@@ -71,8 +71,6 @@
     "provider_label": "AI Provider",
     "api_key_openai": "OpenAI API Key",
     "api_key_gemini": "Gemini API Key",
-    "pexels_api_key": "Pexels API Key (Opsional)",
-    "pexels_api_key_note": "Dibutuhkan untuk fitur Dynamic B-Roll",
     "api_key_note": "Dienkripsi dan disimpan aman di perangkat Anda",
     "api_key_req": "API key diperlukan untuk mode AI",
     "close": "Tutup",
@@ -88,11 +86,8 @@
     "test_ai_success": "API Key valid!",
     "test_error": "Terjadi kesalahan",
     "test_failed": "Gagal terhubung ke backend",
-    "test_pexels_empty": "Pexels API Key tidak boleh kosong",
-    "test_pexels_success": "Pexels API Key valid!",
     "testing": "Menguji...",
     "test_ai_btn": "Tes Koneksi AI",
-    "test_pexels_btn": "Tes Koneksi Pexels",
     "transcription_title": "Model subtitle",
     "transcription_subtitle": "Model yang mengubah ucapan di video menjadi teks subtitle. Model yang lebih besar lebih tepat, tetapi lebih lama.",
     "whisper_fetch_error": "Gagal memuat daftar model Whisper. Pastikan backend aktif.",
@@ -141,20 +136,21 @@
     "folder_reset": "Pakai folder bawaan",
     "quality_label": "Kualitas unduhan video",
     "downloader_title": "Unduh video tanpa membuat klip",
-    "downloader_subtitle": "Mengunduh seluruh video dari link. Hasilnya tersimpan di Riwayat.",
+    "downloader_subtitle": "Mengunduh seluruh video dari link dalam bentuk yang kamu pilih. Subtitle hanya ditambahkan bila diaktifkan. Hasilnya muncul di Riwayat.",
     "downloader_btn": "Unduh video",
     "downloader_running": "Ada video yang sedang diproses. Tunggu sampai selesai sebelum mengunduh video lain.",
     "downloader_view_progress": "Lihat progres",
     "help_steps_title": "Cara membuat klip",
     "help_step_video": "Tempel link video atau pilih file video. Pilih bentuk klip, lalu tekan Mulai.",
     "help_step_prepare": "Aplikasi mengambil video dan mencatat semua ucapannya. Tunggu sampai selesai.",
-    "help_step_choose": "Salin perintah, tempel ke ChatGPT atau Gemini, lalu tempel jawabannya kembali. Dengan API key, langkah ini berjalan sendiri.",
+    "help_step_choose": "Salin perintah, tempel ke ChatGPT atau Gemini, lalu tempel jawabannya kembali.",
     "help_step_clips": "Aplikasi memotong momen terpilih menjadi klip. Unduh atau bagikan dari hasil, atau buka lagi di Riwayat.",
     "help_faq_title": "Pertanyaan umum",
     "help_faqs": {
       "free": {
         "q": "Apakah Auto Clipper gratis?",
-        "a": "Ya. Cara bawaannya memakai ChatGPT atau Gemini di browser, jadi tidak perlu API key. API key hanya untuk AI otomatis, dan biayanya ditagih oleh penyedia AI itu."
+        "a": "Ya. Kamu cukup memakai ChatGPT atau Gemini di browser untuk memilih momen.",
+        "a_keys": "API key hanya untuk AI otomatis, dan biayanya ditagih oleh penyedia AI itu."
       },
       "sources": {
         "q": "Video apa saja yang bisa dipakai?",
@@ -166,7 +162,8 @@
       },
       "moments": {
         "q": "Momen yang dipilih AI kurang pas. Harus apa?",
-        "a": "Buat klip lagi dari video yang sama dan minta AI memilih momen lain. Dengan API key, kamu juga bisa membuka proyeknya di Riwayat, lalu pilih Pilih ulang momen dengan AI."
+        "a": "Buat klip lagi dari video yang sama dan minta AI memilih momen lain.",
+        "a_keys": "Dengan API key, kamu juga bisa membuka proyeknya di Riwayat, lalu pilih Pilih ulang momen dengan AI."
       },
       "slow": {
         "q": "Kenapa prosesnya lama?",
@@ -198,7 +195,19 @@
     "logs_copy_failed": "Tidak bisa menyalin otomatis. Pilih teksnya, lalu salin sendiri.",
     "logs_empty": "Belum ada catatan.",
     "logs_loading": "Memuat catatan...",
-    "logs_fetch_error": "Catatan tidak bisa dimuat karena aplikasi belum tersambung. Tunggu sebentar, lalu tekan Muat ulang."
+    "logs_fetch_error": "Catatan tidak bisa dimuat karena aplikasi belum tersambung. Tunggu sebentar, lalu tekan Muat ulang.",
+    "downloader_shape": "Bentuk",
+    "downloader_shape_wide": "Lebar (16:9)",
+    "downloader_shape_vertical": "Vertikal (9:16)",
+    "downloader_subtitles": "Tambahkan subtitle",
+    "downloader_subtitles_help": "Ucapan di video ditulis dulu, jadi unduhan selesai lebih lama.",
+    "folder_pick_failed": "Folder tidak bisa dipilih karena jendela pemilih folder gagal dibuka. Coba lagi. Bila tetap gagal, buka ulang aplikasi.",
+    "pexels_key_label": "Kunci Pexels (boleh kosong)",
+    "pexels_test": "Tes kunci Pexels",
+    "pexels_empty": "Isi kunci Pexels dulu, lalu tes lagi.",
+    "pexels_ok": "Kunci Pexels bisa dipakai.",
+    "pexels_failed": "Kunci Pexels belum bisa dipakai. Kuncinya mungkin salah, atau aplikasi tidak bisa menghubungi Pexels. Periksa kuncinya dan koneksi internet, lalu tes lagi.",
+    "help_step_choose_keys": "Dengan API key, langkah ini berjalan sendiri."
   },
   "history": {
     "title": "🕒 Riwayat",

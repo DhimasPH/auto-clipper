@@ -70,6 +70,7 @@ export const SettingsPage: React.FC = () => {
           <p id="face-engine-help" className="mt-2 text-body text-text-secondary">{t('settings.face_engine_help')}</p>
         </div>
         <OutputSection
+          showFolder={vis.showOutputFolder}
           outputFolder={ctx.outputFolder}
           setOutputFolder={ctx.setOutputFolder}
           quality={ctx.quality}

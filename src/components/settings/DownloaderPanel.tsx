@@ -7,9 +7,13 @@ import { ErrorCard } from "../ErrorCard";
 import { Button } from "../ui/Button";
 import { InputGroup } from "../ui/InputGroup";
 import { Select } from "../ui/Select";
+import { ToggleSwitch } from "../ui/ToggleSwitch";
 import { useErrorActions } from "../../hooks/useErrorActions";
 import { autoProjectTitle, linkProblem } from "../../lib/createFlow";
 import { ROUTES, SETTINGS_ANCHORS } from "../../lib/routes";
+import { downloaderLook, type DownloadShape } from "../../lib/settingsLayout";
+
+const SHAPES: DownloadShape[] = ["16:9", "9:16"];
 
 /** Download a full video without cutting clips (moved from the old ManualDownloaderPage, spec 4.5). */
 export const DownloaderPanel: React.FC = () => {
@@ -27,6 +31,9 @@ export const DownloaderPanel: React.FC = () => {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [quality, setQuality] = useState<string>(ctx.quality || "best");
+  // Its own shape and subtitle switch: the remembered Buat klip choices never apply here.
+  const [shape, setShape] = useState<DownloadShape>("16:9");
+  const [subtitles, setSubtitles] = useState(false);
   // The job error lives in app state and may belong to a clip job: show it only after starting here.
   const [startedHere, setStartedHere] = useState(false);
   const problem = url.trim() ? linkProblem(url) : null;
@@ -37,7 +44,7 @@ export const DownloaderPanel: React.FC = () => {
     const link = url.trim();
     const resolvedTitle = title.trim() || autoProjectTitle({ kind: "link", url: link }, new Date());
     setStartedHere(true);
-    void ctx.handleManualGenerate(link, [], true, resolvedTitle, quality);
+    void ctx.handleManualGenerate(link, [], true, resolvedTitle, quality, downloaderLook(shape, subtitles));
   };
 
   return (
@@ -68,6 +75,30 @@ export const DownloaderPanel: React.FC = () => {
           onChange={(e) => setTitle(e.target.value)}
           helperText={t("create.project_name_help")}
         />
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-2 text-label text-text-primary">{t("settings.downloader_shape")}</legend>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {SHAPES.map((value) => (
+              <label key={value} className="flex min-h-[44px] cursor-pointer items-center gap-3">
+                <input
+                  type="radio"
+                  name="download-shape"
+                  value={value}
+                  checked={shape === value}
+                  onChange={() => setShape(value)}
+                  className="h-5 w-5 accent-[var(--accent)]"
+                />
+                <span className="text-body text-text-primary">
+                  {t(value === "16:9" ? "settings.downloader_shape_wide" : "settings.downloader_shape_vertical")}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="flex flex-col gap-1">
+          <ToggleSwitch label={t("settings.downloader_subtitles")} checked={subtitles} onChange={setSubtitles} />
+          <p className="text-body text-text-secondary">{t("settings.downloader_subtitles_help")}</p>
+        </div>
         <Select
           label={t("create.quality")}
           value={quality}

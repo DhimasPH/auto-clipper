@@ -161,6 +161,21 @@ describe("SettingsPage (spec 4.5: Umum, YouTube, Lanjutan, Bantuan)", () => {
     expect(section("bantuan").textContent).toContain("macOS");
   });
 
+  it("Bantuan mentions API key actions only where API keys exist", async () => {
+    await render(CAPS.cloud);
+    const cloudHelp = section("bantuan").textContent ?? "";
+    expect(cloudHelp).not.toContain("API key");
+    expect(cloudHelp).not.toContain("Pilih ulang momen dengan AI");
+    expect(cloudHelp).toContain("Buat klip lagi dari video yang sama");
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render(CAPS.local);
+    const localHelp = section("bantuan").textContent ?? "";
+    expect(localHelp).toContain("Pilih ulang momen dengan AI");
+    expect(localHelp).toContain("API key hanya untuk AI otomatis");
+    expect(localHelp).toContain("Dengan API key, langkah ini berjalan sendiri.");
+  });
+
   it("Umum: theme buttons say which one is on, without icons or emoji", async () => {
     const ctx = await render(CAPS.cloud, makeCtx({ theme: "dark" }));
     const general = section("umum");

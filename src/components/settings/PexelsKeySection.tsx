@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff } from 'lucide-react';
-import { API_URL } from '../../App';
+import { API_URL } from '../../platform/backendUrl';
+import { requestError } from '../../lib/errorInfo';
 import { InputGroup } from '../ui/InputGroup';
 import { Button } from '../ui/Button';
 
@@ -11,7 +12,9 @@ interface PexelsKeySectionProps {
   setApiKey: (id: string, value: string) => void;
 }
 
-type TestState = { kind: 'idle' | 'loading' } | { kind: 'success' | 'error'; message: string };
+type TestState =
+  | { kind: 'idle' | 'loading' | 'success' | 'empty' }
+  | { kind: 'failed'; technical: string };
 
 /**
  * The Pexels key for B-roll (moved out of ProviderSection): B-roll also works in manual AI
@@ -24,21 +27,20 @@ export const PexelsKeySection: React.FC<PexelsKeySectionProps> = ({ apiKeys, set
   const key = apiKeys.pexels || '';
 
   const runTest = async () => {
-    if (!key) {
-      setTest({ kind: 'error', message: t('settings.test_pexels_empty') });
+    if (!key.trim()) {
+      setTest({ kind: 'empty' });
       return;
     }
     setTest({ kind: 'loading' });
     try {
       const res = await axios.post(`${API_URL}/api/settings/test-pexels`, { api_key: key });
       if (res.data?.status === 'success') {
-        setTest({ kind: 'success', message: t('settings.test_pexels_success') });
+        setTest({ kind: 'success' });
       } else {
-        setTest({ kind: 'error', message: res.data?.message || t('settings.test_error') });
+        setTest({ kind: 'failed', technical: typeof res.data?.message === 'string' ? res.data.message : '' });
       }
-    } catch (err: any) {
-      const message = err?.response?.data?.message || err?.response?.data?.detail || err?.message || t('settings.test_failed');
-      setTest({ kind: 'error', message });
+    } catch (err) {
+      setTest({ kind: 'failed', technical: requestError(err, '').message });
     }
   };
 
@@ -49,7 +51,7 @@ export const PexelsKeySection: React.FC<PexelsKeySectionProps> = ({ apiKeys, set
       <div className="mt-4 flex items-end gap-2">
         <InputGroup
           className="min-w-0 flex-1"
-          label={t('settings.pexels_api_key')}
+          label={t('settings.pexels_key_label')}
           type={visible ? 'text' : 'password'}
           autoComplete="off"
           value={key}
@@ -69,13 +71,26 @@ export const PexelsKeySection: React.FC<PexelsKeySectionProps> = ({ apiKeys, set
       </div>
       <div className="mt-4">
         <Button variant="outline" type="button" loading={test.kind === 'loading'} onClick={() => void runTest()}>
-          {test.kind === 'loading' ? t('settings.testing') : t('settings.test_pexels_btn')}
+          {test.kind === 'loading' ? t('settings.testing') : t('settings.pexels_test')}
         </Button>
         {test.kind === 'success' && (
-          <p role="status" className="mt-2 text-body text-success">{test.message}</p>
+          <p role="status" className="mt-2 text-body text-success">{t('settings.pexels_ok')}</p>
         )}
-        {test.kind === 'error' && (
-          <p role="alert" className="mt-2 text-body text-error break-words">{test.message}</p>
+        {test.kind === 'empty' && (
+          <p role="alert" className="mt-2 text-body text-error">{t('settings.pexels_empty')}</p>
+        )}
+        {test.kind === 'failed' && (
+          <div role="alert" className="mt-2 flex flex-col gap-1">
+            <p className="text-body text-error">{t('settings.pexels_failed')}</p>
+            {test.technical && (
+              <details className="text-body text-text-secondary">
+                <summary className="flex min-h-[44px] cursor-pointer items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  {t('settings.logs_title')}
+                </summary>
+                <p className="break-words font-mono">{test.technical}</p>
+              </details>
+            )}
+          </div>
         )}
       </div>
     </div>
