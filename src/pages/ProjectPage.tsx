@@ -8,6 +8,7 @@ import { ClipEditModal } from "../components/ClipEditModal";
 import ClipsResult from "../components/ClipsResult";
 import { JobReport } from "../components/JobReport";
 import { AiCorrectDialog } from "../components/projects/AiCorrectDialog";
+import { DeleteFailedAlert } from "../components/projects/DeleteFailedAlert";
 import { ProjectStatusBadge } from "../components/projects/ProjectStatusBadge";
 import { RerenderAllDialog } from "../components/projects/RerenderAllDialog";
 import { Button } from "../components/ui/Button";
@@ -37,6 +38,7 @@ export const ProjectPage: React.FC = () => {
   const [editClip, setEditClip] = useState<number | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteFailed, setDeleteFailed] = useState(false);
   const [rerenderOpen, setRerenderOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
 
@@ -65,6 +67,7 @@ export const ProjectPage: React.FC = () => {
     if (!job?.id) return;
     // Unmount the clip players first so Windows releases the files before the backend deletes them.
     setDeleting(true);
+    setDeleteFailed(false);
     await new Promise((resolve) => setTimeout(resolve, 60));
     try {
       await axios.delete(`${API_URL}/history/${encodeURIComponent(job.id)}`);
@@ -72,6 +75,7 @@ export const ProjectPage: React.FC = () => {
     } catch (err) {
       console.error("Failed to delete project", err);
       setDeleting(false);
+      setDeleteFailed(true);
     }
   };
 
@@ -145,6 +149,8 @@ export const ProjectPage: React.FC = () => {
         </div>
         <OverflowMenu label={t("projects.menu_label", { title })} items={menuItems} />
       </div>
+
+      {deleteFailed && <DeleteFailedAlert onRetry={() => void handleDelete()} />}
 
       {primary === "paste_answer" && (
         <div>

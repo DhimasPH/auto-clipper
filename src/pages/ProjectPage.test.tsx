@@ -55,7 +55,7 @@ describe("ProjectPage (spec 4.5)", () => {
     act(() => root.unmount());
     container.remove();
     setPlatform(null);
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   const renderPage = async (ctx: React.ContextType<typeof AppContext>, id = "j1") => {
@@ -147,6 +147,34 @@ describe("ProjectPage (spec 4.5)", () => {
 
     expect(vi.mocked(axios.delete).mock.calls[0][0]).toMatch(/\/history\/j1$/);
     expect(container.querySelector('[data-testid="where"]')?.textContent).toBe("/riwayat");
+  });
+
+  it("stays on the project and says what to do when deleting fails, then retries", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(axios.get).mockResolvedValueOnce({
+      data: { id: "j1", status: "DONE", clips: [{ path: "a.mp4" }], metadata: { title: "Podcast" } },
+    });
+    vi.mocked(axios.delete)
+      .mockRejectedValueOnce(new Error("file in use"))
+      .mockResolvedValueOnce({ data: { status: "success" } });
+    await renderPage(makeCtx());
+
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
+    act(() => buttonWith(container, i18n.t("projects.menu_delete"))[0].click());
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+    await act(async () => buttonWith(dialog, i18n.t("projects.delete_confirm"))[0].click());
+    await act(() => new Promise((resolve) => setTimeout(resolve, 100)));
+
+    expect(container.querySelector("h1")?.textContent).toBe("Podcast");
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(i18n.t("projects.delete_failed"));
+    // The clips come back so the user can still see them.
+    expect(container.querySelector('[data-testid="clips"]')).not.toBeNull();
+
+    await act(async () => buttonWith(container, i18n.t("projects.delete_retry"))[0].click());
+    await act(() => new Promise((resolve) => setTimeout(resolve, 100)));
+    expect(axios.delete).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[data-testid="where"]')?.textContent).toBe("/riwayat");
+    consoleError.mockRestore();
   });
 
   it("says plainly when the project cannot load, and lets the user try again", async () => {

@@ -7,6 +7,7 @@ import { AppContext } from "../App";
 import { ErrorCard } from "../components/ErrorCard";
 import { RerenderAllDialog } from "../components/projects/RerenderAllDialog";
 import { AiCorrectDialog } from "../components/projects/AiCorrectDialog";
+import { DeleteFailedAlert } from "../components/projects/DeleteFailedAlert";
 import { ProjectStatusBadge } from "../components/projects/ProjectStatusBadge";
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
@@ -54,6 +55,7 @@ export const ProjectsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteFailedId, setDeleteFailedId] = useState<string | null>(null);
   const [rerenderTarget, setRerenderTarget] = useState<any | null>(null);
   const [aiTarget, setAiTarget] = useState<any | null>(null);
 
@@ -75,16 +77,22 @@ export const ProjectsPage: React.FC = () => {
     void fetchProjects();
   }, [fetchProjects, ctx?.historyVersion]);
 
-  const confirmDelete = async () => {
-    const id = deleteTarget;
-    setDeleteTarget(null);
-    if (!id) return;
+  const deleteProject = async (id: string) => {
+    setDeleteFailedId(null);
     try {
       await axios.delete(`${API_URL}/history/${encodeURIComponent(id)}`);
-      await fetchProjects();
     } catch (err) {
       console.error("Failed to delete project", err);
+      setDeleteFailedId(id);
+      return;
     }
+    await fetchProjects();
+  };
+
+  const confirmDelete = () => {
+    const id = deleteTarget;
+    setDeleteTarget(null);
+    if (id) void deleteProject(id);
   };
 
   return (
@@ -171,12 +179,15 @@ export const ProjectsPage: React.FC = () => {
                   <OverflowMenu label={t("projects.menu_label", { title })} items={menuItems} />
                 </div>
 
+                {deleteFailedId === job.id && <DeleteFailedAlert onRetry={() => void deleteProject(job.id)} />}
+
                 {failed && <FailedRowError job={job} />}
 
                 {action && !cardHasRerun && (
                   <div>
                     <Button
-                      variant={action === "paste_answer" || action === "view_clips" ? "primary" : "outline"}
+                      // One focal point per screen: only a project waiting for the AI answer gets the filled button.
+                      variant={action === "paste_answer" ? "primary" : "outline"}
                       onClick={runPrimary}
                     >
                       {t(PRIMARY_LABEL[action])}
@@ -196,7 +207,7 @@ export const ProjectsPage: React.FC = () => {
         confirmLabel={t("projects.delete_confirm")}
         cancelLabel={t("common.cancel")}
         isDestructive
-        onConfirm={() => void confirmDelete()}
+        onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
 

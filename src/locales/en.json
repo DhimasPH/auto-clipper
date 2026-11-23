@@ -682,7 +682,9 @@
     "ai_title": "Pick moments again with AI",
     "ai_desc": "Write an extra instruction so AI looks for different moments in this video.",
     "ai_placeholder": "For example: focus only on tips for getting started",
-    "ai_start": "Pick moments again"
+    "ai_start": "Pick moments again",
+    "delete_failed": "The project could not be deleted. A clip file may be open, or the connection to the app was lost. Close any open clip, then try again.",
+    "delete_retry": "Try deleting again"
   },
   "result": {
     "title_done": "{{count}} clips ready",

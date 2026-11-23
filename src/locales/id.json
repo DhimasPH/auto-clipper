@@ -682,7 +682,9 @@
     "ai_title": "Pilih ulang momen dengan AI",
     "ai_desc": "Tulis petunjuk tambahan supaya AI mencari bagian lain dari video ini.",
     "ai_placeholder": "Contoh: fokus cari bagian tentang cara mulai bisnis saja",
-    "ai_start": "Pilih ulang momen"
+    "ai_start": "Pilih ulang momen",
+    "delete_failed": "Proyek belum bisa dihapus. File klip mungkin sedang dibuka, atau sambungan ke aplikasi terputus. Tutup klip yang sedang dibuka, lalu coba lagi.",
+    "delete_retry": "Coba hapus lagi"
   },
   "result": {
     "title_done": "{{count}} klip siap",

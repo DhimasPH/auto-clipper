@@ -21,7 +21,7 @@ const makeCtx = (overrides: Record<string, unknown> = {}) =>
   ({
     historyVersion: 0,
     isRunning: false,
-    activeJobId: null,
+    jobId: null,
     queuePosition: null,
     provider: "manual_ai",
     apiKeys: {},
@@ -65,7 +65,7 @@ describe("ProjectsPage (spec 4.5)", () => {
     act(() => root.unmount());
     container.remove();
     setPlatform(null);
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   const renderPage = async (ctx: React.ContextType<typeof AppContext>) => {
@@ -158,17 +158,38 @@ describe("ProjectsPage (spec 4.5)", () => {
     await renderPage(makeCtx({ openAwaiting }));
 
     const btn = buttonWith(container, i18n.t("projects.action_paste_answer"))[0];
+    // The one filled button on the screen (spec 4.6: one focal point).
+    expect(btn.className).toContain("bg-accent");
     act(() => btn.click());
     expect(openAwaiting).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-testid="where"]')?.textContent).toBe("/");
   });
 
-  it("opens the project page from Lihat klip", async () => {
+  it("opens the project page from Lihat klip, an outline button", async () => {
     vi.mocked(axios.get).mockResolvedValueOnce({ data: { status: "success", history: [doneJob] } });
     await renderPage(makeCtx());
 
-    act(() => buttonWith(container, i18n.t("projects.action_view_clips"))[0].click());
+    const btn = buttonWith(container, i18n.t("projects.action_view_clips"))[0];
+    expect(btn.className).not.toContain("bg-accent");
+    expect(btn.className).toContain("border-border-active");
+    expect(btn.className).toContain("min-h-[44px]");
+    act(() => btn.click());
     expect(container.querySelector('[data-testid="where"]')?.textContent).toBe("/riwayat/j1");
+  });
+
+  it("shows Menunggu giliran for the project this session is waiting to run", async () => {
+    const running = { id: "j4", url: "https://youtu.be/q", status: "DOWNLOADING", result_clips: [], metadata: { title: "Antri" } };
+    vi.mocked(axios.get)
+      .mockResolvedValueOnce({ data: { status: "success", history: [running] } })
+      .mockResolvedValueOnce({ data: { status: "success", history: [running] } });
+
+    await renderPage(makeCtx());
+    expect(container.querySelector("li")?.textContent).toContain(i18n.t("projects.status_running"));
+
+    await renderPage(makeCtx({ jobId: "j4", queuePosition: 2, historyVersion: 1 }));
+    const row = container.querySelector("li")!;
+    expect(row.textContent).toContain(i18n.t("projects.status_queued"));
+    expect(row.textContent).not.toContain(i18n.t("projects.status_running"));
   });
 
   it("offers Lanjutkan once: from the error card when it has one, else as the primary button", async () => {
@@ -268,6 +289,66 @@ describe("ProjectsPage (spec 4.5)", () => {
     await act(async () => buttonWith(dialog, i18n.t("projects.delete_confirm"))[0].click());
     expect(vi.mocked(axios.delete).mock.calls[0][0]).toMatch(/\/history\/j1$/);
     expect(container.textContent).toContain(i18n.t("projects.empty"));
+  });
+
+  it("keeps the project and says what to do when deleting fails, then retries", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(axios.get)
+      .mockResolvedValueOnce({ data: { status: "success", history: [doneJob] } })
+      .mockResolvedValueOnce({ data: { status: "success", history: [] } });
+    vi.mocked(axios.delete)
+      .mockRejectedValueOnce(new Error("file in use"))
+      .mockResolvedValueOnce({ data: { status: "success" } });
+    await renderPage(makeCtx());
+
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
+    act(() => buttonWith(container, i18n.t("projects.menu_delete"))[0].click());
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+    await act(async () => buttonWith(dialog, i18n.t("projects.delete_confirm"))[0].click());
+
+    const row = container.querySelector("li")!;
+    expect(row.textContent).toContain("Podcast Pagi");
+    expect(row.querySelector('[role="alert"]')?.textContent).toContain(i18n.t("projects.delete_failed"));
+    expect(axios.get).toHaveBeenCalledTimes(1);
+
+    await act(async () => buttonWith(row, i18n.t("projects.delete_retry"))[0].click());
+    expect(axios.delete).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(axios.delete).mock.calls[1][0]).toMatch(/\/history\/j1$/);
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.textContent).toContain(i18n.t("projects.empty"));
+    consoleError.mockRestore();
+  });
+
+  it("keeps what the user typed or chose when the page re-renders behind an open dialog", async () => {
+    setPlatform({ caps: CAPS.desktop } as unknown as Platform);
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: { status: "success", history: [doneJob] } });
+    await renderPage(makeCtx());
+
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
+    act(() => buttonWith(container, i18n.t("projects.menu_ai_rerun"))[0].click());
+    let textarea = document.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea')!;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "cari bagian lucu");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    // A new context object each poll tick, as App gives while a job runs.
+    await renderPage(makeCtx());
+    await renderPage(makeCtx());
+    textarea = document.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea')!;
+    expect(textarea.value).toBe("cari bagian lucu");
+    act(() => buttonWith(document.querySelector('[role="dialog"]') as HTMLElement, i18n.t("common.cancel"))[0].click());
+
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
+    act(() => buttonWith(container, i18n.t("projects.menu_rerender"))[0].click());
+    let select = document.querySelector<HTMLSelectElement>('[role="dialog"] select')!;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(select, "16:9");
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await renderPage(makeCtx());
+    await renderPage(makeCtx());
+    select = document.querySelector<HTMLSelectElement>('[role="dialog"] select')!;
+    expect(select.value).toBe("16:9");
   });
 
   it("says plainly when the list cannot load and lets the user try again", async () => {
