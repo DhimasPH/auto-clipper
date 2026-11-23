@@ -1,8 +1,7 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
 import { Button } from "../ui/Button";
-import { useEscape } from "./useEscape";
+import { Dialog } from "../ui/Dialog";
 
 interface AiCorrectDialogProps {
   isOpen: boolean;
@@ -17,43 +16,36 @@ export const AiCorrectDialog: React.FC<AiCorrectDialogProps> = (props) =>
 
 const AiCorrectBody: React.FC<AiCorrectDialogProps> = ({ onClose, onConfirm }) => {
   const { t } = useTranslation();
-  const titleId = useId();
   const inputId = useId();
-  const cancelRef = useRef<HTMLButtonElement>(null);
   const [extra, setExtra] = useState("");
-
-  useEffect(() => cancelRef.current?.focus(), []);
-  useEscape(onClose);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-scrim p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="w-full max-w-md rounded-card border border-border bg-bg-secondary shadow-dropdown"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-border p-5">
-          <h2 id={titleId} className="text-section-title text-text-primary">{t("projects.ai_title")}</h2>
-          <Button variant="ghost" icon={X} aria-label={t("common.close")} onClick={onClose} />
-        </div>
-        <div className="flex flex-col gap-3 p-5">
-          <label htmlFor={inputId} className="text-body text-text-primary">{t("projects.ai_desc")}</label>
-          <textarea
-            id={inputId}
-            value={extra}
-            onChange={(e) => setExtra(e.target.value)}
-            placeholder={t("projects.ai_placeholder")}
-            rows={4}
-            className="w-full rounded-input border border-border-active bg-bg-primary p-3 text-body text-text-primary placeholder:text-text-secondary focus:border-accent focus:outline-none"
-          />
-        </div>
-        <div className="flex flex-col-reverse gap-3 border-t border-border p-5 sm:flex-row sm:justify-end">
-          <Button ref={cancelRef} variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
+    <Dialog
+      title={t("projects.ai_title")}
+      onClose={onClose}
+      initialFocusRef={inputRef}
+      // Typed instructions are lost on close: ask first.
+      dirty={extra.trim() !== ""}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
           <Button onClick={() => onConfirm(extra.trim())}>{t("projects.ai_start")}</Button>
-        </div>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <label htmlFor={inputId} className="text-body text-text-primary">{t("projects.ai_desc")}</label>
+        <textarea
+          ref={inputRef}
+          id={inputId}
+          value={extra}
+          onChange={(e) => setExtra(e.target.value)}
+          placeholder={t("projects.ai_placeholder")}
+          rows={4}
+          className="w-full rounded-input border border-border-active bg-bg-primary p-3 text-body text-text-primary placeholder:text-text-secondary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        />
       </div>
-    </div>
+    </Dialog>
   );
 };

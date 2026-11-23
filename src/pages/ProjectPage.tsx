@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
@@ -41,6 +41,9 @@ export const ProjectPage: React.FC = () => {
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [rerenderOpen, setRerenderOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  // A retry button disappears once pressed; keyboard focus waits on a heading instead of falling to <body>.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const backRef = useRef<HTMLAnchorElement>(null);
 
   const fetchJob = useCallback(async () => {
     if (!id) return;
@@ -80,7 +83,7 @@ export const ProjectPage: React.FC = () => {
   };
 
   const backLink = (
-    <Link to={ROUTES.projects} className={BACK_LINK}>
+    <Link ref={backRef} to={ROUTES.projects} className={BACK_LINK}>
       <ArrowLeft className="h-4 w-4" aria-hidden="true" />
       {t("projects.back")}
     </Link>
@@ -88,7 +91,9 @@ export const ProjectPage: React.FC = () => {
 
   if (loading && !job && !loadError) {
     return (
-      <div className="mx-auto w-full max-w-3xl">
+      // Same first child (the back link) as the other states, so React keeps that element and its focus.
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+        {backLink}
         <p role="status" className="text-body text-text-secondary">{t("projects.loading")}</p>
       </div>
     );
@@ -101,7 +106,15 @@ export const ProjectPage: React.FC = () => {
         <div role="alert" className="flex flex-col items-start gap-3 rounded-card border border-border bg-bg-secondary p-5">
           <p className="text-body text-error">{t(loadError === "not_found" ? "projects.not_found" : "projects.load_failed")}</p>
           {loadError !== "not_found" && (
-            <Button variant="outline" icon={RefreshCw} onClick={() => void fetchJob()} disabled={loading}>
+            <Button
+              variant="outline"
+              icon={RefreshCw}
+              onClick={() => {
+                backRef.current?.focus();
+                void fetchJob();
+              }}
+              disabled={loading}
+            >
               {t("projects.retry_load")}
             </Button>
           )}
@@ -141,7 +154,7 @@ export const ProjectPage: React.FC = () => {
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-page-title text-text-primary break-words">{title}</h1>
+          <h1 ref={headingRef} tabIndex={-1} className="text-page-title text-text-primary break-words focus:outline-none">{title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-caption text-text-secondary">
             <ProjectStatusBadge statusKey={statusKey} />
             {clips.length > 0 && <span>· {t("projects.clip_count", { count: clips.length })}</span>}
@@ -150,7 +163,14 @@ export const ProjectPage: React.FC = () => {
         <OverflowMenu label={t("projects.menu_label", { title })} items={menuItems} />
       </div>
 
-      {deleteFailed && <DeleteFailedAlert onRetry={() => void handleDelete()} />}
+      {deleteFailed && (
+        <DeleteFailedAlert
+          onRetry={() => {
+            headingRef.current?.focus();
+            void handleDelete();
+          }}
+        />
+      )}
 
       {primary === "paste_answer" && (
         <div>
@@ -175,7 +195,13 @@ export const ProjectPage: React.FC = () => {
 
       {primary === "view_progress" && (
         <div>
-          <Button variant="outline" onClick={() => navigate(ROUTES.create)}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              ctx.watchJob?.(job.id);
+              navigate(ROUTES.create);
+            }}
+          >
             {t("projects.action_view_progress")}
           </Button>
         </div>

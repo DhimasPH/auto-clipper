@@ -585,6 +585,19 @@ export function useClipJobs(p: ClipJobParams) {
     setAwaiting({ jobId: job.id, prompt: job.metadata?.manual_prompt || "", title: job.metadata?.title || "" });
   };
 
+  /**
+   * "Lihat progres" on a project this screen does not follow yet (started in another tab, or
+   * before a reload): follow it here, so Buat klip shows its progress. A job already followed
+   * is left alone.
+   */
+  const watchJob = (jobId: string) => {
+    if (activeJobId) return;
+    resetJobState();
+    beginJob("workspace", false);
+    setStatus("PENDING");
+    setActiveJobId(jobId);
+  };
+
   const leaveAwaiting = () => {
     setAwaiting(null);
     setAnswerError(null);
@@ -600,7 +613,7 @@ export function useClipJobs(p: ClipJobParams) {
   return {
     status, progress, errorMsg, errorInfo, failedJobId, queuePosition, jobMeta, clips, failedCount,
     isRunning, historyVersion, activeJobId, current, liveMeta, makePhase, jobOrigin,
-    awaiting, sendingAnswer, answerError, submitAiAnswer, openAwaiting, leaveAwaiting, resultJobId,
+    awaiting, sendingAnswer, answerError, submitAiAnswer, openAwaiting, leaveAwaiting, watchJob, resultJobId,
     handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, cancelJob, resetJobState,
   };
 }

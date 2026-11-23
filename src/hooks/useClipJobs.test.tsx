@@ -313,6 +313,42 @@ describe("useClipJobs handleResumeJob (Ruling P2)", () => {
     expect(latest.liveMeta).toBeNull();
     expect(latest.makePhase).toBe(false);
   });
+
+  it("watchJob follows a running job started elsewhere and shows its clips when it finishes", async () => {
+    vi.useFakeTimers();
+    mockPlatform(CAPS.local);
+    const get = vi.spyOn(axios, "get")
+      .mockResolvedValueOnce({ data: { status: "TRANSCRIBING", current: { stage: "transcribe", started_at: 1 }, metadata: {} } })
+      .mockResolvedValueOnce({
+        data: { status: "DONE", failed: 0, clips: [{ path: "C:/c1.mp4", description: "d", start: "0", end: "1", subs: true, v: 0 }], metadata: {} },
+      });
+    await act(async () => root.render(<Probe params={makeParams()} />));
+    act(() => latest.watchJob("other-tab-job"));
+    expect(latest.isRunning).toBe(true);
+    expect(latest.activeJobId).toBe("other-tab-job");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(get).toHaveBeenCalledWith(expect.stringMatching(/\/jobs\/other-tab-job$/));
+    expect(latest.status).toBe("TRANSCRIBING");
+    expect(latest.current?.stage).toBe("transcribe");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(latest.status).toBe("DONE");
+    expect(latest.clips).toHaveLength(1);
+  });
+
+  it("watchJob leaves a job that is already followed alone", async () => {
+    mockPlatform(CAPS.cloud);
+    vi.spyOn(axios, "post").mockResolvedValueOnce({ data: { status: "success", job_id: "mine" } });
+    await act(async () => root.render(<Probe params={makeParams({ url: "https://youtu.be/abc", title: "t" })} />));
+    await act(async () => latest.handleGenerate("manual_ai", "t"));
+    act(() => latest.watchJob("someone-else"));
+    expect(latest.activeJobId).toBe("mine");
+  });
 });
 
 describe("useClipJobs handleManualGenerate overrides (Task 14 downloader)", () => {

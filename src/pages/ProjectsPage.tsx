@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
@@ -58,6 +58,12 @@ export const ProjectsPage: React.FC = () => {
   const [deleteFailedId, setDeleteFailedId] = useState<string | null>(null);
   const [rerenderTarget, setRerenderTarget] = useState<any | null>(null);
   const [aiTarget, setAiTarget] = useState<any | null>(null);
+  // A retry button disappears once pressed; keyboard focus waits on the page title instead of falling to <body>.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const retryFrom = (run: () => void) => () => {
+    headingRef.current?.focus();
+    run();
+  };
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -98,7 +104,7 @@ export const ProjectsPage: React.FC = () => {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-page-title text-text-primary">{t("projects.title")}</h1>
+        <h1 ref={headingRef} tabIndex={-1} className="text-page-title text-text-primary focus:outline-none">{t("projects.title")}</h1>
         <Button variant="outline" icon={RefreshCw} onClick={() => void fetchProjects()} disabled={loading}>
           {t("projects.refresh")}
         </Button>
@@ -109,7 +115,7 @@ export const ProjectsPage: React.FC = () => {
       ) : loadFailed ? (
         <div role="alert" className="flex flex-col items-start gap-3 rounded-card border border-border bg-bg-secondary p-5">
           <p className="text-body text-error">{t("projects.load_failed")}</p>
-          <Button variant="outline" icon={RefreshCw} onClick={() => void fetchProjects()} disabled={loading}>
+          <Button variant="outline" icon={RefreshCw} onClick={retryFrom(() => void fetchProjects())} disabled={loading}>
             {t("projects.retry_load")}
           </Button>
         </div>
@@ -154,6 +160,7 @@ export const ProjectsPage: React.FC = () => {
               } else if (action === "resume" || action === "retry") {
                 void ctx.handleResumeJob(job.id, "history");
               } else if (action === "view_progress") {
+                ctx.watchJob?.(job.id);
                 navigate(ROUTES.create);
               }
             };
@@ -179,7 +186,7 @@ export const ProjectsPage: React.FC = () => {
                   <OverflowMenu label={t("projects.menu_label", { title })} items={menuItems} />
                 </div>
 
-                {deleteFailedId === job.id && <DeleteFailedAlert onRetry={() => void deleteProject(job.id)} />}
+                {deleteFailedId === job.id && <DeleteFailedAlert onRetry={retryFrom(() => void deleteProject(job.id))} />}
 
                 {failed && <FailedRowError job={job} />}
 

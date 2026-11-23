@@ -80,6 +80,8 @@ export const OverflowMenu: React.FC<{ label: string; items: OverflowItem[] }> = 
               role="menuitem"
               onClick={() => {
                 setOpen(false);
+                // Focus back on "⋯" first: a dialog opened by the item returns focus here when it closes.
+                buttonRef.current?.focus();
                 item.onSelect();
               }}
               className={`flex min-h-[44px] w-full items-center px-4 text-left text-body hover:bg-bg-surface focus:bg-bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
