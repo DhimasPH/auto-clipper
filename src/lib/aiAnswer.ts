@@ -83,3 +83,38 @@ export function checkAiAnswer(text: string): AiAnswerCheck {
   // The checked JSON is what goes to the backend, so chat text around it cannot trip its parser.
   return { ok: true, moments: moments.length, payload: JSON.stringify(parsed) };
 }
+
+export interface SubtitleWord {
+  word: string;
+  start: number;
+  end: number;
+  [extra: string]: unknown;
+}
+
+export type WordsAnswerCheck =
+  | { ok: true; words: SubtitleWord[] }
+  | { ok: false; problem: "empty" | "cut_off" | "not_answer" | "wrong_count" };
+
+/**
+ * The AI's corrected subtitle words (ClipEditModal): a list of {word, start, end}, same length as
+ * what was sent. Times are taken from the original, so a sloppy answer cannot move the subtitles.
+ */
+export function checkWordsAnswer(text: string, original: SubtitleWord[]): WordsAnswerCheck {
+  if (!text.trim()) return { ok: false, problem: "empty" };
+  const body = stripCodeFence(text);
+  const parsed = parseLoose(body);
+  if (parsed === undefined) return { ok: false, problem: looksCutOff(body) ? "cut_off" : "not_answer" };
+  const list = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === "object" && Array.isArray((parsed as { words?: unknown }).words)
+      ? (parsed as { words: unknown[] }).words
+      : null;
+  if (!list || list.length === 0 || !list.every((w) => w && typeof (w as { word?: unknown }).word === "string")) {
+    return { ok: false, problem: "not_answer" };
+  }
+  if (list.length !== original.length) return { ok: false, problem: "wrong_count" };
+  return {
+    ok: true,
+    words: original.map((w, i) => ({ ...w, word: String((list[i] as { word: string }).word) })),
+  };
+}

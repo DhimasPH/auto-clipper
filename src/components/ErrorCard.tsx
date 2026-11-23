@@ -58,7 +58,7 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({ info, handlers = {}, annou
   return (
     <section
       role={announce ? "alert" : undefined}
-      className={`rounded-xl border border-red-500/30 bg-red-500/10 p-4 flex flex-col gap-3 ${className}`}
+      className={`rounded-card border border-error bg-bg-secondary p-4 flex flex-col gap-3 ${className}`}
     >
       <div className="flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-error shrink-0 mt-0.5" aria-hidden="true" />
@@ -88,11 +88,11 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({ info, handlers = {}, annou
 
       {info.technical && (
         <details className="group">
-          <summary className="inline-flex items-center gap-1 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-label text-text-primary hover:text-accent rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+          <summary className="inline-flex min-h-[44px] items-center gap-1 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-label text-text-primary hover:text-accent rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
             <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90" aria-hidden="true" />
             {t("errorCard.technical", "Detail teknis")}
           </summary>
-          <div className="mt-2 rounded-lg border border-border bg-bg-surface p-3 flex flex-col gap-2">
+          <div className="mt-2 rounded-input border border-border bg-bg-surface p-3 flex flex-col gap-2">
             <pre className="m-0 text-caption text-text-primary font-mono whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
               {info.code}
               {"\n"}

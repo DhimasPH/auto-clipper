@@ -5,6 +5,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { API_URL } from '../../platform/backendUrl';
 import { requestError } from '../../lib/errorInfo';
 import { InputGroup } from '../ui/InputGroup';
+import { TechnicalDetails } from '../ui/TechnicalDetails';
 import { Button } from '../ui/Button';
 
 interface PexelsKeySectionProps {
@@ -82,14 +83,7 @@ export const PexelsKeySection: React.FC<PexelsKeySectionProps> = ({ apiKeys, set
         {test.kind === 'failed' && (
           <div role="alert" className="mt-2 flex flex-col gap-1">
             <p className="text-body text-error">{t('settings.pexels_failed')}</p>
-            {test.technical && (
-              <details className="text-body text-text-secondary">
-                <summary className="flex min-h-[44px] cursor-pointer items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                  {t('settings.logs_title')}
-                </summary>
-                <p className="break-words font-mono">{test.technical}</p>
-              </details>
-            )}
+            <TechnicalDetails text={test.technical} />
           </div>
         )}
       </div>

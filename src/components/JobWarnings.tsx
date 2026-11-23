@@ -21,7 +21,7 @@ export const JobWarnings: React.FC<{ warnings: unknown; className?: string }> = 
         <div
           key={w.id || i}
           role="status"
-          className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3"
+          className="rounded-card border border-warning bg-bg-secondary p-4 flex items-start gap-3"
         >
           <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" aria-hidden="true" />
           <div className="min-w-0">

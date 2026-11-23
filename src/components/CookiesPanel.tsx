@@ -6,6 +6,7 @@ import { API_URL } from "../App";
 import { platform } from "../platform";
 import { Button } from "./ui/Button";
 import { ErrorCard } from "./ErrorCard";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import type { CookiesStatus, ErrorInfo } from "../types/errorInfo";
 import { requestError, toLang } from "../lib/errorInfo";
 
@@ -24,6 +25,7 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
   const [busy, setBusy] = useState<"upload" | "delete" | null>(null);
   const [uploadError, setUploadError] = useState<{ message: string; info: ErrorInfo | null } | null>(null);
   const [notice, setNotice] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const locale = toLang(i18n.language) === "en" ? "en-GB" : "id-ID";
   const formatDate = (iso: string | null) => {
@@ -76,7 +78,7 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
   };
 
   const remove = async () => {
-    if (!window.confirm(t("cookies.delete_confirm", "Hapus file cookies yang tersimpan?"))) return;
+    setConfirmDelete(false);
     setBusy("delete");
     setUploadError(null);
     setNotice("");
@@ -102,10 +104,10 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
         {t("cookies.intro", "Kalau YouTube meminta verifikasi sebelum video bisa diunduh, unggah file cookies.txt di sini. File itu berisi bukti login dari browser Anda.")}
       </p>
 
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3">
+      <div className="rounded-card border border-warning bg-bg-secondary p-4 flex items-start gap-3">
         <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" aria-hidden="true" />
         <div className="min-w-0">
-          <h4 className="text-card-title text-text-primary">{t("cookies.warn_title", "Pakai akun cadangan, bukan akun utama")}</h4>
+          <h4 className="text-body font-semibold text-text-primary">{t("cookies.warn_title", "Pakai akun cadangan, bukan akun utama")}</h4>
           <p className="text-body text-text-primary mt-1">
             {t("cookies.warn_body", "YouTube bisa membatasi akun yang cookies-nya dipakai untuk mengunduh. Pakai akun Google lain yang khusus untuk ini.")}
           </p>
@@ -121,7 +123,7 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
         </ol>
       </div>
 
-      <div className="rounded-xl border border-border bg-bg-surface p-4 flex flex-col gap-3">
+      <div className="flex flex-col gap-3 border-t border-border pt-4">
         {loading ? (
           <div className="flex items-center gap-2 text-body text-text-secondary">
             <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
@@ -156,7 +158,7 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
               </div>
             )}
             {usable && !status?.logged_in && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2">
+              <div className="rounded-card border border-warning p-3 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" aria-hidden="true" />
                 <div className="min-w-0 text-body text-text-primary">
                   <p className="m-0 font-medium">{t("cookies.logged_out_title", "File ini bukan dari akun yang sedang login")}</p>
@@ -210,7 +212,7 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
                 : t("cookies.btn_choose", "Pilih file cookies.txt")}
           </Button>
           {present && (
-            <Button type="button" variant="danger" icon={Trash2} loading={busy === "delete"} disabled={busy !== null} onClick={remove}>
+            <Button type="button" variant="danger" icon={Trash2} loading={busy === "delete"} disabled={busy !== null} onClick={() => setConfirmDelete(true)}>
               {t("cookies.btn_delete", "Hapus cookies")}
             </Button>
           )}
@@ -223,6 +225,16 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
             : t("cookies.privacy", "File disimpan di komputer ini dan hanya dipakai saat mengunduh video.")}
         </p>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDelete}
+        title={t("cookies.delete_title")}
+        message={t("cookies.delete_confirm")}
+        confirmLabel={t("cookies.delete_yes")}
+        isDestructive
+        onConfirm={() => void remove()}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 };

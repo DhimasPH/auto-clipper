@@ -31,8 +31,6 @@ describe("AuthGate token errors", () => {
 
   async function submitToken(value: string) {
     await act(async () => root.render(<AuthGate>app</AuthGate>));
-    const open = container.querySelector<HTMLButtonElement>("button")!;
-    await act(async () => open.click());
     const input = container.querySelector<HTMLInputElement>('input[type="password"]')!;
     const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
     await act(async () => {
@@ -41,6 +39,16 @@ describe("AuthGate token errors", () => {
     });
     await act(async () => input.form!.requestSubmit());
   }
+
+  it("shows the access code form on the page, labelled, with a show/hide button", async () => {
+    await act(async () => root.render(<AuthGate>app</AuthGate>));
+    const input = container.querySelector<HTMLInputElement>('input[type="password"]')!;
+    expect(container.querySelector(`label[for="${input.id}"]`)?.textContent).toBe(i18n.t("auth.token_placeholder"));
+    const toggle = container.querySelector<HTMLButtonElement>(`button[aria-label="${i18n.t("auth.show_code")}"]`)!;
+    await act(async () => toggle.click());
+    expect(input.type).toBe("text");
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+  });
 
   it("says the access code was refused when the backend answers 401", async () => {
     vi.spyOn(axios, "get").mockRejectedValue(Object.assign(new Error("401"), { response: { status: 401 } }));
@@ -65,8 +73,6 @@ describe("AuthGate token errors", () => {
     expect(container.textContent).toContain("app");
 
     await act(async () => window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT)));
-    const open = container.querySelector<HTMLButtonElement>("button")!;
-    await act(async () => open.click());
 
     expect(container.textContent).toContain(i18n.t("auth.error_expired"));
   });

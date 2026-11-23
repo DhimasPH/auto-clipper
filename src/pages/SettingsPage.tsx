@@ -76,7 +76,7 @@ export const SettingsPage: React.FC = () => {
           quality={ctx.quality}
           setQuality={ctx.setQuality}
         />
-        <TranscriptionSection whisperModel={ctx.whisperModel} setWhisperModel={ctx.setWhisperModel} notify={ctx.notify} />
+        <TranscriptionSection whisperModel={ctx.whisperModel} setWhisperModel={ctx.setWhisperModel} />
         <DownloaderPanel />
       </Section>
 

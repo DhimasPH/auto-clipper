@@ -36,6 +36,10 @@ export const DownloaderPanel: React.FC = () => {
   const [subtitles, setSubtitles] = useState(false);
   // The job error lives in app state and may belong to a clip job: show it only after starting here.
   const [startedHere, setStartedHere] = useState(false);
+  // started -> running -> finished: "finished" only after this panel saw its own download run.
+  const [phase, setPhase] = useState<"idle" | "started" | "running" | "finished">("idle");
+  if (phase === "started" && ctx.isRunning) setPhase("running");
+  if (phase === "running" && !ctx.isRunning) setPhase(ctx.status === "DONE" ? "finished" : "idle");
   const problem = url.trim() ? linkProblem(url) : null;
   const errorActions = useErrorActions({ jobId: ctx.failedJobId, origin: "workspace" });
 
@@ -44,6 +48,7 @@ export const DownloaderPanel: React.FC = () => {
     const link = url.trim();
     const resolvedTitle = title.trim() || autoProjectTitle({ kind: "link", url: link }, new Date());
     setStartedHere(true);
+    setPhase("started");
     void ctx.handleManualGenerate(link, [], true, resolvedTitle, quality, downloaderLook(shape, subtitles));
   };
 
@@ -75,8 +80,8 @@ export const DownloaderPanel: React.FC = () => {
           onChange={(e) => setTitle(e.target.value)}
           helperText={t("create.project_name_help")}
         />
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-label text-text-primary">{t("settings.downloader_shape")}</legend>
+        <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+          <legend className="mb-2 p-0 text-label text-text-primary">{t("settings.downloader_shape")}</legend>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {SHAPES.map((value) => (
               <label key={value} className="flex min-h-[44px] cursor-pointer items-center gap-3">
@@ -117,6 +122,14 @@ export const DownloaderPanel: React.FC = () => {
         {startedHere && ctx.errorMsg && !ctx.errorInfo && (
           <p role="alert" className="text-body text-error break-words">
             {ctx.errorMsg}
+          </p>
+        )}
+        {phase === "finished" && (
+          <p role="status" className="text-body text-success">
+            {t("settings.downloader_done")}{" "}
+            <Link to={ROUTES.projects} className="rounded font-medium text-accent underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              {t("settings.downloader_open_history")}
+            </Link>
           </p>
         )}
         {ctx.isRunning && (

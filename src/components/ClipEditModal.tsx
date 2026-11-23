@@ -1,13 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useContext, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Search, RotateCcw, Wand2, Copy, Check, Loader2, ChevronRight } from "lucide-react";
+import { Copy, RotateCcw } from "lucide-react";
+import { AppContext } from "../App";
 import { Button } from "./ui/Button";
+import { Dialog } from "./ui/Dialog";
 import { Select } from "./ui/Select";
+import { ToggleSwitch } from "./ui/ToggleSwitch";
 import { CanvasConfigControls } from "./ui/CanvasConfigControls";
 import { SubtitleConfigControls } from "./ui/SubtitleConfigControls";
 import { CanvasConfig, DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { SubtitleConfig, DEFAULT_SUBTITLE_CONFIG } from "../types/subtitle";
 import { apiGetClipWords, apiCorrectSubtitle, apiCreateClipRerenderJob } from "../api";
+import { checkWordsAnswer, type SubtitleWord } from "../lib/aiAnswer";
+import { copyText } from "../lib/clipboard";
+import { requestError } from "../lib/errorInfo";
+import { TechnicalDetails } from "./ui/TechnicalDetails";
+import { platform } from "../platform";
 
 interface Props {
   jobId: string;
@@ -23,16 +31,32 @@ interface Props {
   onRerenderStart: (newJobId: string) => void;
 }
 
+type Notice =
+  | { kind: "ok"; key: string }
+  | { kind: "error"; key: string; technical?: string };
+
+const fieldClass =
+  "min-h-[44px] w-full rounded-input border bg-bg-secondary px-3 py-2 text-body text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
+
+/** The instruction sent to ChatGPT/Gemini; English works best with every model. */
+function correctionPrompt(words: SubtitleWord[]): string {
+  return `You are a subtitle editor. Here is a JSON array of video subtitles. Correct any spelling, grammar, or punctuation errors. KEEP the exact JSON format and the same number of items. DO NOT change the 'start' or 'end' properties. Return ONLY the valid JSON array without markdown wrapping.\n\nSubtitles:\n${JSON.stringify(words, null, 2)}`;
+}
+
+/** "Ubah subtitle atau tampilan" for one clip: fix words, change the look, make the clip again. */
 export const ClipEditModal: React.FC<Props> = ({
   jobId, clipIndex, clipTitle, initialAspectRatio = "9:16", initialCanvasConfig,
-  initialSubtitleConfig, initialTrackingMode = "auto", initialFaceTrackingEngine = "haar", initialBurnSubs = true, onClose, onRerenderStart
+  initialSubtitleConfig, initialTrackingMode = "auto", initialFaceTrackingEngine = "haar", initialBurnSubs = true, onClose, onRerenderStart,
 }) => {
   const { t } = useTranslation();
-  const [words, setWords] = useState<any[]>([]);
-  const [originalWords, setOriginalWords] = useState<any[]>([]); // For reset
+  const ctx = useContext(AppContext);
+  const ids = useId();
+  const [words, setWords] = useState<SubtitleWord[]>([]);
+  const [originalWords, setOriginalWords] = useState<SubtitleWord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState<string | null>(null);
   const [emptyReason, setEmptyReason] = useState<string | null>(null);
 
   const [aspectRatio, setAspectRatio] = useState(initialAspectRatio);
@@ -41,112 +65,96 @@ export const ClipEditModal: React.FC<Props> = ({
   const [burnSubs, setBurnSubs] = useState(initialBurnSubs);
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(initialCanvasConfig || DEFAULT_CANVAS_CONFIG);
   const [subtitleConfig, setSubtitleConfig] = useState<SubtitleConfig>(initialSubtitleConfig || DEFAULT_SUBTITLE_CONFIG);
+  const [start] = useState(() => JSON.stringify([initialAspectRatio, initialTrackingMode, initialFaceTrackingEngine, initialBurnSubs, canvasConfig, subtitleConfig]));
 
-  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
-  const [aiMode, setAiMode] = useState<'manual' | 'auto'>('manual');
-  const [isCopied, setIsCopied] = useState(false);
-  const [pasteInput, setPasteInput] = useState('');
-  const [isAutoCorrecting, setIsAutoCorrecting] = useState(false);
+  const [pasteInput, setPasteInput] = useState("");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [autoCorrecting, setAutoCorrecting] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
-  const generatePrompt = () => {
-    const jsonStr = JSON.stringify(words, null, 2);
-    return `You are a subtitle editor. Here is a JSON array of video subtitles. Correct any spelling, grammar, or punctuation errors. KEEP the exact JSON format. DO NOT change the 'start' or 'end' properties. Return ONLY the valid JSON array without markdown wrapping.\n\nSubtitles:\n${jsonStr}`;
-  };
+  // Automatic correction needs the API key mode and a key (or a custom server).
+  const provider: string = ctx?.provider || "";
+  const apiKey: string = ctx?.apiKeys?.[provider] || "";
+  const canAutoCorrect = platform().caps.apiKeys && ctx?.aiMode === "auto" && (!!apiKey || provider === "custom");
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatePrompt());
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
-
-  const applyManualJSON = () => {
-    try {
-      let cleanStr = pasteInput.trim();
-      if (cleanStr.startsWith('```json')) cleanStr = cleanStr.substring(7);
-      else if (cleanStr.startsWith('```')) cleanStr = cleanStr.substring(3);
-      if (cleanStr.endsWith('```')) cleanStr = cleanStr.substring(0, cleanStr.length - 3);
-      cleanStr = cleanStr.trim();
-      
-      const parsed = JSON.parse(cleanStr);
-      const arr = Array.isArray(parsed) ? parsed : (parsed.words || null);
-      
-      if (!arr || !Array.isArray(arr) || arr.length === 0 || typeof arr[0].word !== 'string') {
-        throw new Error('Invalid JSON format. Expected array of words.');
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await apiGetClipWords(jobId, clipIndex);
+        if (!alive) return;
+        const fetched: SubtitleWord[] = data.words || [];
+        setWords(fetched);
+        setOriginalWords(fetched.map((w) => ({ ...w })));
+        setEmptyReason(data.reason || null);
+      } catch (e) {
+        console.error(e);
+        if (alive) setEmptyReason("fetch_error");
+      } finally {
+        if (alive) setLoading(false);
       }
-      
-      setWords(arr);
-      setPasteInput('');
-      alert("Subtitle berhasil diperbarui");
-    } catch (e: any) {
-      alert('Gagal memproses JSON: ' + e.message);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [jobId, clipIndex]);
+
+  const wordsChanged = JSON.stringify(words) !== JSON.stringify(originalWords);
+  const lookChanged =
+    JSON.stringify([aspectRatio, trackingMode, faceTrackingEngine, burnSubs, canvasConfig, subtitleConfig]) !== start;
+  const dirty = wordsChanged || lookChanged || pasteInput.trim() !== "";
+
+  const handleWordChange = (idx: number, newText: string) => {
+    setWords((list) => list.map((w, i) => (i === idx ? { ...w, word: newText } : w)));
+  };
+
+  const copyPrompt = async () => {
+    const ok = await copyText(correctionPrompt(words));
+    setCopyState(ok ? "copied" : "failed");
+    if (ok) setTimeout(() => setCopyState("idle"), 2000);
+  };
+
+  const applyAnswer = () => {
+    const check = checkWordsAnswer(pasteInput, words);
+    if (!check.ok) {
+      setNotice({ kind: "error", key: `clip_rerender.answer_${check.problem}` });
+      return;
     }
+    setWords(check.words);
+    setPasteInput("");
+    setNotice({ kind: "ok", key: "clip_rerender.answer_applied" });
   };
 
   const runAutoCorrect = async () => {
-    setIsAutoCorrecting(true);
+    setAutoCorrecting(true);
+    setNotice(null);
     try {
-      const provider = localStorage.getItem('ai_provider') || 'openai';
-      const apiKey = localStorage.getItem(`${provider}_api_key`) || '';
-      const model = localStorage.getItem(`${provider}_model`) || '';
-      const customBaseUrl = localStorage.getItem('custom_base_url') || '';
-      const customModelName = localStorage.getItem('custom_model_name') || '';
-
-      if (!apiKey && provider !== 'custom') {
-        throw new Error('API Key belum diatur di menu Settings.');
-      }
-
       const data = await apiCorrectSubtitle({
-        words, provider, api_key: apiKey, model,
-        custom_base_url: customBaseUrl, custom_model_name: customModelName
+        words,
+        provider,
+        api_key: apiKey,
+        model: ctx?.selectedModel || "",
+        custom_base_url: ctx?.apiKeys?.custom_base_url || "",
+        custom_model_name: ctx?.apiKeys?.custom_model_name || "",
       });
-      if (data.status === 'success' && data.words) {
+      if (data?.status === "success" && Array.isArray(data.words)) {
         setWords(data.words);
-        alert("Subtitle berhasil dikoreksi otomatis");
+        setNotice({ kind: "ok", key: "clip_rerender.auto_done" });
       } else {
-        throw new Error(data.message || 'Gagal mengoreksi subtitle');
+        setNotice({ kind: "error", key: "clip_rerender.auto_failed", technical: typeof data?.message === "string" ? data.message : "" });
       }
-    } catch (e: any) {
-      alert(e.response?.data?.message || e.message);
-    } finally {
-      setIsAutoCorrecting(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchWords();
-  }, [jobId, clipIndex]);
-
-  const fetchWords = async () => {
-    try {
-      const data = await apiGetClipWords(jobId, clipIndex);
-      const fetched = data.words || [];
-      setWords(fetched);
-      setOriginalWords(JSON.parse(JSON.stringify(fetched))); // Deep clone for reset
-      setEmptyReason(data.reason || null);
     } catch (e) {
-      console.error(e);
-      setEmptyReason("fetch_error");
+      setNotice({ kind: "error", key: "clip_rerender.auto_failed", technical: requestError(e, "").message });
     } finally {
-      setLoading(false);
+      setAutoCorrecting(false);
     }
   };
-
-  const handleWordChange = (idx: number, newText: string) => {
-    const newWords = [...words];
-    newWords[idx] = { ...newWords[idx], word: newText };
-    setWords(newWords);
-  };
-
-  const handleReset = () => {
-    setWords(JSON.parse(JSON.stringify(originalWords)));
-  };
-
-  const hasChanges = JSON.stringify(words) !== JSON.stringify(originalWords);
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveFailed(null);
     try {
-      const payload = {
+      const data = await apiCreateClipRerenderJob(jobId, clipIndex, {
         words,
         aspect_ratio: aspectRatio,
         tracking_mode: trackingMode,
@@ -154,19 +162,18 @@ export const ClipEditModal: React.FC<Props> = ({
         caption_style: subtitleConfig.style,
         burn_subs: burnSubs,
         canvas_config: canvasConfig,
-        subtitle_config: subtitleConfig
-      };
-      const data = await apiCreateClipRerenderJob(jobId, clipIndex, payload);
+        subtitle_config: subtitleConfig,
+      });
       onRerenderStart(data.job_id);
     } catch (e) {
       console.error(e);
-      alert(t("clip_rerender.save_failed", "Failed to start rerender"));
+      setSaveFailed(requestError(e, "").message);
     } finally {
       setSaving(false);
     }
   };
 
-  const getEmptyMessage = () => {
+  const emptyMessage = () => {
     switch (emptyReason) {
       case "no_subtitle_file": return t("clip_rerender.no_subtitle_file");
       case "no_words_in_file": return t("clip_rerender.no_words_in_file");
@@ -176,258 +183,192 @@ export const ClipEditModal: React.FC<Props> = ({
     }
   };
 
+  const query = search.trim().toLowerCase();
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-bg-surface border border-border rounded-xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="px-6 py-4 border-b border-border flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-semibold text-text-primary">
-              {t("clip_rerender.title")}
-            </h2>
-            <p className="text-sm text-text-secondary">{clipTitle}</p>
-          </div>
-          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-6 overflow-y-auto space-y-6">
-          {/* AI Auto Correction Section */}
-          <div className="bg-bg-surface border border-border rounded-xl overflow-hidden mb-4">
-            <button 
-              onClick={() => setIsAiAssistantOpen(!isAiAssistantOpen)}
-              className="w-full flex items-center justify-between p-4 hover:bg-input-bg transition-colors"
-            >
-              <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
-                <Wand2 className="w-4 h-4 text-accent" />
-                AI Auto Correction
-              </div>
-              <ChevronRight className={`w-4 h-4 text-text-secondary transition-transform ${isAiAssistantOpen ? 'rotate-90' : ''}`} />
-            </button>
-            
-            {isAiAssistantOpen && (
-              <div className="p-4 border-t border-border space-y-4">
-                <div className="flex items-center gap-2 p-1 bg-input-bg rounded-lg w-max">
-                  <button
-                    onClick={() => setAiMode('manual')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${aiMode === 'manual' ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'}`}
-                  >
-                    Manual (Copy/Paste)
-                  </button>
-                  <button
-                    onClick={() => setAiMode('auto')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${aiMode === 'auto' ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'}`}
-                  >
-                    Auto (API Key)
-                  </button>
-                </div>
-
-                {aiMode === 'manual' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-text-secondary">1. Generate & Copy Prompt</span>
-                        <button onClick={copyToClipboard} className="flex items-center gap-1.5 text-xs text-accent hover:opacity-80 transition-opacity">
-                          {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                          {isCopied ? 'Copied!' : 'Copy'}
-                        </button>
-                      </div>
-                      <textarea
-                        readOnly
-                        value={generatePrompt()}
-                        className="w-full h-32 bg-input-bg border border-border rounded-lg p-2.5 text-xs text-text-primary font-mono resize-none outline-none"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-text-secondary">2. Paste AI Result (JSON)</span>
-                      </div>
-                      <textarea
-                        value={pasteInput}
-                        onChange={(e) => setPasteInput(e.target.value)}
-                        placeholder='[{"word": "Hello", "start": 0.0, "end": 0.5}]'
-                        className="w-full h-32 bg-input-bg border border-border rounded-lg p-2.5 text-xs text-text-primary font-mono resize-none focus:border-accent outline-none"
-                      />
-                      <button 
-                        onClick={applyManualJSON}
-                        disabled={!pasteInput.trim()}
-                        className="w-full py-2 bg-input-bg border border-border hover:bg-bg-secondary disabled:opacity-50 disabled:cursor-not-allowed text-text-primary text-xs font-medium rounded-lg transition-colors"
-                      >
-                        Apply Changes
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-6 px-4 bg-input-bg rounded-lg border border-border text-center">
-                    <Wand2 className="w-8 h-8 text-accent mb-3" />
-                    <h4 className="text-sm font-medium text-text-primary mb-1">Koreksi Subtitle Otomatis</h4>
-                    <p className="text-xs text-text-secondary mb-4 max-w-sm">
-                      Aplikasi akan mengirimkan teks subtitle ke penyedia AI yang telah diatur di Settings (OpenAI/Gemini/dll) untuk memperbaiki ejaan dan tata bahasa.
-                    </p>
-                    <button
-                      onClick={runAutoCorrect}
-                      disabled={isAutoCorrecting}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-accent hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-opacity"
-                    >
-                      {isAutoCorrecting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Memproses...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-4 h-4" />
-                          Auto Correct dengan AI
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <section>
-            <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
-              <h3 className="text-sm font-medium text-text-primary">
-                {t("clip_rerender.word_grid")}
-              </h3>
-              <div className="flex items-center gap-3">
-                {hasChanges && (
-                  <button
-                    onClick={handleReset}
-                    className="flex items-center gap-1 text-xs text-text-secondary hover:text-accent transition-colors"
-                    title={t("clip_rerender.reset")}
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    {t("clip_rerender.reset")}
-                  </button>
-                )}
-                <div className="relative">
-                  <Search className="w-4 h-4 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder={t("clip_rerender.search_placeholder")}
-                    className="bg-input-bg border border-border rounded-md pl-9 pr-3 py-1.5 text-sm text-text-primary focus:border-accent outline-none"
-                  />
-                </div>
-                <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded-md">
-                  {words.length} {t("clip_rerender.words_count")}
-                </span>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="text-center py-4 text-text-secondary">{t("clip_rerender.loading")}</div>
-            ) : words.length === 0 ? (
-              <div className="text-center py-8 text-text-secondary text-sm">
-                {getEmptyMessage()}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-64 overflow-y-auto pr-2">
-                {words.map((w, idx) => {
-                  const isMatch = search && w.word.toLowerCase().includes(search.toLowerCase());
-                  const isChanged = originalWords[idx] && w.word !== originalWords[idx].word;
-                  return (
-                    <div key={idx} className="flex flex-col gap-1">
-                      <span className="text-[10px] text-text-secondary font-mono">
-                        {w.start.toFixed(1)}s - {w.end.toFixed(1)}s
-                      </span>
-                      <input
-                        type="text"
-                        value={w.word}
-                        onChange={e => handleWordChange(idx, e.target.value)}
-                        className={`bg-input-bg border rounded-md px-2 py-1.5 text-sm text-text-primary focus:border-accent outline-none ${
-                          isMatch ? 'border-accent bg-accent/10' :
-                          isChanged ? 'border-yellow-500/50 bg-yellow-500/5' :
-                          'border-border'
-                        }`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <hr className="border-border" />
-
-          <section>
-            <h3 className="text-sm font-medium text-text-primary mb-4">
-              {t("clip_rerender.visual_settings")}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <Select
-                label={t("history.aspect_ratio")}
-                value={aspectRatio}
-                onChange={(e) => setAspectRatio(e.target.value)}
-                options={[
-                  { label: t("history.ar_9_16"), value: "9:16" },
-                  { label: t("history.ar_16_9"), value: "16:9" },
-                  { label: t("history.ar_1_1"), value: "1:1" },
-                ]}
-              />
-              <Select
-                label={t("history.embed_subtitle")}
-                value={burnSubs ? "yes" : "no"}
-                onChange={(e) => setBurnSubs(e.target.value === "yes")}
-                options={[
-                  { label: t("history.sub_yes"), value: "yes" },
-                  { label: t("history.sub_no"), value: "no" },
-                ]}
-              />
-              {['9:16', '4:5', '1:1'].includes(aspectRatio) && (
-                <>
-                  <Select
-                    label="Tracking Mode"
-                    value={trackingMode}
-                    onChange={(e) => setTrackingMode(e.target.value)}
-                    options={[
-                      { label: 'Auto Face Tracking', value: 'auto' },
-                      { label: 'Center Crop (Static)', value: 'center' },
-                    ]}
-                  />
-                  {trackingMode === 'auto' && (
-                    <Select
-                      label="Face Tracking Engine"
-                      value={faceTrackingEngine}
-                      onChange={(e) => setFaceTrackingEngine(e.target.value)}
-                      options={[
-                        { label: 'Haar Cascade (Default)', value: 'haar' },
-                        { label: 'MediaPipe AI', value: 'mediapipe' },
-                      ]}
-                    />
-                  )}
-                </>
-              )}
-            </div>
-            {burnSubs && (
-              <div className="mb-4">
-                <SubtitleConfigControls
-                  config={subtitleConfig}
-                  onChange={setSubtitleConfig}
-                  showModeSwitch={true}
-                  aspectRatio={aspectRatio}
-                />
-              </div>
-            )}
-            {aspectRatio === "16:9" && (
-              <div className="mb-4">
-                <CanvasConfigControls config={canvasConfig} onChange={setCanvasConfig} showModeSwitch={true} />
-              </div>
-            )}
-          </section>
-        </div>
-
-        <div className="px-6 py-4 border-t border-border flex justify-end gap-3 bg-bg-secondary rounded-b-xl">
-          <Button variant="ghost" onClick={onClose}>{t("history.cancel")}</Button>
-          <Button variant="primary" onClick={handleSave} disabled={saving || loading}>
+    <Dialog
+      title={t("clip_rerender.title")}
+      subtitle={clipTitle}
+      onClose={onClose}
+      dirty={dirty}
+      size="xl"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={() => void handleSave()} loading={saving} disabled={loading}>
             {saving ? t("clip_rerender.saving") : t("clip_rerender.save_rerender")}
           </Button>
-        </div>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-6">
+        <section aria-labelledby={`${ids}-words`} className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h3 id={`${ids}-words`} className="text-card-title text-text-primary">{t("clip_rerender.word_grid")}</h3>
+              <p className="text-caption text-text-secondary">{t("clip_rerender.words_count", { count: words.length })}</p>
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              {wordsChanged && (
+                <Button variant="ghost" icon={RotateCcw} onClick={() => setWords(originalWords.map((w) => ({ ...w })))}>
+                  {t("clip_rerender.reset")}
+                </Button>
+              )}
+              <label className="flex flex-col gap-1.5 text-label text-text-primary">
+                {t("clip_rerender.search_label")}
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className={`${fieldClass} border-border-active sm:w-56`}
+                />
+              </label>
+            </div>
+          </div>
+
+          {loading ? (
+            <p role="status" className="text-body text-text-secondary">{t("clip_rerender.loading")}</p>
+          ) : words.length === 0 ? (
+            <p className="text-body text-text-secondary">{emptyMessage()}</p>
+          ) : (
+            <div className="grid max-h-72 grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {words.map((w, idx) => {
+                const isMatch = !!query && w.word.toLowerCase().includes(query);
+                const isChanged = originalWords[idx] && w.word !== originalWords[idx].word;
+                return (
+                  <label key={idx} className="flex min-w-0 flex-col gap-1">
+                    <span className="text-caption text-text-secondary">
+                      {t("clip_rerender.word_time", { start: w.start.toFixed(1), end: w.end.toFixed(1) })}
+                      {isChanged && <span> · {t("clip_rerender.changed")}</span>}
+                    </span>
+                    <input
+                      type="text"
+                      value={w.word}
+                      onChange={(e) => handleWordChange(idx, e.target.value)}
+                      className={`${fieldClass} ${isMatch ? "border-accent bg-accent-muted" : isChanged ? "border-warning" : "border-border-active"}`}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          {words.length > 0 && (
+            <details className="rounded-card border border-border">
+              <summary className="flex min-h-[44px] cursor-pointer items-center px-4 text-body font-medium text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                {t("clip_rerender.ai_title")}
+              </summary>
+              <div className="flex flex-col gap-3 border-t border-border p-4">
+                {canAutoCorrect && (
+                  <div className="flex flex-col items-start gap-2">
+                    <p className="text-body text-text-secondary">{t("clip_rerender.auto_desc")}</p>
+                    <Button variant="outline" loading={autoCorrecting} onClick={() => void runAutoCorrect()}>
+                      {autoCorrecting ? t("clip_rerender.auto_running") : t("clip_rerender.auto_btn")}
+                    </Button>
+                  </div>
+                )}
+                <p className="text-body text-text-secondary">{t("clip_rerender.manual_desc")}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" icon={Copy} onClick={() => void copyPrompt()}>
+                    {copyState === "copied" ? t("moment.copied") : t("moment.copy")}
+                  </Button>
+                  <a
+                    href="https://chatgpt.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[44px] items-center rounded-button px-3 text-body text-accent underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    {t("moment.open_chatgpt")}
+                  </a>
+                  <a
+                    href="https://gemini.google.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[44px] items-center rounded-button px-3 text-body text-accent underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    {t("moment.open_gemini")}
+                  </a>
+                </div>
+                {copyState === "failed" && <p role="alert" className="text-body text-error">{t("clip_rerender.copy_failed")}</p>}
+                <label className="flex flex-col gap-1.5 text-label text-text-primary">
+                  {t("moment.answer_label")}
+                  <textarea
+                    value={pasteInput}
+                    onChange={(e) => setPasteInput(e.target.value)}
+                    rows={4}
+                    className={`${fieldClass} border-border-active font-mono`}
+                  />
+                </label>
+                <div>
+                  <Button variant="outline" disabled={!pasteInput.trim()} onClick={applyAnswer}>
+                    {t("clip_rerender.apply_answer")}
+                  </Button>
+                </div>
+                {notice?.kind === "ok" && <p role="status" className="text-body text-success">{t(notice.key)}</p>}
+                {notice?.kind === "error" && (
+                  <div role="alert" className="flex flex-col gap-1">
+                    <p className="text-body text-error">{t(notice.key)}</p>
+                    <TechnicalDetails text={notice.technical} />
+                  </div>
+                )}
+              </div>
+            </details>
+          )}
+        </section>
+
+        <section aria-labelledby={`${ids}-look`} className="flex flex-col gap-4 border-t border-border pt-5">
+          <h3 id={`${ids}-look`} className="text-card-title text-text-primary">{t("clip_rerender.visual_settings")}</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Select
+              label={t("create.shape_label")}
+              value={aspectRatio}
+              onChange={(e) => setAspectRatio(e.target.value)}
+              options={[
+                { label: t("create.shape_vertical"), value: "9:16" },
+                { label: t("create.shape_square"), value: "1:1" },
+                { label: t("create.shape_wide"), value: "16:9" },
+                ...(initialAspectRatio === "4:5" ? [{ label: "4:5", value: "4:5" }] : []),
+              ]}
+            />
+            {["9:16", "4:5", "1:1"].includes(aspectRatio) && (
+              <Select
+                label={t("create.face_label")}
+                value={trackingMode}
+                onChange={(e) => setTrackingMode(e.target.value)}
+                options={[
+                  { label: t("create.face_follow"), value: "auto" },
+                  { label: t("create.face_center"), value: "center" },
+                ]}
+              />
+            )}
+            {["9:16", "4:5", "1:1"].includes(aspectRatio) && trackingMode === "auto" && (
+              <Select
+                label={t("settings.face_engine_label")}
+                value={faceTrackingEngine}
+                onChange={(e) => setFaceTrackingEngine(e.target.value)}
+                options={[
+                  { label: t("settings.face_engine_standard"), value: "haar" },
+                  { label: t("settings.face_engine_precise"), value: "mediapipe" },
+                ]}
+              />
+            )}
+          </div>
+          <ToggleSwitch label={t("create.subtitles")} checked={burnSubs} onChange={setBurnSubs} />
+          {burnSubs && (
+            <SubtitleConfigControls config={subtitleConfig} onChange={setSubtitleConfig} showModeSwitch={true} aspectRatio={aspectRatio} />
+          )}
+          {aspectRatio === "16:9" && (
+            <CanvasConfigControls config={canvasConfig} onChange={setCanvasConfig} showModeSwitch={true} />
+          )}
+        </section>
+
+        {saveFailed !== null && (
+          <div role="alert" className="flex flex-col gap-1">
+            <p className="text-body text-error">{t("clip_rerender.save_failed")}</p>
+            <TechnicalDetails text={saveFailed} />
+          </div>
+        )}
       </div>
-    </div>
+    </Dialog>
   );
 };

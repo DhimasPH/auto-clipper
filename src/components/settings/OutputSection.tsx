@@ -36,7 +36,7 @@ export const OutputSection: React.FC<OutputSectionProps> = ({
 
   return (
     <div className="flex flex-col gap-4 rounded-card border border-border bg-bg-secondary p-5">
-      <h3 className="text-card-title text-text-primary">{t('settings.output_title')}</h3>
+      <h3 className="text-card-title text-text-primary">{t(showFolder ? 'settings.output_title' : 'settings.output_title_quality')}</h3>
 
       {showFolder && (
         <div className="flex flex-col gap-2">

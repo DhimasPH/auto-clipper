@@ -1,125 +1,103 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DownloadCloud, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { platform } from '../../platform';
 import type { UpdateHandle } from '../../platform';
-import { useToasts } from '../../hooks/useToasts';
+import { TechnicalDetails } from '../ui/TechnicalDetails';
 import UpdateOverlay from './UpdateOverlay';
 
+type Notice =
+  | { kind: 'up_to_date' | 'installed' }
+  | { kind: 'check_failed' | 'install_failed'; technical: string };
+
+/** Pengaturan, Bantuan (desktop only): check for and install a newer version. */
 export const UpdaterSection: React.FC = () => {
   const { t } = useTranslation();
   const [checking, setChecking] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState<UpdateHandle | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
-  const { toasts, notify } = useToasts();
+  const [notice, setNotice] = useState<Notice | null>(null);
   const updater = platform().updater;
 
   const checkForUpdates = async () => {
-    if (!updater) {
-      // Same message a browser got before SP1; Task 5 hides this section where there is no updater.
-      notify(t('updater.browser_dev_warning', 'Fitur pembaruan tidak dapat digunakan jika dijalankan di browser web (mode dev). Silakan jalankan via Tauri.'), 'error');
-      return;
-    }
+    if (!updater) return;
+    setNotice(null);
     try {
       setChecking(true);
       const update = await updater.check();
-      if (update) {
-        setUpdateAvailable(update);
-      } else {
-        notify(t('updater.up_to_date', 'Anda menggunakan versi terbaru.'), 'success');
-      }
-    } catch (err: any) {
-      const errMsg = err?.toString() || '';
-      if (errMsg.includes('missing Tauri-Invoke-Key') || errMsg.includes('not supported in browser')) {
-        notify(t('updater.browser_dev_warning', 'Fitur pembaruan tidak dapat digunakan jika dijalankan di browser web (mode dev). Silakan jalankan via Tauri.'), 'error');
-      } else {
-        notify(t('updater.check_failed', 'Gagal memeriksa pembaruan: ') + errMsg, 'error');
-      }
+      if (update) setUpdateAvailable(update);
+      else setNotice({ kind: 'up_to_date' });
+    } catch (err) {
+      setNotice({ kind: 'check_failed', technical: String(err ?? '') });
     } finally {
       setChecking(false);
     }
   };
-  
+
   const installUpdate = async () => {
     if (!updateAvailable || !updater) return;
+    setNotice(null);
     try {
       setDownloading(true);
       setProgressPct(0);
-      
       let downloadedBytes = 0;
       let totalBytes = 0;
-      
       await updateAvailable.downloadAndInstall((event) => {
         if (event.event === 'Started') {
           totalBytes = event.data?.contentLength || 0;
         } else if (event.event === 'Progress') {
           downloadedBytes += event.data?.chunkLength || 0;
-          if (totalBytes > 0) {
-            setProgressPct((downloadedBytes / totalBytes) * 100);
-          }
+          if (totalBytes > 0) setProgressPct((downloadedBytes / totalBytes) * 100);
         }
       });
-      
-      notify(t('updater.install_success', 'Pembaruan berhasil dipasang. Memulai ulang...'), 'success');
-      setTimeout(async () => {
-        await updater.relaunch();
-      }, 1500);
-    } catch (err: any) {
-      notify(t('updater.install_failed', 'Gagal memasang pembaruan: ') + err, 'error');
+      setNotice({ kind: 'installed' });
+      setTimeout(() => void updater.relaunch(), 1500);
+    } catch (err) {
+      setNotice({ kind: 'install_failed', technical: String(err ?? '') });
     } finally {
       setDownloading(false);
       setUpdateAvailable(null);
     }
   };
 
-  return (
-    <div className="bg-bg-secondary rounded-card border border-border p-6 shadow-sm relative">
-      {toasts.length > 0 && (
-        <div className="absolute top-4 right-4 flex flex-col gap-2 z-50">
-          {toasts.map(toast => (
-            <div key={toast.id} className={`px-4 py-2 rounded shadow text-sm ${toast.kind === 'error' ? 'bg-error text-white' : 'bg-success text-white'}`}>
-              {toast.text}
-            </div>
-          ))}
-        </div>
-      )}
+  const failed = notice && (notice.kind === 'check_failed' || notice.kind === 'install_failed') ? notice : null;
 
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-accent/10 rounded-lg text-accent">
-          <DownloadCloud className="w-5 h-5" />
-        </div>
-        <h3 className="text-card-title text-text-primary">{t('updater.title', 'Pembaruan Aplikasi')}</h3>
+  return (
+    <div className="flex flex-col gap-4 rounded-card border border-border bg-bg-secondary p-5">
+      <div>
+        <h3 className="text-card-title text-text-primary">{t('updater.title')}</h3>
+        <p className="mt-1 text-body text-text-secondary">{t('updater.description')}</p>
       </div>
 
-      <div className="space-y-4">
-        <p className="text-text-secondary text-sm">
-          {t('updater.description', 'Periksa apakah ada versi terbaru Auto Clipper.')}
-        </p>
-        
-        <Button 
-          onClick={checkForUpdates} 
-          disabled={checking || downloading}
-          variant="outline"
-          icon={RefreshCw}
-        >
-          {checking ? t('updater.checking', 'Memeriksa...') : t('updater.check_button', 'Periksa Pembaruan')}
+      <div>
+        <Button onClick={() => void checkForUpdates()} disabled={checking || downloading} loading={checking} variant="outline" icon={RefreshCw}>
+          {checking ? t('updater.checking') : t('updater.check_button')}
         </Button>
       </div>
 
+      {notice?.kind === 'up_to_date' && <p role="status" className="text-body text-success">{t('updater.up_to_date')}</p>}
+      {notice?.kind === 'installed' && <p role="status" className="text-body text-success">{t('updater.install_success')}</p>}
+      {failed && (
+        <div role="alert" className="flex flex-col gap-1">
+          <p className="text-body text-error">{t(failed.kind === 'check_failed' ? 'updater.check_failed' : 'updater.install_failed')}</p>
+          <TechnicalDetails text={failed.technical} />
+        </div>
+      )}
+
       <ConfirmDialog
         isOpen={!!updateAvailable && !downloading}
-        title={t('updater.available_title', 'Pembaruan Tersedia')}
+        title={t('updater.available_title')}
         message={
-          t('updater.available_message', 'Versi {{version}} tersedia. Apakah Anda ingin mengunduh dan memasangnya sekarang?', { version: updateAvailable?.version }) 
-          + (updateAvailable?.body ? '\n\n' + updateAvailable.body : '')
+          t('updater.available_message', { version: updateAvailable?.version }) +
+          (updateAvailable?.body ? '\n\n' + updateAvailable.body : '')
         }
-        onConfirm={installUpdate}
+        onConfirm={() => void installUpdate()}
         onCancel={() => setUpdateAvailable(null)}
-        confirmLabel={t('updater.install_now', 'Pasang Sekarang')}
-        cancelLabel={t('common.cancel', 'Batal')}
+        confirmLabel={t('updater.install_now')}
+        cancelLabel={t('updater.later')}
       />
 
       <UpdateOverlay isOpen={downloading} progressPct={progressPct} />

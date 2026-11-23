@@ -4,7 +4,11 @@ import id from "./id.json";
 
 // Spec 4.6: no technical words, no decorative emoji and no em dash in main-screen text.
 // Each task that adds a main-screen namespace adds it here (Task 10 adds "toast").
-export const MAIN_NAMESPACES = ["nav", "create", "progress", "moment", "result", "projects", "banner", "toast"];
+// Task 15 adds the look controls on Buat klip and the dialogs opened from a clip or a project.
+export const MAIN_NAMESPACES = [
+  "nav", "create", "progress", "moment", "result", "projects", "banner", "toast",
+  "canvas", "subtitle_custom", "subtitle_preset", "clip_rerender", "social", "dialog", "drive",
+];
 const BANNED = [
   "transkripsi", "transcription", "render", "encoder", "json", "sidecar", "token",
   "prompt", "backend", "ffmpeg", "nvenc", "cuda", "whisper",

@@ -180,6 +180,22 @@ describe("DownloaderPanel (spec 4.5, Lanjutan #pengunduh)", () => {
     expect(link?.getAttribute("href")).toBe("/");
     expect(downloadButton().disabled).toBe(true);
   });
+
+  it("says in place when its own download has finished, and links to Riwayat", async () => {
+    const ctx = makeCtx({ status: "DONE" });
+    await render(ctx);
+    // An older finished job does not count.
+    expect(container.textContent).not.toContain(i18n.t("settings.downloader_done"));
+    await act(async () => setInput(inputs()[0], "https://youtu.be/abc"));
+    await act(async () => downloadButton().click());
+    expect(container.textContent).not.toContain(i18n.t("settings.downloader_done"));
+
+    await render({ ...ctx, isRunning: true, status: "DOWNLOADING" } as typeof ctx);
+    expect(container.textContent).not.toContain(i18n.t("settings.downloader_done"));
+    await render({ ...ctx, isRunning: false, status: "DONE" } as typeof ctx);
+    const done = [...container.querySelectorAll('[role="status"]')].find((el) => el.textContent?.includes(i18n.t("settings.downloader_done")));
+    expect(done?.querySelector("a")?.getAttribute("href")).toBe("/riwayat");
+  });
 });
 
 describe("DownloaderPanel request body (review ruling: own shape and subtitle switch)", () => {

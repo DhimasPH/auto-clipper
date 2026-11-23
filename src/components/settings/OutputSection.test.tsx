@@ -47,6 +47,8 @@ describe("OutputSection (Lanjutan, folder and quality)", () => {
     await render(vi.fn(), false);
     expect(pickButton()).toBeUndefined();
     expect(container.textContent).not.toContain("Folder hasil");
+    // Without a folder row the title must not promise one.
+    expect(container.querySelector("h3")?.textContent).toBe(i18n.t("settings.output_title_quality"));
   });
 
   it("saves the picked folder", async () => {
