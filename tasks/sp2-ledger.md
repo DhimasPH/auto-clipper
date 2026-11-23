@@ -48,3 +48,20 @@ Owner accepted all plan defaults (2026-11-20: "ikuti rekomendasi, yang penting U
   - Antislop (code-level PASS; runtime 360/768/1280px browser check deferred to Task 15): 1 primary filled button (`Unduh semua`) only when finished with >1 clip (none for 1 clip or while cropping), `Unduh`/`Bagikan` as wrapped `outline` buttons (P16), 0 star/sparkle decorative icons, AI score badge dropped from card, 44px touch targets & visible `:focus-visible` ring on `OverflowMenu` items, inline `role="alert"` on `saveClips` failure (P10).
   - Ruling: the AI score badge is dropped from the card (decoration, not in spec 4.5) — cost if wrong: one line to add back.
   - Deferred minors: explicit `focusout` unit test in `OverflowMenu.test.tsx`, whitespace-trim assertion for AI titles in `clipInfo.test.ts`, singular `"1 clips"` in `en.json` `title_done`/`failed`, and `result.download_failed` wording under `Unduh semua`.
+Task 13: dispatched (BASE 788261d) — controller session 2026-11-23, implementer opus
+Task 13: implementer aeeab9f049020ce50
+Task 13: implementer DONE_WITH_CONCERNS, commit a6dbd47. Deviations: errorCardOffersResume → hasRerunAction (brief version always false); ctx.jobId (no activeJobId); dialogs mount only while open (polling wiped choices); QUEUED → "Menunggu giliran", projects.not_found, clip_count_one added; P2 already in place since Task 8.
+Task 13: concern → Task 15: new dialogs lack focus trap / focus return (same as deferred ConfirmDialog minor); layout check 360/768/1280 deferred to Task 15.
+Task 13: review Approved with 1 Important (plan-mandated): delete failure swallowed (console.error only) in ProjectsPage and ProjectPage — spec 5 requires a visible what/why/what-to-do message.
+Ruling: fix the Important in fix round 1, plus minor 1 (only `Tempel jawaban AI` stays filled; `Lihat klip` becomes outline — global constraint "one focal point per screen" binds) and minors 3–4 (tests for the ctx.jobId queued row and for dialogs keeping input across parent re-renders) — cheap, they pin the implementer's deviations — cost: slightly larger fix round.
+Task 13: minor (deferred → Task 15): dialogs close on backdrop/Escape without discard guard; no focus trap/return.
+Task 13: minor (deferred): "Lihat progres" dead end for jobs started in another session; list does not poll.
+Task 13: minor (deferred): FailedRowError duplicates JobReport error block — extract small ProjectError later.
+Task 13: minor (deferred): fallback title can show raw `local:` path when no title stored.
+Task 13: minor (deferred): concurrent fetchProjects calls unordered (last response wins).
+Task 13: minor (deferred): prune unused history.* locale keys.
+Task 13: fix round 1 dispatched (FIX_BASE a6dbd47)
+Task 13: fix round 1/5 (4 addressed, 0 open — delete failure alert + retry, one filled button, queued-row test, dialog re-render test; commits a6dbd47..1d120a7)
+Task 13: minor (deferred → Task 15): retry button unmounts on click so keyboard focus drops to body; dialog re-render test exists only for ProjectsPage, not ProjectPage.
+Task 13: complete (commits 788261d..1d120a7, review clean after fix round 1) — Vitest 283 passed, oxlint 0 errors, build + build:cloud OK.
+Task 14: dispatched (BASE 1d120a7), implementer opus
