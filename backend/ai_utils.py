@@ -527,6 +527,8 @@ def _whisper_device(model) -> str:
 
 def _transcribe_with_faster_whisper(audio_path: str, karaoke: bool, is_cancelled: callable, model_size: str, timing: dict):
     import os
+    from backend import addons
+    addons.activate_installed()
     
     # Suppress Windows DLL missing error popups (so it falls back to CPU gracefully)
     if os.name == 'nt':

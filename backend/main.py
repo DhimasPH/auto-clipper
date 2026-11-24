@@ -85,6 +85,12 @@ if valid_paths:
 # Initialize DB on startup
 init_db()
 
+try:
+    from backend import addons as _addons
+    _addons.activate_installed()
+except Exception as _addon_err:
+    log_error("addons.startup_activate", _addon_err)
+
 app = FastAPI(title="Auto Clipper API")
 
 @app.exception_handler(Exception)
@@ -409,6 +415,32 @@ def api_delete_cookies():
     from backend.cookies import delete_cookies, get_status
     delete_cookies()
     return {"status": "success", "cookies": get_status()}
+
+
+@app.get("/api/settings/addons")
+def api_get_addons():
+    from backend import addons
+    return {"status": "success", "addons": addons.get_addon_statuses()}
+
+
+@app.post("/api/settings/addons/{addon_id}/download")
+def api_download_addon(addon_id: str):
+    from backend import addons
+    if addon_id not in addons.ADDON_IDS:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Unknown add-on"})
+    if not addons.is_addon_available(addon_id):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Add-on is not available on this platform"})
+    return {"status": "success", "addon": addons.start_addon_download(addon_id)}
+
+
+@app.delete("/api/settings/addons/{addon_id}")
+def api_delete_addon(addon_id: str):
+    from backend import addons
+    if addon_id not in addons.ADDON_IDS:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Unknown add-on"})
+    if not addons.is_addon_available(addon_id):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Add-on is not available on this platform"})
+    return {"status": "success", "addon": addons.remove_addon(addon_id)}
 
 
 class CanvasConfig(BaseModel):

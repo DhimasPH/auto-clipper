@@ -46,6 +46,7 @@ hiddenimports = [
     'xml.etree.ElementTree',
     'backend',
     'backend._lazy',
+    'backend.addons',
     'backend.main',
     'backend.jobs',
     'backend.ai_utils',
