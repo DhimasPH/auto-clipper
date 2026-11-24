@@ -7,6 +7,7 @@ Branch: feat/sp3-lightweight, start 9ff373f
 Owner accepted spec defaults + revision requirements (2026-11-24): pinned SHA-256 add-ons, clear fallback notice for uninstalled Teliti, Task 0 runtime loading spike.
 
 ## Pre-flight scan
+
 12 rulings (3 Critical, 5 Important, 4 Minor). Rulings carried forward into each task:
 
 - P1 [T1 `backend/video_utils.py`, `backend/ai_utils.py`, `backend/crop_utils.py`, Critical] Ruling: use `_LazyModule` / `_LazyAttr` proxies instead of deleting module-level bindings for `yt_dlp`, `OpenAI`, `genai`/`types`, `cv2`, and `np`, and use `importlib.metadata.version("yt-dlp")` in `preflight._downloader_version()` — 25+ tests in `test_video_utils.py` and `test_error_integration.py` call `@patch('backend.video_utils.yt_dlp.YoutubeDL')`, 30+ calls in `test_crop_utils.py` call `@patch('backend.crop_utils.cv2...')`, and 6 tests in `test_ai_utils.py` / `test_pipeline_timings.py` call `@patch('backend.ai_utils.OpenAI')` or `@patch('google.genai.Client')`, all expecting those attributes at module level — cost if wrong: dozens of existing tests fail with `AttributeError`.
@@ -23,6 +24,7 @@ Owner accepted spec defaults + revision requirements (2026-11-24): pinned SHA-25
 - P12 [Global docs/process, Minor] Ruling: commit messages follow `Co-Authored-By:` policy and Vitest is always executed from `C:\Users\dhima\projects\auto-clipper` (uppercase drive letter) — cost if wrong: Vitest config loading error on Windows.
 
 ## Tasks
+
 - Task 0 (Spike): complete (commit pending -> recorded below) — PyInstaller 6.22.3 installed in `ac-venv`; baseline `backend.spec` built (`backend.exe` **248,99 MB**); mediapipe-free `spike.spec` built (`backend_spike.exe` **200,42 MB**, −48,57 MB meski `opencv-contrib-python` masih ada di `ac-venv` lokal). Di dalam `backend_spike.exe` (`sys.frozen=True`): (1) `mediapipe` gagal di-import sebelum add-on dipasang (`MP_NOT_BUNDLED_OK`), lalu wheel terkunci `mediapipe==1.2.3` + `flatbuffers==25.12.19` + `absl-py==2.5.1` ter-import dari folder add-on dengan stub `matplotlib`/`sounddevice` & stdlib `wave`/`csv`/`timeit`/`getpass`/`xml`, dan `FaceLandmarker` + `face_landmarker.task` sukses inferensi (`FACE_LANDMARKER_OK`); (2) `cublas64_12.dll` tidak ditemukan sebelum aktivasi (`CUBLAS_MISSING_BEFORE_ADDON_OK`), lalu setelah `os.add_dll_directory()` + `PATH` + preload `cublasLt64_12.dll`/`cublas64_12.dll`, `ctypes.WinDLL("cublas64_12.dll")` dan `WhisperModel("medium", device="cuda")` sukses mengeksekusi transkripsi nyata (`CT2_CUDA_TRANSCRIBE_OK device=cuda`). Ruling T0: `addons.activate_installed()` di Windows wajib memanggil `os.add_dll_directory()`, prepend `PATH`, dan preload `cublasLt64_12.dll` lalu `cublas64_12.dll` via full path agar `ctranslate2.dll` di `--onefile` `.exe` memakainya.
 - Task 1: complete (commits c19db53..a755bb0, review clean after fix round 1) — `pytest` **864 passed, 6 skipped** (+4).
 - Task 2: complete (commits a755bb0..6a7bbea, review clean after fix round 3) — `backend/addons.py`, `backend/errors.py`, `backend/main.py`, `backend/ai_utils.py`, `backend.spec`, dan `backend/tests/test_addons.py`. `pytest` **872 passed, 6 skipped** (+8).
