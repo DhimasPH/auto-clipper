@@ -32,3 +32,10 @@ Owner accepted spec defaults + revision requirements (2026-11-24): pinned SHA-25
 - Task 4: pending
 - Task 5: pending
 - Task 6: pending
+Task 4: dispatched (BASE 665b2c8), implementer opus abc73928d45f5562d
+Task 4: implementer DONE_WITH_CONCERNS, commit 0fa703c — pytest 938 passed, 7 skipped (symlink test skipped on this Windows account). New OUTPUT_DIR_REFUSED; sanitize_title refuses dot/space-only titles (a ".." title used to point the project folder at the output folder's parent, and delete_history would remove it).
+Ruling: allowlist per project folder (<output_dir>/<safe title>), not the whole output_dir — a user choosing D:\ or the home folder would otherwise expose every file there to /save_file and signed /video — cost if wrong: a clip stored directly in the output folder gets 403 (no code writes there).
+Ruling: no custom-folder allowlist on cloud — cloud never accepts output_dir, so any value in its history is old and untrusted — cost if wrong: an old Colab project saved to a custom folder no longer plays.
+Ruling: folder checks use path_guard.is_within (resolves symlinks, case-insensitive) — one helper for all path checks (E.14) — cost if wrong: on Linux a folder differing only in case counts as inside.
+Ruling: accept _resolve_safe_output_dir(title) third argument and /save_file accepting the work dir (spec 4.5.2).
+Task 4: review dispatched (665b2c8..0fa703c)
