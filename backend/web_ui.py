@@ -13,7 +13,7 @@ import re
 from fastapi import APIRouter
 from fastapi.responses import FileResponse, JSONResponse
 
-from backend.path_guard import is_protected, is_within
+from backend.path_guard import is_network_or_device_path, is_protected, is_within
 
 WEB_MODE_ENV = "AUTO_CLIPPER_WEB_MODE"
 UI_DIR_ENV = "AUTO_CLIPPER_UI_DIR"
@@ -68,6 +68,11 @@ def _not_found() -> JSONResponse:
 def _serve(relative: str, cache: str):
     root = ui_dir()
     if not is_web_mode() or not root:
+        return _not_found()
+    # Checked on the text first: os.path.join drops the UI folder for a part that
+    # starts with "\\" or a drive, and resolving a UNC path opens an SMB connection
+    # to that host. These routes need no token, so any web page could send one.
+    if "\\" in relative or ":" in relative or is_network_or_device_path(relative):
         return _not_found()
     target = os.path.join(root, *relative.split("/"))
     if is_protected(target) or not is_within(target, root) or not os.path.isfile(target):

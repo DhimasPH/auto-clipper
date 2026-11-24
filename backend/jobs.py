@@ -213,6 +213,9 @@ def project_library_dir(title: str, output_dir: str = "", job_id: str = "") -> s
 # The app's own working folders in app data. A project folder that is, or holds, one of them would
 # mix with them, and deleting the project from history would remove them.
 _APP_WORK_FOLDERS = ("projects", "addons", "temp_downloads")
+# Nor may a project sit inside these: removing or updating an add-on and clearing the downloads
+# would take its clips with them. (Inside "projects" is where every project lives.)
+_NO_PROJECTS_INSIDE = ("addons", "temp_downloads")
 
 
 def refuse_protected_project_dir(output_dir: str, library_dir: str) -> None:
@@ -225,6 +228,9 @@ def refuse_protected_project_dir(output_dir: str, library_dir: str) -> None:
     for folder in [os.path.join(app_data, name) for name in _APP_WORK_FOLDERS] + private_folders():
         if is_within(folder, library_dir):
             raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a project folder holding an app folder: {library_dir!r}")
+    for name in _NO_PROJECTS_INSIDE:
+        if is_within(library_dir, os.path.join(app_data, name)):
+            raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a project folder inside the app's {name} folder: {library_dir!r}")
 
 
 def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") -> dict:

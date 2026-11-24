@@ -533,6 +533,31 @@ def test_workspace_refuses_a_project_folder_that_contains_the_app_data_folder(li
         jobs.get_project_workspace(library.name, output_dir=str(library.parent))
 
 
+# Re-review minor 3: nor a project folder inside the add-ons or download folders.
+@pytest.mark.parametrize("app_folder", ["addons", "temp_downloads", "Addons"])
+@pytest.mark.parametrize("endpoint", ["jobs", "jobs_manual"])
+def test_desktop_refuses_a_project_folder_inside_the_addons_or_download_folder(library, captured, endpoint, app_folder):
+    r = _post(endpoint, str(library / app_folder))
+
+    assert (r.status_code, r.json()) == (403, DENIED)
+    assert endpoint not in captured
+
+
+@pytest.mark.parametrize("output_dir", ["addons", "temp_downloads", "addons/mediapipe", "temp_downloads/old"])
+def test_workspace_refuses_a_project_folder_inside_the_addons_or_download_folder(library, output_dir):
+    with pytest.raises(AppError) as err:
+        jobs.get_project_workspace("Talk", output_dir=str(library.joinpath(*output_dir.split("/"))))
+
+    assert err.value.code == "OUTPUT_DIR_REFUSED"
+    assert not (library / output_dir.split("/")[0]).exists()
+
+
+def test_workspace_still_accepts_a_project_folder_inside_the_projects_folder(library):
+    ws = jobs.get_project_workspace("Talk", output_dir=str(library / "projects"))
+
+    assert os.path.isdir(ws["clips_dir"])
+
+
 def test_workspace_still_accepts_a_project_named_like_an_app_folder_in_another_folder(library, tmp_path):
     ws = jobs.get_project_workspace("projects", output_dir=str(tmp_path / "out"))
 
@@ -582,7 +607,7 @@ def test_deleting_an_old_dotdot_project_keeps_the_output_folder_and_its_parent(l
 
 
 # Minor 3: AI Koreksi records the folder it really writes to.
-def test_rerun_ai_without_a_chosen_folder_keeps_the_projects_folder(library, tmp_path, monkeypatch):
+def test_rerun_ai_without_a_chosen_folder_keeps_the_output_folder_from_history(library, tmp_path, monkeypatch):
     out = tmp_path / "out"
     source = tmp_path / "source.mp4"
     source.write_bytes(b"video")
@@ -607,7 +632,7 @@ def test_cloud_workspace_ignores_an_output_dir_from_history(library, tmp_path, m
         assert not old.exists()
 
 
-def test_cloud_rerender_writes_into_the_library_not_the_old_output_folder(library, tmp_path, monkeypatch):
+def test_cloud_project_folder_is_in_the_library_not_the_old_output_folder(library, tmp_path, monkeypatch):
     monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
     out = tmp_path / "old-out"
 

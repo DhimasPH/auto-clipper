@@ -152,3 +152,35 @@ def test_installed_desktop_rules_are_unchanged(monkeypatch):
 ])
 def test_public_paths(path, public):
     assert web_ui.is_public_path(path) is public
+
+
+# Encoded so the URL reaches the route as text with "\" and ":" in it.
+NETWORK_ASSET_URLS = [
+    "/assets/%5C%5C192.0.2.1%5Cs%5Cx.js",
+    "/assets/%5C%5C192.0.2.1/s/x.js",
+    "/assets/%5C%5C%3F%5CUNC%5C192.0.2.1%5Cs%5Cx.js",
+    "/assets/C:%5C192.0.2.1%5Cx.js",
+    "/assets/C:/192.0.2.1/x.js",
+    "/assets/x.js:192.0.2.1",
+]
+
+
+@pytest.mark.parametrize("url", NETWORK_ASSET_URLS)
+def test_an_asset_path_naming_a_network_share_is_refused_before_touching_it(web, no_filesystem_for_the_server, url):
+    """No token is needed for /assets/, so a page on any site could make the browser ask for one.
+
+    os.path.join drops the UI folder for a part starting with "\\\\" or a drive,
+    and resolving that UNC path would open an SMB connection to the host.
+    """
+    r = client.get(url)
+
+    assert r.status_code == 404
+    assert no_filesystem_for_the_server == []
+
+
+def test_an_asset_with_a_backslash_or_colon_in_its_name_is_not_served(web):
+    (web / "assets" / "a-b.js").write_text("ok", encoding="utf-8")
+
+    assert client.get("/assets/a-b.js").status_code == 200
+    assert client.get("/assets/a%5Cb.js").status_code == 404
+    assert client.get("/assets/a:b.js").status_code == 404

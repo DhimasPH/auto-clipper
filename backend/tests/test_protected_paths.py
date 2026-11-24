@@ -317,6 +317,39 @@ def test_any_other_device_path_is_never_inside_a_folder(app_files, prefix):
     assert not is_within(prefix + library, prefix + library)
 
 
+def _volume_forms(path: str) -> list:
+    """``path`` spelled through its volume GUID and its NT device name, with no drive letter or colon left.
+
+    Only the device-prefix rule refuses these: the colon rule does not see them,
+    and realpath turns them back into the plain path.
+    """
+    import ctypes
+
+    drive, rest = os.path.splitdrive(path)
+    kernel32 = ctypes.windll.kernel32
+    buf = ctypes.create_unicode_buffer(260)
+    assert kernel32.GetVolumeNameForVolumeMountPointW(drive + "\\", buf, 260)
+    volume = buf.value.rstrip("\\")  # \\?\Volume{GUID}
+    assert kernel32.QueryDosDeviceW(drive, buf, 260)
+    device = buf.value  # \Device\HarddiskVolumeN
+    return [volume + rest, "\\\\.\\" + volume[4:] + rest,
+            "\\\\?\\GLOBALROOT" + device + rest, "\\\\.\\GLOBALROOT" + device + rest]
+
+
+@windows_only
+@pytest.mark.parametrize("form", range(4), ids=["volume-guid", "volume-guid-dot", "globalroot-device", "globalroot-device-dot"])
+def test_a_volume_guid_or_nt_device_name_counts_as_protected_and_outside_every_folder(app_files, form):
+    from backend.path_guard import is_protected, is_within
+
+    library = str(app_files["library"])
+    clip = _volume_forms(str(app_files["clip"]))[form]
+    assert ":" not in clip
+    assert is_protected(clip)
+    assert is_protected(_volume_forms(str(app_files["cookies"]))[form])
+    assert not is_within(clip, library)
+    assert not is_within(str(app_files["clip"]), _volume_forms(library)[form])
+
+
 @windows_only
 @pytest.mark.parametrize("prefix", DRIVE_DEVICE_PREFIXES)
 def test_a_plain_drive_letter_device_path_still_resolves(app_files, prefix):
