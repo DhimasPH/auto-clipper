@@ -335,10 +335,10 @@ def install_addon_sync(addon_id: str) -> dict:
         if backup_dir.exists():
             shutil.rmtree(backup_dir, ignore_errors=True)
 
+        _pending_remove_marker(addon_id).unlink(missing_ok=True)
         activate_installed()
         with _state_lock:
             _download_state[addon_id] = {"downloading": False, "percent": 100, "downloaded_mb": 0.0, "total_mb": 0.0, "error_info": None}
-        _pending_remove_marker(addon_id).unlink(missing_ok=True)
         log_app(f"Add-on '{addon_id}' ({version}) installed cleanly")
         return get_addon_status(addon_id)
     except Exception as exc:

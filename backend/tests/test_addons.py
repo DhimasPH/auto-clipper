@@ -26,11 +26,12 @@ def test_cuda_addon_install_verifies_pinned_sha256_reinstalls_and_extracts_only_
     monkeypatch.setattr(addons.sys, "platform", "win32")
     monkeypatch.setattr(addons, "_cuda_count", lambda: 1)
 
-    # Pre-existing installation that reinstall must overwrite atomically via backup_dir swap
+    # Pre-existing installation + pending removal marker that reinstall must clear before activate_installed
     old_bin = tmp_path / "addons" / "cuda" / "bin"
     old_bin.mkdir(parents=True)
     (old_bin / "stale.dll").write_bytes(b"old")
     (tmp_path / "addons" / "cuda" / "manifest.json").write_text('{"id":"cuda","version":"old"}', encoding="utf-8")
+    addons._pending_remove_marker("cuda").write_text("pending", encoding="utf-8")
 
     wheel_bytes, good_sha = _make_wheel({
         "nvidia/cublas/bin/cublas64_12.dll": b"cublas-dll",
@@ -47,6 +48,7 @@ def test_cuda_addon_install_verifies_pinned_sha256_reinstalls_and_extracts_only_
 
     addons.install_addon_sync("cuda")
     assert addons.is_addon_installed("cuda") is True
+    assert addons._pending_remove_marker("cuda").exists() is False
     assert not (old_bin / "stale.dll").exists()
     assert (tmp_path / "addons" / "cuda" / "bin" / "cublas64_12.dll").read_bytes() == b"cublas-dll"
     assert (tmp_path / "addons" / "cuda" / "bin" / "cublasLt64_12.dll").read_bytes() == b"cublasLt-dll"
