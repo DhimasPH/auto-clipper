@@ -69,3 +69,7 @@ Task 5: fix round 1/5 (Important + minors 1–9 addressed; Resume stale tracker 
 Task 5: minor (deferred): "scheduled for removal" lasts only while Pengaturan is open — backend status has no pending_remove field; resume_manual_job copies old timings (tracking rows unlikely there).
 Task 5: re-review dispatched (d35bf13..eedd9d7, src only)
 Task 6: dispatched (BASE c683f62) in parallel with Task 5 re-review, implementer opus aebb6f9ddcdd99603
+Task 5: re-review Needs fixes — Important: stale Teliti note still shows on Resume/re-render (window A: tracking row arrives before _sync_stage_metadata runs after the clip; window B: queued resume/rerender job metadata carries the old timings), and one new test asserts the stale case as correct.
+Ruling: deviceNotes reads tracker facts only from this run's timing rows (drop the addFallback(meta) path); create_resume_job and create_rerender_job start the job metadata with timings: [] so old rows never reach the progress screen — the facts in meta are only ever copies of timing rows — cost if wrong: a fallback note appears one clip later. Keep ProgressPanel's meta prop accepted (unused) to avoid touching CreatePage while Task 6 edits it; remove it in Task 6 or the final wave.
+Ruling: fix round 2 also takes minor 1 (no processor note while the add-on status is unknown and add-ons are enabled); minor 2 (aria-disabled) deferred.
+Task 5: fix round 2 dispatched
