@@ -52,10 +52,14 @@ def test_addon_install_rejects_sha256_mismatch_and_cleans_part(tmp_path, monkeyp
     monkeypatch.setattr(addons.sys, "platform", "win32")
     monkeypatch.setattr(addons, "_cuda_count", lambda: 1)
 
-    monkeypatch.setattr(
-        addons, "_download_file",
-        lambda url, dest, cb: dest.write_bytes(b"corrupted"),
-    )
+    monkeypatch.setattr(addons, "_download_file", lambda url, dest, cb: dest.write_bytes(b"corrupted"))
+    with pytest.raises(ValueError, match="Byte length"):
+        addons.install_addon_sync("cuda")
+
+    # Matching size but wrong content triggers SHA-256 mismatch
+    same_len_bad_bytes = b"x" * len(b"corrupted")
+    monkeypatch.setitem(addons.PINNED_ADDONS["cuda"], "win_amd64", dict(addons.PINNED_ADDONS["cuda"]["win_amd64"], size=len(same_len_bad_bytes)))
+    monkeypatch.setattr(addons, "_download_file", lambda url, dest, cb: dest.write_bytes(same_len_bad_bytes))
     with pytest.raises(ValueError, match="SHA-256"):
         addons.install_addon_sync("cuda")
 
@@ -65,9 +69,18 @@ def test_addon_install_rejects_sha256_mismatch_and_cleans_part(tmp_path, monkeyp
         assert [p for p in addons_dir.iterdir() if ".part" in p.name] == []
 
 
-def test_activate_installed_registers_dll_dir_path_and_preloads_cublas(tmp_path, monkeypatch):
+def test_validate_url_rejects_untrusted_scheme_host_and_redirects():
+    with pytest.raises(ValueError, match="Disallowed"):
+        addons._validate_url("http://files.pythonhosted.org/x.whl")
+    with pytest.raises(ValueError, match="Disallowed"):
+        addons._validate_url("https://evil.example.com/x.whl")
+
+
+def test_activate_installed_registers_dll_dir_once_and_preloads_cublas(tmp_path, monkeypatch):
     monkeypatch.setattr(addons, "get_app_data_dir", lambda: str(tmp_path))
     monkeypatch.setattr(addons.sys, "platform", "win32")
+    monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
+    monkeypatch.setattr(addons, "_activated_dirs", set())
 
     cuda_bin = tmp_path / "addons" / "cuda" / "bin"
     cuda_bin.mkdir(parents=True)
@@ -82,10 +95,95 @@ def test_activate_installed_registers_dll_dir_path_and_preloads_cublas(tmp_path,
     monkeypatch.setenv("PATH", "C:\\Windows")
 
     addons.activate_installed()
+    addons.activate_installed()
 
     assert added_dirs == [str(cuda_bin)]
     assert os.environ["PATH"].startswith(str(cuda_bin) + os.pathsep)
-    assert loaded_dlls == [str(cuda_bin / "cublasLt64_12.dll"), str(cuda_bin / "cublas64_12.dll")]
+    assert loaded_dlls[:2] == [str(cuda_bin / "cublasLt64_12.dll"), str(cuda_bin / "cublas64_12.dll")]
+
+
+def test_start_addon_download_handles_concurrent_trigger_without_deadlock_and_reinstalls(tmp_path, monkeypatch):
+    import threading
+    from backend.errors import AppError
+
+    monkeypatch.setattr(addons, "get_app_data_dir", lambda: str(tmp_path))
+    monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
+    monkeypatch.setattr(addons, "_mediapipe_platform_key", lambda: "win_amd64")
+
+    # Pre-populate an older installed mediapipe folder to verify overwrite/reinstall
+    mp_dir = tmp_path / "addons" / "mediapipe"
+    (mp_dir / "mediapipe").mkdir(parents=True)
+    (mp_dir / "face_landmarker.task").write_bytes(b"old")
+    (mp_dir / "manifest.json").write_text('{"id":"mediapipe","version":"old"}', encoding="utf-8")
+
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_install(addon_id):
+        started.set()
+        release.wait(5)
+        with addons._state_lock:
+            addons._download_state[addon_id] = {"downloading": False, "percent": 100, "downloaded_mb": 0.0, "total_mb": 0.0, "error_info": None}
+        return addons.get_addon_status(addon_id)
+
+    monkeypatch.setattr(addons, "install_addon_sync", slow_install)
+
+    first = addons.start_addon_download("mediapipe")
+    assert first["downloading"] is True
+    assert started.wait(5)
+
+    # Concurrent second trigger while downloading must NOT deadlock
+    second = addons.start_addon_download("mediapipe")
+    assert second["downloading"] is True
+
+    # Removing while downloading must refuse
+    with pytest.raises(RuntimeError, match="downloading"):
+        addons.remove_addon("mediapipe")
+
+    release.set()
+    for _ in range(50):
+        if not addons.get_addon_status("mediapipe")["downloading"]:
+            break
+        threading.Event().wait(0.02)
+
+    # Simulate Windows DLL lock on unlink: manifest.json must stay intact and AppError raised
+    monkeypatch.setattr(os, "unlink", lambda p: (_ for _ in ()).throw(PermissionError("locked")))
+    # Path.unlink calls os.unlink on Python 3.12; patch Path.unlink for hermeticity
+    from pathlib import Path
+    monkeypatch.setattr(Path, "unlink", lambda self: (_ for _ in ()).throw(PermissionError("locked")))
+    with pytest.raises(AppError) as exc_info:
+        addons.remove_addon("mediapipe")
+    assert exc_info.value.code == "ADDON_IN_USE"
+    assert addons.is_addon_installed("mediapipe") is True
+
+
+def test_post_download_endpoint_and_cloud_unmounted_drive_safety(tmp_path, monkeypatch):
+    from backend.errors import AppError
+
+    monkeypatch.setattr(addons, "get_app_data_dir", lambda: str(tmp_path))
+    monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
+    monkeypatch.setattr(web_ui, "is_web_mode", lambda: False)
+    monkeypatch.setattr(addons, "_mediapipe_platform_key", lambda: "win_amd64")
+    monkeypatch.setattr(addons, "start_addon_download", lambda aid: {"id": aid, "available": True, "installed": False, "downloading": True, "percent": 0, "downloaded_mb": 0.0, "total_mb": 29.0, "size_hint_mb": 29, "disk_mb": 0.0})
+
+    client = TestClient(app)
+    r_dl = client.post("/api/settings/addons/mediapipe/download")
+    assert r_dl.status_code == 200
+    assert r_dl.json()["addon"]["downloading"] is True
+
+    # Locally deleting cuda add-on must still be allowed even when _cuda_count() is 0
+    monkeypatch.setattr(addons.sys, "platform", "win32")
+    monkeypatch.setattr(addons, "_cuda_count", lambda: 0)
+    r_del = client.delete("/api/settings/addons/cuda")
+    assert r_del.status_code == 200
+
+    # Cloud mode with unmounted Drive: GET /api/settings/addons must never invoke get_app_data_dir()
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    monkeypatch.setenv("AUTO_CLIPPER_WEB_TOKEN", "tok")
+    monkeypatch.setattr(addons, "get_app_data_dir", lambda: (_ for _ in ()).throw(AppError("DRIVE_NOT_MOUNTED")))
+    r_cloud = client.get("/api/settings/addons", headers={"Authorization": "Bearer tok"})
+    assert r_cloud.status_code == 200
+    assert r_cloud.json()["addons"]["mediapipe"]["installed"] is False
 
 
 def test_mediapipe_addon_install_import_and_remove(tmp_path, monkeypatch):

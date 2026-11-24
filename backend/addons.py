@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Callable, Optional
 from urllib.parse import urlparse
 
+from backend.errors import AppError
 from backend.logger import get_app_data_dir, log_app, log_error
 
 ADDON_IDS = ("cuda", "mediapipe")
@@ -109,6 +110,7 @@ PINNED_ADDONS = {
 _state_lock = threading.Lock()
 _download_state: dict[str, dict] = {}
 _dll_handles: list = []
+_activated_dirs: set[str] = set()
 
 
 def _is_cloud_mode() -> bool:
@@ -155,6 +157,11 @@ def is_addon_available(addon_id: str) -> bool:
 
 
 def is_addon_installed(addon_id: str) -> bool:
+    if addon_id not in ADDON_IDS:
+        raise KeyError(addon_id)
+    # Never resolve get_app_data_dir() in Cloud mode (Drive may not be mounted yet).
+    if _is_cloud_mode():
+        return False
     root = Path(addon_dir(addon_id))
     if not (root / _MANIFEST_FILE).is_file():
         return False
@@ -188,7 +195,9 @@ def _validate_url(url: str) -> None:
 def _download_file(url: str, dest: Path, progress_cb: Callable[[int, int], None]) -> None:
     import requests
     _validate_url(url)
-    with requests.get(url, stream=True, timeout=60) as resp:
+    with requests.get(url, stream=True, timeout=60, allow_redirects=True) as resp:
+        for hop in list(resp.history) + [resp]:
+            _validate_url(hop.url)
         resp.raise_for_status()
         total = int(resp.headers.get("content-length") or 0)
         got = 0
@@ -201,7 +210,10 @@ def _download_file(url: str, dest: Path, progress_cb: Callable[[int, int], None]
                 progress_cb(got, total)
 
 
-def _verify_sha256(path: Path, expected_sha256: str) -> None:
+def _verify_artifact(path: Path, expected_size: int, expected_sha256: str) -> None:
+    actual_size = path.stat().st_size
+    if actual_size != expected_size:
+        raise ValueError(f"Byte length mismatch for {path.name}: expected {expected_size}, got {actual_size}")
     h = hashlib.sha256()
     with open(path, "rb") as f:
         while True:
@@ -209,21 +221,13 @@ def _verify_sha256(path: Path, expected_sha256: str) -> None:
             if not chunk:
                 break
             h.update(chunk)
-    actual = h.hexdigest().lower()
-    if actual != expected_sha256.lower():
-        raise ValueError(f"SHA-256 mismatch for {path.name}: expected {expected_sha256}, got {actual}")
+    actual_sha = h.hexdigest().lower()
+    if actual_sha != expected_sha256.lower():
+        raise ValueError(f"SHA-256 mismatch for {path.name}: expected {expected_sha256}, got {actual_sha}")
 
 
 def _download_error_info(exc: Exception) -> dict:
-    return {
-        "code": "ADDON_DOWNLOAD_FAILED",
-        "title": "Gagal memasang komponen tambahan",
-        "message": "Unduhan komponen berhenti atau file tidak lengkap. Periksa koneksi internet dan ruang penyimpanan, lalu coba lagi.",
-        "title_en": "Could not install add-on component",
-        "message_en": "The component download stopped or the file was incomplete. Check your internet connection and storage space, then try again.",
-        "actions": [],
-        "technical": str(exc) or type(exc).__name__,
-    }
+    return AppError("ADDON_DOWNLOAD_FAILED", technical=str(exc) or type(exc).__name__).to_dict()
 
 
 def _set_progress(addon_id: str, downloaded_bytes: int, total_bytes: int) -> None:
@@ -243,7 +247,7 @@ def _install_cuda(staging: Path, cache_dir: Path) -> str:
     spec = PINNED_ADDONS["cuda"]["win_amd64"]
     whl_path = cache_dir / "cuda.whl"
     _download_file(spec["url"], whl_path, lambda got, _tot: _set_progress("cuda", got, spec["size"]))
-    _verify_sha256(whl_path, spec["sha256"])
+    _verify_artifact(whl_path, spec["size"], spec["sha256"])
 
     bin_dir = staging / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
@@ -262,12 +266,13 @@ def _install_cuda(staging: Path, cache_dir: Path) -> str:
 
 
 def _extract_prefixes(whl_path: Path, staging: Path, prefixes: tuple[str, ...]) -> None:
+    staging_root = staging.resolve()
     with zipfile.ZipFile(whl_path) as zf:
         for member in zf.namelist():
             if member.endswith("/") or not member.startswith(prefixes):
                 continue
             target = (staging / member).resolve()
-            if not str(target).startswith(str(staging.resolve())):
+            if not target.is_relative_to(staging_root):
                 raise ValueError(f"Unsafe zip member: {member}")
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(member) as src, open(target, "wb") as dst:
@@ -288,14 +293,14 @@ def _install_mediapipe(staging: Path, cache_dir: Path) -> str:
 
     mp_whl = cache_dir / "mediapipe.whl"
     _download_file(mp_spec["url"], mp_whl, report_bytes)
-    _verify_sha256(mp_whl, mp_spec["sha256"])
+    _verify_artifact(mp_whl, mp_spec["size"], mp_spec["sha256"])
     _extract_prefixes(mp_whl, staging, ("mediapipe/",))
     completed_bytes += mp_spec["size"]
 
     for idx, item in enumerate(common):
         dl_path = cache_dir / f"item_{idx}_{item['name']}"
         _download_file(item["url"], dl_path, report_bytes)
-        _verify_sha256(dl_path, item["sha256"])
+        _verify_artifact(dl_path, item["size"], item["sha256"])
         if item["kind"] == "wheel":
             _extract_prefixes(dl_path, staging, item["prefixes"])
         else:
@@ -305,7 +310,7 @@ def _install_mediapipe(staging: Path, cache_dir: Path) -> str:
 
 
 def install_addon_sync(addon_id: str) -> dict:
-    """Download, verify SHA-256, and atomically install ``addon_id``."""
+    """Download, verify size + SHA-256, and atomically install ``addon_id``."""
     if not is_addon_available(addon_id):
         raise RuntimeError(f"Add-on '{addon_id}' is not available on this platform.")
     root = Path(addons_root())
@@ -354,8 +359,15 @@ def start_addon_download(addon_id: str) -> dict:
     with _state_lock:
         current = _download_state.get(addon_id, {})
         if current.get("downloading"):
-            return get_addon_status(addon_id)
-        _download_state[addon_id] = {"downloading": True, "percent": 0, "downloaded_mb": 0.0, "total_mb": float(_size_hint_mb(addon_id)), "error_info": None}
+            snapshot = dict(current)
+            start_worker = False
+        else:
+            snapshot = {"downloading": True, "percent": 0, "downloaded_mb": 0.0, "total_mb": float(_size_hint_mb(addon_id)), "error_info": None}
+            _download_state[addon_id] = snapshot
+            start_worker = True
+
+    if not start_worker:
+        return _build_status(addon_id, snapshot)
 
     def _worker():
         try:
@@ -364,25 +376,51 @@ def start_addon_download(addon_id: str) -> dict:
             pass  # recorded in _download_state and logged by install_addon_sync
 
     threading.Thread(target=_worker, daemon=True).start()
-    return get_addon_status(addon_id)
+    return _build_status(addon_id, snapshot)
+
+
+def _delete_tree_payload_first(target: Path) -> None:
+    """Delete files inside ``target`` keeping ``manifest.json`` until last."""
+    manifest = target / _MANIFEST_FILE
+    for root_str, dirnames, filenames in os.walk(target, topdown=False):
+        root_path = Path(root_str)
+        for name in filenames:
+            p = root_path / name
+            if p == manifest:
+                continue
+            p.unlink()
+        for name in dirnames:
+            d = root_path / name
+            if d.exists():
+                d.rmdir()
+    if manifest.exists():
+        manifest.unlink()
+    if target.exists():
+        target.rmdir()
 
 
 def remove_addon(addon_id: str) -> dict:
     if addon_id not in ADDON_IDS:
         raise KeyError(addon_id)
+    if _is_cloud_mode():
+        raise RuntimeError(f"Add-on '{addon_id}' is not available in Cloud mode.")
+    with _state_lock:
+        if _download_state.get(addon_id, {}).get("downloading"):
+            raise RuntimeError(f"Add-on '{addon_id}' is currently downloading.")
     target = Path(addon_dir(addon_id))
     if target.exists():
-        shutil.rmtree(target, ignore_errors=True)
+        try:
+            _delete_tree_payload_first(target)
+        except OSError as exc:
+            log_error(f"addons.remove.{addon_id}", exc)
+            raise AppError("ADDON_IN_USE", technical=str(exc)) from exc
     with _state_lock:
         _download_state[addon_id] = {"downloading": False, "percent": 0, "downloaded_mb": 0.0, "total_mb": 0.0, "error_info": None}
-    return get_addon_status(addon_id)
+        snapshot = dict(_download_state[addon_id])
+    return _build_status(addon_id, snapshot)
 
 
-def get_addon_status(addon_id: str) -> dict:
-    if addon_id not in ADDON_IDS:
-        raise KeyError(addon_id)
-    with _state_lock:
-        state = dict(_download_state.get(addon_id, {}))
+def _build_status(addon_id: str, state: dict) -> dict:
     installed = is_addon_installed(addon_id)
     disk_mb = _dir_size_mb(Path(addon_dir(addon_id))) if installed else 0.0
     out = {
@@ -401,6 +439,14 @@ def get_addon_status(addon_id: str) -> dict:
     return out
 
 
+def get_addon_status(addon_id: str) -> dict:
+    if addon_id not in ADDON_IDS:
+        raise KeyError(addon_id)
+    with _state_lock:
+        state = dict(_download_state.get(addon_id, {}))
+    return _build_status(addon_id, state)
+
+
 def get_addon_statuses() -> dict[str, dict]:
     return {aid: get_addon_status(aid) for aid in ADDON_IDS}
 
@@ -412,9 +458,11 @@ def activate_installed() -> None:
     if not is_addon_installed("cuda"):
         return
     cuda_bin = os.path.join(addon_dir("cuda"), "bin")
-    if hasattr(os, "add_dll_directory"):
+    norm_bin = os.path.normcase(os.path.abspath(cuda_bin))
+    if hasattr(os, "add_dll_directory") and norm_bin not in _activated_dirs:
         try:
             _dll_handles.append(os.add_dll_directory(cuda_bin))
+            _activated_dirs.add(norm_bin)
         except Exception as e:
             log_error("addons.add_dll_directory", e)
     cur_path = os.environ.get("PATH", "")

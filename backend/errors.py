@@ -216,6 +216,32 @@ ERROR_CODES = {
         ),
         "actions": ["open_settings", "resume"],
     },
+    "ADDON_DOWNLOAD_FAILED": {
+        "title": "Gagal memasang komponen tambahan",
+        "message": (
+            "Unduhan komponen berhenti atau file tidak lengkap. "
+            "Periksa koneksi internet dan ruang penyimpanan, lalu coba lagi."
+        ),
+        "title_en": "Could not install add-on component",
+        "message_en": (
+            "The component download stopped or the file was incomplete. "
+            "Check your internet connection and storage space, then try again."
+        ),
+        "actions": ["retry"],
+    },
+    "ADDON_IN_USE": {
+        "title": "Komponen sedang dipakai",
+        "message": (
+            "Komponen tambahan tidak bisa dihapus sekarang karena masih dipakai oleh aplikasi yang berjalan. "
+            "Tutup lalu buka ulang Auto Clipper, kemudian hapus kembali dari Pengaturan."
+        ),
+        "title_en": "Component is still in use",
+        "message_en": (
+            "The add-on component cannot be removed right now because the running app still has it open. "
+            "Close and reopen Auto Clipper, then remove it from Settings."
+        ),
+        "actions": [],
+    },
     "FFMPEG_MISSING": {
         "title": "Komponen pengolah video tidak ditemukan",
         "message": (

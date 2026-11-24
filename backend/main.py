@@ -438,9 +438,15 @@ def api_delete_addon(addon_id: str):
     from backend import addons
     if addon_id not in addons.ADDON_IDS:
         return JSONResponse(status_code=404, content={"status": "error", "message": "Unknown add-on"})
-    if not addons.is_addon_available(addon_id):
-        return JSONResponse(status_code=400, content={"status": "error", "message": "Add-on is not available on this platform"})
-    return {"status": "success", "addon": addons.remove_addon(addon_id)}
+    if addons._is_cloud_mode():
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Add-on is not available in Cloud mode"})
+    try:
+        return {"status": "success", "addon": addons.remove_addon(addon_id)}
+    except AppError as e:
+        info = e.to_dict()
+        return JSONResponse(status_code=409, content={"status": "error", "message": info["message"], "error_info": info})
+    except RuntimeError as e:
+        return JSONResponse(status_code=409, content={"status": "error", "message": str(e)})
 
 
 class CanvasConfig(BaseModel):
