@@ -131,19 +131,57 @@ def detect_primary_face_center(video_path: str, start_time=None, end_time=None) 
     return center
 
 
+class _FaceLandmarkerAdapter:
+    """Adapt MediaPipe Tasks ``FaceLandmarker`` (1.0+) to the ``.process(rgb)`` interface."""
+
+    def __init__(self, landmarker, mp_mod):
+        self._landmarker = landmarker
+        self._mp = mp_mod
+
+    def process(self, rgb_frame):
+        image = self._mp.Image(image_format=self._mp.ImageFormat.SRGB, data=rgb_frame)
+        res = self._landmarker.detect(image)
+        landmarks = getattr(res, "face_landmarks", None) or []
+        wrapped = [type("_Face", (), {"landmark": pts})() for pts in landmarks]
+        return type("_LandmarkerResult", (), {"multi_face_landmarks": wrapped})()
+
+    def close(self) -> None:
+        self._landmarker.close()
+
+
 def _open_face_mesh():
-    """Create a MediaPipe FaceMesh, or raise when this mediapipe build has none."""
-    import mediapipe as mp
-    # Some versions of mediapipe hide solutions if initialization fails (e.g. tensorflow missing)
-    if not hasattr(mp, 'solutions'):
-        raise ImportError("MediaPipe 'solutions' attribute is missing")
-    return mp.solutions.face_mesh.FaceMesh(
-        static_image_mode=False,
-        max_num_faces=5,
-        refine_landmarks=True,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5
+    """Create a MediaPipe face detector (``solutions.FaceMesh`` or Tasks ``FaceLandmarker``)."""
+    from backend import addons
+    model_path = addons.ensure_mediapipe_importable()
+    try:
+        import mediapipe as mp
+    except ModuleNotFoundError as exc:
+        raise ImportError("addon_not_installed") from exc
+    if mp is None:
+        raise ImportError("addon_not_installed")
+
+    if hasattr(mp, 'solutions'):
+        return mp.solutions.face_mesh.FaceMesh(
+            static_image_mode=False,
+            max_num_faces=5,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+
+    if not model_path:
+        raise AttributeError("mediapipe package has no solutions module or Tasks landmarker model")
+
+    from mediapipe.tasks.python import BaseOptions, vision
+    options = vision.FaceLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=model_path),
+        running_mode=vision.RunningMode.IMAGE,
+        num_faces=5,
+        min_face_detection_confidence=0.5,
+        min_face_presence_confidence=0.5,
+        min_tracking_confidence=0.5,
     )
+    return _FaceLandmarkerAdapter(vision.FaceLandmarker.create_from_options(options), mp)
 
 
 def _close_face_mesh(face_mesh) -> None:
@@ -476,10 +514,13 @@ def _sample_face_trajectory(video_path, start_time, end_time, interval=0.5, shou
     lo, hi = half_window, 1.0 - half_window
 
     def note_fallback(reason):
-        info["fallback_reason"] = str(reason)
+        from backend.stage_timer import report
+        text = str(reason)
+        info["fallback_reason"] = text
+        report(device="haar_fallback")
         log_error(
             "crop_utils.sample_face_trajectory_mediapipe_fallback",
-            f"MediaPipe face tracking failed, using OpenCV Haar Cascade instead. Reason: {reason}",
+            f"MediaPipe face tracking failed, using OpenCV Haar Cascade instead. Reason: {text}",
         )
 
     def note_ffmpeg_fallback(reason, done):
@@ -1676,6 +1717,8 @@ def crop_to_vertical(input_path: str, output_path: str, start_time: str,
                     track_info = {}
                     raw_traj = sample_face_trajectory(input_path, start_time=start_s, end_time=end_s, interval=0.5, should_cancel=should_cancel, engine=engine, info=track_info)
                     tracking["tracking_engine_used"] = track_info.get("engine_used", engine)
+                    if track_info.get("fallback_reason"):
+                        tracking["tracking_fallback_reason"] = track_info["fallback_reason"]
                 if should_cancel and should_cancel():
                     raise RuntimeError("Dibatalkan oleh pengguna.")
                 # Deadband first (lock out micro-jitter), then EMA smoothing turns any

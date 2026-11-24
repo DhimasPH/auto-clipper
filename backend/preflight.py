@@ -101,11 +101,19 @@ def _nvidia_lib_dir(package: str):
 
 
 def _whisper_gpu_libs_missing() -> list:
-    """Libraries Whisper needs on the GPU that cannot be loaded. Linux only.
+    """Libraries Whisper needs on the GPU that cannot be loaded.
 
-    Looks where colab_api.py points LD_LIBRARY_PATH: the system paths, then
-    the nvidia pip packages.
+    On Windows, verifies ``cublas64_12.dll`` after activating installed add-ons.
+    On Linux (Colab), checks system paths and nvidia pip packages for cuBLAS/cuDNN.
     """
+    if sys.platform == "win32":
+        from backend import addons
+        addons.activate_installed()
+        try:
+            ctypes.WinDLL("cublas64_12.dll")
+            return []
+        except OSError:
+            return ["cublas64_12.dll"]
     if not sys.platform.startswith("linux"):
         return []
     missing = []
@@ -275,6 +283,19 @@ def check_gpu() -> dict:
         return _from_error_code("gpu", "warn", "NO_GPU_SLOW", technical="ctranslate2 reports 0 CUDA devices")
     missing = _whisper_gpu_libs_missing()
     if missing:
+        if sys.platform == "win32":
+            return _result(
+                "gpu", "warn",
+                "Subtitle memakai prosesor",
+                "Kartu grafis NVIDIA aktif, tetapi komponen pendukung untuk membuat subtitle cepat belum terpasang. "
+                "Subtitle tetap dibuat dengan prosesor, sehingga untuk video panjang butuh waktu lebih lama. "
+                "Buka Pengaturan, pilih Lanjutan, lalu pasang dukungan kartu grafis di bagian Model subtitle.",
+                "Subtitles use the processor",
+                "An NVIDIA graphics card is active, but the add-on needed for fast subtitles is not installed yet. "
+                "Subtitles are made on the processor, which takes longer for long videos. "
+                "Open Settings, pick Advanced, then install graphics card support under Subtitle model.",
+                technical="cannot load " + ", ".join(missing),
+            )
         return _result(
             "gpu", "warn",
             "Subtitle memakai prosesor",

@@ -497,6 +497,21 @@ def get_available_whisper_models() -> list:
     return results
 
 
+def get_whisper_status() -> dict:
+    """Whisper models plus whether GPU acceleration is ready right now."""
+    from backend import preflight
+    gpu_ready = False
+    try:
+        gpu_ready = bool(preflight._cuda_device_count() >= 1 and not preflight._whisper_gpu_libs_missing())
+    except Exception:
+        gpu_ready = False
+    return {
+        "models": get_available_whisper_models(),
+        "gpu_ready": gpu_ready,
+        "processor_slow_models": ["medium", "large-v3"],
+    }
+
+
 def download_whisper_model(model_name: str) -> dict:
     """Download a Faster-Whisper model into local HuggingFace cache."""
     valid_ids = [m["id"] for m in SUPPORTED_WHISPER_MODELS]

@@ -1120,3 +1120,81 @@ def test_nvenc_probe_uses_a_frame_turing_gpus_accept(monkeypatch):
     size = re.search(r"s=(\d+)x(\d+)", " ".join(calls[0]))
     assert size, calls[0]
     assert int(size.group(1)) >= 145 and int(size.group(2)) >= 145
+
+
+def test_face_landmarker_adapter_processes_and_closes(monkeypatch, tmp_path):
+    import sys
+    import numpy as np
+    from backend import crop_utils, addons
+
+    model_file = tmp_path / "face_landmarker.task"
+    model_file.write_bytes(b"task")
+    monkeypatch.setattr(addons, "ensure_mediapipe_importable", lambda: str(model_file))
+
+    class _Lm:
+        def __init__(self, x, y):
+            self.x, self.y = x, y
+
+    pts = [_Lm(0.5, 0.5) for _ in range(468)]
+    pts[234] = _Lm(0.4, 0.5)
+    pts[454] = _Lm(0.6, 0.5)
+
+    class _FakeLandmarker:
+        closed = False
+
+        def detect(self, mp_image):
+            return type("Res", (), {"face_landmarks": [pts]})()
+
+        def close(self):
+            self.closed = True
+
+    fake_lm = _FakeLandmarker()
+    fake_mp = type("MP", (), {
+        "Image": staticmethod(lambda image_format, data: (image_format, data)),
+        "ImageFormat": type("Fmt", (), {"SRGB": 1}),
+    })()
+    fake_vision = type("Vision", (), {
+        "FaceLandmarkerOptions": staticmethod(lambda **kw: kw),
+        "RunningMode": type("RM", (), {"IMAGE": 1}),
+        "FaceLandmarker": type("FL", (), {"create_from_options": staticmethod(lambda opts: fake_lm)}),
+    })()
+    monkeypatch.setitem(sys.modules, "mediapipe", fake_mp)
+    monkeypatch.setitem(sys.modules, "mediapipe.tasks", type("Tasks", (), {})())
+    monkeypatch.setitem(sys.modules, "mediapipe.tasks.python", type("Py", (), {"BaseOptions": staticmethod(lambda **kw: kw), "vision": fake_vision})())
+    monkeypatch.setitem(sys.modules, "mediapipe.tasks.python.vision", fake_vision)
+
+    mesh = crop_utils._open_face_mesh()
+    faces = crop_utils._mediapipe_faces(mesh, np.zeros((20, 20, 3), dtype="uint8"))
+    assert len(faces) == 1 and abs(faces[0]["w"] - 0.2) < 1e-6
+    crop_utils._close_face_mesh(mesh)
+    assert fake_lm.closed is True
+
+
+def test_crop_falls_back_to_haar_with_clear_reason_when_mediapipe_addon_missing(monkeypatch):
+    from backend import crop_utils, addons
+    from backend.stage_timer import collect_timings
+
+    monkeypatch.setattr(addons, "ensure_mediapipe_importable", lambda: None)
+    monkeypatch.setitem(__import__("sys").modules, "mediapipe", None)
+    monkeypatch.setattr(crop_utils, "is_nvenc_available", lambda: False)
+
+    fake_cap = MagicMock()
+    fake_cap.isOpened.return_value = True
+    fake_cap.get.side_effect = lambda prop: {5: 25.0, 3: 1920, 4: 1080}.get(prop, 0)
+    fake_cap.read.return_value = (False, None)
+    fake_cascade = MagicMock()
+    fake_cascade.empty.return_value = False
+    fake_cascade.detectMultiScale.return_value = []
+    monkeypatch.setattr(crop_utils, "_ffmpeg_executable", lambda: None)
+
+    timings = []
+    with patch("backend.crop_utils.cv2.VideoCapture", return_value=fake_cap), \
+         patch("backend.crop_utils.cv2.CascadeClassifier", return_value=fake_cascade), \
+         patch("backend.crop_utils.subprocess.Popen", return_value=_fake_proc(0)):
+        with collect_timings(timings):
+            crop_to_vertical("in.mp4", "out.mp4", "00:00:00", "00:00:05", engine="mediapipe")
+
+    tracking = [t for t in timings if t["stage"] == "tracking"][0]
+    assert tracking["tracking_engine_requested"] == "mediapipe"
+    assert tracking["tracking_engine_used"] == "haar"
+    assert tracking["tracking_fallback_reason"] == "addon_not_installed"

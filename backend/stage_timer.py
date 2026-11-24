@@ -35,7 +35,7 @@ SAMPLE_INTERVAL = 1.0  # seconds between memory samples while a stage runs
 
 _local = threading.local()
 # Fields that say which device really did the work (see jobs._finalize_job).
-DEVICE_FIELDS = ("whisper_device", "encoder", "tracking_engine_used")
+DEVICE_FIELDS = ("whisper_device", "encoder", "tracking_engine_used", "tracking_engine_requested", "tracking_fallback_reason")
 
 
 def _rss_psutil():

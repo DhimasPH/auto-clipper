@@ -93,6 +93,7 @@ def test_no_gpu_warns_that_subtitles_will_be_slow(healthy, monkeypatch):
 def test_gpu_without_its_subtitle_libraries_warns_that_subtitles_use_the_processor(healthy, monkeypatch):
     # Colab 2026-11-18: a T4 was found, but libcublas.so.12 was not, so Whisper
     # quietly ran on the processor for more than half an hour.
+    monkeypatch.setattr(preflight.sys, "platform", "linux")
     monkeypatch.setattr(preflight, "_whisper_gpu_libs_missing", lambda: ["libcublas.so.12"])
     r = _by_id(preflight.run_preflight())["gpu"]
     assert r["level"] == "warn"
@@ -125,9 +126,10 @@ def test_subtitle_library_probe_finds_libraries_in_the_nvidia_packages(monkeypat
     assert loaded == [str(tmp_path / "cublas" / "libcublas.so.12")]
 
 
-def test_subtitle_library_probe_is_skipped_off_linux(monkeypatch):
-    monkeypatch.setattr(preflight.sys, "platform", "win32")
+def test_subtitle_library_probe_is_skipped_on_macos(monkeypatch):
+    monkeypatch.setattr(preflight.sys, "platform", "darwin")
     monkeypatch.setattr(preflight.ctypes, "CDLL", lambda name: (_ for _ in ()).throw(AssertionError(name)))
+    monkeypatch.setattr(preflight.ctypes, "WinDLL", lambda name: (_ for _ in ()).throw(AssertionError(name)), raising=False)
     assert preflight._whisper_gpu_libs_missing() == []
 
 
@@ -519,3 +521,44 @@ def test_get_ffmpeg_path_does_not_check_node_modules_when_frozen(tmp_path, monke
     monkeypatch.setattr(video_utils.sys, "executable", str(tmp_path / "dist" / "app" / exe), raising=False)
 
     assert video_utils.get_ffmpeg_path() is None
+
+
+def test_windows_gpu_missing_cublas_warns_plainly_pointing_to_settings(healthy, monkeypatch):
+    monkeypatch.setattr(preflight.sys, "platform", "win32")
+    monkeypatch.setattr(preflight, "_whisper_gpu_libs_missing", lambda: ["cublas64_12.dll"])
+    r = _by_id(preflight.run_preflight())["gpu"]
+    assert r["level"] == "warn"
+    assert "Pengaturan" in r["message"]
+    assert "Settings" in r["message_en"]
+    for field in ("title", "message", "title_en", "message_en"):
+        assert not any(w in r[field].lower() for w in MAIN_SCREEN_BANNED)
+        assert "—" not in r[field]
+
+
+def test_whisper_gpu_libs_probe_checks_cublas64_12_on_windows(monkeypatch):
+    from backend import addons
+    monkeypatch.setattr(preflight.sys, "platform", "win32")
+    monkeypatch.setattr(addons, "activate_installed", lambda: None)
+
+    def missing_dll(name):
+        raise OSError("not found")
+
+    monkeypatch.setattr(preflight.ctypes, "WinDLL", missing_dll, raising=False)
+    assert preflight._whisper_gpu_libs_missing() == ["cublas64_12.dll"]
+
+    monkeypatch.setattr(preflight.ctypes, "WinDLL", lambda name: object(), raising=False)
+    assert preflight._whisper_gpu_libs_missing() == []
+
+
+def test_whisper_models_endpoint_reports_gpu_ready_and_slow_models(monkeypatch):
+    monkeypatch.setattr(preflight, "_cuda_device_count", lambda: 1)
+    monkeypatch.setattr(preflight, "_whisper_gpu_libs_missing", lambda: ["cublas64_12.dll"])
+    r = _client().get("/api/settings/whisper-models")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["gpu_ready"] is False
+    assert body["processor_slow_models"] == ["medium", "large-v3"]
+
+    monkeypatch.setattr(preflight, "_whisper_gpu_libs_missing", lambda: [])
+    r2 = _client().get("/api/settings/whisper-models")
+    assert r2.json()["gpu_ready"] is True

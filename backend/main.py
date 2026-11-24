@@ -368,8 +368,8 @@ def api_test_pexels(req: TestPexelsRequest):
 @app.get("/api/settings/whisper-models")
 def api_get_whisper_models():
     try:
-        from backend.ai_utils import get_available_whisper_models
-        return {"status": "success", "models": get_available_whisper_models()}
+        from backend.ai_utils import get_whisper_status
+        return {"status": "success", **get_whisper_status()}
     except Exception as e:
         log_error("api_get_whisper_models", e)
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
