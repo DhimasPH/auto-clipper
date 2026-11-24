@@ -117,7 +117,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 Status per task dan angka tes: `tasks/sp2-ledger.md`. Rentang commit di bawah diambil dari ledger.
 
 - [x] T2.0 Brainstorm dan spec SP2 (alur utama, onboarding, bahasa, antislop: skill `antislop-*`) · spec disetujui pemilik `4bed222`, rencana `383fce2`, pemindaian pre-flight 16 ruling `0f315db`. Item dokumen, tanpa tes.
-- [~] T2.x Audit alur dan copy saat ini, sasaran: pengguna awam selesai dari link ke klip tanpa panduan · audit antislop Task 15 (`a068ee6..f18e4cf`, hasil di `tasks/sp2-audit.md`) lolos review (fix round 1, Vitest 419). Uji pemakaian oleh orang awam (Task 18) butuh pemilik `[!]`.
+- [x] T2.x Audit alur dan copy saat ini, sasaran: pengguna awam selesai dari link ke klip tanpa panduan · audit antislop Task 15 (`a068ee6..707ba1b`, hasil di `tasks/sp2-audit.md`) lolos review (fix round 1, Vitest 419). Uji pemakaian oleh orang awam (Task 18) tetap di butir di bawah `[!]`.
 - [x] T2.x Objek `current` di status job: tahap berjalan, perangkat, klip ke berapa, persen unduhan (Task 1–2, `0f315db..6acf284`, pytest 829 lulus, 12 dilewati)
 - [x] T2.x Gambar latar kanvas diunggah lewat `POST /upload-image` + `path_guard` di endpoint pembuat job (Task 3, `66d5047..57b5e49`, pytest 844, Vitest 92)
 - [x] T2.x Token warna tenang, huruf 16 px, area sentuh 44 px, tes kontras (Task 4, `4de37f9..c8e71f6`, Vitest 142)
@@ -128,8 +128,8 @@ Status per task dan angka tes: `tasks/sp2-ledger.md`. Rentang commit di bawah di
 - [x] T2.x Riwayat: daftar proyek dan halaman proyek dengan status awam dan satu tombol utama (Task 13, `788261d..1d120a7`, Vitest 283)
 - [x] T2.x Pengaturan empat bagian, saklar API key, pengunduh dan bantuan pindah ke sana (Task 14, `b24cd60..34884e3`, Vitest 325)
 - [x] T2.x Item terbawa dari SP1: cek port web lokal dengan `connect`, panah rusak di tutorial, komentar tes (Task 16, `2f455e2..34781a6`, pytest 849)
-- [~] T2.x Dokumen pengguna, CHANGELOG, ADR-014, AGENTS.md (Task 17, menunggu review)
-- [ ] T2.x Uji pemakaian oleh orang awam di HP lewat Colab dan di desktop/web lokal, lalu review akhir SP2 (Task 18) `[!]` butuh pemilik
+- [x] T2.x Dokumen pengguna, CHANGELOG, ADR-014, AGENTS.md (Task 17, `691b756..8762817`, review clean)
+- [~] T2.x Uji pemakaian oleh orang awam di HP lewat Colab dan di desktop/web lokal, lalu review akhir SP2 (Task 18: verifikasi penuh & review akhir selesai di `547531a`, pytest 851/12 & Vitest 424; menunggu uji pemakaian pemilik di `tasks/PROGRESS-LOG.md` `[!]`)
 - [x] T2.x Teks layar proses (BusyOverlay) jujur, di `src/` dan `web/`. Diminta pemilik 2026-11-18 setelah uji Colab: di menit ke-24 layar menampilkan teks generik padahal subtitle masih dibuat dengan prosesor. (SP2 Task 1–2 + Task 9–10, `bd48e0d..6afd704`; `BusyOverlay.tsx` digantikan `ProgressPanel.tsx` dengan tahap & perangkat nyata, `web/` sudah dihapus di SP1). Masalah yang ada sebelumnya:
   - Setelah 10/20/40 menit, pesan berdasarkan waktu menggantikan tahap sebenarnya ("Sedang diproses di GPU Cloud...", "Sabar yaa, lagi proses nih...", "Video kamu hampir siap!").
   - Web selalu mengklaim GPU ("Menyiapkan proses di Google Colab GPU…", catatan "Video sedang diproses di GPU Colab"), juga saat jatuh ke prosesor.

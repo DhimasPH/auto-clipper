@@ -107,4 +107,19 @@ Task 15: minor (deferred → final fix wave): save_refused shown for 5xx/404 too
 Task 15: complete (commits a068ee6..707ba1b, review clean after fix round 1) — Vitest 419, pytest 849/12, oxlint 0 errors, build + build:cloud OK.
 Task 18: step 1 verification at f7aba4d — pytest 849 passed, 12 skipped; Vitest 419 passed (64 files); oxlint 0 errors, 15 warnings; build + build:cloud OK; npm audit 0 vulnerabilities (prod and full); deleted SP1-era pages/components have 0 references in src (one doc comment in DownloaderPanel names ManualDownloaderPage as its origin).
 Task 18: whole-branch review dispatched (dc3ba66..f7aba4d), reviewer opus a390a720ab291ffe5
-Task 18: whole-branch review stopped at owner quota limit (no result); restart per HANDOFF-AI.md section 3.
+Task 18: whole-branch review stopped at owner quota limit (no result); restarted and completed over `dc3ba66..f7aba4d` (`-- ':!package-lock.json'`, 173 files). Report: `.superpowers/sdd/2026-11-20-sp2-ux-for-everyone/final-review-report.md` (local).
+Task 18: complete (code), fix commit `547531a`, scoped re-review clean.
+
+## Final whole-branch review (2026-11-24)
+Range `dc3ba66..f7aba4d` (173 files, excluding `package-lock.json`). Verdict: Needs fixes — Critical 0, Important 2, Minor 5. No security holes found. Report: `.superpowers/sdd/2026-11-20-sp2-ux-for-everyone/final-review-report.md` (local).
+- I1 (`backend/jobs.py`): `_run_rerender_clip_job` did not sync updated `fresh_clips` back into `active_jobs[parent_job_id]["clips"]` (leaving `ProjectPage` via `GET /jobs/{id}` with stale clip versions in the same session), and `cancel_job` wrote a phantom `"clip-rerender:<parent>"` row to `history.db` (plus `_run_rerender_clip_job` omitted `register_proc` and pre-replace cancel abort).
+- I2 (`src/hooks/useClipJobs.ts`, `src/pages/ProjectsPage.tsx`, `src/pages/ProjectPage.tsx`): synchronous request errors from Riwayat (`handleResumeJob`, `handleRerender`, `handleRerunAI`) cleared `failedJobId` and were never rendered on `/riwayat` or `/riwayat/:id`; watching an already-running history-origin job via `watchJob` kept `jobOrigin === "history"` so `DONE` dropped back to Step 1; starting a Riwayat job omitted bumping `historyVersion`.
+- M1 (`src/components/ClipEditModal.tsx:171`, deferred from Task 15): restrict `clip_rerender.save_refused` to 4xx statuses other than 404 (404 and 5xx use `save_failed`).
+- M2 (`src/components/ClipEditModal.tsx`): replace `<a target="_blank">` ChatGPT/Gemini links with `platform().openExternal(...)` matching `MomentStep.tsx`.
+- M3 (`src/pages/CreatePage.tsx`): render raw `ctx.errorMsg` fallback when a job fails at Step 4 without `error_info`.
+- M4 (`src/App.tsx`, `src/hooks/useClipJobs.ts`): remove dead Smart Editor state (`manualFile`, `manualLocalUrl`, `manualClips`, `manualMeta`) and `closeHistory` no-op.
+- M5 (`tasks/roadmap-todo.md`, `tasks/HANDOFF-AI.md`): sync Task 15/17 commit ranges and `[x]` status, plus section 3 closeout status.
+- Final fix wave (`547531a`): I1, I2, M1–M4 fixed with 2 new pytest tests and 5 new Vitest tests; M5 updated in this closeout commit.
+- Final verification after `547531a`: pytest **851 passed, 12 skipped**; Vitest **424 passed** (64 files); oxlint **0 errors** (15 warnings); `npm run build` and `npm run build:cloud` OK; `npm audit --omit=dev` and `npm audit` **0 vulnerabilities**.
+- Scoped re-review (`547531a` diff): all findings (I1, I2, M1–M5) addressed, 0 new Critical/Important.
+- SP2: complete (code), review clean after one fix wave. Awaiting owner usability checklist (end of `tasks/PROGRESS-LOG.md`).

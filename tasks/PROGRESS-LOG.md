@@ -694,3 +694,31 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 - Selesai hari ini: Task 15 (audit antislop + fix round 1, Vitest 419), Task 16 (cek port connect, panah tutorial, komentar tes; pytest 849), Task 17 (panduan, tutorial, README, CHANGELOG, ADR-014, AGENTS.md E.19–E.20/F.9–F.10, plus minor review). Semua lolos review.
 - Task 18 langkah 1 selesai di `f7aba4d`: pytest 849/12, Vitest 419, oxlint 0 error, build + build:cloud OK, npm audit 0.
 - Review menyeluruh SP2 sudah dimulai tetapi dihentikan sebelum ada hasil. Lanjutkan dari `tasks/HANDOFF-AI.md` bagian 3: review menyeluruh `dc3ba66..HEAD`, satu gelombang perbaikan, review ulang terbatas, lalu daftar cek uji pemakaian pemilik.
+
+### 2026-11-24 · SP2 selesai (kode) — review akhir, gelombang perbaikan, dan daftar cek pemakaian
+- Review menyeluruh independen atas `dc3ba66..f7aba4d` (173 file tanpa lockfile): 0 Critical, 2 Important (I1 sinkronisasi `active_jobs` saat rerender satu klip & mencegah entri riwayat hantu `clip-rerender:` saat membatalkan; I2 `ErrorCard` gagal permintaan Riwayat, `historyVersion` saat mulai, dan `watchJob` agar job Riwayat yang dipantau tetap menampilkan hasil saat `DONE`), 5 Minor (M1 `save_refused` dibatasi 4xx non-404, M2 tautan ChatGPT/Gemini lewat `openExternal`, M3 fallback `errorMsg` di langkah 4, M4 sisa state Smart Editor di `App.tsx`, M5 pembaruan roadmap & handoff).
+- Gelombang perbaikan di `547531a` + re-review terbatas: semua temuan tertangani (0 temuan Critical/Important baru).
+- Angka akhir setelah perbaikan: `pytest` **851 lulus, 12 dilewati** (+2 tes baru); Vitest **424 lulus** di 64 file (+5 tes baru); `oxlint src` **0 error** (15 warning); `npm run build` dan `npm run build:cloud` sukses; `npm audit` (prod & penuh) **0 kerentanan**.
+- Semua kode SP2 selesai dan bersih setelah review. Menunggu uji pemakaian pemilik (daftar cek di bawah) sebelum PR akhir ke `main`.
+
+### Daftar cek uji pemakaian SP2 (pemilik)
+
+Catat untuk tiap butir: berhasil atau tidak, dan di langkah mana pengguna sempat ragu.
+
+- [ ] **HP lewat Colab (lebar ~360 px, uji dengan 1 orang awam tanpa panduan)** — spec 6:
+  - Buka URL Vercel dari HP, masuk di `AuthGate` dengan `API_SECRET_TOKEN`.
+  - Langkah 1 (`Buat klip`): tempel link YouTube/TikTok/Instagram (uji juga link tidak didukung agar pesan tampil di bawah kotak) atau pilih video dari Google Drive (**Pilih dari Google Drive**); cek catatan **Pemeriksaan awal** (`PreflightNotices`); pilih **Bentuk klip**; tekan **Mulai**.
+  - Langkah 2 (`Siapkan`): pastikan layar progres jujur menampilkan tahap nyata (`Mengunduh video` dengan persen unduhan, `Mengambil suara dari video`, `Membuat subtitle`), waktu berjalan terus, catatan perangkat bila CPU, dan pesan *"Halaman ini boleh ditutup. Proses tetap jalan selama Colab menyala; lihat hasilnya di Riwayat."*
+  - Langkah 3 (`Pilih momen`): tekan **Salin perintah** → **Buka ChatGPT** atau **Buka Gemini** → tempel jawaban (uji juga jawaban terpotong/kosong untuk memastikan pesan kesalahan format muncul di bawah kotak) → tekan **Buat klip**.
+  - Langkah 4 (`Klip`): pantau progres *"Membuat klip X dari Y"*, putar klip hasil, buka **Bagikan**, buka menu titik tiga (**Ubah subtitle atau tampilan**, ubah 1 kata + simpan), lalu uji **Unduh** dan **Unduh semua**.
+- [ ] **Desktop Windows & Auto Clipper Web (web lokal)** — alur penuh dari link atau **Pilih file video** sampai klip terunduh:
+  - Desktop (`npm run tauri build` di mesin ber-Rust / CI): pesan *"Jangan tutup aplikasi sampai selesai."*, **Unduh semua** memilih satu folder lalu menyalin lewat `/save_file`, **Buka folder**, komputer tidak tidur selama render, serta verifikasi tampilan nyata `SplashScreen` saat baru dibuka dan `UpdaterSection` / `UpdateOverlay` (**Periksa pembaruan** → **Pasang sekarang**).
+  - Auto Clipper Web (`backend.main --web`): pesan *"Jangan tutup jendela Auto Clipper Web."*, **Unduh semua** mengunduh satu per satu di browser, **Buka folder**, dan `LocalGate` saat token hilang/server ditutup.
+- [ ] **Kembali lewat Riwayat (`/riwayat` dan `/riwayat/:id`)**:
+  - Tinggalkan proyek di status `Menunggu jawaban AI`, buka **Riwayat**, lalu kembali ke Langkah 3 lewat **Tempel jawaban AI** (termasuk uji di HP setelah refresh browser).
+  - Uji proyek `Gagal` (kartu error + **Lanjutkan**), proyek `Dibatalkan` (**Coba lagi**), dan antrean 2 job bersamaan (`Menunggu giliran. Urutan ke-2.` + bilah atas `Ada proses yang sedang berjalan. Lihat progres` → klik **Lihat progres** sampai selesai menampilkan hasil).
+  - Uji menu titik tiga di proyek: **Buat ulang semua klip**, **Pilih ulang momen dengan AI** (desktop/web lokal dengan mode **Pakai API key**), dan **Hapus** dengan konfirmasi.
+- [ ] **Pengaturan, Tema Terang/Gelap & Banner Terputus**:
+  - Buka keempat bagian **Pengaturan** (`Umum`, `YouTube`, `Lanjutan` termasuk saklar **Pakai API key** dan **Unduh video tanpa membuat klip**, `Bantuan` termasuk **Detail teknis**).
+  - Pindah tema **Terang** dan **Gelap** di HP dan desktop; pastikan teks, badge, tombol, dan fokus keyboard terbaca jelas.
+  - Matikan backend sementara untuk memeriksa banner **Auto Clipper tidak tersambung** dan tombol **Hubungkan ulang** (per platform).

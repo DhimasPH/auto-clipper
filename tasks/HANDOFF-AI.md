@@ -22,13 +22,11 @@ Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke lay
 
 ## 3. Posisi SP2 saat ini (2026-11-24)
 
-- Task 1–17 selesai dan lolos review (lihat `tasks/sp2-ledger.md`). Task 18 langkah 1 (verifikasi penuh) selesai di `f7aba4d`: pytest 849 lulus / 12 dilewati, Vitest 419 lulus, oxlint 0 error, build + build:cloud OK, npm audit 0.
-- **Yang tersisa: Task 18 langkah 2–3.**
-  1. **Review menyeluruh independen** atas `git diff dc3ba66..HEAD -- ':!package-lock.json'` (173 file). Agen review pertama dihentikan karena kuota, belum ada hasil; jalankan ulang dari awal. Fokus pada hal yang luput dari review per task: alur ujung ke ujung di desktop / web lokal / cloud (link → preflight → progres `current` → AI manual → klip → Unduh semua; kembali lewat Riwayat: AWAITING_MANUAL, lanjutkan, coba lagi, batal, antrean), kecocokan bentuk data backend ↔ frontend, invarian keamanan E, kode mati, kunci i18n, item tabel cakupan spec yang belum terkirim. Jangan menilai ulang Ruling di ledger kecuali menimbulkan cacat nyata.
-  2. Satu gelombang perbaikan untuk Critical/Important, ditambah minor tertunda yang ditandai "deferred → final fix wave" di ledger (mis. `clip_rerender.save_refused` muncul juga untuk 5xx/404 di `ClipEditModal.tsx:171`).
-  3. Review ulang terbatas atas perbaikan itu, lalu catat di ledger dan log (contoh format: akhir `tasks/sp1-ledger.md`).
-  4. Langkah 3 Task 18: tulis daftar cek uji pemakaian untuk pemilik di `tasks/PROGRESS-LOG.md` (spec 6: HP Colab 360 px dan desktop/web lokal dari link sampai klip terunduh, kembali dari AWAITING_MANUAL, mode terang/gelap, banner terputus), catat angka akhir di ledger. Layar yang baru dicek di harness (SplashScreen, UpdateOverlay) masuk daftar cek desktop pemilik.
-- Setelah itu SP2 selesai dari sisi kode. Sisanya menunggu pemilik (bagian 7) lalu satu PR ke `main` atas permintaan pemilik.
+- **SP2 selesai dari sisi kode** (`dc3ba66..547531a`): Task 1–18 selesai, review menyeluruh independen (`dc3ba66..f7aba4d`), gelombang perbaikan akhir (`547531a`), dan re-review terbatas dinyatakan bersih (0 Critical, 0 Important tersisa).
+- Angka verifikasi akhir setelah `547531a`: `pytest` **851 lulus, 12 dilewati**; Vitest **424 lulus** (64 file); `oxlint src` **0 error**; `npm run build` dan `npm run build:cloud` OK; `npm audit` **0 kerentanan**.
+- **Yang tersisa (menunggu pemilik):**
+  1. Jalankan daftar cek uji pemakaian SP2 di akhir `tasks/PROGRESS-LOG.md` (HP Colab 360 px bersama orang awam tanpa panduan, desktop Windows / Auto Clipper Web, kembali lewat `AWAITING_MANUAL`, mode terang/gelap, banner terputus, serta `SplashScreen` & `UpdateOverlay` di build desktop nyata) bersama sisa cek manual SP1 & SP0 (bagian 7).
+  2. Setelah pemilik menyatakan uji pemakaian selesai, buka satu PR gabungan ke `main` dari branch `feat/sp2-ux-for-everyone` atas permintaan pemilik (draf SP0 ada di `tasks/pr-draft-sp0.md`).
 
 ## 4. Cara mengerjakan setiap task
 
