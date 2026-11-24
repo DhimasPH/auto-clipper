@@ -42,7 +42,7 @@ Transkripsi Whisper memakai GPU T4. Notebook memasang FFmpeg standar dari Ubuntu
    - [Riwayat dan Pengaturan](#riwayat-dan-pengaturan)
 7. [Panduan Pemeliharaan, Troubleshooting & FAQ](#7-panduan-pemeliharaan-troubleshooting--faq)
    - [Kendala 1: Sesi Google Colab Terputus / Idle Timeout](#kendala-1-sesi-google-colab-terputus--idle-timeout)
-   - [Kendala 2: Error 401 Unauthorized / Token Mismatch](#kendala-2-error-401-unauthorized--token-mismatch)
+   - [Kendala 2: Muncul "Kode akses ditolak" atau "Kode akses tidak berlaku lagi"](#kendala-2-muncul-kode-akses-ditolak-atau-kode-akses-tidak-berlaku-lagi)
    - [Kendala 3: Error CORS atau Network Connection Failed](#kendala-3-error-cors-atau-network-connection-failed)
    - [Kendala 4: Memory GPU Penuh (OOM) & Fallback Otomatis NVENC](#kendala-4-memory-gpu-penuh-oom--fallback-otomatis-nvenc)
    - [Kendala 5: Manajemen & Pembersihan Kapasitas Google Drive](#kendala-5-manajemen--pembersihan-kapasitas-google-drive)
@@ -365,12 +365,9 @@ Layar progres menampilkan tahap nyata dari objek `current` di `GET /jobs/{id}`: 
 
 ---
 
-### Kendala 2: Error 401 Unauthorized / Token Mismatch
-* **Penyebab:** Token yang dimasukkan di Web UI HP tidak sama dengan `API_SECRET_TOKEN` yang berjalan di sel Colab.
-* **Solusi:**
-  1. Buka menu pengaturan browser HP Anda atau hapus data *local storage* untuk situs web app Anda.
-  2. Muat ulang halaman, maka form **AuthGate (Login)** akan muncul kembali.
-  3. Masukkan kata sandi yang sesuai dengan yang Anda tuliskan pada sel Colab.
+### Kendala 2: Muncul "Kode akses ditolak" atau "Kode akses tidak berlaku lagi"
+* **Penyebab:** Kode akses yang diketik di HP tidak sama dengan `API_SECRET_TOKEN` di sel Colab, atau server Colab dinyalakan ulang dengan kode lain.
+* **Solusi:** Salin lagi kode dari sel Colab, tempel di kotak **Kode akses**, lalu tekan **Masuk**. Layar kode akses muncul sendiri, tidak perlu menghapus data browser.
 
 ---
 

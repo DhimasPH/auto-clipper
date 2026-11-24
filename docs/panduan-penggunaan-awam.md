@@ -109,14 +109,14 @@ Di atas layar Buat klip ada empat langkah: **1 Video → 2 Siapkan → 3 Pilih m
    - Videonya ada di Google Drive? Tekan **Pilih dari Google Drive**.
    - Videonya ada di HP? Tekan **Pilih file video**. Video ini dikirim ke Mesin Pabrik dan hilang saat sesi Colab berakhir (lihat "Di Mana Video Anda Disimpan?").
 2. Pilih **Bentuk klip**: **Vertikal untuk TikTok/Reels/Shorts** (bawaan), **Persegi**, atau **Lebar**.
-3. Mau mengatur lebih jauh? Ketuk **Atur tampilan klip**. Di sana ada nama proyek, subtitle, posisi gambar, hook pembuka, video ilustrasi (B-roll), kualitas unduhan, dan jumlah klip. Semuanya boleh dibiarkan. Pilihan Anda diingat untuk video berikutnya.
+3. Mau mengatur lebih jauh? Ketuk **Atur tampilan klip**. Di sana ada nama proyek, subtitle, posisi gambar, hook pembuka, kualitas unduhan, dan jumlah klip. Semuanya boleh dibiarkan. Pilihan Anda diingat untuk video berikutnya.
    - Nama proyek boleh kosong. Aplikasi membuatnya dari judul video dan waktu sekarang.
 4. Kalau ada **Catatan sebelum mulai**, baca dulu. Catatan biasa tidak menghalangi. Kalau muncul kotak bergaris merah, tombol **Mulai** tidak bisa ditekan. Ikuti petunjuk di kotak itu, lalu tekan **Periksa lagi**.
 5. Tekan **Mulai**.
 
 ### 2 Siapkan
 
-Layar menampilkan tahap yang sedang dikerjakan Mesin Pabrik: **Mengunduh video**, **Mengambil suara dari video**, dan **Membuat subtitle**.
+Layar menampilkan tahap yang sedang dikerjakan Mesin Pabrik: **Mengunduh video** (untuk video dari Google Drive atau dari HP: **Menyiapkan video**), **Mengambil suara dari video**, dan **Membuat subtitle**.
 
 - Tahap yang selesai diberi centang dan lamanya.
 - Tahap yang sedang berjalan menunjukkan sudah berapa lama berjalan. Saat mengunduh, persennya juga tampil.
@@ -143,7 +143,7 @@ Belum sempat ke ChatGPT? Tinggalkan saja. Proyek tersimpan di **Riwayat** dengan
 
 ### 4 Klip
 
-Layar progres muncul lagi: **Melacak wajah**, **Membuat klip** (misalnya "3 dari 10"), lalu **Menyimpan ke folder penyimpanan**. Klip yang sudah jadi langsung tampil di bawahnya.
+Layar progres muncul lagi: **Melacak wajah** (hanya bila posisi gambar **Ikuti wajah**), **Membuat klip** (misalnya "3 dari 10"), lalu **Menyimpan ke folder penyimpanan**. Klip yang sudah jadi langsung tampil di bawahnya.
 
 Setelah semua selesai:
 
@@ -181,7 +181,7 @@ Menu **Pengaturan** punya empat bagian:
 
 Mesin Pabrik hanya mengerjakan **satu video berat dalam satu waktu**, supaya memorinya tidak habis. Kalau Anda memulai video kedua saat video pertama masih diproses, layar progres menulis **"Menunggu giliran. Urutan ke-2."** dan di Riwayat statusnya **Menunggu giliran**.
 
-Video Anda sudah tercatat dan dikerjakan otomatis begitu video sebelumnya selesai. Tidak perlu menekan apa-apa. Jangan menekan **Lanjutkan** berulang kali: proyek yang masih diproses menolak dengan pesan "Proyek ini masih diproses".
+Video Anda sudah tercatat dan dikerjakan otomatis begitu video sebelumnya selesai. Tidak perlu menekan apa-apa. Untuk melihat posisinya, buka proyek itu di Riwayat lalu tekan **Lihat progres**.
 
 ### "Detail waktu": berapa lama tiap tahap
 
@@ -223,8 +223,8 @@ Di bagian bawah kotak itu ada tulisan **Detail teknis**. Ketuk untuk membukanya,
 **2. Muncul "Kode akses ditolak" atau "Kode akses tidak berlaku lagi" di HP?**
 **J:** Kode yang Anda ketik tidak sama dengan *password* rahasia di Kotak 4, atau server Colab baru dinyalakan ulang dengan *password* lain. Salin lagi *password* dari Kotak 4, tempel di kotak **Kode akses**, lalu tekan **Masuk**.
 
-**3. Muncul Error "Network Failed" / Gagal Koneksi?**
-**J:** Ini berarti HP gagal menyambung ke Mesin.
+**3. Muncul "Auto Clipper tidak tersambung" atau tulisan Terputus?**
+**J:** Ini berarti HP gagal menyambung ke Mesin. Setelah langkah di bawah, tekan **Hubungkan ulang**.
 - Pastikan tab Google Colab di laptop masih nyala dan berjalan (ikon Play-nya berputar).
 - Kalau pakai Ngrok, kadang alamat link-nya berganti. Anda mungkin perlu mengambil link Ngrok baru di Colab dan memperbaruinya di pengaturan *Environment Variable* Vercel.
 

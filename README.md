@@ -61,7 +61,7 @@ xattr -cr "/Applications/Auto Clipper.app"
 
 Setelah itu aplikasi bisa dibuka normal dari Launchpad atau folder Applications.
 
-**Cara update:** gunakan updater bawaan aplikasi: klik tombol _"Update"_ di dalam aplikasi saat tersedia (terverifikasi secara kriptografis dengan Minisign). Anda juga selalu bisa mengunduh DMG versi terbaru dari halaman Releases.
+**Cara update:** gunakan updater bawaan aplikasi: buka **Pengaturan → Bantuan**, tekan **Periksa pembaruan**, lalu **Pasang sekarang** bila ada versi baru (terverifikasi secara kriptografis dengan Minisign). Anda juga selalu bisa mengunduh DMG versi terbaru dari halaman Releases.
 
 > Catatan: aplikasi membundel backend Python (transkripsi Whisper, OpenCV, FFmpeg), jadi ukuran unduhan cukup besar (ratusan MB). Unduhan pertama akan memakan waktu.
 
