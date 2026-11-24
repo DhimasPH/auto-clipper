@@ -26,7 +26,7 @@ Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke lay
 - Angka verifikasi akhir setelah `547531a`: `pytest` **851 lulus, 12 dilewati**; Vitest **424 lulus** (64 file); `oxlint src` **0 error**; `npm run build` dan `npm run build:cloud` OK; `npm audit` **0 kerentanan**.
 - **Yang tersisa (menunggu pemilik):**
   1. Jalankan daftar cek uji pemakaian SP2 di akhir `tasks/PROGRESS-LOG.md` (HP Colab 360 px bersama orang awam tanpa panduan, desktop Windows / Auto Clipper Web, kembali lewat `AWAITING_MANUAL`, mode terang/gelap, banner terputus, serta `SplashScreen` & `UpdateOverlay` di build desktop nyata) bersama sisa cek manual SP1 & SP0 (bagian 7).
-  2. Setelah pemilik menyatakan uji pemakaian selesai, buka satu PR gabungan ke `main` dari branch `feat/sp2-ux-for-everyone` atas permintaan pemilik (draf SP0 ada di `tasks/pr-draft-sp0.md`).
+  2. Setelah pemilik menyatakan uji pemakaian selesai, buka satu PR gabungan ke `main` dari branch `feat/sp2-ux-for-everyone` atas permintaan pemilik (draf lengkap SP0+SP1+SP2 ada di `tasks/pr-draft.md`, kelanjutan dari `tasks/pr-draft-sp0.md`).
 
 ## 4. Cara mengerjakan setiap task
 
@@ -68,4 +68,4 @@ Jangan menunggu persetujuan pemilik di antara task. Putuskan sendiri hal yang am
 - **Protokol kuota:** bila pemilik bilang kuota sesinya hampir habis ("80%"), hentikan pekerjaan, pastikan semua tersimpan (commit `wip(sp2): ...` bila belum hijau), dan tulis entri baru di `tasks/PROGRESS-LOG.md` berisi posisi terakhir dan langkah berikutnya.
 - Laporan ke pemilik ditulis dalam bahasa Indonesia, singkat, berisi hasil nyata (angka tes, commit), dan jujur soal yang belum diverifikasi.
 - Masih menunggu pemilik, dilakukan sebelum PR akhir: daftar cek manual SP1 (di `tasks/PROGRESS-LOG.md`, termasuk CI setelah push dan proyek Vercel kedua), cek manual tampilan T0.12 dan uji notebook Colab T0.13 dari SP0, dan uji pemakaian SP2 oleh orang awam (langkah terakhir rencana SP2).
-- Draf deskripsi PR akhir bagian SP0: `tasks/pr-draft-sp0.md`; bagian SP1 dan SP2 ditambahkan saat PR dibuka.
+- Draf deskripsi PR akhir gabungan SP0+SP1+SP2 ada di `tasks/pr-draft.md` (kelanjutan dari `tasks/pr-draft-sp0.md`).
