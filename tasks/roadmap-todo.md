@@ -137,14 +137,14 @@ Status per task dan angka tes: `tasks/sp2-ledger.md`. Rentang commit di bawah di
 
   Arah: tampilkan tahap sebenarnya dengan nama yang sama seperti "Detail waktu" (`timing.stage_*`), perangkat yang benar-benar dipakai ("Membuat subtitle dengan prosesor, bisa lama"), progres nyata ("Merender klip 3 dari 10"), dan tanpa "hampir siap" kecuali berdasarkan progres. Backend mungkin perlu mengirim tahap dan perangkat yang sedang berjalan di status job (sekarang baru tercatat di `timings` setelah tahap selesai). Terkait keputusan terbuka nomor 9 (preflight belum tampil di frontend).
 
-## SP3: Ringan (belum dimulai)
+## SP3: Ringan (spec & rencana siap, implementasi belum dimulai)
 
-- [ ] T3.0 Brainstorm dan spec SP3, berdasarkan angka SP0
+- [x] T3.0 Brainstorm dan spec SP3, berdasarkan angka SP0 · spec `docs/superpowers/specs/2026-11-24-sp3-lightweight-design.md` (`d797374`) dan rencana `docs/superpowers/plans/2026-11-24-sp3-lightweight.md` disetujui pemilik 2026-11-24. Catatan: Pendekatan B sudah selesai di SP0 (`T0.16`, `5f91e77`).
 - [ ] T3.x Ukuran installer (mediapipe opsional, komponen berat sebagai unduhan terpisah)
 - [ ] T3.x Startup dan RAM sidecar
-- [ ] T3.x Pendekatan B bila diputuskan di T0.15
-- [ ] T3.x Paket GPU opsional untuk desktop Windows: pustaka NVIDIA untuk Whisper (`cublas64_12.dll`, ratusan MB) diunduh terpisah hanya oleh pengguna dengan kartu NVIDIA, bukan dibundel di installer. Disetujui pemilik 2026-11-18. Latar: di GTX 1650 pemilik, Whisper jatuh ke prosesor karena DLL itu tidak ada (lihat PROGRESS-LOG 2026-11-18).
-- [ ] T3.x Ukuran model Whisper menyesuaikan perangkat: tanpa GPU pilih model lebih kecil, atau peringatkan sebelum mulai bahwa `medium` di prosesor bisa lebih dari satu jam untuk video 30 menit.
+- [x] T3.x Pendekatan B bila diputuskan di T0.15 (sudah diputuskan dan selesai di SP0 sebagai `T0.16`, `5f91e77`)
+- [ ] T3.x Paket GPU opsional untuk desktop Windows: pustaka NVIDIA untuk Whisper (`cublas64_12.dll`, ~527,5 MB wheel resmi) diunduh terpisah hanya oleh pengguna dengan kartu NVIDIA, bukan dibundel di installer. Disetujui pemilik 2026-11-18 & 2026-11-24. Latar: di GTX 1650 pemilik, Whisper jatuh ke prosesor karena DLL itu tidak ada (lihat PROGRESS-LOG 2026-11-18).
+- [ ] T3.x Ukuran model Whisper menyesuaikan perangkat: tanpa GPU tampil label anjuran + dialog pilihan cepat (*Pakai model Cepat (disarankan)* vs *Tetap pakai model Akurat*) saat klik Mulai.
 
 ## SP4: Fitur kreator dan penyempurnaan fitur lama (belum dimulai)
 

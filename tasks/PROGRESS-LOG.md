@@ -727,3 +727,11 @@ Catat untuk tiap butir: berhasil atau tidak, dan di langkah mana pengguna sempat
   - Buka keempat bagian **Pengaturan** (`Umum`, `YouTube`, `Lanjutan` termasuk saklar **Pakai API key** dan **Unduh video tanpa membuat klip**, `Bantuan` termasuk **Detail teknis**).
   - Pindah tema **Terang** dan **Gelap** di HP dan desktop; pastikan teks, badge, tombol, dan fokus keyboard terbaca jelas.
   - Matikan backend sementara untuk memeriksa banner **Auto Clipper tidak tersambung** dan tombol **Hubungkan ulang** (per platform).
+
+---
+
+## 2026-11-24 · SP3 (Brainstorm, Spec, dan Rencana)
+
+- Selesai brainstorming SP3 bersama pemilik atas temuan ukur nyata (`cv2` 176,5 MB karena `mediapipe` menarik `opencv-contrib-python` 5.0 + `matplotlib` 30,5 MB, `mediapipe 1.2.3` kehilangan `mp.solutions`, `ctranslate2.dll` butuh `cublas64_12.dll` ~527,5 MB di Windows, serta startup `import main` + `preflight` + `jobs` memakan 3,77 detik dan 119,9 MB RSS karena eager import `yt_dlp`/`cv2`/`numpy`/`openai`/`google.genai`).
+- Empat keputusan pemilik terkunci: (1) 1 aplikasi utama Lite + pengunduh komponen opsional (`cuda` Windows GPU & `mediapipe` Teliti) di Pengaturan; (2) label anjuran GPU + dialog pilihan cepat saat klik Mulai dengan `medium`/`large-v3` di CPU; (3) Windows tetap `--onefile` + pemangkasan ~260 MB bundel dan lazy-import; (4) `output_dir` hanya diterima di Desktop (`path_guard`, ditolak di Cloud/Web Lokal) dan diizinkan untuk `/video` + `/save_file` folder proyek Desktop yang sah (`T1.y`).
+- Spec dan rencana implementasi SP3 (6 task TDD) ditulis di `docs/superpowers/specs/2026-11-24-sp3-lightweight-design.md` (`d797374`) dan `docs/superpowers/plans/2026-11-24-sp3-lightweight.md`. Belum ada kode SP3 yang ditulis; siap lanjut ke eksekusi Task 1.
