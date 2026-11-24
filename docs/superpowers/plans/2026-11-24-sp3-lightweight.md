@@ -2,56 +2,97 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Cut ~260 MB from the core desktop and Auto Clipper Web bundle by removing `mediapipe` and its transitive dependencies from the base build, speed up sidecar startup/idle RAM via lazy imports, add an atomic PyPI/official-model add-on downloader (`cuda` cuBLAS for Windows NVIDIA subtitles and `mediapipe` Tasks `FaceLandmarker` for precise face tracking) in Pengaturan, add a CPU Whisper confirmation dialog before starting `medium`/`large-v3` without GPU, and close `output_dir` security (`T1.y`) while enabling `/video` and `/save_file` for valid custom Desktop output folders.
+**Goal:** Cut ~260 MB from the core desktop and Auto Clipper Web bundle by removing `mediapipe` and its transitive dependencies from the base build, speed up sidecar startup/idle RAM via lazy imports, add an atomic pinned-SHA-256 add-on downloader (`cuda` cuBLAS for Windows NVIDIA subtitles and `mediapipe` Tasks `FaceLandmarker` for precise face tracking) in Pengaturan with an explicit fallback message when Teliti is chosen uninstalled, add a CPU Whisper confirmation dialog before starting `medium`/`large-v3` without GPU, and close `output_dir` security (`T1.y`) while enabling `/video` and `/save_file` for valid custom Desktop output folders.
 
-**Architecture:** The backend splits optional heavy native runtimes (`cuda` DLLs on Windows, `mediapipe` wheel + `face_landmarker.task` on desktop/local-web) into `<app_data_dir>/addons/<id>` managed by a new `backend/addons.py` module, while `video_utils`, `ai_utils`, and `crop_utils` defer heavy imports (`yt_dlp`, `openai`, `google.genai`, `cv2`, `numpy`) until execution so `main`, `preflight`, and `jobs` start fast with minimal RSS. On the frontend, `TranscriptionSection` and a new `FaceTrackingSection` drive `GET/POST/DELETE /api/settings/addons` and surface CPU model guidance, while `CreatePage` prompts users once with a plain-language `Dialog` before running `medium`/`large-v3` on CPU.
+**Architecture:** The backend splits optional heavy native runtimes (`cuda` DLLs on Windows, pinned `mediapipe==1.2.3` wheel + `face_landmarker.task` on desktop/local-web) into `<app_data_dir>/addons/<id>` managed by `backend/addons.py` with locked versions, HTTPS URLs, byte sizes, and SHA-256 digests (`PINNED_ADDONS`). Core modules (`video_utils`, `ai_utils`, `crop_utils`, `preflight`) defer heavy imports (`yt_dlp`, `openai`, `google.genai`, `cv2`, `numpy`) using lazy proxies/local imports so `main`, `preflight`, and `jobs` start fast with minimal RSS without breaking existing test mocks. On the frontend, `TranscriptionSection` and `FaceTrackingSection` drive `/api/settings/addons`, `ProgressPanel` displays a plain-language fallback note whenever `Teliti` falls back to `Standar`, and `CreatePage` prompts users once with a `Dialog` before running `medium`/`large-v3` on CPU.
 
 **Tech Stack:** Python 3.11+, FastAPI, PyInstaller (`--onefile` Windows / `--onedir` macOS), ctypes, zipfile/hashlib, pytest; React 19, TypeScript 6, Vite 8, Tailwind 3, i18next, Vitest, oxlint.
 
-**Spec:** `docs/superpowers/specs/2026-11-24-sp3-lightweight-design.md` (binding). Parent: `docs/superpowers/specs/2026-11-12-enhancement-roadmap.md`.
+**Spec:** `docs/superpowers/specs/2026-11-24-sp3-lightweight-design.md` (binding). Parent: `docs/superpowers/specs/2026-11-12-enhancement-roadmap.md`. Ledger: `tasks/sp3-ledger.md`.
 
 ## Global Constraints
 
 Repo and process:
-- Stay on the working branch requested by the owner (`feat/sp3-lightweight` or active branch); never push, open a PR, or merge without the owner's explicit request.
+- Branch: `feat/sp3-lightweight` (created from `9ff373f`). Never push, open a PR, or merge without the owner's explicit request.
 - Every commit message ends with `Co-Authored-By: <Agent Name> <noreply@anthropic.com>`.
-- Python tests always use the project venv (never `python` on PATH): `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q -p no:cacheprovider`. Current baseline: **860 passed, 6 skipped**.
+- Python tests always use the project venv (never `python` on PATH): `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q -p no:cacheprovider`. Baseline: **860 passed, 6 skipped**.
 - Frontend checks run from `C:\Users\dhima\projects\auto-clipper` (uppercase `C:` drive letter so Vitest does not double-load): `npm test` (baseline **424 passed** across 64 files), `npm run lint` (`0` errors), `npm run build`, `npm run build:cloud`.
-- No Rust toolchain on this machine (`npm run tauri build` runs in CI PR Check); desktop behaviors are verified with unit tests and mocked platform/Tauri tests.
-- Append a 3–6 line entry to `tasks/PROGRESS-LOG.md` under `## 2026-11-24 · SP3` and record Task status / Rulings in `tasks/sp3-ledger.md` inside every task commit.
+- No Rust toolchain AND `PyInstaller` is not installed in `ac-venv` on this machine: local `npm run tauri build` and local `pyinstaller` frozen builds cannot execute here and are verified in CI (`PR Check`, `Build and Release`, `Web Package`), while Task 0 verifies isolated runtime add-on loading and spec stdlib coverage on this machine.
+- Append a 3–6 line entry to `tasks/PROGRESS-LOG.md` under `## 2026-11-24 · SP3` and record Task completion / Rulings in `tasks/sp3-ledger.md` inside every task commit.
 
 Backend invariants (`.agents/AGENTS.md` A, B, E):
 - **NEVER `print()` to stdout** in any backend module (Tauri handshake relies on strict stdout); use `log_error(context, err)` / `log_app(msg)`.
-- `backend.metadata` stays in `backend.spec` `hiddenimports`; Windows keeps `--onefile`, macOS keeps `--onedir`.
+- `backend.metadata` AND all stdlib modules needed when loading add-on `mediapipe` (`wave`, `csv`, `timeit`, `getpass`, `xml`) stay in `backend.spec` `hiddenimports`; Windows keeps `--onefile`, macOS keeps `--onedir`.
 - Every endpoint taking file paths from requests calls `path_guard.is_protected()` first and responds with `path_guard.denied()` (403 `Access denied`).
-- Add-on downloads write to `.part` temp directories, validate SHA-256 against PyPI metadata before `os.replace`, and only fetch from allowlisted hosts (`pypi.org`, `files.pythonhosted.org`, `storage.googleapis.com`).
+- Add-on downloads ONLY fetch **locked URLs and SHA-256 digests defined in `PINNED_ADDONS`** (never PyPI "latest"), write to `.part` temp directories, validate SHA-256 + byte length before `os.replace`.
 - Cloud mode (`AUTO_CLIPPER_CLOUD_MODE`) disables add-on downloads (`available: false`) and ignores client-supplied `output_dir`. Local web mode (`web_ui.is_web_mode()`) ignores client-supplied `output_dir`.
 
 Frontend & copy invariants (`.agents/AGENTS.md` F, SP2 4.6):
 - Every UI string lives in both `src/locales/id.json` and `src/locales/en.json` added via `node scripts/add-locale-keys.mjs`; `locales.test.ts`, `plainWords.test.ts` (no banned words `transkripsi`, `transcription`, `render`, `encoder`, `json`, `sidecar`, `token`, `prompt`, `backend`, `ffmpeg`, `nvenc`, `cuda`, `whisper`, no emoji, no `—` in main-screen namespaces or `preflight.py` titles/messages), and `contrast.test.ts` MUST pass.
-- Components inspect `platform().caps`, never `platform().kind`; dialogs use `src/components/ui/Dialog.tsx`.
-- Every backend URL uses `API_URL` from `src/platform/backendUrl.ts`.
+- Components inspect `platform().caps`, never `platform().kind`; dialogs use `src/components/ui/Dialog.tsx`. Every backend URL uses `API_URL` (`src/platform/backendUrl.ts`).
 
 ---
 
 ## File Structure
 
 Created:
-- `backend/addons.py`: manages optional runtime add-ons (`cuda`, `mediapipe`) in `<app_data_dir>/addons/`, atomic HTTPS wheel/model installation with SHA-256 verification, status reporting, removal, and runtime activation (`os.add_dll_directory`, `sys.path`, lightweight `matplotlib`/`sounddevice` stubs).
-- `backend/tests/test_startup_lazy.py`: isolated subprocess import checks guaranteeing `backend.main`, `preflight.run_preflight()`, and `backend.jobs` do not import `yt_dlp`, `cv2`, `numpy`, `openai`, or `google.genai`, plus `backend.spec` package/filter verification.
+- `backend/tests/test_addons_spike.py` (Task 0 spike test / temporary verification script; either kept lightweight or recorded in Task 0)
+- `backend/addons.py`: pinned add-on manifest (`PINNED_ADDONS` for `cuda` and `mediapipe`), atomic HTTPS wheel/model installation with SHA-256 verification, status reporting, removal, `os.add_dll_directory`, `sys.path`, lightweight `matplotlib`/`sounddevice` stubs.
+- `backend/tests/test_startup_lazy.py`: isolated subprocess import checks (`backend.main`, `preflight.run_preflight()`, `backend.jobs`) + `backend.spec` checks.
 - `backend/tests/test_addons.py`: unit + FastAPI endpoint tests for `backend/addons.py` and `/api/settings/addons`.
-- `backend/tests/test_output_dir.py`: unit + FastAPI endpoint tests for `T1.y` (`output_dir` cloud/web clamping, desktop `path_guard`, `/video` + `/save_file` custom project folder allowlisting).
+- `backend/tests/test_output_dir.py`: unit + FastAPI endpoint tests for `T1.y`.
 - `src/hooks/useAddons.ts`: hook fetching & polling `/api/settings/addons` and invoking install/remove endpoints.
-- `src/components/settings/FaceTrackingSection.tsx`: settings card for `faceTrackingEngine` + optional `mediapipe` add-on install/remove (`+ FaceTrackingSection.test.tsx`).
-- `tasks/sp3-ledger.md`: SP3 task ledger and Rulings.
+- `src/components/settings/FaceTrackingSection.tsx` (+ `FaceTrackingSection.test.tsx`): settings card for `faceTrackingEngine`, uninstalled fallback notice, and optional `mediapipe` add-on install/remove.
 - `docs/decisions/015-sp3-lightweight-addons-and-output-dir.md`: ADR documenting SP3 architectural decisions.
 
 Modified:
-- `backend/requirements.txt`, `backend.spec`: remove `mediapipe`, trim `collect_all` to native packages, filter headers/tests/unused Haar XMLs.
-- `backend/video_utils.py`, `backend/ai_utils.py`, `backend/crop_utils.py`, `backend/preflight.py`: lazy imports for `yt_dlp`, `openai`, `google.genai`, `cv2`, `numpy`; decouple `is_nvenc_available()`; add `gc.collect()` after face tracking; support `FaceLandmarker` + `FaceMesh` in `crop_utils.py`; extend `_whisper_gpu_libs_missing()` for Windows `cublas64_12.dll`; add `gpu_ready` and `processor_slow_models` to `get_whisper_status()` / `/api/settings/whisper-models`.
-- `backend/workspace.py`, `backend/jobs.py`, `backend/main.py`: `addons` startup hook + endpoints; `sanitize_output_dir` / `allowed_project_output_dirs` and `GET /video` + `POST /save_file` integration.
-- `src/components/settings/TranscriptionSection.tsx` (+ test), `src/pages/SettingsPage.tsx`, `src/pages/CreatePage.tsx` (+ test), `src/locales/{id,en}.json`.
-- `tasks/roadmap-todo.md`, `tasks/PROGRESS-LOG.md`, `tasks/HANDOFF-AI.md`, `.agents/AGENTS.md`, `CHANGELOG.md`.
+- `backend/requirements.txt`, `backend.spec`
+- `backend/video_utils.py`, `backend/ai_utils.py`, `backend/crop_utils.py`, `backend/preflight.py`
+- `backend/workspace.py`, `backend/jobs.py`, `backend/main.py`
+- `src/lib/progress.ts` (+ `progress.test.ts`), `src/components/create/ProgressPanel.tsx`, `src/components/settings/TranscriptionSection.tsx` (+ test), `src/pages/SettingsPage.tsx`, `src/pages/CreatePage.tsx` (+ test), `src/hooks/useClipJobs.ts`, `src/App.tsx`, `src/locales/{id,en}.json`
+- `tasks/roadmap-todo.md`, `tasks/PROGRESS-LOG.md`, `tasks/HANDOFF-AI.md`, `tasks/sp3-ledger.md`, `.agents/AGENTS.md`, `CHANGELOG.md`.
+
+---
+
+### Task 0: Spike — Prove Dynamic Add-on Loading & Windows cuBLAS Resolution
+
+**Goal (before writing feature code):** Prove empirically whether (a) extracting the pinned `mediapipe==1.2.3`, `flatbuffers==25.12.19`, and `absl-py==2.5.1` packages into an external `addons/mediapipe/` folder works without `matplotlib`, `opencv-contrib-python`, or `sounddevice` (and which stdlib modules a frozen PyInstaller executable must keep in `hiddenimports` so the dynamic import succeeds), and (b) `ctypes.WinDLL("cublas64_12.dll")` + `ctranslate2` can load `cublas64_12.dll` from an external `addons/cuda/bin/` directory registered via `os.add_dll_directory()` + `PATH`. Record explicitly why a local PyInstaller `.exe` build cannot run on this machine (`PyInstaller` is absent from `ac-venv` — verified `find_spec('PyInstaller') is None` — so full frozen binary testing waits for CI `PR Check` / `web-package.yml`).
+
+- [ ] **Step 1: Verify `mediapipe.tasks` isolation and stdlib dependencies in an isolated temp folder**
+Run a throwaway Python verification command that copies `mediapipe`, `flatbuffers`, and `absl` from `ac-venv/Lib/site-packages` into a fresh `TemporaryDirectory`, removes `ac-venv`'s `site-packages` from `sys.path` (keeping only stdlib, `cv2`, `numpy`, and the temp `addons/mediapipe` dir), stubs `matplotlib`, `matplotlib.pyplot`, and `sounddevice`, and imports `from mediapipe.tasks.python import BaseOptions, vision`:
+```powershell
+C:\Users\dhima\projects\ac-venv\Scripts\python.exe -c "
+import pathlib, shutil, subprocess, sys, tempfile, site
+sp = pathlib.Path(site.getsitepackages()[1])
+with tempfile.TemporaryDirectory() as d:
+    addon = pathlib.Path(d)
+    for pkg in ('mediapipe', 'flatbuffers', 'absl'):
+        shutil.copytree(sp / pkg, addon / pkg)
+    code = f'''
+import sys, types
+# Keep stdlib + DLLs only; strip site-packages so only addon dir provides mediapipe/flatbuffers/absl
+sys.path = [p for p in sys.path if \"site-packages\" not in p.lower()]
+sys.path.insert(0, r\"{addon}\")
+m = types.ModuleType(\"matplotlib\"); m.pyplot = types.ModuleType(\"matplotlib.pyplot\")
+sys.modules[\"matplotlib\"] = m; sys.modules[\"matplotlib.pyplot\"] = m.pyplot
+sys.modules[\"sounddevice\"] = types.ModuleType(\"sounddevice\")
+# Re-add numpy & cv2 parent only if not in core: here simulate core PyInstaller having numpy/cv2
+sys.path.append(r\"{sp}\")  # in real check, verify FaceLandmarker class resolves from addon.__file__!
+import mediapipe, flatbuffers, absl
+assert str(mediapipe.__file__).startswith(r\"{addon}\"), mediapipe.__file__
+from mediapipe.tasks.python import BaseOptions, vision
+print(\"SPIKE_MP_OK\", vision.FaceLandmarker)
+'''
+    r = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True)
+    print('rc:', r.returncode, r.stdout.strip(), r.stderr.strip())
+"
+```
+
+- [ ] **Step 2: Verify Windows `os.add_dll_directory()` + `PATH` resolution for `cublas64_12.dll`**
+Confirm whether adding a folder to `os.add_dll_directory()` AND `os.environ["PATH"]` allows `ctypes.WinDLL("cublas64_12.dll")` (used by `preflight._whisper_gpu_libs_missing()`) and `ctranslate2.dll` (`LoadLibraryEx` Windows loader) to resolve a DLL from an arbitrary `<app_data_dir>/addons/cuda/bin` path without `CUDA_PATH`.
+
+- [ ] **Step 3: Verify `PyInstaller` absence on this machine and record spike findings in `tasks/sp3-ledger.md`**
+Check `find_spec("PyInstaller") is None` so the ledger honestly states that while isolated add-on imports, stdlib dependencies (`wave`, `csv`, `timeit`, `getpass`, `xml`), and `os.add_dll_directory` resolution passed locally, building and running an actual frozen `backend.exe` requires CI (`PR Check` / `web-package.yml`). Record the spike results under `## Task 0 (Spike)` in `tasks/sp3-ledger.md` and `tasks/PROGRESS-LOG.md`, and commit.
 
 ---
 
@@ -59,14 +100,15 @@ Modified:
 
 **Files:**
 - Modify: `backend/requirements.txt:15-16`
-- Modify: `backend.spec:50-92`
-- Modify: `backend/video_utils.py:1-14` (and inside `probe_formats`, `download_youtube_video`, `_download_with_opts`)
-- Modify: `backend/ai_utils.py:1-14` (and inside `ping_provider`, `fetch_provider_models`, `process_with_openai`, `process_with_gemini`, `process_with_openai_compatible`, `generate_social_kit_only`)
-- Modify: `backend/crop_utils.py:1-35, 456-560`
+- Modify: `backend.spec:10-92`
+- Modify: `backend/preflight.py:152-155` (use `importlib.metadata.version("yt-dlp")` instead of `from yt_dlp.version import __version__`)
+- Modify: `backend/video_utils.py:1-14` (replace `import yt_dlp` with `_LazyModule("yt_dlp")` proxy or local imports — `_LazyModule` keeps all 25 existing `patch('backend.video_utils.yt_dlp.YoutubeDL')` test mocks passing without loading `yt_dlp` at module import time!)
+- Modify: `backend/ai_utils.py:1-14` (replace top-level `OpenAI` and `genai`/`types` imports with `_LazySymbol` / `_LazyModule` or lazy helper keeping existing `@patch('backend.ai_utils.OpenAI')` and `@patch('google.genai.Client')` passing!)
+- Modify: `backend/crop_utils.py:1-35, 1660-1680` (use `_LazyModule("cv2")` and `_LazyModule("numpy")`, decouple `is_nvenc_available()` from `cv2`/`numpy`, call `gc.collect()` after `_sample_face_trajectory` cleanup)
 - Test: `backend/tests/test_startup_lazy.py` (create)
 
 **Interfaces:**
-- Produces: `backend/crop_utils.is_nvenc_available()` works without importing `cv2` or `numpy` at module top level; `backend/video_utils.py`, `backend/ai_utils.py`, and `backend/crop_utils.py` keep all existing public function names and signatures intact; existing tests mocking `backend.crop_utils.cv2` must still work (keep `_cv2()` / module-level `cv2` binding compatible, or import `cv2` into module namespace only when a video/tracking function runs, never on `import backend.crop_utils`).
+- Produces: lazy proxies in `video_utils`, `ai_utils`, and `crop_utils` so importing `backend.main`, calling `preflight.run_preflight()`, and importing `backend.jobs` NEVER trigger real imports of `yt_dlp`, `cv2`, `numpy`, `openai`, or `google.genai` into `sys.modules`; `backend/crop_utils.is_nvenc_available()` continues to execute FFmpeg probe cleanly without loading OpenCV or NumPy; `backend.spec` includes stdlib `wave`, `csv`, `timeit`, `getpass`, `xml` in `hiddenimports` for dynamic add-on loading while excluding `mediapipe` and stripping unused XML cascades/headers/tests.
 
 - [ ] **Step 1: Write the failing test in `backend/tests/test_startup_lazy.py`**
 
@@ -96,12 +138,11 @@ def test_startup_imports_do_not_eagerly_load_heavy_modules():
         text=True,
         check=True,
     )
-    # stdout ends with the JSON line (no stray backend prints allowed)
     lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
     assert lines == ["[]"], f"Expected no heavy modules loaded at startup, got: {proc.stdout!r}"
 
 
-def test_requirements_and_backend_spec_drop_mediapipe():
+def test_requirements_and_backend_spec_drop_mediapipe_and_keep_addon_stdlib():
     reqs = (ROOT / "backend" / "requirements.txt").read_text(encoding="utf-8").lower()
     assert "mediapipe" not in reqs
 
@@ -109,94 +150,66 @@ def test_requirements_and_backend_spec_drop_mediapipe():
     assert "'mediapipe'" not in spec and '"mediapipe"' not in spec
     assert "haarcascade_frontalface_default.xml" in spec
     assert "backend.metadata" in spec
+    for mod in ("'wave'", "'csv'", "'timeit'", "'getpass'", "'xml'"):
+        assert mod in spec, f"{mod} missing from backend.spec hiddenimports"
 ```
 
 - [ ] **Step 2: Run the test to confirm it fails**
 
 Run: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests/test_startup_lazy.py -q -p no:cacheprovider`
-Expected: FAIL because `yt_dlp`, `cv2`, `numpy`, `openai`, `google.genai` are imported eagerly and `mediapipe` is still in `requirements.txt` and `backend.spec`.
+Expected: FAIL.
 
-- [ ] **Step 3: Inspect call sites before editing**
-Check where `yt_dlp`, `OpenAI`, `genai`, `types`, `cv2`, and `np` are used across `backend/video_utils.py`, `backend/ai_utils.py`, and `backend/crop_utils.py`, and check existing monkeypatches in `backend/tests/` (`rg -n "crop_utils\.cv2|video_utils\.yt_dlp|ai_utils\.OpenAI|ai_utils\.genai" backend/tests`).
+- [ ] **Step 3: Implement lazy imports (`_LazyModule`), `backend/requirements.txt`, `backend.spec`, and `gc.collect()`**
+Use a small helper class (either inline in each module or in `backend/_lazy.py`, e.g. `_LazyModule(name)` and `_LazyAttr(module_name, attr_name)`) so:
+- `backend/video_utils.py`: `yt_dlp = _LazyModule("yt_dlp")` (or local import when not patched). Because `unittest.mock.patch("backend.video_utils.yt_dlp.YoutubeDL")` runs `getattr(video_utils.yt_dlp, "YoutubeDL")` during tests, that triggers lazy load inside unit tests (acceptable) while production `import backend.main` + `run_preflight()` + `import backend.jobs` NEVER touches `video_utils.yt_dlp`!
+- `backend/preflight.py` `_downloader_version()`: use `import importlib.metadata; return importlib.metadata.version("yt-dlp")` with fallback `from yt_dlp.version import __version__` when frozen without dist-info (inside frozen builds `dist-info` may be stripped or kept — wait: let's keep `collect_all` metadata or `importlib.metadata` for `yt-dlp` via `copy_metadata('yt-dlp')` in `backend.spec`!).
+- `backend/ai_utils.py`: replace top-level `from openai import OpenAI` and `from google import genai` / `from google.genai import types` with lazy wrappers (`_LazyModule("google.genai")`, `_LazyModule("google.genai.types")`, `_LazyAttr("openai", "OpenAI")`), preserving `@patch('backend.ai_utils.OpenAI')` and `@patch('google.genai.Client')` seamlessly! Note for `OpenAI`: `patch('backend.ai_utils.OpenAI')` uses `setattr(ai_utils, 'OpenAI', mock)`, which replaces `_LazyAttr` cleanly; `OpenAI(...)` calls `__call__` on `_LazyAttr` to import and invoke `openai.OpenAI(...)`.
+- `backend/crop_utils.py`: `cv2 = _LazyModule("cv2")`, `np = _LazyModule("numpy")`. `is_nvenc_available()` uses only `subprocess`, keeping `cv2`/`numpy` unloaded during `run_preflight()`. Call `gc.collect()` at the end of `_sample_face_trajectory` `finally:`.
+- `backend/requirements.txt` & `backend.spec`: remove `mediapipe`, keep native `collect_all` (`faster_whisper`, `ctranslate2`, `onnxruntime`, `av`, `numpy`, `certifi`, `cv2` filtered to binary + `haarcascade_frontalface_default.xml`), add `copy_metadata('yt-dlp')` + addon stdlib `hiddenimports` (`wave`, `csv`, `timeit`, `getpass`, `xml`), and strip `/tests/`, `*.h`, `*.hpp`, `*.lib`, `*.pdb`, unused `cv2/data/*.xml`.
 
-- [ ] **Step 4: Implement minimal changes**
-1. **`backend/requirements.txt`**: Remove `mediapipe>=0.10.0`.
-2. **`backend.spec`**:
-   - Collect native runtime packages only (`faster_whisper`, `ctranslate2`, `onnxruntime`, `av`, `numpy`, `certifi`), plus for `cv2` collect its extension binary/libs and **only** `cv2/data/haarcascade_frontalface_default.xml` (using `PyInstaller.utils.hooks.collect_dynamic_libs('cv2')` + `collect_submodules('cv2')` / filtered `collect_all('cv2')`).
-   - Remove `'mediapipe'` and pure-Python packages from `collect_all`; keep `'backend.metadata'` and SDKs in `hiddenimports`.
-   - Filter `a.datas` and `a.binaries` after `Analysis(...)` to strip test folders (`/tests/`, `\tests\`, `/test/`, `\test\`), headers/debug artifacts (`.h`, `.hpp`, `.lib`, `.pdb`), and unused `cv2/data/*.xml` cascades other than `haarcascade_frontalface_default.xml`.
-3. **`backend/video_utils.py`**:
-   - Remove top-level `import yt_dlp`. Import `yt_dlp` inside functions that use it (e.g. `probe_formats`, `download_youtube_video`, `_ydl_opts`, etc.). Keep `from yt_dlp.version import __version__` inside `preflight._downloader_version()` as today.
-4. **`backend/ai_utils.py`**:
-   - Remove top-level `from openai import OpenAI` and `from google import genai` / `from google.genai import types`.
-   - Add a tiny helper `_openai_client(...)` / import locally inside each provider function (`ping_provider`, `fetch_provider_models`, `process_with_openai`, `process_with_gemini`, `process_with_openai_compatible`, `generate_social_kit_only`, and `correct_subtitle_words_with_ai` which already does local imports). Note: if any existing pytest test patches `backend.ai_utils.OpenAI` or `backend.ai_utils.genai`, provide optional module attributes `OpenAI = None` / `genai = None` fallback ONLY when mocked in tests (`OpenAI_cls = OpenAI or __import__("openai").OpenAI`), OR check with `rg` in Step 3 so existing tests never break!
-5. **`backend/crop_utils.py`**:
-   - Remove top-level `import cv2` and `import numpy as np`.
-   - Keep `cv2 = None` at module level only if tests patch `backend.crop_utils.cv2` (`@patch('backend.crop_utils.cv2.VideoCapture')` fails if `crop_utils.cv2` is `None` unless `cv2` is a lazy proxy or functions check `_cv2()`). Solution that keeps `@patch('backend.crop_utils.cv2.VideoCapture')` 100% working without importing real `cv2` at import time:
-     ```python
-     class _LazyModule:
-         def __init__(self, name: str):
-             self._name = name
-             self._mod = None
-         def _load(self):
-             if self._mod is None:
-                 self._mod = __import__(self._name)
-             return self._mod
-         def __getattr__(self, item):
-             return getattr(self._load(), item)
-
-     cv2 = _LazyModule("cv2")
-     np = _LazyModule("numpy")
-     ```
-     Wait: `unittest.mock.patch('backend.crop_utils.cv2.VideoCapture')` resolves `cv2` on `backend.crop_utils` first — if `cv2` is a `_LazyModule`, `getattr(cv2, 'VideoCapture')` triggers `_load()` during patching! That's completely fine during a tracking test, while production `import backend.main` + `run_preflight()` + `import backend.jobs` NEVER touches `cv2.VideoCapture` so `cv2` and `numpy` never load!
-   - Also call `import gc; gc.collect()` in the `finally:` block of `_sample_face_trajectory` after closing `face_mesh`, `reader`, and `cap`.
-
-- [ ] **Step 5: Run tests and verify startup improvement**
+- [ ] **Step 4: Run tests & measure startup RSS**
 
 Run:
-`C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests/test_startup_lazy.py backend/tests/test_crop_utils.py backend/tests/test_preflight.py -q -p no:cacheprovider`
 `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q -p no:cacheprovider`
-Expected: PASS (0 failures). Measure `read_rss_mb()` before/after in a quick one-liner to record numbers for the ledger.
+Measure startup RSS & duration (`read_rss_mb()`) and record in ledger.
 
-- [ ] **Step 6: Commit**
-Update `tasks/sp3-ledger.md` and `tasks/PROGRESS-LOG.md`, then commit:
-```bash
-git add backend/requirements.txt backend.spec backend/video_utils.py backend/ai_utils.py backend/crop_utils.py backend/tests/test_startup_lazy.py tasks/sp3-ledger.md tasks/PROGRESS-LOG.md
-git commit -m "perf(sp3): trim mediapipe from base bundle and defer heavy startup imports" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-```
+- [ ] **Step 5: Commit**
+Update `tasks/sp3-ledger.md` and `tasks/PROGRESS-LOG.md`, then commit without pushing.
 
 ---
 
-### Task 2: Optional Runtime Add-on Manager (`backend/addons.py`) & Settings Endpoints
+### Task 2: Pinned SHA-256 Optional Runtime Add-on Manager (`backend/addons.py`) & Settings Endpoints
 
 **Files:**
 - Create: `backend/addons.py`
-- Modify: `backend/main.py` (call `addons.activate_installed()` at startup + add `/api/settings/addons` routes)
+- Modify: `backend/main.py` (startup `addons.activate_installed()`, `GET /api/settings/addons`, `POST /api/settings/addons/{addon_id}/download`, `DELETE /api/settings/addons/{addon_id}`)
 - Modify: `backend/ai_utils.py` (call `addons.activate_installed()` at start of `_transcribe_with_faster_whisper`)
 - Test: `backend/tests/test_addons.py` (create)
 
 **Interfaces:**
 - Produces in `backend/addons.py`:
-  - `ADDON_IDS = ("cuda", "mediapipe")`
-  - `addons_root() -> str` (`os.path.join(get_app_data_dir(), "addons")`)
-  - `addon_dir(addon_id: str) -> str`
-  - `is_addon_installed(addon_id: str) -> bool`
-  - `is_addon_available(addon_id: str) -> bool` (`False` in `AUTO_CLIPPER_CLOUD_MODE`; for `"cuda"`, `True` only when `sys.platform == "win32"` and `ctranslate2.get_cuda_device_count() >= 1`; for `"mediapipe"`, `True` on desktop/local-web when wheel platform tag is known)
-  - `get_addon_statuses() -> dict[str, dict]` where each entry has `{ "id": str, "available": bool, "installed": bool, "downloading": bool, "percent": int, "downloaded_mb": float, "total_mb": float, "size_hint_mb": int, "disk_mb": float, "error_info": dict | None }`
-  - `start_addon_download(addon_id: str) -> dict` (starts background thread if not already downloading; returns current status dict; raises `KeyError` for unknown id, `RuntimeError` when unavailable)
-  - `remove_addon(addon_id: str) -> dict` (deletes `addon_dir(addon_id)`, returns updated status)
-  - `activate_installed() -> None` (registers `<addons>/cuda/bin` via `os.add_dll_directory` + `PATH` on Windows when installed)
-  - `ensure_mediapipe_importable() -> str | None` (adds `<addons>/mediapipe` to `sys.path` when installed, installs lightweight `matplotlib`/`matplotlib.pyplot`/`sounddevice` stubs into `sys.modules` only if absent, returns `face_landmarker.task` path when present or `None`)
-- Produces in `backend/main.py`:
-  - `GET /api/settings/addons` → `{"status": "success", "addons": addons.get_addon_statuses()}`
-  - `POST /api/settings/addons/{addon_id}/download` → 404 for unknown id, 400 when unavailable, else 200 `{"status": "success", "addon": ...}`
-  - `DELETE /api/settings/addons/{addon_id}` → 404 for unknown id, 400 when unavailable, else 200 `{"status": "success", "addon": ...}`
+  - `PINNED_ADDONS: dict`: hardcoded pinned versions, HTTPS URLs (`files.pythonhosted.org`, `storage.googleapis.com`), exact byte sizes, and lowercase hex SHA-256 digests:
+    - `"cuda"`: `{"win_amd64": {"package": "nvidia-cublas-cu12", "version": "12.9.2.10", "url": "https://files.pythonhosted.org/packages/20/e2/fc9a0e985249d873150276d5afb02e39a66817fedbf1a385724393e505ed/nvidia_cublas_cu12-12.9.2.10-py3-none-win_amd64.whl", "size": 553162896, "sha256": "623f43027d40d44ceadf0043f002bd25cf353e8f13ce90b9a87057019f560661"}}`
+    - `"mediapipe"`:
+      - `wheels_by_platform`:
+        - `"win_amd64"`: version `1.2.3`, url `https://files.pythonhosted.org/packages/a8/b8/e1b66b6adc856a2af7b995d69ddebee73a0368b95f1f2361aed2cd6f9748/mediapipe-1.2.3-py3-none-win_amd64.whl`, size `25678743`, sha256 `2e2ebc8ae2c11ae032753bc3cafad5142ef0b755448509122bc6c1442bd19676`
+        - `"win_arm64"`: version `1.2.3`, url `https://files.pythonhosted.org/packages/41/d0/5424adc1594d4951102c460fa9e71f714ba9b4ce38c49f10db39da8f3131/mediapipe-1.2.3-py3-none-win_arm64.whl`, size `22307061`, sha256 `9b3871f1faeb6eb69c28675ea78cff7e45bb6dd2dc72b0d3d07ee06f73144976`
+        - `"macosx_arm64"`: version `1.2.3`, url `https://files.pythonhosted.org/packages/8a/31/5dcba256f3d7c02cabc834628006aa36c7b36752f1df18082e3dae6229fa/mediapipe-1.2.3-py3-none-macosx_11_0_arm64.whl`, size `38679054`, sha256 `077ef409d79ef274b076d47a744018af5f7487c09a1d237e9d2f707d33e39867`
+        - `"linux_x86_64"`: version `1.2.3`, url `https://files.pythonhosted.org/packages/31/2a/5217e7c5d9984f71fedcc6b33862f6141178ac598d06b0d4b81ea647b9fc/mediapipe-1.2.3-py3-none-manylinux_2_28_x86_64.whl`, size `43342798`, sha256 `1fcda646cc7b96f73453acc416ce31d0fba287d0f1fc095865272a7ea6986497`
+        - `"linux_aarch64"`: version `1.2.3`, url `https://files.pythonhosted.org/packages/bf/ec/d29126f33b5c8de9b4ad70b2cf17d06853f3d9c13d8228a1e4c1887e630e/mediapipe-1.2.3-py3-none-manylinux_2_28_aarch64.whl`, size `40704840`, sha256 `59d55f6395efbda2a053a8db18f598277e63c264f9a6f65a819c23d92b90fed8`
+      - `common`:
+        - `flatbuffers==25.12.19`: url `https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl`, size `26661`, sha256 `7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4`
+        - `absl-py==2.5.1`: url `https://files.pythonhosted.org/packages/b3/7d/01e62f59e4166af1be6238d9f2b7f3453630c51b8044b412d05b5606532a/absl_py-2.5.1-py3-none-any.whl`, size `137673`, sha256 `721200f2f0e9960f2ca9dc3a2a706b201f5f75d812c158f059cbbe29eeafbdb8`
+        - `face_landmarker.task`: url `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`, size `3758596`, sha256 `64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff`
+  - `get_addon_statuses()`, `start_addon_download(addon_id)`, `install_addon_sync(addon_id)`, `remove_addon(addon_id)`, `activate_installed()`, `ensure_mediapipe_importable()`.
+- Produces in `backend/main.py`: `GET /api/settings/addons`, `POST /api/settings/addons/{addon_id}/download`, `DELETE /api/settings/addons/{addon_id}`.
 
 - [ ] **Step 1: Write failing tests in `backend/tests/test_addons.py`**
 
 ```python
 import hashlib
 import io
+import pytest
 import zipfile
 from fastapi.testclient import TestClient
 
@@ -213,8 +226,9 @@ def _make_wheel(files: dict[str, bytes]) -> tuple[bytes, str]:
     return raw, hashlib.sha256(raw).hexdigest()
 
 
-def test_cuda_addon_install_extracts_only_cublas_dlls_and_rejects_bad_sha(tmp_path, monkeypatch):
+def test_cuda_addon_install_verifies_pinned_sha256_and_extracts_only_dlls(tmp_path, monkeypatch):
     monkeypatch.setattr(addons, "get_app_data_dir", lambda: str(tmp_path))
+    monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
     monkeypatch.setattr(addons.sys, "platform", "win32")
     monkeypatch.setattr(addons, "_cuda_count", lambda: 1)
 
@@ -224,20 +238,12 @@ def test_cuda_addon_install_extracts_only_cublas_dlls_and_rejects_bad_sha(tmp_pa
         "nvidia/cublas/include/cublas.h": b"header-skip",
         "nvidia_cublas_cu12-12.9.2.10.dist-info/METADATA": b"meta",
     })
-    pypi_json = {
-        "releases": {
-            "12.9.2.10": [{
-                "packagetype": "bdist_wheel",
-                "filename": "nvidia_cublas_cu12-12.9.2.10-py3-none-win_amd64.whl",
-                "url": "https://files.pythonhosted.org/packages/test/cublas.whl",
-                "size": len(wheel_bytes),
-                "digests": {"sha256": good_sha},
-            }]
-        }
-    }
-
-    monkeypatch.setattr(addons, "_fetch_json", lambda url: pypi_json)
-    monkeypatch.setattr(addons, "_download_to_file", lambda url, dest, sha, cb: (dest.write_bytes(wheel_bytes), cb(len(wheel_bytes), len(wheel_bytes))))
+    pinned = dict(addons.PINNED_ADDONS["cuda"]["win_amd64"], sha256=good_sha, size=len(wheel_bytes))
+    monkeypatch.setitem(addons.PINNED_ADDONS["cuda"], "win_amd64", pinned)
+    monkeypatch.setattr(
+        addons, "_download_bytes_to_file",
+        lambda url, dest, cb: (dest.write_bytes(wheel_bytes), cb(len(wheel_bytes), len(wheel_bytes))),
+    )
 
     addons.install_addon_sync("cuda")
     assert addons.is_addon_installed("cuda") is True
@@ -246,31 +252,50 @@ def test_cuda_addon_install_extracts_only_cublas_dlls_and_rejects_bad_sha(tmp_pa
     assert not (tmp_path / "addons" / "cuda" / "bin" / "cublas.h").exists()
 
 
-def test_mediapipe_addon_install_and_remove(tmp_path, monkeypatch):
+def test_addon_install_rejects_sha256_mismatch(tmp_path, monkeypatch):
     monkeypatch.setattr(addons, "get_app_data_dir", lambda: str(tmp_path))
     monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
-    monkeypatch.setattr(addons, "_platform_wheel_tags", lambda: ("win_amd64",))
+    monkeypatch.setattr(addons.sys, "platform", "win32")
+    monkeypatch.setattr(addons, "_cuda_count", lambda: 1)
+
+    monkeypatch.setattr(
+        addons, "_download_bytes_to_file",
+        lambda url, dest, cb: dest.write_bytes(b"corrupted"),
+    )
+    with pytest.raises(ValueError, match="SHA-256|sha256|checksum"):
+        addons.install_addon_sync("cuda")
+    assert addons.is_addon_installed("cuda") is False
+
+
+def test_mediapipe_addon_install_uses_pinned_artifacts_and_remove(tmp_path, monkeypatch):
+    monkeypatch.setattr(addons, "get_app_data_dir", lambda: str(tmp_path))
+    monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
+    monkeypatch.setattr(addons, "_mediapipe_platform_key", lambda: "win_amd64")
 
     mp_whl, mp_sha = _make_wheel({"mediapipe/__init__.py": b"__version__ = '1.2.3'", "mediapipe/tasks/c/libmediapipe.dll": b"mp"})
     fb_whl, fb_sha = _make_wheel({"flatbuffers/__init__.py": b"ok"})
     ab_whl, ab_sha = _make_wheel({"absl/__init__.py": b"ok"})
     task_bytes = b"tflite-model"
+    task_sha = hashlib.sha256(task_bytes).hexdigest()
 
-    def fake_fetch(url):
-        if "/mediapipe/" in url:
-            return {"info": {"version": "1.2.3"}, "urls": [{"packagetype": "bdist_wheel", "filename": "mediapipe-1.2.3-py3-none-win_amd64.whl", "url": "https://files.pythonhosted.org/mp.whl", "size": len(mp_whl), "digests": {"sha256": mp_sha}}]}
-        if "/flatbuffers/" in url:
-            return {"info": {"version": "25.12.19"}, "urls": [{"packagetype": "bdist_wheel", "filename": "flatbuffers-25.12.19-py2.py3-none-any.whl", "url": "https://files.pythonhosted.org/fb.whl", "size": len(fb_whl), "digests": {"sha256": fb_sha}}]}
-        return {"info": {"version": "2.3.1"}, "urls": [{"packagetype": "bdist_wheel", "filename": "absl_py-2.3.1-py3-none-any.whl", "url": "https://files.pythonhosted.org/ab.whl", "size": len(ab_whl), "digests": {"sha256": ab_sha}}]}
+    mp_entry = dict(addons.PINNED_ADDONS["mediapipe"]["wheels"]["win_amd64"], sha256=mp_sha, size=len(mp_whl))
+    monkeypatch.setitem(addons.PINNED_ADDONS["mediapipe"]["wheels"], "win_amd64", mp_entry)
+    monkeypatch.setitem(addons.PINNED_ADDONS["mediapipe"], "common", [
+        {"name": "flatbuffers", "kind": "wheel", "url": "https://files.pythonhosted.org/fb.whl", "size": len(fb_whl), "sha256": fb_sha},
+        {"name": "absl-py", "kind": "wheel", "url": "https://files.pythonhosted.org/ab.whl", "size": len(ab_whl), "sha256": ab_sha},
+        {"name": "face_landmarker.task", "kind": "file", "url": "https://storage.googleapis.com/mediapipe-models/face_landmarker.task", "size": len(task_bytes), "sha256": task_sha},
+    ])
 
     payloads = {
-        "https://files.pythonhosted.org/mp.whl": mp_whl,
+        mp_entry["url"]: mp_whl,
         "https://files.pythonhosted.org/fb.whl": fb_whl,
         "https://files.pythonhosted.org/ab.whl": ab_whl,
-        addons.FACE_LANDMARKER_URL: task_bytes,
+        "https://storage.googleapis.com/mediapipe-models/face_landmarker.task": task_bytes,
     }
-    monkeypatch.setattr(addons, "_fetch_json", fake_fetch)
-    monkeypatch.setattr(addons, "_download_to_file", lambda url, dest, sha, cb: (dest.write_bytes(payloads[url]), cb(len(payloads[url]), len(payloads[url]))))
+    monkeypatch.setattr(
+        addons, "_download_bytes_to_file",
+        lambda url, dest, cb: (dest.write_bytes(payloads[url]), cb(len(payloads[url]), len(payloads[url]))),
+    )
 
     addons.install_addon_sync("mediapipe")
     assert addons.is_addon_installed("mediapipe") is True
@@ -280,10 +305,13 @@ def test_mediapipe_addon_install_and_remove(tmp_path, monkeypatch):
     assert addons.is_addon_installed("mediapipe") is False
 
 
-def test_addons_endpoints_validate_id_and_cloud_mode(monkeypatch):
+def test_addons_endpoints_validate_id_cloud_mode_and_macos_intel(monkeypatch):
     client = TestClient(app)
     assert client.get("/api/settings/addons").status_code == 200
     assert client.post("/api/settings/addons/unknown/download").status_code == 404
+
+    monkeypatch.setattr(addons, "_mediapipe_platform_key", lambda: None)
+    assert client.get("/api/settings/addons").json()["addons"]["mediapipe"]["available"] is False
 
     monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
     monkeypatch.setenv("AUTO_CLIPPER_WEB_TOKEN", "tok")
@@ -291,373 +319,342 @@ def test_addons_endpoints_validate_id_and_cloud_mode(monkeypatch):
     assert client.post("/api/settings/addons/mediapipe/download", headers={"Authorization": "Bearer tok"}).status_code == 400
 ```
 
-- [ ] **Step 2: Run the test to confirm it fails**
-
+- [ ] **Step 2: Run tests to verify failure**
 Run: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests/test_addons.py -q -p no:cacheprovider`
-Expected: FAIL (`ImportError: cannot import name 'addons' from 'backend'`).
 
-- [ ] **Step 3: Implement `backend/addons.py`, startup hook + routes in `backend/main.py`, and hook in `backend/ai_utils.py`**
-Key implementation details for `backend/addons.py`:
-- Allowed HTTPS hosts: `{"pypi.org", "files.pythonhosted.org", "storage.googleapis.com"}` checked via `urllib.parse.urlparse`.
-- Atomic installation: download and extract into `<addons_root()>/.<addon_id>.<uuid>.part`, write `manifest.json` (`{"id": addon_id, "version": ...}`), remove any prior folder atomically (`os.replace` / backup swap), discard `.part` on any error.
-- `_download_to_file(url, dest, expected_sha256, progress_cb)`: streams in 256 KB chunks with `requests.get(..., stream=True, timeout=30)`, tracks SHA-256 (`hashlib.sha256`), raises `ValueError` on checksum mismatch when `expected_sha256` is given.
-- `FACE_LANDMARKER_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"`.
-- For `"cuda"` (`nvidia-cublas-cu12` `win_amd64`), pick the newest version in `data["releases"]` that has a `win_amd64` wheel (`cublas64_12.dll` and `cublasLt64_12.dll`, `os.path.basename` copied to `bin/`).
-- For `"mediapipe"`, find matching `py3-none-<tag>` wheel using `_platform_wheel_tags()` (`win_amd64` on win32 amd64, `macosx_11_0_arm64` / `arm64` on Darwin arm64, `macosx_10_15_x86_64` / `x86_64` on Darwin x64, `manylinux_2_28_x86_64` / `manylinux` on Linux x86_64), plus `flatbuffers` (`none-any.whl`) and `absl-py` (`none-any.whl`), extracting only `mediapipe/`, `flatbuffers/`, `absl/` top-level packages (skipping `.dist-info`, tests, `matplotlib`, `cv2`).
-- `ensure_mediapipe_importable()` also installs lightweight `types.ModuleType` stubs for `matplotlib`, `matplotlib.pyplot`, and `sounddevice` **only if not already in `sys.modules`** when importing `mediapipe` from `<app_data_dir>/addons/mediapipe`.
-- Run `addons.activate_installed()` near startup in `backend/main.py` and at the top of `_transcribe_with_faster_whisper()` in `backend/ai_utils.py`.
+- [ ] **Step 3: Implement `backend/addons.py`, startup hook & endpoints in `backend/main.py`, and hook in `backend/ai_utils.py`**
+Key contract points:
+- Zero network calls to PyPI JSON API at download time: read `url`, `size`, and `sha256` exclusively from `PINNED_ADDONS`.
+- Validate host allowlist (`pypi.org`, `files.pythonhosted.org`, `storage.googleapis.com`), compute SHA-256 + byte count on download, fail & clean `.part` on mismatch.
+- `activate_installed()` registers `<app_data_dir>/addons/cuda/bin` via `os.add_dll_directory()` + `PATH` when present; `ensure_mediapipe_importable()` puts `<app_data_dir>/addons/mediapipe` in `sys.path` and stubs `matplotlib`/`matplotlib.pyplot`/`sounddevice` when absent.
 
-- [ ] **Step 4: Run tests**
-
+- [ ] **Step 4: Run tests & commit**
 Run: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests/test_addons.py backend/tests/test_startup_lazy.py -q -p no:cacheprovider`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-Update `tasks/sp3-ledger.md` and `tasks/PROGRESS-LOG.md`, then commit:
-```bash
-git add backend/addons.py backend/main.py backend/ai_utils.py backend/tests/test_addons.py tasks/sp3-ledger.md tasks/PROGRESS-LOG.md
-git commit -m "feat(sp3): add optional cuda and mediapipe runtime add-on installer" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-```
+Update ledger + progress log, commit without pushing.
 
 ---
 
-### Task 3: Windows GPU Preflight Check, Dual MediaPipe API (`FaceLandmarker` + `FaceMesh`), & Whisper `gpu_ready`
+### Task 3: Windows GPU Preflight Check, Dual MediaPipe API (`FaceLandmarker` + `FaceMesh`) with Clear Fallback Metadata, & Whisper `gpu_ready`
 
 **Files:**
 - Modify: `backend/preflight.py:103-135, 268-291`
-- Modify: `backend/crop_utils.py:132-182, 490-510`
+- Modify: `backend/crop_utils.py:132-182, 450-510, 1670-1680`
+- Modify: `backend/jobs.py:805-820, 1005-1025` (propagate `tracking_engine_requested` and `tracking_fallback_reason` into `metadata`)
 - Modify: `backend/ai_utils.py:481-496` (add `get_whisper_status()`)
 - Modify: `backend/main.py:362-370` (add `gpu_ready` and `processor_slow_models` to `/api/settings/whisper-models`)
 - Test: `backend/tests/test_preflight.py`, `backend/tests/test_crop_utils.py`
 
 **Interfaces:**
-- Consumes: `backend.addons.activate_installed()`, `backend.addons.ensure_mediapipe_importable()` (Task 2).
+- Consumes: `backend.addons.activate_installed()`, `backend.addons.ensure_mediapipe_importable()`.
 - Produces:
-  - `preflight._whisper_gpu_libs_missing()`: returns `["cublas64_12.dll"]` on Windows (`sys.platform == "win32"`) if `cublas64_12.dll` cannot be loaded after `addons.activate_installed()`, or `[]` when loaded; keeps Linux `libcublas.so.12` / `libcudnn.so.9` probe unchanged; skips on macOS.
-  - `preflight.check_gpu()`: on Windows (`sys.platform == "win32"`) when GPU exists but `_whisper_gpu_libs_missing()` is non-empty, returns a `warn` result directing users to **Pengaturan → Lanjutan → Model subtitle** without using any `MAIN_SCREEN_BANNED` word in `title`, `message`, `title_en`, `message_en`.
-  - `crop_utils._open_face_mesh()`: tries `mp.solutions.face_mesh.FaceMesh(...)` first; if `'solutions'` is missing, instantiates `mediapipe.tasks.python.vision.FaceLandmarker.create_from_options(...)` using `<addons>/mediapipe/face_landmarker.task` (or explicit model path), wrapped in `_FaceLandmarkerAdapter` whose `.process(rgb_frame)` returns an object with `.multi_face_landmarks` compatible with `_mediapipe_faces()` and whose `.close()` releases the landmarker.
-  - `GET /api/settings/whisper-models`: returns `{"status": "success", "models": [...], "gpu_ready": bool, "processor_slow_models": ["medium", "large-v3"]}`.
+  - `preflight._whisper_gpu_libs_missing()` checks `cublas64_12.dll` on Windows via `ctypes.WinDLL`.
+  - `preflight.check_gpu()` on Windows points plainly to **Pengaturan → Lanjutan → Model subtitle** without banned words.
+  - `crop_utils._open_face_mesh()` supports `FaceMesh` and `FaceLandmarker`, recording `info["fallback_reason"] = "addon_not_installed"` (logged via `log_app`) when `engine == "mediapipe"` falls back to `"haar"` because neither `solutions` nor `<addons>/mediapipe` is available.
+  - `jobs.py` sets `metadata["tracking_engine_requested"]` (`"mediapipe"` or `"haar"`) and `metadata["tracking_fallback_reason"]` (when fallen back) as soon as tracking resolves.
+  - `GET /api/settings/whisper-models` returns `{"status": "success", "models": [...], "gpu_ready": bool, "processor_slow_models": ["medium", "large-v3"]}`.
 
 - [ ] **Step 1: Write failing tests in `backend/tests/test_preflight.py` and `backend/tests/test_crop_utils.py`**
+Add tests verifying:
+1. Windows `check_gpu()` missing `cublas64_12.dll` returns `warn` mentioning Settings without `MAIN_SCREEN_BANNED` terms.
+2. `_whisper_gpu_libs_missing()` checks `ctypes.WinDLL("cublas64_12.dll")` on Windows.
+3. `_FaceLandmarkerAdapter` detects landmarks (`w == 0.2`) and closes properly in `finally`.
+4. Calling `sample_face_trajectory(..., engine="mediapipe", info=info)` when `mediapipe` is missing falls back to `info["engine_used"] == "haar"` and sets `info["fallback_reason"] == "addon_not_installed"`.
+5. `GET /api/settings/whisper-models` returns `"gpu_ready"` (`bool`) and `"processor_slow_models": ["medium", "large-v3"]`.
 
-In `backend/tests/test_preflight.py`:
-```python
-def test_windows_gpu_missing_cublas_warns_plainly_pointing_to_settings(healthy, monkeypatch):
-    monkeypatch.setattr(preflight.sys, "platform", "win32")
-    monkeypatch.setattr(preflight, "_whisper_gpu_libs_missing", lambda: ["cublas64_12.dll"])
-    r = _by_id(preflight.run_preflight())["gpu"]
-    assert r["level"] == "warn"
-    assert "Pengaturan" in r["message"]
-    assert "Settings" in r["message_en"]
-    for field in ("title", "message", "title_en", "message_en"):
-        assert not any(w in r[field].lower() for w in MAIN_SCREEN_BANNED)
-        assert "—" not in r[field]
-
-
-def test_whisper_gpu_libs_probe_checks_cublas64_12_on_windows(monkeypatch):
-    monkeypatch.setattr(preflight.sys, "platform", "win32")
-    monkeypatch.setattr(preflight.addons, "activate_installed", lambda: None)
-
-    def missing_dll(name):
-        raise OSError("not found")
-
-    monkeypatch.setattr(preflight.ctypes, "WinDLL", missing_dll, raising=False)
-    assert preflight._whisper_gpu_libs_missing() == ["cublas64_12.dll"]
-```
-
-In `backend/tests/test_crop_utils.py`:
-```python
-def test_face_landmarker_adapter_processes_and_closes(monkeypatch, tmp_path):
-    from backend import crop_utils, addons
-    model_file = tmp_path / "face_landmarker.task"
-    model_file.write_bytes(b"task")
-    monkeypatch.setattr(addons, "ensure_mediapipe_importable", lambda: str(model_file))
-
-    class _Lm:
-        def __init__(self, x, y): self.x, self.y = x, y
-
-    pts = [_Lm(0.5, 0.5) for _ in range(468)]
-    pts[234] = _Lm(0.4, 0.5)
-    pts[454] = _Lm(0.6, 0.5)
-
-    class _FakeLandmarker:
-        closed = False
-        def detect(self, mp_image):
-            return type("Res", (), {"face_landmarks": [pts]})()
-        def close(self):
-            self.closed = True
-
-    fake_lm = _FakeLandmarker()
-    fake_mp = type("MP", (), {
-        "Image": staticmethod(lambda image_format, data: (image_format, data)),
-        "ImageFormat": type("Fmt", (), {"SRGB": 1}),
-    })()
-    fake_vision = type("Vision", (), {
-        "FaceLandmarkerOptions": staticmethod(lambda **kw: kw),
-        "RunningMode": type("RM", (), {"IMAGE": 1}),
-        "FaceLandmarker": type("FL", (), {"create_from_options": staticmethod(lambda opts: fake_lm)}),
-    })()
-    monkeypatch.setitem(sys.modules, "mediapipe", fake_mp)
-    monkeypatch.setitem(sys.modules, "mediapipe.tasks", type("Tasks", (), {})())
-    monkeypatch.setitem(sys.modules, "mediapipe.tasks.python", type("Py", (), {"BaseOptions": staticmethod(lambda **kw: kw), "vision": fake_vision})())
-    monkeypatch.setitem(sys.modules, "mediapipe.tasks.python.vision", fake_vision)
-
-    mesh = crop_utils._open_face_mesh()
-    faces = crop_utils._mediapipe_faces(mesh, __import__("numpy").zeros((20, 20, 3), dtype="uint8"))
-    assert len(faces) == 1 and abs(faces[0]["w"] - 0.2) < 1e-6
-    crop_utils._close_face_mesh(mesh)
-    assert fake_lm.closed is True
-```
-
-Also add a test checking `GET /api/settings/whisper-models` includes `"gpu_ready"` and `"processor_slow_models": ["medium", "large-v3"]`.
-
-- [ ] **Step 2: Run the tests to verify they fail**
-
-Run: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests/test_preflight.py backend/tests/test_crop_utils.py -k "windows_gpu or cublas64 or landmarker_adapter or whisper_models" -q -p no:cacheprovider`
-Expected: FAIL.
-
-- [ ] **Step 3: Implement changes in `preflight.py`, `crop_utils.py`, `ai_utils.py`, and `main.py`**
-- In `backend/preflight.py`:
-  - Import `from backend import addons` cleanly (no heavy side effects).
-  - In `_whisper_gpu_libs_missing()`: on `sys.platform == "win32"`, call `addons.activate_installed()`, then try `ctypes.WinDLL("cublas64_12.dll")`, returning `["cublas64_12.dll"]` on `OSError`, `[]` on success.
-  - In `check_gpu()`: if `sys.platform == "win32"`, return a Windows-specific `warn` telling the user in plain Indonesian & English to install GPU support under **Pengaturan → Lanjutan → Model subtitle** (avoiding all `MAIN_SCREEN_BANNED` terms); otherwise keep the existing Colab message on Linux.
-- In `backend/crop_utils.py`:
-  - In `_open_face_mesh()`: call `model_path = addons.ensure_mediapipe_importable()`, `import mediapipe as mp`. If `hasattr(mp, "solutions")`, use `mp.solutions.face_mesh.FaceMesh(...)`. Else import `BaseOptions` & `vision` from `mediapipe.tasks.python` and construct `_FaceLandmarkerAdapter(landmarker, mp)`.
-- In `backend/ai_utils.py` & `backend/main.py`:
-  - Add `get_whisper_status() -> dict` returning `{"models": get_available_whisper_models(), "gpu_ready": bool(preflight._cuda_device_count() >= 1 and not preflight._whisper_gpu_libs_missing()), "processor_slow_models": ["medium", "large-v3"]}` (with safe fallback `False` if CUDA probe raises), and return `{"status": "success", **get_whisper_status()}` from `GET /api/settings/whisper-models`.
-
-- [ ] **Step 4: Run tests**
-
-Run: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests/test_preflight.py backend/tests/test_crop_utils.py -q -p no:cacheprovider`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-Update `tasks/sp3-ledger.md` and `tasks/PROGRESS-LOG.md`, then commit:
-```bash
-git add backend/preflight.py backend/crop_utils.py backend/ai_utils.py backend/main.py backend/tests/test_preflight.py backend/tests/test_crop_utils.py tasks/sp3-ledger.md tasks/PROGRESS-LOG.md
-git commit -m "feat(sp3): check Windows cuBLAS in preflight, support FaceLandmarker, and expose gpu_ready" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-```
+- [ ] **Step 2: Run tests to verify failure**
+- [ ] **Step 3: Implement changes in `preflight.py`, `crop_utils.py`, `jobs.py`, `ai_utils.py`, `main.py`**
+- [ ] **Step 4: Run tests & commit**
+Run: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests/test_preflight.py backend/tests/test_crop_utils.py backend/tests/test_addons.py -q -p no:cacheprovider`
+Update ledger + progress log, commit without pushing.
 
 ---
 
 ### Task 4: Output Directory Security (`T1.y`) & Custom Desktop Output Folder Playback/Save
 
 **Files:**
-- Modify: `backend/workspace.py` (add `allowed_project_output_dirs`)
-- Modify: `backend/jobs.py:156-189` (`get_project_workspace` rejects protected `library_dir`)
+- Modify: `backend/workspace.py` (`allowed_project_output_dirs`)
+- Modify: `backend/jobs.py:156-189` (`get_project_workspace` validates `library_dir` via `path_guard`)
 - Modify: `backend/main.py:451-468, 506-539, 798-829, 1003-1027, 1029-1088` (`_resolve_safe_output_dir`, `GET /video`, `POST /save_file`)
 - Test: `backend/tests/test_output_dir.py` (create)
 
 **Interfaces:**
-- Produces:
-  - `backend/workspace.allowed_project_output_dirs(active_jobs: dict | None = None) -> list[str]` returning deduplicated existing/configured non-protected `output_dir` roots from `active_jobs` and `db.get_all_history()`.
-  - `backend/main._resolve_safe_output_dir(output_dir: str, endpoint: str) -> tuple[str, Optional[JSONResponse]]`: returns `("", None)` when `AUTO_CLIPPER_CLOUD_MODE` or `web_ui.is_web_mode()`; otherwise checks `path_guard.is_protected(os.path.abspath(output_dir.strip()))` and returns `("", path_guard.denied(endpoint, output_dir))` on match.
-  - `GET /video` and `POST /save_file` allow reading from `[get_app_data_dir(), *work_dirs, *allowed_project_output_dirs()]` (plus `os.getcwd()` for `/video` as before), always **after** `path_guard.is_protected()` and (`GET /video`) `video_sign.verify()`.
+- Produces: `_resolve_safe_output_dir`, `allowed_project_output_dirs(active_jobs)`.
 
-- [ ] **Step 1: Write failing tests in `backend/tests/test_output_dir.py`**
-
-```python
-from fastapi.testclient import TestClient
-
-from backend import jobs, video_sign, web_ui
-from backend.main import app
-
-
-def test_cloud_and_local_web_ignore_output_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr("backend.jobs.get_app_data_dir", lambda: str(tmp_path))
-    monkeypatch.setattr("backend.jobs.save_history", lambda *a, **k: None)
-    monkeypatch.setattr("backend.jobs._start_job", lambda *a, **k: None)
-
-    captured = []
-    orig_create = jobs.create_manual_job
-
-    def spy_create(*args, **kwargs):
-        captured.append(args[5] if len(args) > 5 else kwargs.get("output_dir", ""))
-        return orig_create(*args, **kwargs)
-
-    monkeypatch.setattr("backend.jobs.create_manual_job", spy_create)
-
-    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
-    monkeypatch.setenv("AUTO_CLIPPER_WEB_TOKEN", "tok")
-    r = TestClient(app).post(
-        "/jobs/manual",
-        headers={"Authorization": "Bearer tok"},
-        json={"url": "https://youtu.be/x", "title": "CloudSafe", "output_dir": str(tmp_path / "escape")},
-    )
-    assert r.status_code == 200
-    assert captured[-1] == ""
-
-    monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
-    monkeypatch.setattr(web_ui, "is_web_mode", lambda: True)
-    web_ui._web_token = "tok"
-    r2 = TestClient(app).post(
-        "/jobs/manual",
-        headers={"Authorization": "Bearer tok"},
-        json={"url": "https://youtu.be/x", "title": "WebSafe", "output_dir": str(tmp_path / "escape2")},
-    )
-    assert r2.status_code == 200
-    assert captured[-1] == ""
-
-
-def test_desktop_refuses_protected_output_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr("backend.db.get_app_data_dir", lambda: str(tmp_path))
-    monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
-    monkeypatch.setattr(web_ui, "is_web_mode", lambda: False)
-
-    cookies_dir = tmp_path / "cookies"
-    cookies_dir.mkdir(parents=True, exist_ok=True)
-    r = TestClient(app).post(
-        "/jobs/manual",
-        json={"url": "https://youtu.be/x", "title": "BadOut", "output_dir": str(cookies_dir)},
-    )
-    assert r.status_code == 403
-    assert r.json()["message"] == "Access denied"
-
-
-def test_video_and_save_file_allow_registered_desktop_output_dir_and_refuse_arbitrary(tmp_path, monkeypatch):
-    app_data = tmp_path / "appdata"
-    custom_out = tmp_path / "MyVideos"
-    dest_dir = tmp_path / "Exported"
-    (custom_out / "DemoProj" / "clips").mkdir(parents=True)
-    dest_dir.mkdir(parents=True)
-
-    clip = custom_out / "DemoProj" / "clips" / "clip_01.mp4"
-    clip.write_bytes(b"mp4bytes")
-    arbitrary = tmp_path / "secret.mp4"
-    arbitrary.write_bytes(b"secret")
-
-    monkeypatch.setattr("backend.main.get_app_data_dir", lambda: str(app_data))
-    monkeypatch.setattr("backend.db.get_app_data_dir", lambda: str(app_data))
-    monkeypatch.setattr("backend.db.get_all_history", lambda: [
-        {"id": "h1", "metadata": {"output_dir": str(custom_out)}, "result_clips": [{"path": str(clip)}]}
-    ])
-    monkeypatch.setattr(video_sign, "load_key", lambda: b"k" * 32)
-    monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
-    monkeypatch.setattr(web_ui, "is_web_mode", lambda: False)
-
-    client = TestClient(app)
-    sig_ok = video_sign.sign(str(clip), b"k" * 32)
-    sig_bad_dir = video_sign.sign(str(arbitrary), b"k" * 32)
-
-    assert client.get(f"/video?path={clip}&sig={sig_ok}").status_code == 200
-    assert client.get(f"/video?path={arbitrary}&sig={sig_bad_dir}").status_code == 403
-
-    r_copy = client.post("/save_file", json={"src": str(clip), "dest": str(dest_dir / "out.mp4")})
-    assert r_copy.status_code == 200
-    assert (dest_dir / "out.mp4").read_bytes() == b"mp4bytes"
-
-    r_arb = client.post("/save_file", json={"src": str(arbitrary), "dest": str(dest_dir / "out2.mp4")})
-    assert r_arb.status_code == 403
-```
-
-- [ ] **Step 2: Run the test to confirm it fails**
-
-Run: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests/test_output_dir.py -q -p no:cacheprovider`
-Expected: FAIL.
-
+- [ ] **Step 1: Write failing tests in `backend/tests/test_output_dir.py`** (testing Cloud/Local-Web `output_dir` clamping on `/jobs` + `/jobs/manual` + `/jobs/{id}/rerender` + `/jobs/{id}/rerun_ai`, Desktop `403 Access denied` on protected `output_dir`, and `/video` + `/save_file` allowlisting of valid Desktop project `output_dir` while refusing arbitrary outside files).
+- [ ] **Step 2: Run tests to verify failure**
 - [ ] **Step 3: Implement `output_dir` sanitization and project output allowlisting**
-- In `backend/workspace.py`: add `allowed_project_output_dirs(active_jobs: dict | None = None) -> list[str]` collecting valid non-protected `output_dir` paths from `active_jobs` and `backend.db.get_all_history()`.
-- In `backend/jobs.py` (`get_project_workspace`): call `path_guard.is_protected(library_dir)` when `output_dir` is set, raising `AppError("PATH_DENIED", technical=f"Protected output_dir: {library_dir}")` if protected (or ensure `_resolve_safe_output_dir` already rejects protected paths with 403).
-- In `backend/main.py`: add `_resolve_safe_output_dir(output_dir, endpoint)` and call it in `/jobs`, `/jobs/manual`, `/jobs/{id}/rerender`, `/jobs/{id}/rerun_ai`; update `GET /video` and `POST /save_file` to append `workspace.allowed_project_output_dirs(jobs.active_jobs)` to `safe_dirs`.
-
-- [ ] **Step 4: Run tests**
-
+- [ ] **Step 4: Run tests & commit**
 Run: `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests/test_output_dir.py backend/tests/test_path_guard.py -q -p no:cacheprovider`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-Update `tasks/sp3-ledger.md` and `tasks/PROGRESS-LOG.md`, then commit:
-```bash
-git add backend/workspace.py backend/jobs.py backend/main.py backend/tests/test_output_dir.py tasks/sp3-ledger.md tasks/PROGRESS-LOG.md
-git commit -m "fix(sp3): enforce output_dir path guard and allow custom Desktop clip access" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-```
+Update ledger + progress log, commit without pushing.
 
 ---
 
-### Task 5: Frontend Add-on UI (`useAddons`, `TranscriptionSection`, `FaceTrackingSection`) & Locale Keys
+### Task 5: Frontend Add-on UI (`useAddons`, `TranscriptionSection`, `FaceTrackingSection`), Fallback Notice (`ProgressPanel`), & Locale Keys
 
 **Files:**
 - Create: `src/hooks/useAddons.ts`
 - Create: `src/components/settings/FaceTrackingSection.tsx`
 - Create: `src/components/settings/FaceTrackingSection.test.tsx`
-- Modify: `src/components/settings/TranscriptionSection.tsx`
-- Modify: `src/components/settings/TranscriptionSection.test.tsx`
+- Modify: `src/components/settings/TranscriptionSection.tsx` (+ `TranscriptionSection.test.tsx`)
 - Modify: `src/pages/SettingsPage.tsx:59-72`
+- Modify: `src/lib/progress.ts` (+ `src/lib/progress.test.ts`)
+- Modify: `src/pages/CreatePage.tsx` (pass `trackingRequested`/`trackingUsed` or `liveMeta` into `ProgressPanel` or include `"fallback_tracking"` inside `deviceNotes`)
+- Modify: `src/components/create/ProgressPanel.tsx` (+ `ProgressPanel.test.tsx`)
 - Modify: `src/locales/id.json`, `src/locales/en.json`
 
 **Interfaces:**
-- Consumes: `GET /api/settings/addons`, `POST /api/settings/addons/{id}/download`, `DELETE /api/settings/addons/{id}`, and `gpu_ready` on `GET /api/settings/whisper-models`.
+- Consumes: `/api/settings/addons`, `/api/settings/whisper-models` (`gpu_ready`), `metadata.tracking_engine_requested`, `metadata.tracking_engine_used`, `metadata.timings`.
 - Produces:
-  - `AddonStatus` & `useAddons()` hook in `src/hooks/useAddons.ts` (`addons`, `loading`, `error`, `install(id)`, `remove(id)`, `refresh()`).
-  - `FaceTrackingSection` component rendering the `faceTrackingEngine` selector plus the `"mediapipe"` optional component install/progress/remove block when `addons.mediapipe?.available`.
-  - Updated `TranscriptionSection` displaying CPU guidance on `medium`/`large-v3` when `!gpuReady`, and the `"cuda"` optional GPU component install/progress/remove block when `addons.cuda?.available`.
+  - `AddonStatus`, `useAddons()` in `src/hooks/useAddons.ts`
+  - `FaceTrackingSection` component in `src/components/settings/FaceTrackingSection.tsx`
+  - `DeviceNote` union extended to `"cpu_subtitle" | "cpu_render" | "fallback_tracking"` in `src/lib/progress.ts`; `deviceNotes(current, timings, stages, meta?)` emits `"fallback_tracking"` when `meta?.tracking_engine_requested === "mediapipe"` and `tracking_engine_used === "haar"` (or timing row shows fallback).
 
-- [ ] **Step 1: Add plain-language locale keys (no banned words, no emoji, no em dash)**
-Inspect banned words in `src/locales/plainWords.test.ts` and existing `settings.*` keys in `src/locales/id.json`, then add keys via `node scripts/add-locale-keys.mjs`:
-- `settings.whisper_cpu_note`: `"Disarankan memakai kartu grafis. Di prosesor, video 30 menit bisa lebih dari satu jam."` / `"Recommended with a graphics card. On a processor, a 30-minute video can take over an hour."`
-- `settings.addon_gpu_title`, `settings.addon_gpu_desc`, `settings.addon_gpu_install`, `settings.addon_gpu_remove`, `settings.addon_gpu_ready`
-- `settings.addon_face_title`, `settings.addon_face_desc`, `settings.addon_face_install`, `settings.addon_face_remove`, `settings.addon_face_ready`
-- `settings.addon_downloading`, `settings.addon_download_failed`, `settings.addon_remove_failed`
-- `create.cpu_model_title`, `create.cpu_model_body`, `create.cpu_model_use_fast`, `create.cpu_model_keep_accurate`
+- [ ] **Step 1: Add locale keys via `node scripts/add-locale-keys.mjs`** (checking `plainWords.test.ts` banned list: NO `transkripsi`, `transcription`, `render`, `encoder`, `json`, `sidecar`, `token`, `prompt`, `backend`, `ffmpeg`, `nvenc`, `cuda`, `whisper`, NO emoji, NO `—` in `create.*`, `progress.*`, or any locale text):
+  - `progress.fallback_tracking`: `"Pelacak teliti belum terpasang, jadi video ini memakai cara Standar. Pasang komponennya di Pengaturan bila dibutuhkan."` / `"The precise tracker add-on is not installed yet, so this video uses Standard mode. Install it in Settings when needed."`
+  - `settings.whisper_cpu_note`, `settings.addon_gpu_title`, `settings.addon_gpu_desc`, `settings.addon_gpu_install`, `settings.addon_gpu_remove`, `settings.addon_gpu_ready`, `settings.addon_face_title`, `settings.addon_face_desc`, `settings.addon_face_fallback_note` (*"Komponen pelacak teliti belum terpasang. Selama belum dipasang, aplikasi otomatis memakai mode Standar."*), `settings.addon_face_install`, `settings.addon_face_remove`, `settings.addon_face_ready`, `settings.addon_face_unavailable`, `settings.addon_downloading`, `settings.addon_download_failed`, `settings.addon_remove_failed`
+  - `create.cpu_model_title`, `create.cpu_model_body`, `create.cpu_model_use_fast`, `create.cpu_model_keep_accurate`
 
-- [ ] **Step 2: Write failing component tests**
-Write tests in `src/components/settings/TranscriptionSection.test.tsx` (CPU note shown when `gpu_ready: false`; GPU add-on install button & progress shown when `cuda.available && !cuda.installed`; remove button when installed) and `src/components/settings/FaceTrackingSection.test.tsx` (`mediapipe` install/remove actions and engine dropdown behavior).
+- [ ] **Step 2: Write failing tests in `TranscriptionSection.test.tsx`, `FaceTrackingSection.test.tsx`, and `src/lib/progress.test.ts`**
 
-- [ ] **Step 3: Run tests to confirm they fail**
-Run: `npx vitest run src/components/settings/TranscriptionSection.test.tsx src/components/settings/FaceTrackingSection.test.tsx` (from `C:\Users\dhima\projects\auto-clipper`).
-Expected: FAIL.
+In `src/components/settings/TranscriptionSection.test.tsx` (append inside `describe` block; remember Ruling P15: pass `useAddons` or mock `axios.get` for both `/api/settings/whisper-models` and `/api/settings/addons`):
+```tsx
+  it("shows CPU warning for medium/large-v3 when gpu_ready is false and renders Windows GPU addon card", async () => {
+    vi.mocked(axios.get).mockImplementation(async (url: string) => {
+      if (url.endsWith("/api/settings/addons")) {
+        return {
+          data: {
+            status: "success",
+            addons: {
+              cuda: { id: "cuda", available: true, installed: false, downloading: false, percent: 0, downloaded_mb: 0, total_mb: 0, size_hint_mb: 528, disk_mb: 0 },
+              mediapipe: { id: "mediapipe", available: true, installed: false, downloading: false, percent: 0, downloaded_mb: 0, total_mb: 0, size_hint_mb: 35, disk_mb: 0 },
+            },
+          },
+        };
+      }
+      return { data: { status: "success", models: [model("small", true), model("medium", true)], gpu_ready: false, processor_slow_models: ["medium", "large-v3"] } };
+    });
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: { status: "success", addon: { id: "cuda", available: true, installed: false, downloading: true, percent: 10, downloaded_mb: 50, total_mb: 528, size_hint_mb: 528, disk_mb: 0 } },
+    });
 
-- [ ] **Step 4: Implement `useAddons.ts`, `FaceTrackingSection.tsx`, `TranscriptionSection.tsx`, and wire `SettingsPage.tsx`**
+    await render("medium");
 
-- [ ] **Step 5: Run Vitest + locale/plainWords/contrast + lint + builds**
-Run:
-`npx vitest run`
-`npx oxlint src`
-`npm run build`
-`npm run build:cloud`
-Expected: all pass, 0 oxlint errors.
-
-- [ ] **Step 6: Commit**
-Update `tasks/sp3-ledger.md` and `tasks/PROGRESS-LOG.md`, then commit:
-```bash
-git add src/hooks/useAddons.ts src/components/settings/FaceTrackingSection.tsx src/components/settings/FaceTrackingSection.test.tsx src/components/settings/TranscriptionSection.tsx src/components/settings/TranscriptionSection.test.tsx src/pages/SettingsPage.tsx src/locales/id.json src/locales/en.json tasks/sp3-ledger.md tasks/PROGRESS-LOG.md
-git commit -m "feat(sp3): add settings UI for optional GPU and precise tracking add-ons" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+    expect(container.textContent).toContain(i18n.t("settings.whisper_cpu_note"));
+    const installBtn = [...container.querySelectorAll("button")].find((b) => b.textContent?.includes(i18n.t("settings.addon_gpu_install")))!;
+    expect(installBtn).toBeTruthy();
+    await act(async () => installBtn.click());
+    expect(vi.mocked(axios.post)).toHaveBeenCalledWith(`${API}/api/settings/addons/cuda/download`);
+  });
 ```
+
+In `src/components/settings/FaceTrackingSection.test.tsx`:
+```tsx
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import axios from "axios";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
+import { setApiUrl } from "../../platform/backendUrl";
+import { FaceTrackingSection } from "./FaceTrackingSection";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+vi.mock("axios", () => ({ default: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }));
+
+describe("FaceTrackingSection", () => {
+  const API = "http://127.0.0.1:5123";
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(async () => {
+    await i18n.changeLanguage("id");
+    setApiUrl(API);
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.resetAllMocks();
+  });
+
+  it("shows fallback note and install button when Teliti is chosen without addon installed", async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+      data: {
+        status: "success",
+        addons: {
+          mediapipe: { id: "mediapipe", available: true, installed: false, downloading: false, percent: 0, downloaded_mb: 0, total_mb: 0, size_hint_mb: 35, disk_mb: 0 },
+        },
+      },
+    });
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: { status: "success", addon: { id: "mediapipe", available: true, installed: false, downloading: true, percent: 25, downloaded_mb: 8, total_mb: 35, size_hint_mb: 35, disk_mb: 0 } },
+    });
+
+    await act(async () => root.render(<FaceTrackingSection value="mediapipe" onChange={vi.fn()} />));
+
+    expect(container.textContent).toContain(i18n.t("settings.addon_face_fallback_note"));
+    const installBtn = [...container.querySelectorAll("button")].find((b) => b.textContent?.includes(i18n.t("settings.addon_face_install")))!;
+    await act(async () => installBtn.click());
+    expect(vi.mocked(axios.post)).toHaveBeenCalledWith(`${API}/api/settings/addons/mediapipe/download`);
+  });
+
+  it("shows remove button when mediapipe addon is installed", async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+      data: {
+        status: "success",
+        addons: {
+          mediapipe: { id: "mediapipe", available: true, installed: true, downloading: false, percent: 100, downloaded_mb: 35, total_mb: 35, size_hint_mb: 35, disk_mb: 35 },
+        },
+      },
+    });
+    vi.mocked(axios.delete).mockResolvedValueOnce({
+      data: { status: "success", addon: { id: "mediapipe", available: true, installed: false, downloading: false, percent: 0, downloaded_mb: 0, total_mb: 0, size_hint_mb: 35, disk_mb: 0 } },
+    });
+
+    await act(async () => root.render(<FaceTrackingSection value="mediapipe" onChange={vi.fn()} />));
+
+    const removeBtn = [...container.querySelectorAll("button")].find((b) => b.textContent?.includes(i18n.t("settings.addon_face_remove")))!;
+    await act(async () => removeBtn.click());
+    expect(vi.mocked(axios.delete)).toHaveBeenCalledWith(`${API}/api/settings/addons/mediapipe`);
+  });
+});
+```
+
+In `src/lib/progress.test.ts` (append test for `fallback_tracking`):
+```ts
+  it("reports fallback_tracking when mediapipe was requested but haar ran", () => {
+    expect(
+      deviceNotes(null, [{ stage: "tracking", seconds: 5, tracking_engine_used: "haar" }], ["tracking", "render", "publish"], {
+        tracking_engine_requested: "mediapipe",
+        tracking_engine_used: "haar",
+      }),
+    ).toContain("fallback_tracking");
+  });
+```
+
+- [ ] **Step 3: Run tests to verify failure**
+Run: `npx vitest run src/components/settings/TranscriptionSection.test.tsx src/components/settings/FaceTrackingSection.test.tsx src/lib/progress.test.ts` (from `C:\Users\dhima\projects\auto-clipper`).
+
+- [ ] **Step 4: Implement `useAddons.ts`, `FaceTrackingSection.tsx`, `TranscriptionSection.tsx`, `SettingsPage.tsx`, `progress.ts`, and `ProgressPanel.tsx`**
+Note: preserve existing `TranscriptionSection.test.tsx` assertions cleanly (when `/api/settings/addons` fails or isn't mocked in older tests, `useAddons` degrades quietly without breaking whisper model selection!). Also wrap `useAddons` / `axios.delete` safely in `FaceTrackingSection` and call `preflight.recheck()` / window event or callback after `cuda` install so CreatePage preflight stays fresh.
+
+- [ ] **Step 5: Run Vitest + locale/plainWords/contrast + lint + builds & commit**
+Run: `npx vitest run`, `npx oxlint src`, `npm run build`, `npm run build:cloud`.
+Update `tasks/sp3-ledger.md` and `tasks/PROGRESS-LOG.md`, commit without pushing.
 
 ---
 
 ### Task 6: CreatePage CPU Whisper Confirmation Dialog, Benchmarks, Docs & Final Verification
 
 **Files:**
-- Modify: `src/pages/CreatePage.tsx` (and `src/hooks/useClipJobs.ts` / `src/App.tsx` if `handleGenerate` needs an optional `overrideWhisperModel?: string` parameter)
+- Modify: `src/hooks/useClipJobs.ts:263-355` (add optional third arg `overrideWhisperModel?: string` on `handleGenerate`)
+- Modify: `src/App.tsx` (type & pass-through `overrideWhisperModel` if `handleGenerate` signature is typed in context)
+- Modify: `src/pages/CreatePage.tsx:102-177` (CPU model confirmation `Dialog`)
 - Modify: `src/pages/CreatePage.test.tsx`
 - Create: `docs/decisions/015-sp3-lightweight-addons-and-output-dir.md`
 - Modify: `.agents/AGENTS.md`, `CHANGELOG.md`, `tasks/roadmap-todo.md`, `tasks/sp3-ledger.md`, `tasks/PROGRESS-LOG.md`, `tasks/HANDOFF-AI.md`
 
 **Interfaces:**
-- Consumes: `preflight.checks` (specifically `checks.find(c => c.id === 'gpu')`) and `ctx.whisperModel` / `ctx.setWhisperModel` + `ctx.handleGenerate(provider, title, overrideWhisperModel?)`.
-- Produces: When user clicks **Mulai** with `ctx.whisperModel` in `("medium", "large-v3")` and preflight `gpu` check has `level === "warn"`, `CreatePage` opens a `Dialog` offering **"Pakai model Cepat (disarankan)"** (sets `small` and starts job) or **"Tetap pakai model Akurat"** (starts job with chosen model).
+- Consumes: `preflight.checks` (specifically `gpuCheck = preflight.checks.find(c => c.id === 'gpu')`), `ctx.whisperModel`, `ctx.setWhisperModel`, `ctx.handleGenerate(provider, title, overrideWhisperModel?)`.
+- Produces: When user clicks **Mulai** (`start()` in `CreatePage.tsx`) and `["medium", "large-v3"].includes(ctx.whisperModel)` and `gpuCheck?.level === "warn"`, `CreatePage` opens a `Dialog` with:
+  - Filled primary button (`create.cpu_model_use_fast`): closes dialog, calls `ctx.setWhisperModel?.("small")`, and calls `ctx.handleGenerate(effectiveProvider(...), title, "small")`.
+  - Outline secondary button (`create.cpu_model_keep_accurate`): closes dialog and calls `ctx.handleGenerate(effectiveProvider(...), title, ctx.whisperModel)`.
+  - When `gpuCheck?.level !== "warn"`, `start()` calls `ctx.handleGenerate(...)` directly with no dialog.
 
 - [ ] **Step 1: Write failing tests in `src/pages/CreatePage.test.tsx`**
-Add 3 unit tests:
-1. Pressing **Mulai** with `whisperModel="medium"` and preflight `gpu.level === "warn"` opens the CPU model dialog instead of calling `handleGenerate` immediately; clicking **"Pakai model Cepat (disarankan)"** starts with `"small"`.
-2. Clicking **"Tetap pakai model Akurat"** starts with `"medium"`.
-3. Pressing **Mulai** with `whisperModel="medium"` and preflight `gpu.level === "ok"` calls `handleGenerate` immediately without opening the dialog.
+Also update `makeContext()` in `CreatePage.test.tsx` to include default `whisperModel: "small"`, `setWhisperModel: vi.fn()`, and append:
+```tsx
+  it("prompts before starting when medium/large-v3 is active and preflight gpu check warns, letting user switch to small", async () => {
+    setPlatform({ caps: CAPS.desktop, pickVideo: vi.fn() } as unknown as Platform);
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: { checks: [{ id: "gpu", level: "warn", title: "Subtitle memakai prosesor", message: "Lambat." }] },
+    });
+    const file = new File(["video"], "podcast.mp4", { type: "video/mp4" });
+    const handleGenerate = vi.fn();
+    const setWhisperModel = vi.fn();
+    await renderPage({
+      inputType: "local",
+      localFile: file,
+      whisperModel: "medium",
+      setWhisperModel,
+      handleGenerate,
+      aiMode: "manual",
+      provider: "openai",
+    });
+
+    act(() => startButton().click());
+    expect(handleGenerate).not.toHaveBeenCalled();
+    expect(container.textContent).toContain(i18n.t("create.cpu_model_title"));
+
+    const fastBtn = [...container.querySelectorAll("button")].find((b) => b.textContent === i18n.t("create.cpu_model_use_fast"))!;
+    act(() => fastBtn.click());
+    expect(setWhisperModel).toHaveBeenCalledWith("small");
+    expect(handleGenerate).toHaveBeenCalledWith("manual_ai", expect.stringMatching(/^podcast /), "small");
+  });
+
+  it("lets user keep accurate whisper model from CPU confirmation dialog", async () => {
+    setPlatform({ caps: CAPS.desktop, pickVideo: vi.fn() } as unknown as Platform);
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: { checks: [{ id: "gpu", level: "warn", title: "Subtitle memakai prosesor", message: "Lambat." }] },
+    });
+    const file = new File(["video"], "short.mp4", { type: "video/mp4" });
+    const handleGenerate = vi.fn();
+    await renderPage({
+      inputType: "local",
+      localFile: file,
+      whisperModel: "large-v3",
+      setWhisperModel: vi.fn(),
+      handleGenerate,
+      aiMode: "manual",
+      provider: "openai",
+    });
+
+    act(() => startButton().click());
+    const keepBtn = [...container.querySelectorAll("button")].find((b) => b.textContent === i18n.t("create.cpu_model_keep_accurate"))!;
+    act(() => keepBtn.click());
+    expect(handleGenerate).toHaveBeenCalledWith("manual_ai", expect.stringMatching(/^short /), "large-v3");
+  });
+
+  it("starts immediately without CPU dialog when preflight gpu check is ok", async () => {
+    setPlatform({ caps: CAPS.desktop, pickVideo: vi.fn() } as unknown as Platform);
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: { checks: [{ id: "gpu", level: "ok", title: "GPU aktif", message: "Cepat." }] },
+    });
+    const file = new File(["video"], "gpu.mp4", { type: "video/mp4" });
+    const handleGenerate = vi.fn();
+    await renderPage({
+      inputType: "local",
+      localFile: file,
+      whisperModel: "medium",
+      setWhisperModel: vi.fn(),
+      handleGenerate,
+      aiMode: "manual",
+      provider: "openai",
+    });
+
+    act(() => startButton().click());
+    expect(container.textContent).not.toContain(i18n.t("create.cpu_model_title"));
+    expect(handleGenerate).toHaveBeenCalledWith("manual_ai", expect.stringMatching(/^gpu /));
+  });
+```
+*(Update `CreatePage.tsx` `start()` so direct start keeps the 2-arg call `ctx.handleGenerate(provider, title)` when `ctx.whisperModel` doesn't need override — this keeps existing `CreatePage.test.tsx` assertion `toHaveBeenCalledWith("manual_ai", ...)` 100% green!)*
 
 - [ ] **Step 2: Run `CreatePage.test.tsx` to verify failure**
 Run: `npx vitest run src/pages/CreatePage.test.tsx` (from `C:\Users\dhima\projects\auto-clipper`).
-Expected: FAIL.
 
-- [ ] **Step 3: Implement CPU confirmation dialog in `CreatePage.tsx` (+ `overrideWhisperModel` on `handleGenerate`)**
+- [ ] **Step 3: Implement CPU confirmation dialog in `CreatePage.tsx` and `overrideWhisperModel` in `useClipJobs.ts`**
 
-- [ ] **Step 4: Run full backend + frontend verification & capture SP3 benchmarks**
+- [ ] **Step 4: Run full backend + frontend verification & capture before/after benchmarks**
 Run:
 - `C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q -p no:cacheprovider`
 - `npx vitest run`
 - `npx oxlint src`
 - `npm run build`
 - `npm run build:cloud`
-- Measure `import backend.main` + `run_preflight()` + `import backend.jobs` RSS & startup time after SP3 and record before/after table in `docs/decisions/015-sp3-lightweight-addons-and-output-dir.md` & `tasks/PROGRESS-LOG.md`.
+- Measure `import backend.main` + `run_preflight()` + `import backend.jobs` startup time & RSS and record before/after comparison (baseline: `43.5 MB / 0.63 s` → `88.1 MB / +1.90 s` → `119.9 MB / +1.24 s`) in ADR-015 & `tasks/PROGRESS-LOG.md`.
 
 - [ ] **Step 5: Update docs & commit**
-Write ADR-015, update `.agents/AGENTS.md` (add `T1.y` closed, add `addons` invariant, drop `mediapipe` from base requirement note), `CHANGELOG.md`, `tasks/roadmap-todo.md` (`[x]` SP3 items + `T1.y`), `tasks/sp3-ledger.md`, `tasks/PROGRESS-LOG.md`, and `tasks/HANDOFF-AI.md`, then commit without pushing.
+Write `docs/decisions/015-sp3-lightweight-addons-and-output-dir.md`, update `.agents/AGENTS.md` (close `T1.y`, add `addons` & pinned-SHA-256 invariant, update `mediapipe` optional note), `CHANGELOG.md`, `tasks/roadmap-todo.md`, `tasks/sp3-ledger.md`, `tasks/PROGRESS-LOG.md`, and `tasks/HANDOFF-AI.md`, then commit without pushing.

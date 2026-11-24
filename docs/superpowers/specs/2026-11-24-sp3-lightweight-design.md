@@ -98,39 +98,46 @@ Satu modul backend terpadu `backend/addons.py` mengelola komponen opsional di ba
 
 #### A. Lokasi dan Perlindungan Disk
 - Direktori penyimpanan: `<get_app_data_dir()>/addons/<addon_id>/` (file penanda kesiapan: `manifest.json`).
-- **Keamanan unduhan:**
-  - Sumber unduhan divalidasi (`https://pypi.org/...`, `https://files.pythonhosted.org/...`, dan host resmi Google Storage `https://storage.googleapis.com/mediapipe-models/...` untuk model `face_landmarker.task`).
-  - Unduhan ditulis ke folder sementara `.part` dan baru dipindahkan ke folder akhir lewat `os.replace` setelah integritas SHA-256 (dari metadata JSON PyPI) dan ekstraksi `zipfile` lolos.
+- **Sumber terverifikasi & versi dikunci di kode (`PINNED_ADDONS`):**
+  - Seluruh komponen memakai **versi, URL HTTPS resmi (`files.pythonhosted.org` / `storage.googleapis.com`), ukuran byte, dan digest SHA-256 yang dikunci keras di `backend/addons.py`** (tidak pernah mengambil *"rilis terbaru"* PyPI secara dinamis saat runtime). Ini mencegah pergeseran dependensi (*supply-chain drift*) dan error kompatibilitas diam-diam.
+  - Unduhan ditulis ke folder sementara `.part` dan baru dipindahkan ke folder akhir lewat `os.replace` setelah integritas SHA-256 dan ekstraksi `zipfile` lolos 100%.
   - Tidak memerlukan `python` maupun `pip` di komputer pengguna.
 - Di mode Cloud (`AUTO_CLIPPER_CLOUD_MODE`), pengunduh komponen tambahan dinonaktifkan (`available: false`, karena lingkungan Colab sudah dikelola notebook di Langkah 3).
 
 #### B. Komponen 1: Dukungan GPU Subtitle Windows (`addon_id = "cuda"`)
 - **Kapan relevan (`available: true`):** hanya ketika `sys.platform == "win32"`, bukan cloud mode, dan `_cuda_device_count() >= 1`.
-- **Apa yang diunduh:** backend mengambil metadata PyPI `https://pypi.org/pypi/nvidia-cublas-cu12/json`, mencari rilis terbaru yang memiliki wheel `win_amd64`, lalu mengunduh wheel tersebut (~527,5 MB) dan mengekstrak **hanya** file DLL runtime (`cublas64_12.dll` dan `cublasLt64_12.dll`) ke `<app_data_dir>/addons/cuda/bin/` (tidak perlu `nvidia-cudnn-cu12` karena `ctranslate2.dll` sudah membawanya).
+- **Artefak yang dikunci:**
+  - `nvidia-cublas-cu12==12.9.2.10` (`py3-none-win_amd64`, 553.162.896 byte, SHA-256 `623f43027d40d44ceadf0043f002bd25cf353e8f13ce90b9a87057019f560661`).
+  - Mengekstrak **hanya** file DLL runtime (`cublas64_12.dll` dan `cublasLt64_12.dll`) ke `<app_data_dir>/addons/cuda/bin/` (tidak perlu `nvidia-cudnn-cu12` karena `ctranslate2.dll` sudah membawanya).
 - **Aktivasi saat runtime:** fungsi `addons.activate_installed()` dipanggil saat startup `backend/main.py` dan di awal `_transcribe_with_faster_whisper()` (`backend/ai_utils.py`): mendaftarkan `<app_data_dir>/addons/cuda/bin/` lewat `os.add_dll_directory()` dan menambahkannya ke `PATH`.
 - **Perbaikan `backend/preflight.py`:** `_whisper_gpu_libs_missing()` diperluas agar juga memeriksa Windows (`sys.platform == "win32"`): mencoba `ctypes.WinDLL("cublas64_12.dll")` setelah mengaktifkan folder add-on/CUDA. Jika kartu NVIDIA terdeteksi tetapi `cublas64_12.dll` gagal dimuat:
   - Di **Windows** (lokal/desktop): cek `gpu` berlevel `warn` dengan pesan awam yang memberi tahu bahwa subtitle memakai prosesor dan mengarahkan pengguna ke **Pengaturan → Lanjutan → Model subtitle** untuk mengunduh dukungan GPU (tanpa menyebut istilah teknis terlarang di `title`/`message` sesuai `MAIN_SCREEN_BANNED`).
   - Di **Linux** (Colab): perilaku dan teks yang sudah ada tetap sama.
 
 #### C. Komponen 2: Pelacak Wajah Teliti (`addon_id = "mediapipe"`)
-- **Kapan relevan (`available: true`):** semua platform desktop dan web lokal (Windows, macOS arm64/x64, Linux) kecuali cloud mode.
-- **Apa yang diunduh:** wheel `mediapipe` universal (`py3-none-<platform_tag>`) beserta 2 dependensi inti kecilnya (`flatbuffers`, `absl-py`) yang dipilih otomatis dari JSON PyPI agar cocok dengan OS/arsitektur (`win_amd64`, `macosx_11_0_arm64`/`macosx_*_x86_64`, `manylinux_*`), plus model `face_landmarker.task` (~3,7 MB) dari URL resmi Google Storage. File non-esensial di dalam wheel (`matplotlib`, `opencv-contrib-python`, `sounddevice`, dokumentasi, stub) tidak diunduh atau disaring saat ekstraksi. Total footprint di disk sekitar 35–48 MB (tidak termasuk OpenCV headless yang sudah ada di aplikasi).
+- **Kapan relevan (`available: true`):** desktop dan web lokal pada platform yang memiliki wheel resmi `mediapipe==1.2.3` (`win_amd64`, `win_arm64`, `macosx_11_0_arm64`, `manylinux_2_28_x86_64`, `manylinux_2_28_aarch64`), kecuali cloud mode. Pada macOS Intel (`x86_64`), Google tidak lagi menerbitkan wheel `mediapipe 1.2.3` `py3-none`, sehingga `available: false` dan opsi Teliti tidak aktif di sana.
+- **Artefak yang dikunci:**
+  - `mediapipe==1.2.3` (`py3-none-<platform_tag>`, SHA-256 per platform dikunci di `PINNED_ADDONS`),
+  - `flatbuffers==25.12.19` (`py2.py3-none-any`, 26.661 byte, SHA-256 `7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4`),
+  - `absl-py==2.5.1` (`py3-none-any`, 137.673 byte, SHA-256 `721200f2f0e9960f2ca9dc3a2a706b201f5f75d812c158f059cbbe29eeafbdb8`),
+  - `face_landmarker.task` float16 v1 (3.758.596 byte, SHA-256 `64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff`).
+  - File non-esensial (`matplotlib`, `opencv-contrib-python`, `sounddevice`, `.dist-info`, tes) tidak diunduh atau disaring saat ekstraksi. Total footprint di disk sekitar 35–48 MB.
 - **Aktivasi & dukungan API ganda di `backend/crop_utils.py`:**
-  - `addons.ensure_mediapipe_importable()` menyisipkan `<app_data_dir>/addons/mediapipe/` ke `sys.path` (jika belum ada di `sys.path`), dan sebelum meng-import `mediapipe` memastikan stub ringan untuk `matplotlib`, `matplotlib.pyplot`, dan `sounddevice` tersedia di `sys.modules` bila modul asli tidak terpasang (karena `mediapipe.tasks.python.vision.__init__` melakukan top-level `import matplotlib.pyplot` untuk fungsi gambar yang tidak pernah dipakai `auto-clipper`).
+  - `addons.ensure_mediapipe_importable()` menyisipkan `<app_data_dir>/addons/mediapipe/` ke `sys.path` (jika belum ada di `sys.path`), dan sebelum meng-import `mediapipe` memastikan stub ringan untuk `matplotlib`, `matplotlib.pyplot`, dan `sounddevice` tersedia di `sys.modules` bila modul asli tidak terpasang (karena `mediapipe.tasks.python.vision.__init__` melakukan top-level `import matplotlib.pyplot` untuk fungsi gambar yang tidak pernah dipakai `auto-clipper`). Modul stdlib yang dibutuhkan saat impor dinamis dari bundel PyInstaller (`wave`, `csv`, `timeit`, `getpass`, `xml`) dipastikan terdaftar di `backend.spec` `hiddenimports`.
   - `_open_face_mesh()` dan `_mediapipe_faces()` mendukung **dua API secara transparan**:
-    1. `mp.solutions.face_mesh.FaceMesh` (kompatibel mundur jika pengguna memakai `mediapipe <= 0.10.x` di macOS/Colab/venv lama).
-    2. `mediapipe.tasks.python.vision.FaceLandmarker` (standar `mediapipe >= 1.0`) yang memakai model `<addon_dir>/face_landmarker.task` dengan mode `IMAGE`/`VIDEO` dan tetap mengekstrak indeks landmark wajah yang sama (`13, 14, 78, 308, 234, 454`) serta `close()` di blok `finally`.
-  - Jika mode `teliti` dipilih tetapi komponen belum terpasang (mis. job dari riwayat lama atau pengaturan tersimpan), pipeline tetap jatuh aman ke `haar`, mencatat alasannya lewat `log_app`, dan mencatat `tracking_engine_used = "haar"`.
+    1. `mp.solutions.face_mesh.FaceMesh` (kompatibel mundur jika pengguna memakai `mediapipe <= 0.10.x` di Colab/venv lama).
+    2. `mediapipe.tasks.python.vision.FaceLandmarker` (standar `mediapipe >= 1.0`) yang memakai model `<addon_dir>/face_landmarker.task` dengan mode `IMAGE` dan tetap mengekstrak indeks landmark wajah yang sama (`13, 14, 78, 308, 234, 454`) serta `close()` di blok `finally`.
+  - **Jatuh aman ke Standar (`haar`) dengan pesan yang jelas:** bila pengguna memilih **Teliti (`mediapipe`)** tetapi komponen belum terpasang (atau gagal dimuat saat berjalan), pipeline tidak menghentikan job — ia jatuh aman ke `haar`, mencatat alasannya lewat `log_app`, mengisi `tracking_engine_requested = "mediapipe"`, `tracking_engine_used = "haar"`, dan `tracking_fallback_reason = "addon_not_installed"` di metadata/timings job. UI menampilkan pesan awam yang jelas di **Pengaturan** maupun di layar progres (`ProgressPanel`) bahwa mode Standar dipakai sementara karena pelacak Teliti belum terpasang.
 
 #### D. Kontrak API dan UI Pengaturan
 - **Endpoint backend (`backend/main.py`):**
   - `GET /api/settings/addons` → mengembalikan status tiap komponen (`cuda`, `mediapipe`):
     `{ id, available, installed, downloading, percent, downloaded_mb, total_mb, size_hint_mb, disk_mb, error_info? }`
-  - `POST /api/settings/addons/{addon_id}/download` → memulai unduhan di thread latar belakang (satu unduhan per komponen dalam satu waktu; menolak 404 untuk `addon_id` tidak dikenal dan 400 bila `available: false`), mengembalikan status `202`/`200` sehingga UI bisa melakukan polling ringan `GET /api/settings/addons` setiap 0,5 detik sampai selesai.
+  - `POST /api/settings/addons/{addon_id}/download` → memulai unduhan di thread latar belakang (satu unduhan per komponen dalam satu waktu; menolak 404 untuk `addon_id` tidak dikenal dan 400 bila `available: false`), mengembalikan status `200` sehingga UI bisa melakukan polling ringan `GET /api/settings/addons` setiap 0,5 detik sampai selesai.
   - `DELETE /api/settings/addons/{addon_id}` → menghapus folder komponen dari `<app_data_dir>/addons/<addon_id>/` untuk menghemat ruang penyimpanan.
 - **UI Pengaturan (`Pengaturan → Lanjutan`):**
   - Pada **`TranscriptionSection.tsx` (Model subtitle):** bila `gpu_addon.available && !gpu_addon.installed` (artinya pengguna memakai Windows dengan kartu NVIDIA tanpa `cublas64_12.dll`), tampilkan kartu/baris opsional *"Percepat pembuatan subtitle dengan GPU"* berisi perkiraan ukuran (~530 MB), tombol **"Pasang dukungan GPU"**, progres persen saat mengunduh, serta tombol **"Hapus dukungan GPU"** saat sudah terpasang. Setelah terpasang, panggil ulang `preflight` agar status GPU di Buat klip langsung berubah menjadi hijau.
-  - Pada **`TrackingSection` / pemilih Cara mengikuti wajah di `SettingsPage.tsx`:** jika pengguna memilih **Teliti** sedangkan komponen `mediapipe` belum terpasang (`available && !installed`), tampilkan keterangan ukuran (~30–45 MB) dan tombol **"Pasang pelacak teliti"** (beserta progres & tombol **"Hapus komponen"** saat terpasang).
+  - Pada **`FaceTrackingSection.tsx` (Cara mengikuti wajah):** jika pengguna memilih **Teliti** sedangkan komponen `mediapipe` belum terpasang (`available && !installed`), tampilkan **pesan peringatan jelas** di bawah pilihan (*"Komponen pelacak teliti belum terpasang. Selama belum dipasang, aplikasi tetap memakai mode Standar secara otomatis."*), keterangan ukuran (~25–43 MB), dan tombol **"Pasang pelacak teliti"** (beserta progres & tombol **"Hapus komponen"** saat sudah terpasang). Bila `available: false` (mis. Cloud atau macOS Intel), tampilkan keterangan singkat atau sembunyikan tombol pasang.
   - Seluruh teks wajib mengikuti aturan `plainWords.test.ts` dan kontras WCAG AA (`contrast.test.ts`).
 
 ---
@@ -200,13 +207,13 @@ Menutup temuan `T1.y` yang tertunda dari SP1 & SP2 sekaligus memperbaiki bug pem
 ## 5. Pengujian dan Verifikasi
 
 ### Backend (`pytest`)
-- **Uji `addons.py` (dengan mock HTTP/PyPI JSON + zip wheel sintetis):**
+- **Uji `addons.py` (dengan zip wheel sintetis + `PINNED_ADDONS` yang dikunci):**
   - Pengunduhan & ekstraksi atomik `cuda` (`cublas64_12.dll` + `cublasLt64_12.dll` saja, melewati file lain, menulis via `.part`), serta verifikasi SHA-256 menolak file rusak dan tidak menimpa instalasi yang sudah ada.
   - Pengunduhan & ekstraksi `mediapipe` (`mediapipe`, `flatbuffers`, `absl-py`, `face_landmarker.task` tanpa `matplotlib`/`opencv-contrib`), serta penghapusan via `DELETE /api/settings/addons/{id}`.
-  - Endpoint `GET /api/settings/addons`, `POST /api/settings/addons/{id}/download`, `DELETE /api/settings/addons/{id}` (termasuk penolakan `404` id tidak dikenal, `400` di cloud mode, dan kebutuhan token di mode web lokal/cloud).
+  - Endpoint `GET /api/settings/addons`, `POST /api/settings/addons/{id}/download`, `DELETE /api/settings/addons/{id}` (termasuk penolakan `404` id tidak dikenal, `400` di cloud mode dan macOS Intel `x86_64`, serta kebutuhan token di mode web lokal/cloud).
 - **Uji `preflight.py` & `crop_utils.py`:**
   - `_whisper_gpu_libs_missing()` di Windows saat GPU NVIDIA ada tetapi `cublas64_12.dll` belum ada → cek `gpu` berlevel `warn` dengan teks tanpa kata terlarang (`MAIN_SCREEN_BANNED`).
-  - `crop_utils` mendukung `FaceLandmarker` (mocked) maupun `FaceMesh` lama, menutup instance di `finally`, dan jatuh aman ke `haar` bila add-on belum terpasang.
+  - `crop_utils` mendukung `FaceLandmarker` (mocked) maupun `FaceMesh` lama, menutup instance di `finally`, dan jatuh aman ke `haar` dengan alasan `fallback_reason = "addon_not_installed"` bila add-on belum terpasang.
 - **Uji lazy-import startup:**
   - Subproses Python terisolasi memastikan meng-import `backend.main`, memanggil `run_preflight()`, dan meng-import `backend.jobs` tidak memuat modul `yt_dlp`, `cv2`, `openai`, maupun `google.genai` ke `sys.modules`.
 - **Uji `output_dir` (`T1.y`):**

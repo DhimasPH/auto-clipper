@@ -1,0 +1,32 @@
+# SDD ledger — plan: docs/superpowers/plans/2026-11-24-sp3-lightweight.md
+
+> Ledger resmi SP3. AI mana pun yang melanjutkan SP3 memperbarui file INI setelah setiap task, fix round, dan keputusan. Format mengikuti `tasks/sp2-ledger.md`.
+
+Spec: docs/superpowers/specs/2026-11-24-sp3-lightweight-design.md (`d797374`, direvisi 2026-11-24)
+Branch: feat/sp3-lightweight, start 9ff373f
+Owner accepted spec defaults + revision requirements (2026-11-24): pinned SHA-256 add-ons, clear fallback notice for uninstalled Teliti, Task 0 runtime loading spike.
+
+## Pre-flight scan
+12 rulings (3 Critical, 5 Important, 4 Minor). Rulings carried forward into each task:
+
+- P1 [T1 `backend/video_utils.py`, `backend/ai_utils.py`, `backend/crop_utils.py`, Critical] Ruling: use `_LazyModule` / `_LazyAttr` proxies instead of deleting module-level bindings for `yt_dlp`, `OpenAI`, `genai`/`types`, `cv2`, and `np`, and use `importlib.metadata.version("yt-dlp")` in `preflight._downloader_version()` — 25+ tests in `test_video_utils.py` and `test_error_integration.py` call `@patch('backend.video_utils.yt_dlp.YoutubeDL')`, 30+ calls in `test_crop_utils.py` call `@patch('backend.crop_utils.cv2...')`, and 6 tests in `test_ai_utils.py` / `test_pipeline_timings.py` call `@patch('backend.ai_utils.OpenAI')` or `@patch('google.genai.Client')`, all expecting those attributes at module level — cost if wrong: dozens of existing tests fail with `AttributeError`.
+- P2 [T0 / T1 `backend.spec`, Critical] Ruling: keep `'wave'`, `'csv'`, `'timeit'`, `'getpass'`, and `'xml'` in `backend.spec` `hiddenimports` along with `copy_metadata('yt-dlp')` and `'backend.metadata'` — measured in isolated import check that `mediapipe.tasks`, `absl`, and `preflight._downloader_version()` load those stdlib modules / metadata dynamically, and a frozen `.exe` without them would fail to load the dynamic add-on or read yt-dlp's version — cost if wrong: runtime `ModuleNotFoundError` inside frozen desktop/Auto Clipper Web builds.
+- P3 [T2 `backend/addons.py`, Critical] Ruling: hardcode exact pinned versions, HTTPS URLs (`files.pythonhosted.org` / `storage.googleapis.com`), byte lengths, and lowercase hex SHA-256 digests in `PINNED_ADDONS` instead of querying PyPI JSON `"latest"` at runtime; return `available: false` for `"mediapipe"` on macOS Intel (`x86_64`) because Google published no `mediapipe 1.2.3` `py3-none` Intel wheel — cost if wrong: supply-chain drift, broken runtime API changes, or 404 download on Intel Macs.
+- P4 [T1 `backend.spec` & `backend/tests/test_startup_lazy.py`, Important] Ruling: test `_LazyModule` with a fresh Python subprocess importing `backend.main`, calling `preflight.run_preflight()`, and importing `backend.jobs`, asserting `yt_dlp`, `cv2`, `numpy`, `openai`, and `google.genai` are all absent from `sys.modules` — in-process pytest imports pollute `sys.modules` across test files and hide eager imports — cost if wrong: false-green lazy-import test.
+- P5 [T2 `backend/main.py`, Important] Ruling: call `addons.activate_installed()` at backend startup before `run_preflight()` AND inside `ai_utils._transcribe_with_faster_whisper()` before `WhisperModel(..., device="auto")`, using BOTH `os.add_dll_directory()` and `os.environ["PATH"]` on Windows — `ctypes.WinDLL("cublas64_12.dll")` without `CUDA_PATH` fails unless registered first; doing it on startup makes `preflight` flip to GPU immediately after install without restart — cost if wrong: Windows NVIDIA GPU stays stuck on `"Subtitle memakai prosesor"` even after downloading the add-on.
+- P6 [T3 `backend/preflight.py`, Important] Ruling: ensure all Windows `check_gpu()` `title`/`message`/`title_en`/`message_en` strings pass `MAIN_SCREEN_BANNED` and `test_no_message_uses_jargon_and_problems_say_what_to_do` in `backend/tests/test_preflight.py` (no `"cuda"`, `"whisper"`, `"gpu_addon"`, `"dll"`, or `"—"`; put technical DLL names only in `technical`) — cost if wrong: `test_preflight.py` fails plain-words checks.
+- P7 [T4 `backend/main.py` & `backend/jobs.py`, Important] Ruling: check `path_guard.is_protected()` on BOTH `output_dir` and `library_dir` (`output_dir/<safe_title>`) on Desktop, clamp `output_dir` to `""` on Cloud and `--web`, and verify `GET /video` / `POST /save_file` keep the strict security order (`is_protected` -> `video_sign.verify` -> `allowed_project_output_dirs` `is_within` check) — cost if wrong: security regression on `path_guard` or 403 on valid Desktop custom output folders.
+- P8 [T5 `src/components/settings/TranscriptionSection.tsx` & `useAddons.ts`, Important] Ruling: keep existing `TranscriptionSection` model list usable even when `/api/settings/addons` rejects or returns no `addons` (old backend or existing unit tests that only mock `/api/settings/whisper-models`) — cost if wrong: existing `TranscriptionSection.test.tsx` tests fail or break backward compatibility.
+- P9 [T6 `src/pages/CreatePage.tsx` & `CreatePage.test.tsx`, Minor] Ruling: keep `ctx.handleGenerate(effectiveProvider(...), title)` 2-argument invocation on direct starts (without CPU dialog) and only pass the 3rd `overrideWhisperModel` argument from the CPU confirmation dialog — preserves existing `CreatePage.test.tsx` exact-args assertion `toHaveBeenCalledWith("manual_ai", ...)` — cost if wrong: breaks existing CreatePage integration test.
+- P10 [T5 `src/locales/plainWords.test.ts`, Minor] Ruling: check all new keys under `create.*` and `progress.*` (including `progress.fallback_tracking` and `create.cpu_model_*`) against `BANNED` (no `"cuda"`, `"whisper"`, `"render"`, `"mediapipe"` in main-screen texts) — use `"Pelacak teliti"`, `"cara Standar"`, `"prosesor"`, `"kartu grafis"`, `"model Cepat"`, `"model Akurat"` — cost if wrong: `plainWords.test.ts` fails.
+- P11 [T0 Windows local verification, Minor] Ruling: PyInstaller is not installed in local `ac-venv`; record Task 0 as passing isolated-env / DLL resolution locally with full frozen `.exe`/`.app` packaging left to GitHub Actions `PR Check` / `web-package.yml` — cost if wrong: misleading test claim in ledger.
+- P12 [Global docs/process, Minor] Ruling: commit messages follow `Co-Authored-By:` policy and Vitest is always executed from `C:\Users\dhima\projects\auto-clipper` (uppercase drive letter) — cost if wrong: Vitest config loading error on Windows.
+
+## Tasks
+- Task 0 (Spike): pending
+- Task 1: pending
+- Task 2: pending
+- Task 3: pending
+- Task 4: pending
+- Task 5: pending
+- Task 6: pending
