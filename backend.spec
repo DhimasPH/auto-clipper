@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 import sys
-from PyInstaller.utils.hooks import collect_all, collect_dynamic_libs, copy_metadata
+from PyInstaller.utils.hooks import collect_all, copy_metadata
 
 datas = [
     ('backend/assets', 'backend/assets'),
@@ -77,7 +77,6 @@ for pkg in [
 # OpenCV: keep native binaries, Python submodules, and only the single Haar cascade we use.
 try:
     d_cv2, b_cv2, h_cv2 = collect_all('cv2')
-    binaries.extend(collect_dynamic_libs('cv2'))
     binaries.extend(b_cv2)
     hiddenimports.extend(h_cv2)
     for src, dst in d_cv2:
@@ -88,7 +87,7 @@ except Exception:
 
 
 def _keep_toc_entry(dest_path: str) -> bool:
-    norm = dest_path.replace('\\', '/').lower()
+    norm = '/' + dest_path.replace('\\', '/').lower().lstrip('/')
     base = os.path.basename(norm)
     if '/tests/' in norm or '/test/' in norm:
         return False
