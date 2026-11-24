@@ -124,9 +124,25 @@ def write_last_port(path: str, port: int) -> None:
     write_private_file(path, json.dumps({"port": port}).encode("utf-8"))
 
 
+def _accepts_connections(port: int) -> bool:
+    """True when something already answers on 127.0.0.1:<port>. Short timeout: the launch waits on it."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as c:
+        c.settimeout(0.2)
+        try:
+            return c.connect_ex((HOST, port)) == 0
+        except OSError:
+            return False  # cannot tell: the bind test below decides
+
+
 def port_is_free(port: int) -> bool:
-    """True when the server can listen on 127.0.0.1:<port> now."""
+    """True when the server can listen on 127.0.0.1:<port> now and no other program listens there.
+
+    The connect test comes first because on Windows and macOS binding 127.0.0.1 succeeds while
+    another program listens on 0.0.0.0 at that port; Auto Clipper would then take its loopback traffic.
+    """
     if not valid_port(port):
+        return False
+    if _accepts_connections(port):
         return False
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         if os.name == "posix":

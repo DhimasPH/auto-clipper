@@ -672,3 +672,9 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 - Penjaga otomatis baru: emoji/em dash di semua teks locale, `timing.device_*` di daftar kata layar utama, 16 pasangan kontras tambahan per tema, larangan latar transparan di `Badge`, kata terlarang di semua keadaan pemeriksaan awal (pytest).
 - Browser (Edge headless, data tiruan): 75 pemeriksaan di 360/768/1280 terang dan gelap, 0 overflow, 0 kontrol < 44 px, 0 error console; Tab, focus trap, Escape, dan penjaga isian lulus di keenam kombinasi. Hasil lengkap dan yang belum diverifikasi: `tasks/sp2-audit.md`.
 - Angka: pytest 845 lulus, 12 dilewati (+1); Vitest 378 lulus (+37 sejak wip); oxlint 0 error (17 warning); `build` dan `build:cloud` sukses. Tersisa: review Task 15, lalu Task 16.
+
+### 2026-11-24 · SP2 Task 16 (item terbawa dari SP1)
+- `backend/web_mode.py` `port_is_free()`: port dianggap terpakai bila `connect(("127.0.0.1", port))` berhasil (batas waktu 0,2 detik), baru setelah itu uji bind. Sebelum perbaikan, di Windows port yang didengar program lain di 0.0.0.0 tetap dianggap kosong (direproduksi oleh tes baru).
+- Tes baru di `backend/tests/test_web_mode.py`: pendengar 0.0.0.0, pendengar 127.0.0.1, dan dua tes dengan socket tiruan (bind berhasil tetapi connect dijawab, serta connect ditolak lalu bind berhasil). Komentar "the real liveness check" diganti penjelasan yang benar.
+- `docs/tutorial-auto-clipper-cloud.md`: panah Kendala 9 yang terpecah dua baris diperbaiki, dan 16 `$\rightarrow$` lain di file itu diganti `→`. `README.md` masih punya 4 di 2 baris (di luar cakupan task ini).
+- Angka: pytest 849 lulus, 12 dilewati (+4). Tersisa: review Task 16, lalu Task 17 dan 18.

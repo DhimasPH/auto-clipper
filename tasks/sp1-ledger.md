@@ -122,3 +122,7 @@ Final: parked — port_is_free() only test-binds 127.0.0.1, so on macOS/Windows 
 Final: parked — docs/tutorial-auto-clipper-cloud.md:437-438 (Kendala 9) `$\rightarrow$` corrupted into two lines (old CR corruption) — Ruling: fix before the final PR (doc-only).
 Final: parked — test comment in test_web_mode.py ("the real liveness check") is misleading after M3 — Ruling: fix with the port fix.
 SP1: complete (code), review clean after one fix wave. Awaiting owner manual checklist (end of tasks/PROGRESS-LOG.md) and CI runs after push.
+Resolved in SP2 Task 16 (2026-11-24, branch feat/sp2-ux-for-everyone): all three parked items above.
+- Port: `port_is_free()` first tries `connect(("127.0.0.1", port))` (0.2 s timeout) and treats an answer as taken, then runs the bind test. Reproduced on Windows before the fix: a listener on 0.0.0.0 left `port_is_free` True. Tests: 0.0.0.0 listener, 127.0.0.1 listener, monkeypatched bind-succeeds/connect-answers.
+- Tutorial: Kendala 9 arrow repaired, and the other 16 `$\rightarrow$` in `docs/tutorial-auto-clipper-cloud.md` replaced with a plain →.
+- Test comment: `test_a_launch_after_a_damaged_instance_file_starts_a_new_server` now says what it pins (damaged file dropped, launch starts a new server instead of crashing).

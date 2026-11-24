@@ -237,8 +237,11 @@ def test_a_launch_after_a_damaged_instance_file_starts_a_new_server(tmp_path, ui
     (data / "web_instance.json").write_text('{"port": true, "pid": 1, "token": "t"}', encoding="utf-8")
     serve = FakeServer(data / "web_instance.json")
 
+    # is_alive is not replaced, so the real instance_alive is in play. No server is contacted here:
+    # read_instance drops the damaged file (and instance_alive would answer False for port true anyway).
+    # What this pins is that the launch then starts a new server instead of crashing.
     code = web_mode.launch("APP", ["--web", "--ui-dir", str(ui)], io.StringIO(), serve=serve,
-                           open_browser=lambda url: True, data_dir=str(data))  # the real liveness check
+                           open_browser=lambda url: True, data_dir=str(data))
 
     assert code == 0
     assert serve.calls
@@ -324,5 +327,90 @@ def test_port_file_is_readable_by_its_owner_only(tmp_path):
 def test_path_guard_protects_the_port_file(tmp_path):
     assert path_guard.is_protected(str(tmp_path / "web_port.json"))
     assert path_guard.is_protected(str(tmp_path / "web_port.json.1a2b3c4d.part"))
+
+
+# --- a port another program listens on is taken (SP1 parked item, spec 4.7) ----------------------
+# On Windows (and macOS) binding 127.0.0.1:<port> succeeds while another program listens on
+# 0.0.0.0:<port>. Auto Clipper would then take that program's loopback traffic. So a port that
+# accepts a connection on 127.0.0.1 counts as taken, whatever the bind test says.
+
+def test_a_port_another_program_listens_on_for_all_addresses_is_taken():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as other:
+        other.bind(("0.0.0.0", 0))
+        other.listen(1)
+        port = other.getsockname()[1]
+
+        assert web_mode.port_is_free(port) is False
+
+
+def test_a_port_another_program_listens_on_for_loopback_is_taken():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as other:
+        other.bind(("127.0.0.1", 0))
+        other.listen(1)
+        port = other.getsockname()[1]
+
+        assert web_mode.port_is_free(port) is False
+
+
+class _FakeSocket:
+    """A socket whose bind always succeeds; connect_ex answers what the test sets."""
+
+    def __init__(self, connect_result):
+        self.connect_result = connect_result
+        self.timeout = None
+        self.connected_to = None
+        self.bound_to = None
+        self.closed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+    def close(self):
+        self.closed = True
+
+    def settimeout(self, value):
+        self.timeout = value
+
+    def setsockopt(self, *args):
+        pass
+
+    def connect_ex(self, address):
+        self.connected_to = address
+        return self.connect_result
+
+    def bind(self, address):
+        self.bound_to = address
+
+
+def _fake_sockets(monkeypatch, connect_result):
+    made = []
+
+    def factory(*args, **kwargs):
+        made.append(_FakeSocket(connect_result))
+        return made[-1]
+
+    monkeypatch.setattr(web_mode.socket, "socket", factory)
+    return made
+
+
+def test_a_port_that_accepts_a_connection_is_taken_even_when_bind_succeeds(monkeypatch):
+    made = _fake_sockets(monkeypatch, connect_result=0)
+
+    assert web_mode.port_is_free(5123) is False
+    [probe] = [s for s in made if s.connected_to is not None]
+    assert probe.connected_to == ("127.0.0.1", 5123)
+    assert 0 < probe.timeout <= 0.5  # a short probe: the launch must not hang on it
+    assert all(s.closed for s in made)
+
+
+def test_a_port_that_refuses_a_connection_and_binds_is_free(monkeypatch):
+    made = _fake_sockets(monkeypatch, connect_result=10061)  # WSAECONNREFUSED / any non-zero errno
+
+    assert web_mode.port_is_free(5123) is True
+    assert any(s.bound_to == ("127.0.0.1", 5123) for s in made)
+    assert all(s.closed for s in made)
 
 

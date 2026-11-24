@@ -134,7 +134,7 @@ Sebelum menjalankan Auto Clipper Cloud untuk pertama kali, siapkan akun dan toke
 
 ### Langkah 3.2: Mengaktifkan Akselerator Hardware T4 GPU
 
-1. Pada menu navigasi Colab, klik **Runtime** $\rightarrow$ **Change runtime type** (*Ubah jenis runtime*).
+1. Pada menu navigasi Colab, klik **Runtime** → **Change runtime type** (*Ubah jenis runtime*).
 2. Di bagian **Hardware accelerator**, pilih **T4 GPU**.
 3. Pastikan indikator **GPU RAM** muncul di status bar kanan atas.
 
@@ -199,7 +199,7 @@ Isi kolom formulir pada kotak **`4B. Run Auto Clipper Backend (Ngrok)`**:
 
 > [!TIP]
 > **💡 Cara Paling Cepat (*Run All*):**
-> Anda juga bisa langsung mengisi token di formulir Bagian 4 terlebih dahulu, lalu klik menu **Runtime** di bagian atas layar Colab $\rightarrow$ pilih **Run all** (atau tekan shortcut `Ctrl + F9` di Windows / `Cmd + F9` di Mac). Seluruh proses dari nomor 1 sampai 4 akan berjalan otomatis!
+> Anda juga bisa langsung mengisi token di formulir Bagian 4 terlebih dahulu, lalu klik menu **Runtime** di bagian atas layar Colab → pilih **Run all** (atau tekan shortcut `Ctrl + F9` di Windows / `Cmd + F9` di Mac). Seluruh proses dari nomor 1 sampai 4 akan berjalan otomatis!
 
 #### Pemeriksaan Awal (Preflight)
 Kedua kotak Bagian 4 mengatur `AUTO_CLIPPER_WORKSPACE=/content/drive/MyDrive/AutoClipperData` (pustaka di Drive) dan `AUTO_CLIPPER_WORK_DIR=/content/work` (disk kerja lokal), lalu menjalankan `python scripts/colab_preflight.py` sebelum server menyala. Skrip itu menjalankan pemeriksaan yang sama dengan endpoint `GET /api/preflight` (FFmpeg, ruang disk, RAM, GPU, encoder GPU, Google Drive, Deno, umur yt-dlp) dan mencetak tiap hasil dalam bahasa Indonesia:
@@ -241,7 +241,7 @@ Karena Google Colab berjalan di dalam jaringan internal Google yang tertutup, An
 Gunakan metode ini jika Anda sudah memiliki domain pribadi (contoh: `domainanda.com`) yang terhubung ke Cloudflare:
 
 1. Buka [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/).
-2. Masuk ke menu **Networks** $\rightarrow$ **Tunnels** $\rightarrow$ klik **Create a tunnel**.
+2. Masuk ke menu **Networks** → **Tunnels** → klik **Create a tunnel**.
 3. Pilih tipe **Cloudflared**, beri nama tunnel (misal: `colab-clipper`), lalu klik **Save tunnel**.
 4. Di bagian *Install and run a connector*, pilih tab **Debian (64-bit)** dan salin token tunnel (string panjang setelah `--token`).
 5. Masuk ke tab **Public Hostname** pada tunnel tersebut, klik **Add a public hostname**:
@@ -273,7 +273,7 @@ Frontend Web Auto Clipper memakai kode yang sama dengan aplikasi desktop (folder
 
 ### Langkah 5.1: Import Repositori ke Vercel
 
-1. Buka dashboard [Vercel](https://vercel.com) dan klik **Add New...** $\rightarrow$ **Project**.
+1. Buka dashboard [Vercel](https://vercel.com) dan klik **Add New...** → **Project**.
 2. Hubungkan akun GitHub Anda dan pilih repositori `auto-clipper` (atau hasil fork Anda).
 
 ### Langkah 5.2: Konfigurasi Root Directory & Build Settings
@@ -299,12 +299,12 @@ Buka bagian **Environment Variables** di Vercel dan tambahkan variabel penunjuk 
 > **Tidak Perlu Mengubah Kodingan:**
 > File [`src/platform/cloud/index.ts`](../src/platform/cloud/index.ts) secara otomatis membaca `import.meta.env.VITE_API_URL`. Anda cukup mengisi variabel ini di Vercel Dashboard tanpa perlu mengotak-atik file kode di Git.
 >
-> *Catatan:* Jika Anda mengubah nilai `VITE_API_URL` di Vercel di kemudian hari (misal saat URL Ngrok berganti), buka tab **Deployments** $\rightarrow$ klik `...` pada deployment terakhir $\rightarrow$ pilih **Redeploy** agar Vite memperbarui bundle frontend.
+> *Catatan:* Jika Anda mengubah nilai `VITE_API_URL` di Vercel di kemudian hari (misal saat URL Ngrok berganti), buka tab **Deployments** → klik `...` pada deployment terakhir → pilih **Redeploy** agar Vite memperbarui bundle frontend.
 
 ### Langkah 5.4: Pengaturan Domain Frontend (Custom Domain vs Default Vercel)
 
 1. **Jalur A (Menggunakan Custom Domain Frontend):**
-   - Di Vercel, masuk ke **Settings** $\rightarrow$ **Domains**.
+   - Di Vercel, masuk ke **Settings** → **Domains**.
    - Tambahkan domain frontend, misal: `clipper.domainanda.com`.
    - Di DNS Manager Cloudflare Anda, tambahkan CNAME Record:
      - **Name:** `clipper`
@@ -389,7 +389,7 @@ Sejak v1.19.0 aplikasi web memakai halaman yang sama dengan aplikasi desktop. Al
 ### Kendala 5: Manajemen & Pembersihan Kapasitas Google Drive
 * **Penyebab:** Klip MP4 hasil render menumpuk dan menghabiskan kuota 15 GB Google Drive seiring berjalannya waktu. (Dengan disk kerja lokal, video sumber tidak lagi disimpan ke Drive. Folder proyek dari versi lama masih bisa berisi video sumber.)
 * **Solusi Pembersihan:**
-  1. Buka Google Drive Anda di browser $\rightarrow$ buka folder `AutoClipperData` $\rightarrow$ `projects`.
+  1. Buka Google Drive Anda di browser → buka folder `AutoClipperData` → `projects`.
   2. Hapus subfolder job proyek lama yang sudah selesai diunduh ke HP.
   3. **Jangan menghapus** file `history.db` jika Anda ingin tetap mempertahankan daftar riwayat klip di aplikasi web.
   4. Kosongkan *Trash / Sampah* di Google Drive Anda untuk membebaskan ruang penyimpanan secara permanen.
@@ -401,7 +401,7 @@ Sejak v1.19.0 aplikasi web memakai halaman yang sama dengan aplikasi desktop. Al
   1. Di Cloudflare Zero Trust Dashboard, Service URL diset ke `localhost:8000`. Di Linux (Google Colab), `localhost` otomatis me-resolve ke alamat IPv6 loopback `[::1]`. Karena Uvicorn secara default hanya mengikat (*bind*) ke antarmuka IPv4 (`0.0.0.0:8000` / `127.0.0.1:8000`), koneksi IPv6 `[::1]` langsung ditolak (*connection refused*) oleh kernel.
   2. Server FastAPI/Uvicorn belum selesai booting saat tunnel mulai menerima traffic, atau proses Uvicorn terhenti.
 * **Solusi:**
-  1. Buka [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/) $\rightarrow$ **Networks** $\rightarrow$ **Tunnels** $\rightarrow$ pilih tunnel Anda $\rightarrow$ **Configure** $\rightarrow$ tab **Public Hostname**.
+  1. Buka [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/) → **Networks** → **Tunnels** → pilih tunnel Anda → **Configure** → tab **Public Hostname**.
   2. Klik **Edit** pada hostname backend Anda (misal: `be-clipper.domainanda.com`).
   3. Ubah kolom **URL** dari `localhost:8000` menjadi **`127.0.0.1:8000`**, lalu klik **Save hostname**.
   4. Untuk memverifikasi apakah server backend di Colab sudah benar-benar hidup, jalankan perintah ini di sel Colab baru:
@@ -418,7 +418,7 @@ Sejak v1.19.0 aplikasi web memakai halaman yang sama dengan aplikasi desktop. Al
 * **Solusi 1: Unggah `cookies.txt`** dari akun YouTube **cadangan** (bukan akun utama, karena akun yang cookies-nya dipakai bisa dibatasi YouTube):
   1. Di browser komputer, pasang ekstensi "Get cookies.txt LOCALLY".
   2. Buka youtube.com, login dengan akun cadangan.
-  3. Di tab itu, klik ikon ekstensi, pilih Export, lalu unggah filenya lewat tombol **Unggah cookies.txt** di kartu error atau lewat menu **Pengaturan** $\rightarrow$ **Cookies YouTube** di Web UI.
+  3. Di tab itu, klik ikon ekstensi, pilih Export, lalu unggah filenya lewat tombol **Unggah cookies.txt** di kartu error atau lewat menu **Pengaturan** → **Cookies YouTube** di Web UI.
 
   Backend memvalidasi file (format Netscape, ada cookie `youtube.com`, belum kedaluwarsa, maks. 1 MB) dan menyimpannya di `<AUTO_CLIPPER_WORKSPACE>/cookies/cookies.txt`, yang di Colab berarti folder `AutoClipperData/cookies/` di Google Drive. yt-dlp hanya menerima salinan sementara di folder temp sistem yang dihapus setelah unduhan; isi cookie tidak pernah ditulis ke log atau dikirim ke Web UI (`GET /api/settings/cookies` hanya mengembalikan status dan tanggal berlaku). Bila YouTube tetap menolak walau cookies sudah dipakai, unduhan langsung dihentikan tanpa mencoba ulang, demi melindungi akun.
 * **Solusi 2: Pakai file video.** Unduh video sendiri, simpan ke Google Drive, lalu pilih lewat **Pilih video dari Google Drive** di kartu error, atau buka tab **Local Video (.mp4)** dan tekan tombol **Pilih video dari Google Drive** di bawah kolom file.
@@ -434,8 +434,7 @@ Sejak v1.19.0 aplikasi web memakai halaman yang sama dengan aplikasi desktop. Al
 ### Kendala 9: "Google Drive belum terhubung"
 * **Penyebab:** Server (Bagian 4) dijalankan sebelum Google Drive di-mount (Bagian 1). Tanpa mount, `/content/drive/MyDrive/AutoClipperData` hanya folder di disk sementara Colab: klip yang disimpan di sana hilang bersama runtime. Karena itu backend menolak setiap job dengan kode `DRIVE_NOT_MOUNTED` (Pemeriksaan awal menandainya `[MASALAH]`) dan tidak membuat apa pun di bawah `/content/drive`. Selama Drive belum terhubung, log dan `history.db` ditulis ke `/content/work`.
 * **Solusi:** Hentikan kotak Bagian 4, jalankan Bagian 1, lalu jalankan lagi Bagian 4.
-* **Bila Bagian 1 gagal dengan `Mountpoint must not already contain files`:** versi lama Auto Clipper sempat membuat folder di `/content/drive` sebelum Drive di-mount, dan Colab hanya mau me-mount ke folder kosong. Buka menu **Runtime** $
-ightarrow$ **Disconnect and delete runtime**, lalu jalankan semua kotak dari awal. Jangan menghapus folder `/content/drive` dengan perintah: bila Drive ternyata sudah ter-mount, isi Drive Anda ikut terhapus.
+* **Bila Bagian 1 gagal dengan `Mountpoint must not already contain files`:** versi lama Auto Clipper sempat membuat folder di `/content/drive` sebelum Drive di-mount, dan Colab hanya mau me-mount ke folder kosong. Buka menu **Runtime** → **Disconnect and delete runtime**, lalu jalankan semua kotak dari awal. Jangan menghapus folder `/content/drive` dengan perintah: bila Drive ternyata sudah ter-mount, isi Drive Anda ikut terhapus.
 
 ---
 
