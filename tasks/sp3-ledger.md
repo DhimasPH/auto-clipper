@@ -49,3 +49,6 @@ Task 4: fix round 1/5 (Critical + Important + minors 3–8 addressed, 0 open; co
 Ruling: app data folder redirected to a network share (corporate folder redirection) is not supported for /video and /save_file — target users are home PCs; exempting by text would add a second path rule — cost if wrong: such users cannot play or save clips; fix then is a text exemption for the app data/work dir prefix.
 Task 4: minor (deferred → Task 6 docs): AGENTS.md E.14 should state the text-first UNC/device refusal and "local absolute path only" for Desktop output_dir. Minor (deferred): /api/thumbnails, /api/extract-metadata, /video-url, /upload-image still realpath UNC paths (token required).
 Task 4: re-review dispatched (17654c1..a39b777)
+Task 5: implementer DONE_WITH_CONCERNS, commit 11f6991 — Vitest 452 passed (66 files), pytest 1040/7, oxlint 0 errors, builds OK. New caps.addons (cloud false), AddonControls shared, Standar/Teliti choice moved to FaceTrackingSection, extra notes fallback_tracking_failed / fallback_tracking_unavailable. Not checked in a browser; no real 528 MB download.
+Task 5: note — implementer ran git stash/pop once while the Task 4 fixer had uncommitted work (restored cleanly; then used a worktree). Parallel agents must not use stash.
+Task 5: review dispatched (cf45ac0..11f6991)
