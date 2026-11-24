@@ -230,15 +230,15 @@ ERROR_CODES = {
         "actions": ["retry"],
     },
     "ADDON_IN_USE": {
-        "title": "Komponen sedang dipakai",
+        "title": "Komponen akan dihapus saat aplikasi dibuka ulang",
         "message": (
-            "Komponen tambahan tidak bisa dihapus sekarang karena masih dipakai oleh aplikasi yang berjalan. "
-            "Tutup lalu buka ulang Auto Clipper, kemudian hapus kembali dari Pengaturan."
+            "Komponen ini sedang dipakai oleh aplikasi yang berjalan sehingga belum bisa dihapus langsung. "
+            "Penghapusan sudah dijadwalkan otomatis, cukup tutup lalu buka ulang Auto Clipper."
         ),
-        "title_en": "Component is still in use",
+        "title_en": "Component will be removed on restart",
         "message_en": (
-            "The add-on component cannot be removed right now because the running app still has it open. "
-            "Close and reopen Auto Clipper, then remove it from Settings."
+            "This component is in use by the running app so it cannot be deleted right away. "
+            "Removal is scheduled automatically, simply close and reopen Auto Clipper."
         ),
         "actions": [],
     },

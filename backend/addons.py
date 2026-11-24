@@ -338,6 +338,7 @@ def install_addon_sync(addon_id: str) -> dict:
         activate_installed()
         with _state_lock:
             _download_state[addon_id] = {"downloading": False, "percent": 100, "downloaded_mb": 0.0, "total_mb": 0.0, "error_info": None}
+        _pending_remove_marker(addon_id).unlink(missing_ok=True)
         log_app(f"Add-on '{addon_id}' ({version}) installed cleanly")
         return get_addon_status(addon_id)
     except Exception as exc:
@@ -363,7 +364,7 @@ def start_addon_download(addon_id: str) -> dict:
             start_worker = False
         else:
             snapshot = {"downloading": True, "percent": 0, "downloaded_mb": 0.0, "total_mb": float(_size_hint_mb(addon_id)), "error_info": None}
-            _download_state[addon_id] = snapshot
+            _download_state[addon_id] = dict(snapshot)
             start_worker = True
 
     if not start_worker:
@@ -377,6 +378,28 @@ def start_addon_download(addon_id: str) -> dict:
 
     threading.Thread(target=_worker, daemon=True).start()
     return _build_status(addon_id, snapshot)
+
+
+def _pending_remove_marker(addon_id: str) -> Path:
+    return Path(addons_root()) / f".pending_remove_{addon_id}"
+
+
+def _cleanup_pending_removals() -> None:
+    """Finish any add-on deletions deferred because Windows held a DLL lock."""
+    if _is_cloud_mode():
+        return
+    for addon_id in ADDON_IDS:
+        marker = _pending_remove_marker(addon_id)
+        if not marker.is_file():
+            continue
+        target = Path(addon_dir(addon_id))
+        try:
+            if target.exists():
+                _delete_tree_payload_first(target)
+            marker.unlink(missing_ok=True)
+            log_app(f"Completed deferred removal of add-on '{addon_id}'")
+        except OSError as exc:
+            log_error(f"addons.deferred_remove.{addon_id}", exc)
 
 
 def _delete_tree_payload_first(target: Path) -> None:
@@ -411,8 +434,13 @@ def remove_addon(addon_id: str) -> dict:
     if target.exists():
         try:
             _delete_tree_payload_first(target)
+            _pending_remove_marker(addon_id).unlink(missing_ok=True)
         except OSError as exc:
             log_error(f"addons.remove.{addon_id}", exc)
+            try:
+                _pending_remove_marker(addon_id).write_text("pending", encoding="utf-8")
+            except OSError:
+                pass
             raise AppError("ADDON_IN_USE", technical=str(exc)) from exc
     with _state_lock:
         _download_state[addon_id] = {"downloading": False, "percent": 0, "downloaded_mb": 0.0, "total_mb": 0.0, "error_info": None}
@@ -452,17 +480,19 @@ def get_addon_statuses() -> dict[str, dict]:
 
 
 def activate_installed() -> None:
-    """Register installed runtime DLL add-ons (Windows cuBLAS for Whisper GPU)."""
-    if sys.platform != "win32" or _is_cloud_mode():
+    """Finish deferred removals, then register Windows cuBLAS DLLs on first call."""
+    if _is_cloud_mode():
         return
-    if not is_addon_installed("cuda"):
+    _cleanup_pending_removals()
+    if sys.platform != "win32" or not is_addon_installed("cuda"):
         return
     cuda_bin = os.path.join(addon_dir("cuda"), "bin")
     norm_bin = os.path.normcase(os.path.abspath(cuda_bin))
-    if hasattr(os, "add_dll_directory") and norm_bin not in _activated_dirs:
+    if norm_bin in _activated_dirs:
+        return
+    if hasattr(os, "add_dll_directory"):
         try:
             _dll_handles.append(os.add_dll_directory(cuda_bin))
-            _activated_dirs.add(norm_bin)
         except Exception as e:
             log_error("addons.add_dll_directory", e)
     cur_path = os.environ.get("PATH", "")
@@ -475,6 +505,7 @@ def activate_installed() -> None:
                 ctypes.WinDLL(dll_path)
             except OSError as e:
                 log_error(f"addons.preload.{dll}", e)
+    _activated_dirs.add(norm_bin)
 
 
 def ensure_mediapipe_importable() -> Optional[str]:

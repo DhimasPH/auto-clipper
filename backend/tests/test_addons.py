@@ -20,11 +20,17 @@ def _make_wheel(files: dict[str, bytes]) -> tuple[bytes, str]:
     return raw, hashlib.sha256(raw).hexdigest()
 
 
-def test_cuda_addon_install_verifies_pinned_sha256_and_extracts_only_dlls(tmp_path, monkeypatch):
+def test_cuda_addon_install_verifies_pinned_sha256_reinstalls_and_extracts_only_dlls(tmp_path, monkeypatch):
     monkeypatch.setattr(addons, "get_app_data_dir", lambda: str(tmp_path))
     monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
     monkeypatch.setattr(addons.sys, "platform", "win32")
     monkeypatch.setattr(addons, "_cuda_count", lambda: 1)
+
+    # Pre-existing installation that reinstall must overwrite atomically via backup_dir swap
+    old_bin = tmp_path / "addons" / "cuda" / "bin"
+    old_bin.mkdir(parents=True)
+    (old_bin / "stale.dll").write_bytes(b"old")
+    (tmp_path / "addons" / "cuda" / "manifest.json").write_text('{"id":"cuda","version":"old"}', encoding="utf-8")
 
     wheel_bytes, good_sha = _make_wheel({
         "nvidia/cublas/bin/cublas64_12.dll": b"cublas-dll",
@@ -41,6 +47,7 @@ def test_cuda_addon_install_verifies_pinned_sha256_and_extracts_only_dlls(tmp_pa
 
     addons.install_addon_sync("cuda")
     assert addons.is_addon_installed("cuda") is True
+    assert not (old_bin / "stale.dll").exists()
     assert (tmp_path / "addons" / "cuda" / "bin" / "cublas64_12.dll").read_bytes() == b"cublas-dll"
     assert (tmp_path / "addons" / "cuda" / "bin" / "cublasLt64_12.dll").read_bytes() == b"cublasLt-dll"
     assert not (tmp_path / "addons" / "cuda" / "bin" / "cublas.h").exists()
@@ -69,11 +76,25 @@ def test_addon_install_rejects_sha256_mismatch_and_cleans_part(tmp_path, monkeyp
         assert [p for p in addons_dir.iterdir() if ".part" in p.name] == []
 
 
-def test_validate_url_rejects_untrusted_scheme_host_and_redirects():
+def test_validate_url_rejects_untrusted_scheme_host_and_redirects(tmp_path, monkeypatch):
+    import requests
+    from types import SimpleNamespace
+
     with pytest.raises(ValueError, match="Disallowed"):
         addons._validate_url("http://files.pythonhosted.org/x.whl")
     with pytest.raises(ValueError, match="Disallowed"):
         addons._validate_url("https://evil.example.com/x.whl")
+
+    class _FakeResp:
+        url = "https://evil.example.com/payload.whl"
+        history = [SimpleNamespace(url="https://files.pythonhosted.org/start.whl")]
+        headers = {}
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResp())
+    with pytest.raises(ValueError, match="Disallowed"):
+        addons._download_file("https://files.pythonhosted.org/start.whl", tmp_path / "out.whl", lambda g, t: None)
 
 
 def test_activate_installed_registers_dll_dir_once_and_preloads_cublas(tmp_path, monkeypatch):
@@ -99,7 +120,7 @@ def test_activate_installed_registers_dll_dir_once_and_preloads_cublas(tmp_path,
 
     assert added_dirs == [str(cuda_bin)]
     assert os.environ["PATH"].startswith(str(cuda_bin) + os.pathsep)
-    assert loaded_dlls[:2] == [str(cuda_bin / "cublasLt64_12.dll"), str(cuda_bin / "cublas64_12.dll")]
+    assert loaded_dlls == [str(cuda_bin / "cublasLt64_12.dll"), str(cuda_bin / "cublas64_12.dll")]
 
 
 def test_start_addon_download_handles_concurrent_trigger_without_deadlock_and_reinstalls(tmp_path, monkeypatch):
@@ -146,15 +167,25 @@ def test_start_addon_download_handles_concurrent_trigger_without_deadlock_and_re
             break
         threading.Event().wait(0.02)
 
-    # Simulate Windows DLL lock on unlink: manifest.json must stay intact and AppError raised
-    monkeypatch.setattr(os, "unlink", lambda p: (_ for _ in ()).throw(PermissionError("locked")))
-    # Path.unlink calls os.unlink on Python 3.12; patch Path.unlink for hermeticity
+    # Simulate Windows DLL lock on unlink: marker must be written and manifest preserved;
+    # on next launch activate_installed() cleans it up BEFORE loading WinDLL.
     from pathlib import Path
-    monkeypatch.setattr(Path, "unlink", lambda self: (_ for _ in ()).throw(PermissionError("locked")))
-    with pytest.raises(AppError) as exc_info:
-        addons.remove_addon("mediapipe")
-    assert exc_info.value.code == "ADDON_IN_USE"
+    loaded = []
+    monkeypatch.setattr(addons.ctypes, "WinDLL", lambda p: loaded.append(p), raising=False)
+    monkeypatch.setattr(addons, "_activated_dirs", set())
+
+    with monkeypatch.context() as m:
+        m.setattr(Path, "unlink", lambda self, missing_ok=False: (_ for _ in ()).throw(PermissionError("locked")))
+        with pytest.raises(AppError) as exc_info:
+            addons.remove_addon("mediapipe")
+        assert exc_info.value.code == "ADDON_IN_USE"
     assert addons.is_addon_installed("mediapipe") is True
+    assert addons._pending_remove_marker("mediapipe").is_file() is True
+
+    addons.activate_installed()
+    assert addons.is_addon_installed("mediapipe") is False
+    assert addons._pending_remove_marker("mediapipe").exists() is False
+    assert loaded == []
 
 
 def test_post_download_endpoint_and_cloud_unmounted_drive_safety(tmp_path, monkeypatch):
