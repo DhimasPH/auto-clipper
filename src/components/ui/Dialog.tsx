@@ -9,7 +9,7 @@ const FOCUSABLE =
 /** Open dialogs, newest last: only the top one answers Escape and keeps Tab inside. */
 const openStack: string[] = [];
 
-export function focusableIn(root: HTMLElement): HTMLElement[] {
+function focusableIn(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
     (el) => !el.closest("[inert]") && el.getAttribute("aria-hidden") !== "true",
   );
@@ -33,7 +33,11 @@ export interface DialogProps {
   /** Focused when the dialog opens; else the first control inside. */
   initialFocusRef?: React.RefObject<HTMLElement | null>;
   size?: keyof typeof SIZES;
-  footer?: React.ReactNode;
+  /**
+   * Buttons under the content. Pass a function to get `requestClose`: a Cancel button wired to it
+   * asks before throwing away typed input, exactly like Escape, the X and a click outside.
+   */
+  footer?: React.ReactNode | ((requestClose: () => void) => React.ReactNode);
   role?: "dialog" | "alertdialog";
   children?: React.ReactNode;
 }
@@ -111,7 +115,8 @@ export const Dialog: React.FC<DialogProps> = ({
       if (openStack[openStack.length - 1] !== id) return;
       const panel = panelRef.current;
       if (e.key === "Escape") {
-        if (!latest.current.onClose) return;
+        // A field inside already used this Escape (a search box clearing itself).
+        if (!latest.current.onClose || e.defaultPrevented) return;
         e.preventDefault();
         if (latest.current.askDiscard) keepEditing();
         else requestClose();
@@ -139,6 +144,8 @@ export const Dialog: React.FC<DialogProps> = ({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [id, requestClose, keepEditing]);
+
+  const footerContent = typeof footer === "function" ? footer(requestClose) : footer;
 
   return (
     <div
@@ -179,9 +186,9 @@ export const Dialog: React.FC<DialogProps> = ({
             </div>
           </div>
         ) : (
-          footer && (
+          footerContent && (
             <div className="flex flex-col-reverse gap-3 border-t border-border p-4 sm:flex-row sm:flex-wrap sm:justify-end sm:p-5">
-              {footer}
+              {footerContent}
             </div>
           )
         )}

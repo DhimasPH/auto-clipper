@@ -11,38 +11,53 @@ export const GDriveBrowserModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onSelectFile: (filePath: string) => void;
-}> = (props) => (props.isOpen ? <DriveBrowser {...props} /> : null);
+}> = (props) => {
+  // Kept while the dialog is closed: the next opening starts in the folder the user was in.
+  const [lastPath, setLastPath] = useState("");
+  return props.isOpen ? <DriveBrowser {...props} startPath={lastPath} onShown={setLastPath} /> : null;
+};
 
 const DriveBrowser: React.FC<{
   onClose: () => void;
   onSelectFile: (filePath: string) => void;
-}> = ({ onClose, onSelectFile }) => {
+  startPath: string;
+  onShown: (path: string) => void;
+}> = ({ onClose, onSelectFile, startPath, onShown }) => {
   const { t } = useTranslation();
-  const [currentPath, setCurrentPath] = useState<string>("");
+  const [currentPath, setCurrentPath] = useState<string>(startPath);
   const [items, setItems] = useState<GDriveItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [failed, setFailed] = useState(false);
+  // The folder that could not be opened; "Coba lagi" opens that one again.
+  const [failedPath, setFailedPath] = useState<string | null>(null);
   const [parentDir, setParentDir] = useState<string | null>(null);
 
-  const fetchDir = useCallback(async (path: string) => {
+  const fetchDir = useCallback(async (path: string): Promise<boolean> => {
     setLoading(true);
-    setFailed(false);
+    setFailedPath(null);
     try {
       const res = await apiBrowseGDrive(path);
       setItems(res.items);
       setCurrentPath(res.current_dir);
       setParentDir(res.parent_dir);
+      onShown(res.current_dir);
+      return true;
     } catch (err) {
       console.error("Drive browser failed:", err);
-      setFailed(true);
+      setFailedPath(path);
+      return false;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onShown]);
 
   useEffect(() => {
-    void fetchDir("");
-  }, [fetchDir]);
+    void (async () => {
+      // The last folder may be gone (moved or deleted in Drive): fall back to the Drive root.
+      if (!(await fetchDir(startPath)) && startPath !== "") await fetchDir("");
+    })();
+    // Once per opening, from the folder shown last time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Dialog title={t("drive.title")} onClose={onClose} size="lg">
@@ -66,10 +81,10 @@ const DriveBrowser: React.FC<{
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
             {t("drive.loading")}
           </p>
-        ) : failed ? (
+        ) : failedPath !== null ? (
           <div role="alert" className="flex flex-col items-start gap-3 py-4">
             <p className="text-body text-error">{t("drive.load_failed")}</p>
-            <Button variant="outline" icon={RefreshCw} onClick={() => void fetchDir(currentPath)}>
+            <Button variant="outline" icon={RefreshCw} onClick={() => void fetchDir(failedPath)}>
               {t("drive.retry")}
             </Button>
           </div>

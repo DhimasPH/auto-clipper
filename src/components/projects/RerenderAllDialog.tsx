@@ -55,12 +55,12 @@ const RerenderAllBody: React.FC<RerenderAllDialogProps> = ({ initialMeta, onClos
       onClose={onClose}
       dirty={dirty}
       size="md"
-      footer={
+      footer={(requestClose) => (
         <>
-          <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button variant="outline" onClick={requestClose}>{t("common.cancel")}</Button>
           <Button onClick={() => onConfirm(opts)}>{t("projects.rerender_start")}</Button>
         </>
-      }
+      )}
     >
       <div className="flex flex-col gap-4">
         <Select

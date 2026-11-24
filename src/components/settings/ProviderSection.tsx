@@ -237,12 +237,12 @@ const CustomConfigModal: React.FC<CustomConfigModalProps> = ({ apiKeys, setApiKe
       title={t('settings.custom_modal_title')}
       onClose={onClose}
       dirty={dirty}
-      footer={
+      footer={(requestClose) => (
         <>
-          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button variant="outline" onClick={requestClose}>{t('common.cancel')}</Button>
           <Button variant="primary" onClick={handleSave}>{t('common.save')}</Button>
         </>
-      }
+      )}
     >
       <div className="flex flex-col gap-4">
         <InputGroup

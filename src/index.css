@@ -76,6 +76,12 @@
     outline-offset: 2px;
   }
 
+  /* Edge adds its own eye to password fields; the app already has a labelled show/hide button. */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

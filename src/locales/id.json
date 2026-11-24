@@ -18,6 +18,7 @@
     "saving": "Memulai…",
     "save_rerender": "Buat ulang klip ini",
     "save_failed": "Klip belum bisa dibuat ulang karena aplikasi tidak menjawab. Periksa sambungan, lalu tekan Buat ulang klip ini lagi.",
+    "save_refused": "Klip belum bisa dibuat ulang karena aplikasi menolak pilihan ini. Periksa pilihan tampilan, misalnya gambar latar, lalu tekan Buat ulang klip ini lagi. Alasannya ada di Detail teknis.",
     "ai_title": "Perbaiki ejaan dengan AI",
     "manual_desc": "Salin perintah, tempel ke ChatGPT atau Gemini, lalu tempel jawabannya di bawah. Waktu tiap kata tidak berubah.",
     "copy_failed": "Perintah belum tersalin otomatis. Coba tekan Salin perintah sekali lagi.",
@@ -222,7 +223,8 @@
   "common": {
     "cancel": "Batal",
     "save": "Simpan",
-    "close": "Tutup"
+    "close": "Tutup",
+    "technical_details": "Detail teknis"
   },
   "smartEditor": {
     "noClips": "Belum ada klip."
@@ -632,6 +634,7 @@
     "regenerate": "Buat ulang judul dan tagar",
     "generating": "Membuat…",
     "empty": "Salin deskripsi di atas untuk caption klip ini.",
+    "empty_no_text": "Klip ini belum punya deskripsi. Tulis caption sendiri saat mengunggah.",
     "empty_needs_key": "Judul dan tagar bisa dibuat otomatis bila Pakai API key aktif di Pengaturan, bagian Lanjutan.",
     "empty_can_generate": "Tekan Buat judul dan tagar untuk membuat pilihan judul, deskripsi, dan tagar klip ini.",
     "failed": "Judul dan tagar belum bisa dibuat. API key mungkin salah atau penyedia AI tidak terjangkau. Periksa di Pengaturan, lalu coba lagi."

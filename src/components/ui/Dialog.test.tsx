@@ -133,6 +133,55 @@ describe("Dialog", () => {
     expect(dialog()).toBeNull();
   });
 
+  it("gives a footer Cancel button the same guard as Escape and the close button", () => {
+    const onClose = vi.fn();
+    function Guarded() {
+      const [text, setText] = useState("");
+      return (
+        <Dialog
+          title="Judul"
+          dirty={text !== ""}
+          onClose={onClose}
+          footer={(requestClose) => <button onClick={requestClose}>Batal</button>}
+        >
+          <input aria-label="isi" value={text} onChange={(e) => setText(e.target.value)} />
+        </Dialog>
+      );
+    }
+    act(() => root.render(<Guarded />));
+    const cancel = () => [...dialog()!.querySelectorAll("button")].find((b) => b.textContent === "Batal")!;
+
+    // Nothing typed: Cancel closes straight away.
+    act(() => cancel().click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    const input = dialog()!.querySelector("input")!;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    act(() => {
+      setValue.call(input, "catatan");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => cancel().click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(dialog()!.querySelector('[role="alert"]')!.textContent).toContain(i18n.t("dialog.discard_question"));
+  });
+
+  it("leaves an Escape that a field inside already handled alone", () => {
+    const onClose = vi.fn();
+    act(() =>
+      root.render(
+        <Dialog title="Judul" onClose={onClose}>
+          <input aria-label="cari" onKeyDown={(e) => e.key === "Escape" && e.preventDefault()} />
+        </Dialog>,
+      ),
+    );
+    const input = dialog()!.querySelector("input")!;
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("without onClose has no close button and ignores Escape", () => {
     act(() => root.render(<Dialog title="Memasang">x</Dialog>));
     expect(dialog()!.querySelector(`button[aria-label="${i18n.t("common.close")}"]`)).toBeNull();

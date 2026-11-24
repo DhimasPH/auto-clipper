@@ -36,6 +36,8 @@ const CopyButton: React.FC<{ text: string; label: string }> = ({ text, label }) 
       <Button variant="outline" icon={Copy} aria-label={label} onClick={() => void copy()}>
         {state === "copied" ? t("social.copied") : t("social.copy")}
       </Button>
+      {/* The button keeps its specific name ("Salin judul 1"), so "Tersalin" is announced here. */}
+      <span role="status" className="sr-only">{state === "copied" ? t("social.copied") : ""}</span>
       {state === "failed" && (
         <span role="alert" className="text-caption text-error">{t("social.copy_failed")}</span>
       )}
@@ -129,7 +131,13 @@ const SocialKitBody: React.FC<SocialKitModalProps> = ({ onClose, social, clip, j
               <Block title={t("social.description")} text={clipDescription} copyLabel={t("social.copy_description")} />
             )}
             <p className="text-body text-text-secondary">
-              {canGenerate ? t("social.empty_can_generate") : keysAllowed ? t("social.empty_needs_key") : t("social.empty")}
+              {canGenerate
+                ? t("social.empty_can_generate")
+                : keysAllowed
+                  ? t("social.empty_needs_key")
+                  : clipDescription
+                    ? t("social.empty")
+                    : t("social.empty_no_text")}
             </p>
           </>
         )}

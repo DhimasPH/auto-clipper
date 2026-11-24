@@ -56,7 +56,8 @@ export const ClipEditModal: React.FC<Props> = ({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saveFailed, setSaveFailed] = useState<string | null>(null);
+  // "offline": the request never reached the app; "refused": the app answered with an error.
+  const [saveFailed, setSaveFailed] = useState<{ cause: "offline" | "refused"; technical: string } | null>(null);
   const [emptyReason, setEmptyReason] = useState<string | null>(null);
 
   const [aspectRatio, setAspectRatio] = useState(initialAspectRatio);
@@ -167,7 +168,8 @@ export const ClipEditModal: React.FC<Props> = ({
       onRerenderStart(data.job_id);
     } catch (e) {
       console.error(e);
-      setSaveFailed(requestError(e, "").message);
+      const answered = !!(e as { response?: unknown } | null)?.response;
+      setSaveFailed({ cause: answered ? "refused" : "offline", technical: requestError(e, "").message });
     } finally {
       setSaving(false);
     }
@@ -192,14 +194,14 @@ export const ClipEditModal: React.FC<Props> = ({
       onClose={onClose}
       dirty={dirty}
       size="xl"
-      footer={
+      footer={(requestClose) => (
         <>
-          <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button variant="outline" onClick={requestClose}>{t("common.cancel")}</Button>
           <Button variant="primary" onClick={() => void handleSave()} loading={saving} disabled={loading}>
             {saving ? t("clip_rerender.saving") : t("clip_rerender.save_rerender")}
           </Button>
         </>
-      }
+      )}
     >
       <div className="flex flex-col gap-6">
         <section aria-labelledby={`${ids}-words`} className="flex flex-col gap-3">
@@ -220,6 +222,13 @@ export const ClipEditModal: React.FC<Props> = ({
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Escape empties the search only; the dialog leaves an Escape that was used alone.
+                    if (e.key === "Escape" && search !== "") {
+                      e.preventDefault();
+                      setSearch("");
+                    }
+                  }}
                   className={`${fieldClass} border-border-active sm:w-56`}
                 />
               </label>
@@ -364,8 +373,10 @@ export const ClipEditModal: React.FC<Props> = ({
 
         {saveFailed !== null && (
           <div role="alert" className="flex flex-col gap-1">
-            <p className="text-body text-error">{t("clip_rerender.save_failed")}</p>
-            <TechnicalDetails text={saveFailed} />
+            <p className="text-body text-error">
+              {t(saveFailed.cause === "refused" ? "clip_rerender.save_refused" : "clip_rerender.save_failed")}
+            </p>
+            <TechnicalDetails text={saveFailed.technical} />
           </div>
         )}
       </div>

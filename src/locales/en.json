@@ -18,6 +18,7 @@
     "saving": "Starting…",
     "save_rerender": "Make this clip again",
     "save_failed": "The clip cannot be made again because the app did not answer. Check the connection, then press Make this clip again.",
+    "save_refused": "The clip cannot be made again because the app turned down these choices. Check the look choices, for example the background image, then press Make this clip again. The reason is under Technical details.",
     "ai_title": "Fix spelling with AI",
     "manual_desc": "Copy the instructions, paste them into ChatGPT or Gemini, then paste the answer below. Word timing does not change.",
     "copy_failed": "The instructions were not copied. Press Copy the instructions once more.",
@@ -222,7 +223,8 @@
   "common": {
     "cancel": "Cancel",
     "save": "Save",
-    "close": "Close"
+    "close": "Close",
+    "technical_details": "Technical details"
   },
   "smartEditor": {
     "noClips": "No clips yet."
@@ -632,6 +634,7 @@
     "regenerate": "Write new titles and hashtags",
     "generating": "Writing…",
     "empty": "Copy the description above as the caption for this clip.",
+    "empty_no_text": "This clip has no description yet. Write your own caption when you upload it.",
     "empty_needs_key": "Titles and hashtags can be written automatically when Use an API key is on in Settings, Advanced.",
     "empty_can_generate": "Press Write titles and hashtags to get title, description and hashtag ideas for this clip.",
     "failed": "Titles and hashtags could not be written. The API key may be wrong or the AI provider cannot be reached. Check Settings, then try again."

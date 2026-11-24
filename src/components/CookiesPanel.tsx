@@ -26,6 +26,16 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
   const [uploadError, setUploadError] = useState<{ message: string; info: ErrorInfo | null } | null>(null);
   const [notice, setNotice] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const uploadButton = useRef<HTMLButtonElement>(null);
+  const deleteButton = useRef<HTMLButtonElement>(null);
+  // After a delete the dialog returns focus to a button that is disabled or gone: pick one here.
+  const focusAfterDelete = useRef(false);
+
+  useEffect(() => {
+    if (busy !== null || !focusAfterDelete.current) return;
+    focusAfterDelete.current = false;
+    (deleteButton.current ?? uploadButton.current)?.focus();
+  }, [busy]);
 
   const locale = toLang(i18n.language) === "en" ? "en-GB" : "id-ID";
   const formatDate = (iso: string | null) => {
@@ -79,6 +89,7 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
 
   const remove = async () => {
     setConfirmDelete(false);
+    focusAfterDelete.current = true;
     setBusy("delete");
     setUploadError(null);
     setNotice("");
@@ -198,6 +209,7 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
             }}
           />
           <Button
+            ref={uploadButton}
             type="button"
             variant={present ? "outline" : "primary"}
             icon={Upload}
@@ -212,7 +224,7 @@ export const CookiesPanel: React.FC<CookiesPanelProps> = ({ onUploaded }) => {
                 : t("cookies.btn_choose", "Pilih file cookies.txt")}
           </Button>
           {present && (
-            <Button type="button" variant="danger" icon={Trash2} loading={busy === "delete"} disabled={busy !== null} onClick={() => setConfirmDelete(true)}>
+            <Button ref={deleteButton} type="button" variant="danger" icon={Trash2} loading={busy === "delete"} disabled={busy !== null} onClick={() => setConfirmDelete(true)}>
               {t("cookies.btn_delete", "Hapus cookies")}
             </Button>
           )}

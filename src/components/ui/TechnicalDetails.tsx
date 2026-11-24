@@ -8,7 +8,7 @@ export const TechnicalDetails: React.FC<{ text?: string | null }> = ({ text }) =
   return (
     <details className="text-body text-text-secondary">
       <summary className="flex min-h-[44px] cursor-pointer items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-        {t("settings.logs_title")}
+        {t("common.technical_details")}
       </summary>
       <p className="break-words font-mono">{text}</p>
     </details>

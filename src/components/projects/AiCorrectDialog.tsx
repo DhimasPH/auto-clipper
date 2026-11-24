@@ -27,12 +27,12 @@ const AiCorrectBody: React.FC<AiCorrectDialogProps> = ({ onClose, onConfirm }) =
       initialFocusRef={inputRef}
       // Typed instructions are lost on close: ask first.
       dirty={extra.trim() !== ""}
-      footer={
+      footer={(requestClose) => (
         <>
-          <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button variant="outline" onClick={requestClose}>{t("common.cancel")}</Button>
           <Button onClick={() => onConfirm(extra.trim())}>{t("projects.ai_start")}</Button>
         </>
-      }
+      )}
     >
       <div className="flex flex-col gap-3">
         <label htmlFor={inputId} className="text-body text-text-primary">{t("projects.ai_desc")}</label>

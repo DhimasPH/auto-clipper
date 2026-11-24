@@ -77,3 +77,10 @@ describe("status badges", () => {
     expect(badge).not.toMatch(/\bbg-[\w-]+\/\d+/);
   });
 });
+
+describe("Password fields", () => {
+  it("hide the browser's own show-password eye, so only the app's labelled toggle is shown", () => {
+    // Edge draws a second eye inside type=password next to the app's "Tampilkan kode akses" button.
+    expect(css).toMatch(/::-ms-reveal[^{]*\{[^}]*display:\s*none/);
+  });
+});
