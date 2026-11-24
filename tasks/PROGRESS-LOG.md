@@ -689,3 +689,8 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 - Tes perilaku baru untuk permintaan `ClipEditModal`, `SocialKitModal`, `ProviderSection`, `TranscriptionSection`, `UpdaterSection`, plus `GDriveBrowserModal`, `CookiesPanel`, dialog Riwayat, dan `Dialog`.
 - Browser: enam layar yang tertunda (LocalGate, AuthGate, splash, dialog Drive, dialog cookies, overlay pembaruan) diperiksa di 360/768/1280 terang dan gelap: 84 halaman, 0 overflow, 0 kontrol < 44 px, 0 huruf < 14 px; fokus, Tab, dan Escape lulus. Rincian di `tasks/sp2-audit.md`.
 - Angka: Vitest 419 lulus (+41); pytest 849 lulus, 12 dilewati; oxlint 0 error (15 warning); `build` dan `build:cloud` sukses. Tersisa: review ulang perbaikan Task 15.
+
+### 2026-11-24 · SP2 berhenti di Task 18 (kuota ~78%)
+- Selesai hari ini: Task 15 (audit antislop + fix round 1, Vitest 419), Task 16 (cek port connect, panah tutorial, komentar tes; pytest 849), Task 17 (panduan, tutorial, README, CHANGELOG, ADR-014, AGENTS.md E.19–E.20/F.9–F.10, plus minor review). Semua lolos review.
+- Task 18 langkah 1 selesai di `f7aba4d`: pytest 849/12, Vitest 419, oxlint 0 error, build + build:cloud OK, npm audit 0.
+- Review menyeluruh SP2 sudah dimulai tetapi dihentikan sebelum ada hasil. Lanjutkan dari `tasks/HANDOFF-AI.md` bagian 3: review menyeluruh `dc3ba66..HEAD`, satu gelombang perbaikan, review ulang terbatas, lalu daftar cek uji pemakaian pemilik.

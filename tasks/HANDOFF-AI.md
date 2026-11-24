@@ -1,11 +1,11 @@
 # Serah terima untuk AI mana pun yang melanjutkan pekerjaan
 
-Ditulis ulang 2026-11-20 untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) yang melanjutkan **SP2** di repo ini. Baca seluruh file ini sebelum menyentuh kode. Tujuannya: kamu bekerja dengan aturan, keputusan, dan cara kerja yang sama dengan sesi sebelumnya.
+Ditulis ulang 2026-11-20, posisi diperbarui 2026-11-24, untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) yang melanjutkan **SP2** di repo ini. Baca seluruh file ini sebelum menyentuh kode. Tujuannya: kamu bekerja dengan aturan, keputusan, dan cara kerja yang sama dengan sesi sebelumnya.
 
 ## 1. Urutan membaca
 
 1. File ini.
-2. `.agents/AGENTS.md`: aturan repo. Wajib dipatuhi, terutama bagian E (invarian backend E.1–E.18), F (frontend dan i18n F.1–F.8), G.8 (paket web lokal), H (ADR).
+2. `.agents/AGENTS.md`: aturan repo. Wajib dipatuhi, terutama bagian E (invarian backend E.1–E.20), F (frontend dan i18n F.1–F.10), G.8 (paket web lokal), H (ADR).
 3. Entri terakhir `tasks/PROGRESS-LOG.md`: posisi terakhir dan langkah berikutnya. Ini selalu lebih baru dari file ini.
 4. `tasks/sp2-ledger.md` (bila sudah ada): status tiap task SP2, keputusan, dan temuan yang ditunda.
 5. Spec SP2: `docs/superpowers/specs/2026-11-20-sp2-ux-for-everyone-design.md`. Otoritas tertinggi bila rencana bertentangan dengan dirinya sendiri.
@@ -20,15 +20,15 @@ Branch bertumpuk, satu PR ke `main` setelah SP2 (keputusan pemilik 2026-11-18): 
 
 Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke layar besar; jalur AI utama **AI manual dipandu** (salin perintah, buka ChatGPT/Gemini, tempel jawaban), API key hanya opsi lanjutan; gaya **bersih dan tenang** (latar netral, satu warna aksen); **alur 4 langkah** (Video → Siapkan → Pilih momen → Klip) dengan **tiga menu** (Buat klip, Riwayat, Pengaturan); sisanya ikut rekomendasi.
 
-## 3. Posisi SP2 saat ini
+## 3. Posisi SP2 saat ini (2026-11-24)
 
-- Spec selesai dan disetujui (`4bed222`).
-- Rencana implementasi: `docs/superpowers/plans/2026-11-20-sp2-ux-for-everyone.md`; status dan commit-nya di entri terakhir `tasks/PROGRESS-LOG.md`. Bila file rencana belum ada tetapi folder `docs/superpowers/plans/wip-sp2/` ada, rencana masih setengah jadi: lanjutkan dari bagian terakhir di folder itu (jangan menulis ulang yang sudah ada), gabungkan jadi satu file, hapus `wip-sp2/`, commit. Contoh format rencana: rencana SP1 `docs/superpowers/plans/2026-11-18-sp1-single-frontend-web-local.md`.
-- Belum ada task SP2 yang dikerjakan.
-
-Langkah berikutnya:
-1. **Pemindaian pre-flight** (sekali, sebelum Task 1). Baca seluruh rencana dan spec, cari: (a) pasangan task yang memakai file atau antarmuka yang sama tetapi tidak cocok; (b) task yang tes dan kodenya sendiri tidak cocok (tes tidak akan lulus dengan kode yang diberikan); (c) bentrok dengan Global Constraints; (d) hal yang akan dianggap cacat oleh reviewer (tes tanpa assert, logika disalin persis, `print()` di modul backend, akses file tanpa `path_guard`); (e) teks "lama" yang akan diganti tetapi tidak cocok dengan isi file sekarang. Tulis hasilnya ke `tasks/sp2-ledger.md` (buat bila belum ada, format seperti `tasks/sp1-ledger.md`), satu baris per temuan: `- P<n> [Task, langkah, tingkat] Ruling: <apa> — <kenapa> — <akibat bila salah>`. Di SP1 pemindaian ini menemukan dua bug yang akan menggagalkan build dan CI.
-2. Kerjakan Task 1, 2, dan seterusnya berurutan dengan cara di bagian 4.
+- Task 1–17 selesai dan lolos review (lihat `tasks/sp2-ledger.md`). Task 18 langkah 1 (verifikasi penuh) selesai di `f7aba4d`: pytest 849 lulus / 12 dilewati, Vitest 419 lulus, oxlint 0 error, build + build:cloud OK, npm audit 0.
+- **Yang tersisa: Task 18 langkah 2–3.**
+  1. **Review menyeluruh independen** atas `git diff dc3ba66..HEAD -- ':!package-lock.json'` (173 file). Agen review pertama dihentikan karena kuota, belum ada hasil; jalankan ulang dari awal. Fokus pada hal yang luput dari review per task: alur ujung ke ujung di desktop / web lokal / cloud (link → preflight → progres `current` → AI manual → klip → Unduh semua; kembali lewat Riwayat: AWAITING_MANUAL, lanjutkan, coba lagi, batal, antrean), kecocokan bentuk data backend ↔ frontend, invarian keamanan E, kode mati, kunci i18n, item tabel cakupan spec yang belum terkirim. Jangan menilai ulang Ruling di ledger kecuali menimbulkan cacat nyata.
+  2. Satu gelombang perbaikan untuk Critical/Important, ditambah minor tertunda yang ditandai "deferred → final fix wave" di ledger (mis. `clip_rerender.save_refused` muncul juga untuk 5xx/404 di `ClipEditModal.tsx:171`).
+  3. Review ulang terbatas atas perbaikan itu, lalu catat di ledger dan log (contoh format: akhir `tasks/sp1-ledger.md`).
+  4. Langkah 3 Task 18: tulis daftar cek uji pemakaian untuk pemilik di `tasks/PROGRESS-LOG.md` (spec 6: HP Colab 360 px dan desktop/web lokal dari link sampai klip terunduh, kembali dari AWAITING_MANUAL, mode terang/gelap, banner terputus), catat angka akhir di ledger. Layar yang baru dicek di harness (SplashScreen, UpdateOverlay) masuk daftar cek desktop pemilik.
+- Setelah itu SP2 selesai dari sisi kode. Sisanya menunggu pemilik (bagian 7) lalu satu PR ke `main` atas permintaan pemilik.
 
 ## 4. Cara mengerjakan setiap task
 
