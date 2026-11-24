@@ -538,16 +538,22 @@ def test_windows_gpu_missing_cublas_warns_plainly_pointing_to_settings(healthy, 
 def test_whisper_gpu_libs_probe_checks_cublas64_12_on_windows(monkeypatch):
     from backend import addons
     monkeypatch.setattr(preflight.sys, "platform", "win32")
-    monkeypatch.setattr(addons, "activate_installed", lambda: None)
+    activated = []
+    seen_dlls = []
+    monkeypatch.setattr(addons, "activate_installed", lambda: activated.append(True))
 
     def missing_dll(name):
+        seen_dlls.append(name)
         raise OSError("not found")
 
     monkeypatch.setattr(preflight.ctypes, "WinDLL", missing_dll, raising=False)
     assert preflight._whisper_gpu_libs_missing() == ["cublas64_12.dll"]
+    assert activated == [True]
+    assert seen_dlls == ["cublas64_12.dll"]
 
-    monkeypatch.setattr(preflight.ctypes, "WinDLL", lambda name: object(), raising=False)
+    monkeypatch.setattr(preflight.ctypes, "WinDLL", lambda name: seen_dlls.append(name) or object(), raising=False)
     assert preflight._whisper_gpu_libs_missing() == []
+    assert seen_dlls == ["cublas64_12.dll", "cublas64_12.dll"]
 
 
 def test_whisper_models_endpoint_reports_gpu_ready_and_slow_models(monkeypatch):

@@ -131,6 +131,22 @@ def detect_primary_face_center(video_path: str, start_time=None, end_time=None) 
     return center
 
 
+class _LandmarkerFace:
+    """Lightweight face wrapper compatible with ``solutions.face_mesh`` results."""
+    __slots__ = ("landmark",)
+
+    def __init__(self, landmark):
+        self.landmark = landmark
+
+
+class _LandmarkerResult:
+    """Lightweight detection wrapper compatible with ``solutions.face_mesh`` results."""
+    __slots__ = ("multi_face_landmarks",)
+
+    def __init__(self, faces):
+        self.multi_face_landmarks = faces
+
+
 class _FaceLandmarkerAdapter:
     """Adapt MediaPipe Tasks ``FaceLandmarker`` (1.0+) to the ``.process(rgb)`` interface."""
 
@@ -142,8 +158,7 @@ class _FaceLandmarkerAdapter:
         image = self._mp.Image(image_format=self._mp.ImageFormat.SRGB, data=rgb_frame)
         res = self._landmarker.detect(image)
         landmarks = getattr(res, "face_landmarks", None) or []
-        wrapped = [type("_Face", (), {"landmark": pts})() for pts in landmarks]
-        return type("_LandmarkerResult", (), {"multi_face_landmarks": wrapped})()
+        return _LandmarkerResult([_LandmarkerFace(pts) for pts in landmarks])
 
     def close(self) -> None:
         self._landmarker.close()
@@ -193,8 +208,6 @@ def _close_face_mesh(face_mesh) -> None:
 
 def _mediapipe_faces(face_mesh, small_frame) -> list:
     """Faces in one frame as dicts: centre x, mouth aspect ratio, width (all 0..1)."""
-    import numpy as np
-
     rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
     results = face_mesh.process(rgb_frame)
     del rgb_frame
@@ -518,6 +531,7 @@ def _sample_face_trajectory(video_path, start_time, end_time, interval=0.5, shou
         text = str(reason)
         info["fallback_reason"] = text
         report(device="haar_fallback")
+        log_app(f"MediaPipe face tracking fallback to Haar Cascade: {text}")
         log_error(
             "crop_utils.sample_face_trajectory_mediapipe_fallback",
             f"MediaPipe face tracking failed, using OpenCV Haar Cascade instead. Reason: {text}",

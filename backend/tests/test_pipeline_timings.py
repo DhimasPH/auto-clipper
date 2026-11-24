@@ -304,3 +304,45 @@ def test_hook_concat_is_timed(tmp_path, monkeypatch):
         assert concat[0]["clip"] == 1
     finally:
         jobs.active_jobs.pop(job_id, None)
+
+
+def test_sync_stage_metadata_records_fallback_live_and_clears_stale_fallback_across_rerenders():
+    metadata = {"title": "Rerender", "whisper_device": "cuda"}
+    fallback_job = {
+        "timings": [{
+            "stage": "tracking",
+            "tracking_engine_requested": "mediapipe",
+            "tracking_engine_used": "haar",
+            "tracking_fallback_reason": "addon_not_installed",
+        }, {
+            "stage": "render",
+            "encoder": "h264_nvenc",
+        }],
+    }
+    jobs._sync_stage_metadata(fallback_job, metadata)
+    assert metadata["tracking_engine_requested"] == "mediapipe"
+    assert metadata["tracking_engine_used"] == "haar"
+    assert metadata["tracking_fallback_reason"] == "addon_not_installed"
+    assert metadata["encoder"] == "h264_nvenc"
+    assert metadata["whisper_device"] == "cuda"
+
+    # Re-rendering after installing MediaPipe clears the previous fallback reason.
+    clean_job = {
+        "timings": [{
+            "stage": "tracking",
+            "tracking_engine_requested": "mediapipe",
+            "tracking_engine_used": "mediapipe",
+        }],
+    }
+    jobs._sync_stage_metadata(clean_job, metadata)
+    assert metadata["tracking_engine_used"] == "mediapipe"
+    assert "tracking_fallback_reason" not in metadata
+
+    # Re-rendering with center/no tracking clears previous tracking fields completely.
+    no_tracking_job = {"timings": [{"stage": "render", "encoder": "libx264"}]}
+    jobs._sync_stage_metadata(no_tracking_job, metadata)
+    assert "tracking_engine_requested" not in metadata
+    assert "tracking_engine_used" not in metadata
+    assert "tracking_fallback_reason" not in metadata
+    assert metadata["encoder"] == "libx264"
+    assert metadata["whisper_device"] == "cuda"

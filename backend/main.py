@@ -674,7 +674,8 @@ async def api_rerender_clip(job_id: str, clip_index: int, req: RerenderClipReque
         burn_subs=req.burn_subs,
         canvas_config=req.canvas_config,
         subtitle_config=req.subtitle_config,
-        tracking_mode=req.tracking_mode
+        tracking_mode=req.tracking_mode,
+        face_tracking_engine=req.face_tracking_engine,
     )
     return {"status": "success", "job_id": new_job_id}
 
@@ -861,7 +862,7 @@ def api_create_job(req: CreateJobRequest):
         req.title.strip(), req.enable_broll, req.pexels_api_key.strip(), req.max_clips,
         req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video,
         req.whisper_model, req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config,
-        tracking_mode=req.tracking_mode, enable_hook=req.enable_hook
+        tracking_mode=req.tracking_mode, face_tracking_engine=req.face_tracking_engine, enable_hook=req.enable_hook
     )
     return {"status": "success", "job_id": job_id}
 
@@ -1057,7 +1058,7 @@ def api_create_manual_job(req: ManualJobRequest):
             req.url.strip(), req.clips, req.aspect_ratio, req.caption_style,
             req.burn_subs, req.output_dir, req.quality, req.title.strip(), req.is_gaming_video,
             req.whisper_model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config,
-            tracking_mode=req.tracking_mode
+            tracking_mode=req.tracking_mode, face_tracking_engine=req.face_tracking_engine
         )
         return {"status": "success", "job_id": job_id}
     except Exception as e:

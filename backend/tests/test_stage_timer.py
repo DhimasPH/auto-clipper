@@ -258,6 +258,32 @@ def test_live_data_never_reaches_timings():
 
 def test_report_without_a_live_dict_is_harmless():
     stage_timer.report(percent=10, clips_total=2)
+
+
+def test_live_device_override_shows_in_current_stage_without_leaking_to_timings():
+    timings, live = [], {}
+    with collect_timings(timings, live):
+        with stage("tracking") as rec:
+            rec["tracking_engine_requested"] = "mediapipe"
+            # While tracking runs and before engine_used is finalized, requested engine is NOT live device.
+            assert "device" not in stage_timer.current_stage(live)
+            stage_timer.report(device="haar_fallback")
+            assert stage_timer.current_stage(live)["device"] == "haar_fallback"
+            rec["tracking_fallback_reason"] = "addon_not_installed"
+            rec["tracking_engine_used"] = "haar"
+            assert stage_timer.current_stage(live)["device"] == "haar_fallback"
+    assert "device" not in timings[0]
+
+
+def test_tracking_request_and_fallback_reason_are_not_treated_as_live_device():
+    live = {}
+    with collect_timings([], live):
+        with stage("tracking") as rec:
+            rec["tracking_engine_requested"] = "mediapipe"
+            rec["tracking_fallback_reason"] = "addon_not_installed"
+            assert "device" not in stage_timer.current_stage(live)
+            rec["tracking_engine_used"] = "haar"
+            assert stage_timer.current_stage(live)["device"] == "haar"
     timings = []
     with collect_timings(timings):
         with stage("download"):

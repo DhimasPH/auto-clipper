@@ -34,8 +34,8 @@ from backend.logger import log_app
 SAMPLE_INTERVAL = 1.0  # seconds between memory samples while a stage runs
 
 _local = threading.local()
-# Fields that say which device really did the work (see jobs._finalize_job).
-DEVICE_FIELDS = ("whisper_device", "encoder", "tracking_engine_used", "tracking_engine_requested", "tracking_fallback_reason")
+# Fields that say which device really did the work (see jobs._sync_stage_metadata).
+DEVICE_FIELDS = ("whisper_device", "encoder", "tracking_engine_used")
 
 
 def _rss_psutil():
@@ -221,7 +221,7 @@ def stage(name: str, **fields):
 
 
 def report(**fields):
-    """Live facts for the job status only: ``clips_total`` for the run, ``percent`` for the running stage."""
+    """Live facts for the job status only: ``clips_total`` for the run, ``percent`` or ``device`` for the running stage."""
     live = getattr(_local, "live", None)
     if live is None:
         return
@@ -255,11 +255,15 @@ def current_stage(live) -> dict:
         "started_at": round(top["started_at"], 3),
         "elapsed_seconds": round(max(0.0, time.monotonic() - top["started"]), 1),
     }
-    for field in DEVICE_FIELDS:
-        value = rec.get(field)
-        if isinstance(value, str) and value:
-            out["device"] = value
-            break
+    live_device = top.get("device")
+    if isinstance(live_device, str) and live_device:
+        out["device"] = live_device
+    else:
+        for field in DEVICE_FIELDS:
+            value = rec.get(field)
+            if isinstance(value, str) and value:
+                out["device"] = value
+                break
     if _is_int(rec.get("clip")):
         out["clip"] = rec["clip"]
         total = live.get("clips_total")

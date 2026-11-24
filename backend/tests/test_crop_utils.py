@@ -1153,17 +1153,27 @@ def test_face_landmarker_adapter_processes_and_closes(monkeypatch, tmp_path):
         "Image": staticmethod(lambda image_format, data: (image_format, data)),
         "ImageFormat": type("Fmt", (), {"SRGB": 1}),
     })()
+    captured_opts = []
+
+    def make_base_options(**kw):
+        return kw
+
+    def make_landmarker_options(**kw):
+        captured_opts.append(kw)
+        return kw
+
     fake_vision = type("Vision", (), {
-        "FaceLandmarkerOptions": staticmethod(lambda **kw: kw),
+        "FaceLandmarkerOptions": staticmethod(make_landmarker_options),
         "RunningMode": type("RM", (), {"IMAGE": 1}),
         "FaceLandmarker": type("FL", (), {"create_from_options": staticmethod(lambda opts: fake_lm)}),
     })()
     monkeypatch.setitem(sys.modules, "mediapipe", fake_mp)
     monkeypatch.setitem(sys.modules, "mediapipe.tasks", type("Tasks", (), {})())
-    monkeypatch.setitem(sys.modules, "mediapipe.tasks.python", type("Py", (), {"BaseOptions": staticmethod(lambda **kw: kw), "vision": fake_vision})())
+    monkeypatch.setitem(sys.modules, "mediapipe.tasks.python", type("Py", (), {"BaseOptions": staticmethod(make_base_options), "vision": fake_vision})())
     monkeypatch.setitem(sys.modules, "mediapipe.tasks.python.vision", fake_vision)
 
     mesh = crop_utils._open_face_mesh()
+    assert captured_opts[0]["base_options"]["model_asset_path"] == str(model_file)
     faces = crop_utils._mediapipe_faces(mesh, np.zeros((20, 20, 3), dtype="uint8"))
     assert len(faces) == 1 and abs(faces[0]["w"] - 0.2) < 1e-6
     crop_utils._close_face_mesh(mesh)

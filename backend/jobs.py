@@ -76,6 +76,35 @@ def _reject_if_still_processing(history_id: str) -> None:
 # Fields that say which device really did the work; copied from the stage
 # timings to the top of the job metadata so the UI can show them.
 _DEVICE_FIELDS = DEVICE_FIELDS
+_TRACKING_META_FIELDS = (
+    "tracking_engine_requested",
+    "tracking_engine_used",
+    "tracking_fallback_reason",
+)
+
+
+def _sync_stage_metadata(job: dict, metadata: dict) -> None:
+    """Copy active devices and face-tracking status from timings into metadata, clearing stale tracking keys."""
+    if not isinstance(metadata, dict):
+        return
+    timings = job.get("timings")
+    if not isinstance(timings, list):
+        return
+    for field in _TRACKING_META_FIELDS:
+        metadata.pop(field, None)
+    for entry in timings:
+        if not isinstance(entry, dict):
+            continue
+        for field in _DEVICE_FIELDS:
+            if entry.get(field):
+                metadata[field] = entry[field]
+        has_tracking = entry.get("stage") == "tracking" or any(entry.get(f) for f in _TRACKING_META_FIELDS)
+        if has_tracking:
+            for field in _TRACKING_META_FIELDS:
+                if entry.get(field):
+                    metadata[field] = entry[field]
+                else:
+                    metadata.pop(field, None)
 
 
 def _with_timings(run_fn):
@@ -829,6 +858,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                 "v": 0
             })
             
+            _sync_stage_metadata(job, metadata)
             _publish(job, metadata)
             try:
                 from backend.db import save_history
@@ -1002,6 +1032,7 @@ def _run_manual_job(job_id: str):
                     "v": 0,
                 })
                 
+                _sync_stage_metadata(job, metadata)
                 _publish(job, metadata)
                 try:
                     from backend.db import save_history
@@ -1200,6 +1231,7 @@ def _run_rerender_job(job_id: str):
                     "v": 0
                 })
                 
+                _sync_stage_metadata(job, metadata)
                 _publish(job, metadata)
                 try:
                     from backend.db import save_history
@@ -1429,6 +1461,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     "v": 0
                 })
                 
+                _sync_stage_metadata(job, metadata)
                 _publish(job, metadata)
                 try:
                     from backend.db import save_history
@@ -1654,6 +1687,9 @@ def _run_rerender_clip_job(new_job_id: str):
         if fresh_history:
             fresh_clips = fresh_history.get("result_clips", [])
             fresh_metadata = fresh_history.get("metadata", {})
+            if isinstance(fresh_metadata, dict):
+                _sync_stage_metadata(job, fresh_metadata)
+                job.setdefault("metadata", {}).update(fresh_metadata)
             if clip_index < len(fresh_clips):
                 fresh_clips[clip_index]["path"] = result_path
                 fresh_clips[clip_index]["v"] = int(time.time())
@@ -1663,8 +1699,11 @@ def _run_rerender_clip_job(new_job_id: str):
                 save_history(parent_job_id, fresh_history["url"], fresh_history["status"], fresh_clips, fresh_metadata)
                 if parent_job_id in active_jobs:
                     active_jobs[parent_job_id]["clips"] = fresh_clips
+                    if isinstance(fresh_metadata, dict):
+                        active_jobs[parent_job_id]["metadata"] = fresh_metadata
                 job["clips"].append(fresh_clips[clip_index])
         else:
+            _sync_stage_metadata(job, job.setdefault("metadata", {}))
             target_clip["path"] = result_path
             if custom_subtitle_path:
                 target_clip["custom_subtitle_path"] = custom_subtitle_path
@@ -1742,10 +1781,7 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
 
     if "timings" in job:
         metadata["timings"] = job["timings"]
-        for entry in job["timings"]:
-            for field in _DEVICE_FIELDS:
-                if entry.get(field):
-                    metadata[field] = entry[field]
+        _sync_stage_metadata(job, metadata)
 
     if status in ["DONE", "ERROR", "CANCELLED", "AWAITING_MANUAL"]:
         try:
@@ -1778,6 +1814,8 @@ def resume_manual_job(history_id: str, json_payload: str, pexels_api_key: str = 
         "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
         "canvas_config": hist_meta.get("canvas_config"),
         "subtitle_config": hist_meta.get("subtitle_config"),
+        "tracking_mode": hist_meta.get("tracking_mode", "auto"),
+        "face_tracking_engine": hist_meta.get("face_tracking_engine", "haar"),
         "caption_style": hist_meta.get("caption_style", "standard"),
         "burn_subs": hist_meta.get("burn_subs", True),
         "output_dir": hist_meta.get("output_dir", ""),
@@ -1910,6 +1948,8 @@ def create_resume_job(history_id: str, api_key: str = None, fallback_provider: s
         "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
         "canvas_config": hist_meta.get("canvas_config"),
         "subtitle_config": hist_meta.get("subtitle_config"),
+        "tracking_mode": hist_meta.get("tracking_mode", "auto"),
+        "face_tracking_engine": hist_meta.get("face_tracking_engine", "haar"),
         "caption_style": hist_meta.get("caption_style", "standard"),
         "burn_subs": hist_meta.get("burn_subs", True),
         "output_dir": hist_meta.get("output_dir", ""),
