@@ -11,12 +11,14 @@ import { ProgressPanel } from "../components/create/ProgressPanel";
 import { StepIndicator } from "../components/create/StepIndicator";
 import { VideoStep } from "../components/create/VideoStep";
 import { Button } from "../components/ui/Button";
+import { Dialog } from "../components/ui/Dialog";
 import { useBackendStatus } from "../hooks/useBackendStatus";
 import { useErrorActions } from "../hooks/useErrorActions";
 import { usePreflight } from "../hooks/usePreflight";
 import {
   MANUAL_PROVIDER,
   activeStep,
+  asksAboutProcessorModel,
   autoProjectTitle,
   effectiveProvider,
   linkProblem,
@@ -39,7 +41,10 @@ export const CreatePage: React.FC = () => {
   const connected = backend === "connected";
   const preflight = usePreflight(connected);
   const pickButton = useRef<HTMLButtonElement>(null);
+  const useFastButton = useRef<HTMLButtonElement>(null);
   const [editClip, setEditClip] = useState<number | null>(null);
+  // Mulai with a slow subtitle model on the processor: the start waits for the user's answer.
+  const [processorQuestion, setProcessorQuestion] = useState<{ provider: string; title: string } | null>(null);
 
   const flow: FlowState = {
     status: ctx.status,
@@ -102,7 +107,22 @@ export const CreatePage: React.FC = () => {
   const start = () => {
     const source: VideoSourceName = chosenFile ? { kind: "file", name: chosenFile } : { kind: "link", url: ctx.url };
     const title = ctx.title.trim() || autoProjectTitle(source, new Date());
-    ctx.handleGenerate(effectiveProvider(caps, ctx.aiMode, ctx.provider), title);
+    const provider = effectiveProvider(caps, ctx.aiMode, ctx.provider);
+    if (asksAboutProcessorModel(ctx.whisperModel, preflight.notes)) {
+      setProcessorQuestion({ provider, title });
+      return;
+    }
+    // Ruling P9: a direct start keeps the two-argument call.
+    ctx.handleGenerate(provider, title);
+  };
+
+  // The model goes along as the third argument: setWhisperModel only reaches the job hook on the next render.
+  const answerProcessorQuestion = (useFast: boolean) => {
+    const question = processorQuestion;
+    if (!question) return;
+    setProcessorQuestion(null);
+    if (useFast) ctx.setWhisperModel?.("small");
+    ctx.handleGenerate(question.provider, question.title, useFast ? "small" : ctx.whisperModel);
   };
 
   return (
@@ -175,6 +195,26 @@ export const CreatePage: React.FC = () => {
             {!hasVideo && <p className="text-body text-text-secondary">{t("create.start_hint")}</p>}
           </div>
         </>
+      )}
+
+      {processorQuestion && (
+        <Dialog
+          title={t("create.cpu_model_title")}
+          onClose={() => setProcessorQuestion(null)}
+          initialFocusRef={useFastButton}
+          footer={
+            <>
+              <Button variant="outline" onClick={() => answerProcessorQuestion(false)}>
+                {t("create.cpu_model_keep_accurate")}
+              </Button>
+              <Button ref={useFastButton} variant="primary" onClick={() => answerProcessorQuestion(true)}>
+                {t("create.cpu_model_use_fast")}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-body text-text-primary">{t("create.cpu_model_body")}</p>
+        </Dialog>
       )}
 
       {flow.running && step !== 1 && (

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { CAPS } from "../platform/caps";
-import { activeStep, autoProjectTitle, effectiveProvider, linkProblem, stepStates, type FlowState } from "./createFlow";
+import {
+  activeStep,
+  asksAboutProcessorModel,
+  autoProjectTitle,
+  effectiveProvider,
+  linkProblem,
+  stepStates,
+  type FlowState,
+} from "./createFlow";
 
 const idle: FlowState = { status: "IDLE", running: false, currentStage: null, awaitingAnswer: false, makePhase: false, hasClips: false };
 
@@ -70,5 +78,22 @@ describe("effectiveProvider (spec 4.2: manual AI unless API key mode is on)", ()
 
   it("uses the chosen provider in API key mode", () => {
     expect(effectiveProvider(CAPS.local, "auto", "gemini")).toBe("gemini");
+  });
+});
+
+describe("asksAboutProcessorModel (SP3 4.3: medium/large-v3 on the processor)", () => {
+  const gpuWarn = [{ id: "gpu", level: "warn", title: "Subtitle memakai prosesor", message: "Lambat." }];
+  const otherWarn = [{ id: "gpu_render", level: "warn", title: "Video dibuat dengan prosesor", message: "Lambat." }];
+
+  it("asks for medium and large-v3 when the gpu check warns", () => {
+    expect(asksAboutProcessorModel("medium", gpuWarn)).toBe(true);
+    expect(asksAboutProcessorModel("large-v3", gpuWarn)).toBe(true);
+  });
+
+  it("does not ask for small, or when the gpu check is ok, not run yet, or another check warns", () => {
+    expect(asksAboutProcessorModel("small", gpuWarn)).toBe(false);
+    expect(asksAboutProcessorModel("medium", [])).toBe(false);
+    expect(asksAboutProcessorModel("medium", otherWarn)).toBe(false);
+    expect(asksAboutProcessorModel(undefined, gpuWarn)).toBe(false);
   });
 });

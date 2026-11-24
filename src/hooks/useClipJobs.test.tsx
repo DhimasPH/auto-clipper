@@ -468,3 +468,38 @@ describe("useClipJobs handleManualGenerate overrides (Task 14 downloader)", () =
     expect(notify).toHaveBeenCalledWith(expect.any(String), "error");
   });
 });
+
+describe("useClipJobs handleGenerate subtitle model (SP3 4.3)", () => {
+  let root: Root;
+
+  beforeEach(() => {
+    root = createRoot(document.createElement("div"));
+    setPlatform({ caps: CAPS.desktop, setPreventSleep: vi.fn().mockResolvedValue(undefined), askNotifyPermission: vi.fn() } as unknown as Platform);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    setPlatform(null);
+    vi.restoreAllMocks();
+    window.location.hash = "";
+  });
+
+  const jobsBody = (post: { mock: { calls: unknown[][] } }) =>
+    post.mock.calls.find((c) => String(c[0]).endsWith("/jobs"))?.[1] as Record<string, unknown>;
+
+  it("sends the model from the third argument (the processor question's answer)", async () => {
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { status: "success", job_id: "j1" } });
+    vi.spyOn(axios, "get").mockResolvedValue({ data: { status: "PROCESSING" } });
+    await act(async () => root.render(<Probe params={makeParams({ url: "https://youtu.be/abc", whisperModel: "medium" })} />));
+    await act(async () => latest.handleGenerate("manual_ai", "My vid", "small"));
+    expect(jobsBody(post).whisper_model).toBe("small");
+  });
+
+  it("sends the stored model when there is no third argument", async () => {
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { status: "success", job_id: "j1" } });
+    vi.spyOn(axios, "get").mockResolvedValue({ data: { status: "PROCESSING" } });
+    await act(async () => root.render(<Probe params={makeParams({ url: "https://youtu.be/abc", whisperModel: "medium" })} />));
+    await act(async () => latest.handleGenerate("manual_ai", "My vid"));
+    expect(jobsBody(post).whisper_model).toBe("medium");
+  });
+});

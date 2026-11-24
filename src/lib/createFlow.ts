@@ -1,4 +1,5 @@
 import type { Caps } from "../platform/types";
+import type { JobWarning } from "../types/errorInfo";
 
 // The "Buat klip" flow (spec 4.2): which step is active, plus small helpers for step 1. No React.
 
@@ -90,4 +91,16 @@ export const MANUAL_PROVIDER = "manual_ai";
 /** Manual AI (copy, ask ChatGPT or Gemini, paste) unless API key mode is on where keys exist. */
 export function effectiveProvider(caps: Pick<Caps, "apiKeys">, aiMode: AiMode, provider: string): string {
   return caps.apiKeys && aiMode === "auto" && provider ? provider : MANUAL_PROVIDER;
+}
+
+/** Subtitle models that take far longer on the processor (backend `processor_slow_models`). */
+export const PROCESSOR_SLOW_MODELS = ["medium", "large-v3"];
+
+/**
+ * Ask before Mulai (SP3 4.3): a slow model is chosen and the preflight `gpu` check warned, which
+ * it does whenever subtitles would run on the processor (no NVIDIA card, macOS, or the GPU add-on
+ * missing). `notes` holds only "warn" checks, so an ok GPU or a check not run yet starts directly.
+ */
+export function asksAboutProcessorModel(whisperModel: string | undefined, notes: Pick<JobWarning, "id">[]): boolean {
+  return !!whisperModel && PROCESSOR_SLOW_MODELS.includes(whisperModel) && notes.some((n) => n.id === "gpu");
 }

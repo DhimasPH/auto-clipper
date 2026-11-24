@@ -47,6 +47,8 @@ function makeContext(overrides: Record<string, unknown> = {}) {
     aiMode: "manual",
     provider: "openai",
     handleGenerate: vi.fn(),
+    whisperModel: "small",
+    setWhisperModel: vi.fn(),
     openCookies: vi.fn(),
     requestLocalUpload: vi.fn(),
     handleResumeJob: vi.fn(),
@@ -178,5 +180,91 @@ describe("CreatePage (Step 1 integration)", () => {
 
     const text = container.textContent!;
     expect(text.indexOf(i18n.t("progress.title_make"))).toBeLessThan(text.indexOf("Clip A"));
+  });
+
+  // SP3 4.3 (Ruling P9): the CPU question appears only for medium/large-v3 when the gpu check warns.
+  const GPU_WARN = { data: { checks: [{ id: "gpu", level: "warn", code: "NO_GPU_SLOW", title: "Subtitle memakai prosesor", message: "Lambat." }] } };
+  const GPU_OK = { data: { checks: [{ id: "gpu", level: "ok", title: "GPU aktif", message: "Cepat." }] } };
+  const buttonByText = (text: string) => [...container.querySelectorAll("button")].find((b) => b.textContent === text);
+
+  it("asks before starting medium on the processor; Use Fast switches to small and starts with it", async () => {
+    setPlatform({ caps: CAPS.desktop, pickVideo: vi.fn() } as unknown as Platform);
+    vi.spyOn(axios, "get").mockResolvedValue(GPU_WARN);
+    const file = new File(["video"], "podcast.mp4", { type: "video/mp4" });
+    const handleGenerate = vi.fn();
+    const setWhisperModel = vi.fn();
+    await renderPage({ inputType: "local", localFile: file, whisperModel: "medium", setWhisperModel, handleGenerate });
+
+    act(() => startButton().click());
+    expect(handleGenerate).not.toHaveBeenCalled();
+    const dialog = container.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain(i18n.t("create.cpu_model_title"));
+    expect(dialog.textContent).toContain(i18n.t("create.cpu_model_body"));
+    const fast = buttonByText(i18n.t("create.cpu_model_use_fast"))!;
+    expect(document.activeElement).toBe(fast);
+
+    act(() => fast.click());
+    expect(setWhisperModel).toHaveBeenCalledWith("small");
+    expect(handleGenerate).toHaveBeenCalledTimes(1);
+    expect(handleGenerate).toHaveBeenCalledWith("manual_ai", expect.stringMatching(/^podcast /), "small");
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("Keep Accurate starts with the chosen model and leaves the setting alone", async () => {
+    setPlatform({ caps: CAPS.desktop, pickVideo: vi.fn() } as unknown as Platform);
+    vi.spyOn(axios, "get").mockResolvedValue(GPU_WARN);
+    const file = new File(["video"], "short.mp4", { type: "video/mp4" });
+    const handleGenerate = vi.fn();
+    const setWhisperModel = vi.fn();
+    await renderPage({ inputType: "local", localFile: file, whisperModel: "large-v3", setWhisperModel, handleGenerate });
+
+    act(() => startButton().click());
+    act(() => buttonByText(i18n.t("create.cpu_model_keep_accurate"))!.click());
+    expect(setWhisperModel).not.toHaveBeenCalled();
+    expect(handleGenerate).toHaveBeenCalledTimes(1);
+    expect(handleGenerate).toHaveBeenCalledWith("manual_ai", expect.stringMatching(/^short /), "large-v3");
+  });
+
+  it("closing the CPU question with Escape starts nothing", async () => {
+    setPlatform({ caps: CAPS.desktop, pickVideo: vi.fn() } as unknown as Platform);
+    vi.spyOn(axios, "get").mockResolvedValue(GPU_WARN);
+    const handleGenerate = vi.fn();
+    const setWhisperModel = vi.fn();
+    await renderPage({ url: "https://youtu.be/abc123", whisperModel: "medium", setWhisperModel, handleGenerate });
+
+    act(() => startButton().click());
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(handleGenerate).not.toHaveBeenCalled();
+    expect(setWhisperModel).not.toHaveBeenCalled();
+  });
+
+  it("starts medium straight away when the gpu check is ok (cloud with a working GPU too)", async () => {
+    for (const caps of [CAPS.desktop, CAPS.cloud]) {
+      setPlatform({ caps, pickVideo: vi.fn() } as unknown as Platform);
+      vi.spyOn(axios, "get").mockResolvedValue(GPU_OK);
+      const handleGenerate = vi.fn();
+      await renderPage({ url: "https://youtu.be/abc123", whisperModel: "medium", handleGenerate });
+
+      act(() => startButton().click());
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      // Ruling P9: a direct start keeps the two-argument call.
+      expect(handleGenerate).toHaveBeenCalledWith("manual_ai", expect.any(String));
+      expect(handleGenerate.mock.calls[0]).toHaveLength(2);
+    }
+  });
+
+  it("starts small straight away even when the gpu check warns", async () => {
+    setPlatform({ caps: CAPS.desktop, pickVideo: vi.fn() } as unknown as Platform);
+    vi.spyOn(axios, "get").mockResolvedValue(GPU_WARN);
+    const handleGenerate = vi.fn();
+    await renderPage({ url: "https://youtu.be/abc123", whisperModel: "small", handleGenerate });
+
+    act(() => startButton().click());
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(handleGenerate.mock.calls[0]).toHaveLength(2);
   });
 });

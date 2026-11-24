@@ -260,7 +260,8 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
-  const handleGenerate = async (overrideProvider?: string, overrideTitle?: string) => {
+  // overrideWhisperModel: the model the CPU question on Buat klip chose (SP3 4.3); app state updates a render later.
+  const handleGenerate = async (overrideProvider?: string, overrideTitle?: string, overrideWhisperModel?: string) => {
     const title = (overrideTitle ?? p.title ?? "").trim();
     if (p.inputType === "url" && !p.url) {
       notify(t('toast.clip_failed', { msg: t('toast.url_empty') }), "error");
@@ -332,7 +333,7 @@ export function useClipJobs(p: ClipJobParams) {
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,
         is_gaming_video: p.isGamingVideo,
-        whisper_model: p.whisperModel,
+        whisper_model: overrideWhisperModel || p.whisperModel,
         model: p.model
       });
 
