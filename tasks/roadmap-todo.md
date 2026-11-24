@@ -117,7 +117,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 Status per task dan angka tes: `tasks/sp2-ledger.md`. Rentang commit di bawah diambil dari ledger.
 
 - [x] T2.0 Brainstorm dan spec SP2 (alur utama, onboarding, bahasa, antislop: skill `antislop-*`) · spec disetujui pemilik `4bed222`, rencana `383fce2`, pemindaian pre-flight 16 ruling `0f315db`. Item dokumen, tanpa tes.
-- [~] T2.x Audit alur dan copy saat ini, sasaran: pengguna awam selesai dari link ke klip tanpa panduan · audit antislop Task 15 (`a068ee6..f18e4cf`, hasil di `tasks/sp2-audit.md`) masih menunggu review. Uji pemakaian oleh orang awam (Task 18) butuh pemilik `[!]`.
+- [~] T2.x Audit alur dan copy saat ini, sasaran: pengguna awam selesai dari link ke klip tanpa panduan · audit antislop Task 15 (`a068ee6..f18e4cf`, hasil di `tasks/sp2-audit.md`) lolos review (fix round 1, Vitest 419). Uji pemakaian oleh orang awam (Task 18) butuh pemilik `[!]`.
 - [x] T2.x Objek `current` di status job: tahap berjalan, perangkat, klip ke berapa, persen unduhan (Task 1–2, `0f315db..6acf284`, pytest 829 lulus, 12 dilewati)
 - [x] T2.x Gambar latar kanvas diunggah lewat `POST /upload-image` + `path_guard` di endpoint pembuat job (Task 3, `66d5047..57b5e49`, pytest 844, Vitest 92)
 - [x] T2.x Token warna tenang, huruf 16 px, area sentuh 44 px, tes kontras (Task 4, `4de37f9..c8e71f6`, Vitest 142)

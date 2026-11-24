@@ -102,3 +102,6 @@ Task 15: fix round 1/5 (11 addressed, 0 open — six-screen browser check (84 pa
 Ruling: SplashScreen and UpdateOverlay checked in a harness only — web build shows no splash and the updater is desktop-only (no Rust here); owner's desktop manual checklist covers the real run — cost if wrong: a desktop-only layout bug found at the owner check.
 Task 15: minor (deferred): auth.error_empty unreachable (Masuk disabled until text typed) — drop the key or the disabled state; update overlay panel focus has no visible ring (no controls).
 Task 17: minors 1–8 fixed by controller (README emoji kept: matches README style).
+Task 15: re-review Approved (fix round 1 clean).
+Task 15: minor (deferred → final fix wave): save_refused shown for 5xx/404 too (ClipEditModal.tsx:171) — use it only for 4xx or make it neutral; GDrive retry after root fallback failure retries root (harmless).
+Task 15: complete (commits a068ee6..707ba1b, review clean after fix round 1) — Vitest 419, pytest 849/12, oxlint 0 errors, build + build:cloud OK.
