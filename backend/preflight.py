@@ -150,8 +150,12 @@ def _deno_path():
 
 
 def _downloader_version() -> str:
-    from yt_dlp.version import __version__
-    return __version__
+    import importlib.metadata
+    try:
+        return importlib.metadata.version("yt-dlp")
+    except importlib.metadata.PackageNotFoundError:
+        from yt_dlp.version import __version__
+        return __version__
 
 
 def _today() -> datetime.date:

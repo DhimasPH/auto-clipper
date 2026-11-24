@@ -2,10 +2,12 @@ import json
 import os
 import random
 import time
-from openai import OpenAI
-from google import genai
-from google.genai import types
+from backend._lazy import LazyAttr, LazyModule
 from datetime import datetime as _dt, timezone as _tz
+
+OpenAI = LazyAttr("openai", "OpenAI")
+genai = LazyModule("google.genai")
+types = LazyModule("google.genai.types")
 
 from backend.video_utils import extract_audio
 from backend.crop_utils import to_seconds, _fmt_srt_ts

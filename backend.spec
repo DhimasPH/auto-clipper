@@ -1,11 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 import sys
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_dynamic_libs, copy_metadata
 
 datas = [
     ('backend/assets', 'backend/assets'),
 ]
+datas.extend(copy_metadata('yt-dlp'))
 binaries = []
 hiddenimports = [
     'google',
@@ -35,7 +36,16 @@ hiddenimports = [
     'certifi',
     'yt_dlp',
     'sqlite3',
+    # Stdlib modules needed when loading mediapipe/absl/flatbuffers dynamically from addons/
+    'wave',
+    'csv',
+    'timeit',
+    'getpass',
+    'xml',
+    'xml.etree',
+    'xml.etree.ElementTree',
     'backend',
+    'backend._lazy',
     'backend.main',
     'backend.jobs',
     'backend.ai_utils',
@@ -47,26 +57,14 @@ hiddenimports = [
     'backend.metadata',
 ]
 
+# Native runtimes that carry dynamic libraries / asset data files.
 for pkg in [
     'faster_whisper',
     'ctranslate2',
     'onnxruntime',
-    'cv2',
+    'av',
     'numpy',
-    'google.genai',
-    'openai',
-    'httpx',
-    'pydantic',
-    'pydantic_core',
-    'uvicorn',
-    'fastapi',
-    'starlette',
-    'anyio',
-    'h11',
-    'yt_dlp',
-    'requests',
     'certifi',
-    'mediapipe',
 ]:
     try:
         d, b, h = collect_all(pkg)
@@ -75,6 +73,31 @@ for pkg in [
         hiddenimports.extend(h)
     except Exception:
         pass
+
+# OpenCV: keep native binaries, Python submodules, and only the single Haar cascade we use.
+try:
+    d_cv2, b_cv2, h_cv2 = collect_all('cv2')
+    binaries.extend(collect_dynamic_libs('cv2'))
+    binaries.extend(b_cv2)
+    hiddenimports.extend(h_cv2)
+    for src, dst in d_cv2:
+        if src.replace('\\', '/').endswith('haarcascade_frontalface_default.xml'):
+            datas.append((src, dst))
+except Exception:
+    pass
+
+
+def _keep_toc_entry(dest_path: str) -> bool:
+    norm = dest_path.replace('\\', '/').lower()
+    base = os.path.basename(norm)
+    if '/tests/' in norm or '/test/' in norm:
+        return False
+    if norm.endswith(('.h', '.hpp', '.lib', '.pdb')):
+        return False
+    if 'cv2/data/' in norm and base != 'haarcascade_frontalface_default.xml':
+        return False
+    return True
+
 
 a = Analysis(
     [os.path.join('backend', 'main.py')],
@@ -85,10 +108,12 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['mediapipe', 'flatbuffers', 'absl', 'matplotlib', 'sounddevice'],
     noarchive=False,
     optimize=0,
 )
+a.datas = [entry for entry in a.datas if _keep_toc_entry(entry[0])]
+a.binaries = [entry for entry in a.binaries if _keep_toc_entry(entry[0])]
 pyz = PYZ(a.pure)
 
 icon_path = os.path.join('src-tauri', 'icons', 'icon.ico') if os.path.exists(os.path.join('src-tauri', 'icons', 'icon.ico')) else None

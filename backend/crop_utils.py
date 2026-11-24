@@ -1,5 +1,4 @@
-import cv2
-import numpy as np
+from backend._lazy import LazyModule
 import os
 import re
 import subprocess
@@ -9,6 +8,9 @@ import math
 from fractions import Fraction
 from backend.logger import log_error, log_app
 from backend.stage_timer import stage
+
+cv2 = LazyModule("cv2")
+np = LazyModule("numpy")
 
 FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
 
@@ -560,6 +562,8 @@ def _sample_face_trajectory(video_path, start_time, end_time, interval=0.5, shou
         if face_mesh is not None:
             _close_face_mesh(face_mesh)
         cap.release()
+        import gc
+        gc.collect()
 
     if engine == "mediapipe" and "fallback_reason" not in info:
         info["engine_used"] = "mediapipe"

@@ -1,4 +1,4 @@
-import yt_dlp
+from backend._lazy import LazyModule
 import contextlib
 import io
 import subprocess
@@ -10,6 +10,8 @@ from backend.cookies import ytdlp_cookiefile
 from backend.errors import classify_download_error
 from backend.logger import log_error
 from backend.stage_timer import report, stage
+
+yt_dlp = LazyModule("yt_dlp")
 
 
 def get_ffmpeg_path() -> str | None:
