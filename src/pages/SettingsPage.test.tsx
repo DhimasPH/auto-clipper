@@ -141,6 +141,18 @@ describe("SettingsPage (spec 4.5: Umum, YouTube, Lanjutan, Bantuan)", () => {
     expect(ctx.setFaceTrackingEngine).toHaveBeenCalledWith("mediapipe");
   });
 
+  it("asks for the optional add-ons only where they can be installed (cloud: never)", async () => {
+    const axios = (await import("axios")).default;
+    const addonCalls = () => vi.mocked(axios.get).mock.calls.filter((c) => String(c[0]).endsWith("/api/settings/addons"));
+    vi.mocked(axios.get).mockClear();
+    await render(CAPS.cloud, makeCtx({ faceTrackingEngine: "mediapipe" }));
+    expect(addonCalls()).toHaveLength(0);
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render(CAPS.desktop, makeCtx({ faceTrackingEngine: "mediapipe" }));
+    expect(addonCalls()).toHaveLength(1);
+  });
+
   it("Bantuan has the four steps, questions and the version", async () => {
     await render(CAPS.cloud);
     const help = section("bantuan");

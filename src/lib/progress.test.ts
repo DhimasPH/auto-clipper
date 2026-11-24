@@ -99,3 +99,36 @@ describe("deviceNotes (spec 4.3: the device really used)", () => {
     expect(deviceNotes(null, timings, ["tracking", "render", "publish"])).toEqual(["cpu_render"]);
   });
 });
+
+describe("deviceNotes: Teliti fell back to Standar (SP3 spec 4.2.C)", () => {
+  const make = ["tracking", "render", "publish"];
+  const fellBack = { tracking_engine_requested: "mediapipe", tracking_engine_used: "haar" };
+
+  it("reports fallback_tracking when mediapipe was requested but haar ran", () => {
+    expect(
+      deviceNotes(null, [{ stage: "tracking", seconds: 5, tracking_engine_used: "haar" }], ["tracking", "render", "publish"], {
+        tracking_engine_requested: "mediapipe",
+        tracking_engine_used: "haar",
+      }),
+    ).toContain("fallback_tracking");
+  });
+
+  it("reads the finished tracking rows and the live stage", () => {
+    expect(deviceNotes(null, [timing("tracking", 5, { ...fellBack, tracking_fallback_reason: "addon_not_installed" })], make)).toEqual([
+      "fallback_tracking",
+    ]);
+    expect(deviceNotes(live("tracking", { device: "haar_fallback" }), [], make)).toEqual(["fallback_tracking"]);
+  });
+
+  it("tells a failure of an installed tracker apart from a missing one", () => {
+    const failed = timing("tracking", 5, { ...fellBack, tracking_fallback_reason: "mediapipe crashed on frame 12" });
+    expect(deviceNotes(live("tracking", { device: "haar_fallback" }), [failed], make)).toEqual(["fallback_tracking_failed"]);
+    expect(deviceNotes(null, [], make, { ...fellBack, tracking_fallback_reason: "boom" })).toEqual(["fallback_tracking_failed"]);
+  });
+
+  it("says nothing when Teliti ran, Standar was chosen, or no face tracking happens", () => {
+    expect(deviceNotes(null, [timing("tracking", 5, { tracking_engine_requested: "mediapipe", tracking_engine_used: "mediapipe" })], make)).toEqual([]);
+    expect(deviceNotes(null, [timing("tracking", 5, { tracking_engine_requested: "haar", tracking_engine_used: "haar" })], make)).toEqual([]);
+    expect(deviceNotes(null, [timing("tracking", 5, fellBack)], ["render", "publish"], fellBack)).toEqual([]);
+  });
+});

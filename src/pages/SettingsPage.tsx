@@ -10,7 +10,7 @@ import { OutputSection } from '../components/settings/OutputSection';
 import { CookiesSection } from '../components/settings/CookiesSection';
 import { DownloaderPanel } from '../components/settings/DownloaderPanel';
 import { HelpSection } from '../components/settings/HelpSection';
-import { Select } from '../components/ui/Select';
+import { FaceTrackingSection } from '../components/settings/FaceTrackingSection';
 import { useScrollToHash } from '../hooks/useScrollToHash';
 import { SETTINGS_ANCHORS } from '../lib/routes';
 import { settingsVisibility } from '../lib/settingsLayout';
@@ -56,19 +56,7 @@ export const SettingsPage: React.FC = () => {
           />
         )}
         {vis.showPexelsKey && <PexelsKeySection apiKeys={ctx.apiKeys} setApiKey={ctx.setApiKey} />}
-        <div className="rounded-card border border-border bg-bg-secondary p-5">
-          <Select
-            label={t('settings.face_engine_label')}
-            value={ctx.faceTrackingEngine}
-            onChange={(e) => ctx.setFaceTrackingEngine(e.target.value)}
-            aria-describedby="face-engine-help"
-            options={[
-              { label: t('settings.face_engine_standard'), value: 'haar' },
-              { label: t('settings.face_engine_precise'), value: 'mediapipe' },
-            ]}
-          />
-          <p id="face-engine-help" className="mt-2 text-body text-text-secondary">{t('settings.face_engine_help')}</p>
-        </div>
+        <FaceTrackingSection value={ctx.faceTrackingEngine} onChange={ctx.setFaceTrackingEngine} addonsEnabled={vis.showAddons} />
         <OutputSection
           showFolder={vis.showOutputFolder}
           outputFolder={ctx.outputFolder}
@@ -76,7 +64,7 @@ export const SettingsPage: React.FC = () => {
           quality={ctx.quality}
           setQuality={ctx.setQuality}
         />
-        <TranscriptionSection whisperModel={ctx.whisperModel} setWhisperModel={ctx.setWhisperModel} />
+        <TranscriptionSection whisperModel={ctx.whisperModel} setWhisperModel={ctx.setWhisperModel} addonsEnabled={vis.showAddons} />
         <DownloaderPanel />
       </Section>
 

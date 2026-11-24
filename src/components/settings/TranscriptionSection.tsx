@@ -1,11 +1,14 @@
-import React, { useEffect, useId, useState } from 'react';
-import { Download, RefreshCw } from 'lucide-react';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { Download, RefreshCw, TriangleAlert } from 'lucide-react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { API_URL } from '../../platform/backendUrl';
 import { requestError } from '../../lib/errorInfo';
 import { TechnicalDetails } from '../ui/TechnicalDetails';
 import { Button } from '../ui/Button';
+import { useAddons } from '../../hooks/useAddons';
+import { addonView } from '../../lib/addons';
+import { AddonControls } from './AddonControls';
 
 export interface WhisperModelInfo {
   id: string;
@@ -21,6 +24,8 @@ export interface WhisperModelInfo {
 interface TranscriptionSectionProps {
   whisperModel: string;
   setWhisperModel: (model: string) => void;
+  /** From settingsVisibility (caps.addons): graphics card support can be installed here. */
+  addonsEnabled: boolean;
 }
 
 type DownloadState =
@@ -30,7 +35,7 @@ type DownloadState =
   | { kind: 'failed'; model: string; technical: string };
 
 /** Pengaturan, Lanjutan: which speech-to-text model writes the subtitles, and downloading bigger ones. */
-export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whisperModel, setWhisperModel }) => {
+export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whisperModel, setWhisperModel, addonsEnabled }) => {
   const { t, i18n } = useTranslation();
   const groupName = useId();
   const [models, setModels] = useState<WhisperModelInfo[]>([]);
@@ -38,19 +43,44 @@ export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whis
   const [loadFailed, setLoadFailed] = useState(false);
   const [download, setDownload] = useState<DownloadState>({ kind: 'idle' });
 
-  const fetchModels = async () => {
-    setLoading(true);
+  // SP3 (spec 4.3): null from a server that does not say whether the graphics card makes the subtitles.
+  const [gpuReady, setGpuReady] = useState<boolean | null>(null);
+  const [slowModels, setSlowModels] = useState<string[]>([]);
+
+  /** `quiet`: reload behind the list that is already shown. */
+  const fetchModels = async (quiet = false) => {
+    if (!quiet) setLoading(true);
     setLoadFailed(false);
     try {
       const res = await axios.get(`${API_URL}/api/settings/whisper-models`);
-      if (res.data?.status === 'success') setModels(res.data.models);
+      if (res.data?.status === 'success') {
+        setModels(res.data.models);
+        setGpuReady(typeof res.data.gpu_ready === 'boolean' ? res.data.gpu_ready : null);
+        setSlowModels(Array.isArray(res.data.processor_slow_models) ? res.data.processor_slow_models : []);
+      }
     } catch (err) {
       console.error('Failed to fetch whisper models:', err);
-      setLoadFailed(true);
+      if (!quiet) setLoadFailed(true);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
+
+  // Only a server that reports gpu_ready knows add-ons (Ruling P8: older servers are never asked).
+  const { addons, pending, failures, install, remove } = useAddons(addonsEnabled && gpuReady !== null, 'cuda');
+  const cuda = addons.cuda;
+  const cudaView = addonView(cuda);
+  // Installing or removing the support changes gpu_ready: reload so the processor notes match.
+  const cudaInstalled = cuda ? cuda.installed : null;
+  const seenInstalled = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (cudaInstalled === null) return;
+    const before = seenInstalled.current;
+    seenInstalled.current = cudaInstalled;
+    if (before !== null && before !== cudaInstalled) void fetchModels(true);
+  }, [cudaInstalled]);
+  const showGpuCard =
+    cudaView === 'downloading' || cudaView === 'finishing' || cudaView === 'installed' || (cudaView === 'absent' && gpuReady === false);
 
   useEffect(() => {
     void fetchModels();
@@ -100,6 +130,12 @@ export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whis
                 <p className="text-caption text-text-secondary">
                   {t('settings.whisper_size', { disk: m.disk_size, vram: m.vram })}
                 </p>
+                {gpuReady === false && slowModels.includes(m.id) && (
+                  <p className="flex items-start gap-2 text-body text-text-primary">
+                    <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+                    <span>{t('settings.whisper_cpu_note')}</span>
+                  </p>
+                )}
               </div>
             );
 
@@ -152,6 +188,24 @@ export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whis
               </label>
             );
           })}
+        </div>
+      )}
+
+      {showGpuCard && (
+        <div className="flex flex-col gap-3 rounded-input border border-border p-4">
+          <p className="text-body font-medium text-text-primary">{t('settings.addon_gpu_title')}</p>
+          {cudaView === 'absent' && <p className="text-body text-text-secondary">{t('settings.addon_gpu_desc')}</p>}
+          <AddonControls
+            status={cuda}
+            offerInstall={gpuReady === false}
+            pending={pending.cuda}
+            failure={failures.cuda}
+            installLabel={t('settings.addon_gpu_install')}
+            removeLabel={t('settings.addon_gpu_remove')}
+            readyKey="settings.addon_gpu_ready"
+            onInstall={() => void install('cuda')}
+            onRemove={() => void remove('cuda')}
+          />
         </div>
       )}
 

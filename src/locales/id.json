@@ -177,7 +177,26 @@
     "test_ai_failed": "API key belum bisa dipakai. Kuncinya mungkin salah, kuotanya habis, atau penyedia AI tidak terjangkau. Periksa kuncinya dan koneksi internet, lalu tes lagi.",
     "output_title_quality": "Kualitas unduhan",
     "downloader_done": "Video sudah selesai diunduh.",
-    "downloader_open_history": "Buka di Riwayat"
+    "downloader_open_history": "Buka di Riwayat",
+    "whisper_cpu_note": "Komputer ini membuat subtitle dengan prosesor. Model ini paling cocok dengan kartu grafis: di prosesor, video 30 menit bisa makan waktu lebih dari satu jam. Untuk video pendek tetap boleh dipakai.",
+    "addon_gpu_title": "Percepat subtitle dengan kartu grafis",
+    "addon_gpu_desc": "Komputer ini punya kartu grafis NVIDIA, tetapi komponen pendukungnya belum ada, jadi subtitle dibuat dengan prosesor. Pasang komponen ini agar kartu grafis yang membuat subtitle.",
+    "addon_gpu_install": "Pasang dukungan kartu grafis",
+    "addon_gpu_remove": "Hapus dukungan kartu grafis",
+    "addon_gpu_ready": "Dukungan kartu grafis sudah terpasang dan memakai {{mb}} MB ruang penyimpanan.",
+    "addon_face_title": "Pelacak teliti",
+    "addon_face_desc": "Mode Teliti butuh komponen tambahan yang cukup diunduh sekali.",
+    "addon_face_fallback_note": "Komponen pelacak teliti belum terpasang. Selama belum dipasang, aplikasi otomatis memakai mode Standar.",
+    "addon_face_install": "Pasang pelacak teliti",
+    "addon_face_remove": "Hapus pelacak teliti",
+    "addon_face_ready": "Pelacak teliti sudah terpasang dan memakai {{mb}} MB ruang penyimpanan.",
+    "addon_face_unavailable": "Pelacak teliti belum tersedia untuk komputer ini, jadi aplikasi memakai mode Standar.",
+    "addon_size": "Ukuran unduhan sekitar {{mb}} MB.",
+    "addon_progress_label": "Progres unduhan",
+    "addon_downloading": "Mengunduh {{done}} MB dari {{total}} MB ({{percent}}%). Anda boleh membuka halaman lain selama menunggu.",
+    "addon_finishing": "Unduhan selesai. Sedang memeriksa dan memasang komponen.",
+    "addon_download_failed": "Komponen gagal diunduh, biasanya karena koneksi terputus atau ruang penyimpanan penuh. Periksa keduanya, lalu tekan tombol pasang lagi.",
+    "addon_remove_failed": "Komponen gagal dihapus. Tutup lalu buka lagi aplikasi, kemudian coba hapus lagi."
   },
   "toast": {
     "clip_failed": "Belum bisa mulai: {{msg}}",
@@ -507,7 +526,11 @@
     "max_clips": "Jumlah klip",
     "max_clips_auto": "Otomatis (sesuai panjang video)",
     "start": "Mulai",
-    "start_hint": "Tempel link atau pilih file video dulu."
+    "start_hint": "Tempel link atau pilih file video dulu.",
+    "cpu_model_title": "Subtitle bisa makan waktu lama",
+    "cpu_model_body": "Komputer ini membuat subtitle dengan prosesor. Dengan model Akurat, video 30 menit bisa makan waktu lebih dari satu jam. Model Cepat selesai jauh lebih cepat.",
+    "cpu_model_use_fast": "Pakai model Cepat (disarankan)",
+    "cpu_model_keep_accurate": "Tetap pakai model Akurat"
   },
   "progress": {
     "title_prepare": "Menyiapkan video",
@@ -533,7 +556,10 @@
     "cancel_confirm": "Ya, batalkan",
     "cancel_keep": "Lanjutkan proses",
     "running_bar": "Ada proses yang sedang berjalan.",
-    "running_bar_link": "Lihat progres"
+    "running_bar_link": "Lihat progres",
+    "fallback_tracking": "Pelacak teliti belum terpasang, jadi video ini memakai cara Standar. Pasang komponennya di Pengaturan bila dibutuhkan.",
+    "fallback_tracking_failed": "Pelacak teliti tidak bisa berjalan, jadi video ini memakai cara Standar. Klip tetap dibuat seperti biasa.",
+    "fallback_tracking_unavailable": "Pelacak teliti tidak tersedia di sini, jadi video ini memakai cara Standar. Klip tetap dibuat seperti biasa."
   },
   "moment": {
     "title": "Pilih momen terbaik dengan bantuan AI",

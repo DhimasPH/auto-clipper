@@ -81,4 +81,15 @@ describe("ProgressPanel (spec 4.3)", () => {
     act(() => button(i18n.t("progress.cancel_confirm")).click());
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it("says when Teliti was not installed and Standar was used, with what to do where add-ons exist (SP3)", () => {
+    const meta = { tracking_engine_requested: "mediapipe", tracking_engine_used: "haar", tracking_fallback_reason: "addon_not_installed" };
+    act(() => root.render(<ProgressPanel {...base} step={4} current={{ stage: "render", started_at: 1, clip: 1 }} meta={meta} />));
+    expect(container.textContent).toContain(i18n.t("progress.fallback_tracking"));
+
+    setPlatform({ caps: CAPS.cloud } as Platform);
+    act(() => root.render(<ProgressPanel {...base} step={4} current={{ stage: "render", started_at: 1, clip: 1 }} meta={{ ...meta }} />));
+    expect(container.textContent).not.toContain(i18n.t("progress.fallback_tracking"));
+    expect(container.textContent).toContain(i18n.t("progress.fallback_tracking_unavailable"));
+  });
 });

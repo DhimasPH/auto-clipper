@@ -177,7 +177,26 @@
     "test_ai_failed": "The API key does not work yet. It may be wrong, out of quota, or the AI provider cannot be reached. Check the key and your internet connection, then test again.",
     "output_title_quality": "Download quality",
     "downloader_done": "The video has finished downloading.",
-    "downloader_open_history": "Open in History"
+    "downloader_open_history": "Open in History",
+    "whisper_cpu_note": "This computer makes subtitles with the processor. This model works best with a graphics card: on the processor, a 30-minute video can take more than an hour. It is still fine for short videos.",
+    "addon_gpu_title": "Make subtitles faster with the graphics card",
+    "addon_gpu_desc": "This computer has an NVIDIA graphics card, but its support component is missing, so subtitles are made with the processor. Install this component so the graphics card makes the subtitles.",
+    "addon_gpu_install": "Install graphics card support",
+    "addon_gpu_remove": "Remove graphics card support",
+    "addon_gpu_ready": "Graphics card support is installed and uses {{mb}} MB of storage.",
+    "addon_face_title": "Precise tracker",
+    "addon_face_desc": "Precise mode needs an add-on that you download once.",
+    "addon_face_fallback_note": "The precise tracker add-on is not installed yet. Until you install it, the app uses Standard mode.",
+    "addon_face_install": "Install precise tracker",
+    "addon_face_remove": "Remove precise tracker",
+    "addon_face_ready": "The precise tracker is installed and uses {{mb}} MB of storage.",
+    "addon_face_unavailable": "The precise tracker is not available for this computer yet, so the app uses Standard mode.",
+    "addon_size": "Download size about {{mb}} MB.",
+    "addon_progress_label": "Download progress",
+    "addon_downloading": "Downloading {{done}} MB of {{total}} MB ({{percent}}%). You can open other pages while you wait.",
+    "addon_finishing": "Download finished. Checking and installing the component.",
+    "addon_download_failed": "The add-on could not be downloaded, usually because the connection dropped or storage is full. Check both, then press the install button again.",
+    "addon_remove_failed": "The add-on could not be removed. Close and reopen the app, then try removing it again."
   },
   "toast": {
     "clip_failed": "Cannot start yet: {{msg}}",
@@ -507,7 +526,11 @@
     "max_clips": "Number of clips",
     "max_clips_auto": "Automatic (by video length)",
     "start": "Start",
-    "start_hint": "Paste a link or choose a video file first."
+    "start_hint": "Paste a link or choose a video file first.",
+    "cpu_model_title": "Subtitles may take a long time",
+    "cpu_model_body": "This computer makes subtitles with the processor. With the Accurate model, a 30-minute video can take more than an hour. The Fast model finishes much sooner.",
+    "cpu_model_use_fast": "Use the Fast model (recommended)",
+    "cpu_model_keep_accurate": "Keep the Accurate model"
   },
   "progress": {
     "title_prepare": "Preparing the video",
@@ -533,7 +556,10 @@
     "cancel_confirm": "Yes, cancel",
     "cancel_keep": "Keep going",
     "running_bar": "A job is running.",
-    "running_bar_link": "See progress"
+    "running_bar_link": "See progress",
+    "fallback_tracking": "The precise tracker add-on is not installed yet, so this video uses Standard mode. Install it in Settings when needed.",
+    "fallback_tracking_failed": "The precise tracker could not run, so this video uses Standard mode. Your clips are still made as usual.",
+    "fallback_tracking_unavailable": "The precise tracker is not available here, so this video uses Standard mode. Your clips are still made as usual."
   },
   "moment": {
     "title": "Pick the best moments with an AI chat",

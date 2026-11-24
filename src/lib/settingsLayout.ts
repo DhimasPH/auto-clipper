@@ -15,11 +15,13 @@ export interface SettingsVisibility {
   showPexelsKey: boolean;
   showOutputFolder: boolean;
   showUpdater: boolean;
+  /** Install and remove buttons for the optional add-ons (SP3 spec 4.2). */
+  showAddons: boolean;
 }
 
 /** Which rows of Lanjutan and Bantuan this platform shows (AGENTS F.6, spec 4.5, Spec gap 12). */
 export function settingsVisibility(
-  caps: Pick<Caps, "apiKeys" | "localFilePicker" | "updater">,
+  caps: Pick<Caps, "apiKeys" | "localFilePicker" | "updater" | "addons">,
   aiMode: AiMode,
 ): SettingsVisibility {
   return {
@@ -28,6 +30,7 @@ export function settingsVisibility(
     showPexelsKey: caps.apiKeys,
     showOutputFolder: caps.localFilePicker,
     showUpdater: caps.updater,
+    showAddons: caps.addons,
   };
 }
 

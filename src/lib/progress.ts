@@ -82,14 +82,38 @@ export function progressRows(stages: string[], timings: unknown, current: LiveSt
   return rows.filter((row, i) => row.state !== "todo" || i > lastStarted);
 }
 
-export type DeviceNote = "cpu_subtitle" | "cpu_render";
+export type DeviceNote = "cpu_subtitle" | "cpu_render" | "fallback_tracking" | "fallback_tracking_failed";
 
-export function deviceNotes(current: LiveStage | null, timings: unknown, stages: string[]): DeviceNote[] {
+/** The tracking facts the job reports (backend crop_utils / jobs._sync_stage_metadata). */
+export interface TrackingMeta {
+  tracking_engine_requested?: unknown;
+  tracking_engine_used?: unknown;
+  tracking_fallback_reason?: unknown;
+}
+
+/**
+ * Teliti (mediapipe) was asked for but Standar (haar) ran (SP3 spec 4.2.C). "addon_not_installed",
+ * or no reason yet, means the add-on is missing; any other reason means the installed add-on failed.
+ */
+function trackingFallback(facts: TrackingMeta): DeviceNote | null {
+  if (facts.tracking_engine_requested !== "mediapipe" || facts.tracking_engine_used !== "haar") return null;
+  const reason = facts.tracking_fallback_reason;
+  return !reason || reason === "addon_not_installed" ? "fallback_tracking" : "fallback_tracking_failed";
+}
+
+export function deviceNotes(current: LiveStage | null, timings: unknown, stages: string[], meta?: TrackingMeta | null): DeviceNote[] {
   const notes = new Set<DeviceNote>();
   const look = (stage: unknown, device: unknown) => {
     if (typeof stage !== "string" || !stages.includes(shownAs(stage))) return;
     if (stage === "transcribe" && device === "cpu") notes.add("cpu_subtitle");
     if (shownAs(stage) === "render" && device === "libx264") notes.add("cpu_render");
+    // Live only: the running tracking stage switched to Standar; its reason arrives with the finished row.
+    if (stage === "tracking" && device === "haar_fallback") notes.add("fallback_tracking");
+  };
+  const tracks = stages.includes("tracking");
+  const addFallback = (facts: TrackingMeta) => {
+    const note = tracks ? trackingFallback(facts) : null;
+    if (note) notes.add(note);
   };
   if (current) look(current.stage, current.device);
   if (Array.isArray(timings)) {
@@ -98,7 +122,11 @@ export function deviceNotes(current: LiveStage | null, timings: unknown, stages:
       const e = entry as Record<string, unknown>;
       look(e.stage, e.whisper_device);
       look(e.stage, e.encoder);
+      if (e.stage === "tracking") addFallback(e);
     }
   }
+  if (meta && typeof meta === "object") addFallback(meta);
+  // One reason per video: a known failure says more than "not installed".
+  if (notes.has("fallback_tracking_failed")) notes.delete("fallback_tracking");
   return [...notes];
 }

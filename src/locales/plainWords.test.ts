@@ -68,3 +68,22 @@ describe.each([
     expect(hits).toEqual([]);
   });
 });
+
+// SP3: the add-on rows in Pengaturan are read by everyone who opens Lanjutan, so they use the main-screen
+// word list plus the add-on names (technical names only under "Detail teknis").
+describe.each([
+  ["id", id],
+  ["en", en],
+])("add-on texts in Pengaturan (%s)", (_lang, locale) => {
+  it("use plain words", () => {
+    const settings = (locale as { settings: Record<string, unknown> }).settings;
+    const keys = Object.keys(settings).filter((k) => k.startsWith("addon_") || k === "whisper_cpu_note");
+    expect(keys.length).toBeGreaterThan(10);
+    const banned = [...BANNED, "mediapipe", "dll", "cublas"];
+    const hits = keys
+      .map((k) => [k, String(settings[k])] as const)
+      .filter(([, text]) => banned.some((word) => text.toLowerCase().includes(word)))
+      .map(([k, text]) => `settings.${k}: ${text}`);
+    expect(hits).toEqual([]);
+  });
+});

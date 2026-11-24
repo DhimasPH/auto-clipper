@@ -24,6 +24,11 @@ export interface Caps {
   preventSleep: boolean;
   /** See KeepOpen. Picks the "may I close this?" text and the disconnected-banner text. */
   keepOpen: KeepOpen;
+  /**
+   * Optional add-ons downloaded from Pengaturan (SP3 spec 4.2): graphics card support for subtitles and the
+   * precise face tracker. Desktop and local web only: on cloud the backend runs on Colab, set up by the notebook.
+   */
+  addons: boolean;
 }
 
 export interface BackendInfo {
