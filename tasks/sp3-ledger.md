@@ -52,3 +52,8 @@ Task 4: re-review dispatched (17654c1..a39b777)
 Task 5: implementer DONE_WITH_CONCERNS, commit 11f6991 — Vitest 452 passed (66 files), pytest 1040/7, oxlint 0 errors, builds OK. New caps.addons (cloud false), AddonControls shared, Standar/Teliti choice moved to FaceTrackingSection, extra notes fallback_tracking_failed / fallback_tracking_unavailable. Not checked in a browser; no real 528 MB download.
 Task 5: note — implementer ran git stash/pop once while the Task 4 fixer had uncommitted work (restored cleanly; then used a worktree). Parallel agents must not use stash.
 Task 5: review dispatched (cf45ac0..11f6991)
+Task 5: review Needs fixes — Important: add-on errors use screen-written text instead of backend error_info via ErrorCard (AGENTS F rule 12); a SHA mismatch shows "koneksi terputus atau ruang penyimpanan penuh". All 8 implementer deviations accepted by the reviewer.
+Ruling: render failure error_info (ADDON_DOWNLOAD_FAILED, ADDON_IN_USE) with ErrorCard (retry → install); local addon_*_failed text only when there is no error_info (network, 400/404, message-only 409).
+Ruling: confirm before removing the GPU add-on only (528 MB re-download on metered links); Teliti (≈35 MB) removes immediately — cost if wrong: one extra click.
+Ruling: fix round 1 also takes minors 1 (finishing only when downloaded ≥ total), 2 (focus/announce on start), 3 (per-add-on progress label), 4 (ADDON_IN_USE shows a "scheduled for removal" state, no repeat remove), 6 (processor note without the graphics-card clause where no GPU option exists), 7 (cloud note in Settings when Teliti is chosen), 8 (link to Settings from the progress note), 9 (test gaps), and checks the stale tracking_engine_* metadata on Resume.
+Task 5: fix round 1 dispatched (FIX_BASE f9b81d9)
