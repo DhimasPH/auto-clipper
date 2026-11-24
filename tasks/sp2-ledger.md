@@ -105,3 +105,5 @@ Task 17: minors 1–8 fixed by controller (README emoji kept: matches README sty
 Task 15: re-review Approved (fix round 1 clean).
 Task 15: minor (deferred → final fix wave): save_refused shown for 5xx/404 too (ClipEditModal.tsx:171) — use it only for 4xx or make it neutral; GDrive retry after root fallback failure retries root (harmless).
 Task 15: complete (commits a068ee6..707ba1b, review clean after fix round 1) — Vitest 419, pytest 849/12, oxlint 0 errors, build + build:cloud OK.
+Task 18: step 1 verification at f7aba4d — pytest 849 passed, 12 skipped; Vitest 419 passed (64 files); oxlint 0 errors, 15 warnings; build + build:cloud OK; npm audit 0 vulnerabilities (prod and full); deleted SP1-era pages/components have 0 references in src (one doc comment in DownloaderPanel names ManualDownloaderPage as its origin).
+Task 18: whole-branch review dispatched (dc3ba66..f7aba4d), reviewer opus a390a720ab291ffe5
