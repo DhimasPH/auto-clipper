@@ -209,6 +209,41 @@ def _canvas_image_refused(canvas_config, endpoint: str):
         return denied(endpoint, path)
     return None
 
+
+def _history_title(job_id: str) -> str:
+    from backend.db import get_history
+    hist = get_history(job_id) or {}
+    title = (hist.get("metadata") or {}).get("title", "")
+    return title if isinstance(title, str) else ""
+
+
+def _resolve_safe_output_dir(output_dir: str, endpoint: str, title="") -> tuple:
+    """T1.y: the output folder a job may write to, and the 403 when it is refused (else None).
+
+    Cloud and local web ignore it: a browser or a tunnel never names a folder on
+    the server, so the job uses the library. On Desktop the chosen folder and the
+    project folder inside it (``<folder>/<title>``) must not be private app files
+    (E.14); the folder goes on as an absolute path. ``title`` may be a function,
+    called only when a folder was chosen (re-runs read it from history).
+    """
+    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE") or web_ui.is_web_mode():
+        return "", None
+    raw = (output_dir or "").strip()
+    if not raw:
+        return "", None
+    from backend.path_guard import denied, is_protected
+    if is_protected(raw):
+        return "", denied(endpoint, raw)
+    resolved = os.path.abspath(raw)
+    if callable(title):
+        title = title()
+    if title:
+        from backend.jobs import project_library_dir
+        library_dir = project_library_dir(title, resolved)
+        if is_protected(library_dir):
+            return "", denied(endpoint, library_dir)
+    return resolved, None
+
 @app.get("/probe")
 def api_probe(url: str):
     """Return available video heights (descending) for a source URL."""
@@ -486,17 +521,35 @@ class SaveFileRequest(BaseModel):
     src: str
     dest: str
 
+
+def _in_allowed_folder(path: str, base_dirs: list) -> bool:
+    """True when ``path`` is inside one of ``base_dirs`` or a project folder a real job recorded (T1.y).
+
+    The project folders come from running jobs and history only
+    (``workspace.allowed_project_output_dirs``) and are read only when the
+    app's own folders do not hold the file, so a playing clip in the library
+    never reads the whole history on every range request.
+    """
+    from backend.path_guard import is_within
+    if any(is_within(path, d) for d in base_dirs if d):
+        return True
+    from backend.jobs import active_jobs
+    from backend.workspace import allowed_project_output_dirs
+    return any(is_within(path, d) for d in allowed_project_output_dirs(active_jobs))
+
+
 @app.post("/save_file")
 def api_save_file(req: SaveFileRequest):
-    from backend.path_guard import denied, is_protected, is_within
+    from backend.path_guard import denied, is_protected
+    from backend.workspace import get_work_dir
     try:
         # copy2 into a folder keeps the source's name: check the file it would write.
         dest = os.path.join(req.dest, os.path.basename(req.src)) if os.path.isdir(req.dest) else req.dest
         for path in (req.src, dest):
             if is_protected(path):
                 return denied("save_file", path)
-        # Only allow copying files that originate from our AppData directory
-        if not is_within(req.src, get_app_data_dir()):
+        # Only files from the app's folders or from a project folder chosen on Desktop (T1.y).
+        if not _in_allowed_folder(req.src, [get_app_data_dir(), get_work_dir()]):
             return JSONResponse(status_code=403, content={"status": "error", "message": "Hanya diperbolehkan menyalin file dari direktori internal aplikasi."})
 
         shutil.copy2(req.src, dest)
@@ -546,10 +599,13 @@ def api_rerender_job(job_id: str, req: RerenderJobRequest):
     refused = _canvas_image_refused(req.canvas_config, "jobs_rerender")
     if refused:
         return refused
+    output_dir, refused = _resolve_safe_output_dir(req.output_dir, "jobs_rerender", lambda: _history_title(job_id))
+    if refused:
+        return refused
     try:
         from backend.jobs import create_rerender_job
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
-        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, tracking_mode=req.tracking_mode, face_tracking_engine=_requested_engine(req), enable_hook=req.enable_hook)
+        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, output_dir, req.max_clips, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, tracking_mode=req.tracking_mode, face_tracking_engine=_requested_engine(req), enable_hook=req.enable_hook)
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -559,6 +615,9 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
     refused = _canvas_image_refused(req.canvas_config, "jobs_rerun_ai")
     if refused:
         return refused
+    output_dir, refused = _resolve_safe_output_dir(req.output_dir, "jobs_rerun_ai", lambda: _history_title(job_id))
+    if refused:
+        return refused
     try:
         from backend.ai_utils import ping_provider
         ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip(), model=req.model.strip() if req.model else None)
@@ -566,7 +625,7 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
         new_job_id = create_rerun_ai_job(
             job_id, req.provider, req.api_key.strip(),
-            req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
+            req.aspect_ratio, req.burn_subs, output_dir, req.extra_prompt, req.max_clips,
             req.custom_base_url.strip(), req.custom_model_name.strip(), req.whisper_model,
             req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, enable_hook=req.enable_hook,
             tracking_mode=req.tracking_mode, face_tracking_engine=_requested_engine(req)
@@ -848,6 +907,10 @@ def api_create_job(req: CreateJobRequest):
     if not is_valid_source_url(req.url):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid. Didukung: YouTube, TikTok, Instagram, X/Twitter, atau upload file lokal."})
 
+    output_dir, refused = _resolve_safe_output_dir(req.output_dir, "jobs", req.title.strip())
+    if refused:
+        return refused
+
     try:
         from backend.ai_utils import ping_provider
         ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip(), model=req.model.strip() if req.model else None)
@@ -858,7 +921,7 @@ def api_create_job(req: CreateJobRequest):
     canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
     job_id = create_job(
         req.url.strip(), req.provider, req.api_key.strip(),
-        req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
+        req.aspect_ratio, req.caption_style, req.burn_subs, output_dir, req.quality,
         req.title.strip(), req.enable_broll, req.pexels_api_key.strip(), req.max_clips,
         req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video,
         req.whisper_model, req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config,
@@ -1051,12 +1114,16 @@ def api_create_manual_job(req: ManualJobRequest):
     if not is_valid_source_url(req.url):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid untuk klip manual."})
 
+    output_dir, refused = _resolve_safe_output_dir(req.output_dir, "jobs_manual", req.title.strip())
+    if refused:
+        return refused
+
     try:
         from backend.jobs import create_manual_job
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
         job_id = create_manual_job(
             req.url.strip(), req.clips, req.aspect_ratio, req.caption_style,
-            req.burn_subs, req.output_dir, req.quality, req.title.strip(), req.is_gaming_video,
+            req.burn_subs, output_dir, req.quality, req.title.strip(), req.is_gaming_video,
             req.whisper_model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config,
             tracking_mode=req.tracking_mode, face_tracking_engine=req.face_tracking_engine
         )
@@ -1086,18 +1153,11 @@ def get_video(path: str, sig: str = "", dl: int = 0, title: str = None):
         return JSONResponse(status_code=403, content={"status": "error", "message": DENIED_MESSAGE})
 
     abs_path = os.path.normpath(os.path.abspath(path))
-    
-    # Path traversal protection: ensure file is inside app data dir or project root
-    safe_dirs = [
-        os.path.abspath(get_app_data_dir()),
-        os.path.abspath(os.getcwd())
-    ]
-    # A clip whose copy to the library failed is still on the work disk.
+
+    # Only the app data dir, the project root, the work dir (a clip whose copy to the
+    # library failed is still there) and project folders chosen on Desktop (T1.y).
     from backend.workspace import get_work_dir
-    work_dir = get_work_dir()
-    if work_dir:
-        safe_dirs.append(work_dir)
-    if not any(os.path.commonpath([abs_path, safe_dir]) == safe_dir for safe_dir in safe_dirs):
+    if not _in_allowed_folder(abs_path, [get_app_data_dir(), os.getcwd(), get_work_dir()]):
         log_app(f"[video] Security error: Path traversal attempt: {abs_path}")
         return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
         

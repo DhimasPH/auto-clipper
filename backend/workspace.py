@@ -245,3 +245,58 @@ def storage_dirs() -> list:
 def free_disk_gb() -> float:
     """Free space on the fullest disk a job writes to."""
     return min(shutil.disk_usage(d).free for d in storage_dirs()) / 1024 ** 3
+
+
+def _job_records(active_jobs: dict, history: list):
+    """(title, output_dir, job id, clips) of every running job and every history row."""
+    for job in list(active_jobs.values()):
+        meta = job.get("metadata") or {}
+        yield (job.get("title") or meta.get("title", ""), job.get("output_dir") or meta.get("output_dir", ""),
+               job.get("id", ""), job.get("clips") or [])
+    for row in history:
+        meta = row.get("metadata") or {}
+        yield meta.get("title", ""), meta.get("output_dir", ""), row.get("id", ""), row.get("result_clips") or []
+
+
+def allowed_project_output_dirs(active_jobs: dict, history: Optional[list] = None) -> list:
+    """Project folders under an output folder chosen on Desktop that /video and /save_file may read (T1.y).
+
+    Built only from what the server recorded for real jobs (``active_jobs`` and
+    history), never from a request. Each entry is one project folder
+    (``<output folder>/<title>``, or the folder holding a recorded clip's
+    ``clips`` folder inside that output folder), not the whole output folder,
+    so other files the user keeps there stay closed. Private app folders
+    (``path_guard``) are left out. Empty on Cloud, where no request may choose
+    an output folder and an older one in history is not trusted.
+    """
+    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE"):
+        return []
+    from backend.jobs import project_library_dir
+    from backend.path_guard import is_protected, is_within
+    if history is None:
+        from backend.db import get_all_history
+        try:
+            history = get_all_history()
+        except Exception as e:  # an unreadable history opens nothing more
+            log_error("workspace.allowed_project_output_dirs", e)
+            history = []
+
+    dirs = []
+    for title, output_dir, job_id, clips in _job_records(active_jobs, history):
+        if not isinstance(output_dir, str) or not output_dir.strip():
+            continue
+        base = os.path.abspath(output_dir.strip())
+        candidates = [project_library_dir(title if isinstance(title, str) else "", base, job_id)]
+        for clip in clips:
+            path = clip.get("path") if isinstance(clip, dict) else None
+            if not isinstance(path, str) or not path:
+                continue
+            clips_dir = os.path.dirname(os.path.abspath(path))
+            project = os.path.dirname(clips_dir)
+            # Strictly inside the output folder: a clip at <output>/clips would open all of it.
+            if os.path.basename(clips_dir).lower() == "clips" and is_within(project, base) and not is_within(base, project):
+                candidates.append(project)
+        for folder in candidates:
+            if folder not in dirs and not is_protected(folder):
+                dirs.append(folder)
+    return dirs

@@ -162,7 +162,11 @@ def sanitize_title(title: str) -> str:
         return ""
     # Remove illegal filesystem characters and emojis (keep only word chars, spaces, and basic punctuation)
     sanitized = re.sub(r'[^\w\s\-\.,()[\]]', '', title).strip()
-    return sanitized or "AutoClipper_Project"
+    # "." or ".." as a folder name is the output folder itself or its parent (T1.y), and Windows
+    # drops trailing dots and spaces, so "..." and ". ." are the same folder too.
+    if not sanitized.strip(". "):
+        return "AutoClipper_Project"
+    return sanitized
 
 def check_title_uniqueness(title: str):
     safe_title = sanitize_title(title).lower()
@@ -182,19 +186,40 @@ def check_title_uniqueness(title: str):
             raise HTTPException(status_code=400, detail=f"Judul Proyek '{title}' sudah digunakan di Riwayat. Silakan gunakan judul berbeda untuk mencegah konflik folder.")
 
 
-def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") -> dict:
+def _project_folder_name(title: str, job_id: str = "") -> str:
     safe_title = sanitize_title(title)
     if not safe_title:
         safe_title = f"Project_{job_id}" if job_id else "Project_Untitled"
+    return safe_title
 
+
+def project_library_dir(title: str, output_dir: str = "", job_id: str = "") -> str:
+    """Where a project's finished files are kept: ``<output folder or app data/projects>/<title>``.
+
+    Pure path arithmetic, nothing is created.
+    """
     if output_dir and output_dir.strip():
         base_dir = output_dir.strip()
     else:
         base_dir = os.path.join(get_app_data_dir(), "projects")
+    return os.path.join(base_dir, _project_folder_name(title, job_id))
+
+
+def refuse_protected_project_dir(output_dir: str, library_dir: str) -> None:
+    """T1.y: a project never writes into a private app file or folder (``path_guard``)."""
+    from backend.path_guard import is_protected
+    for path in ((output_dir or "").strip(), library_dir):
+        if path and is_protected(path):
+            raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a protected project folder: {path!r}")
+
+
+def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") -> dict:
+    safe_title = _project_folder_name(title, job_id)
 
     # library_dir is where the finished project is kept. With AUTO_CLIPPER_WORK_DIR
     # the job works on that faster disk instead and publishes its results.
-    library_dir = os.path.join(base_dir, safe_title)
+    library_dir = project_library_dir(title, output_dir, job_id)
+    refuse_protected_project_dir(output_dir, library_dir)
     project_dir = workspace.work_project_dir(safe_title) or library_dir
     source_dir = os.path.join(project_dir, "source")
     subtitles_dir = os.path.join(project_dir, "subtitles")

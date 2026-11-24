@@ -186,6 +186,21 @@ ERROR_CODES = {
         ),
         "actions": ["resume"],
     },
+    "OUTPUT_DIR_REFUSED": {
+        "title": "Folder hasil tidak bisa dipakai",
+        "message": (
+            "Klip tidak disimpan di folder hasil yang dipilih, karena folder itu menyimpan file pribadi aplikasi. "
+            "Menyimpan klip di sana bisa merusak data aplikasi. "
+            "Pilih folder lain di Pengaturan, lalu coba lagi."
+        ),
+        "title_en": "The output folder cannot be used",
+        "message_en": (
+            "Clips were not saved to the chosen output folder, because that folder holds the app's private files. "
+            "Saving clips there could damage the app's data. "
+            "Choose another folder in Settings, then try again."
+        ),
+        "actions": ["open_settings"],
+    },
     "AI_KEY_INVALID": {
         "title": "Kunci API ditolak",
         "message": (
