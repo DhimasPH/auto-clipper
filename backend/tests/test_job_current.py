@@ -190,3 +190,81 @@ def test_job_status_carries_current_while_a_stage_runs():
 def test_job_status_from_history_has_no_current(monkeypatch):
     monkeypatch.setattr("backend.db.get_history", lambda j: {"url": "u", "status": "DONE", "result_clips": [], "metadata": {}})
     assert client.get("/jobs/test-current-history").json()["current"] is None
+
+
+def test_rerender_clip_updates_parent_in_active_jobs_so_get_job_returns_new_clip_version(tmp_path, monkeypatch):
+    src = tmp_path / "source.mp4"
+    src.write_bytes(b"x")
+    clip_file = tmp_path / "clip_1.mp4"
+    clip_file.write_bytes(b"old")
+    parent_id = "test-parent-active"
+    ws = {
+        "project_dir": str(tmp_path),
+        "library_dir": str(tmp_path),
+        "source_dir": str(tmp_path),
+        "clips_dir": str(tmp_path),
+        "subtitles_dir": str(tmp_path),
+        "safe_title": "Parent",
+    }
+    clip_entry = {"path": str(clip_file), "start": "00:00:00", "end": "00:00:05", "subs": True, "v": 0}
+    history_doc = {
+        "id": parent_id,
+        "url": f"local:{src}",
+        "status": "DONE",
+        "result_clips": [dict(clip_entry)],
+        "metadata": {"source_video": str(src), "title": "Parent"},
+    }
+    jobs.active_jobs[parent_id] = {
+        "id": parent_id,
+        "url": f"local:{src}",
+        "status": "DONE",
+        "progress": "Done",
+        "clips": [dict(clip_entry)],
+        "metadata": {"source_video": str(src), "title": "Parent"},
+    }
+    saved = {}
+
+    monkeypatch.setattr("backend.db.get_history", lambda j: history_doc if j == parent_id else None)
+    fake_save = lambda jid, url, st, clips, meta: saved.update({"clips": clips})
+    monkeypatch.setattr("backend.db.save_history", fake_save)
+    monkeypatch.setattr(jobs, "save_history", fake_save)
+    monkeypatch.setattr(jobs, "get_project_workspace", lambda *a, **k: ws)
+    monkeypatch.setattr(jobs, "_start_job", lambda *a, **k: None)
+
+    def fake_crop(source, out_path, *a, **k):
+        with open(out_path, "wb") as f:
+            f.write(b"new")
+        return out_path
+
+    monkeypatch.setattr(jobs, "crop_to_vertical", fake_crop)
+
+    new_job_id = jobs.create_rerender_clip_job(
+        parent_id, 0, [{"word": "halo", "start": 0.0, "end": 0.5}], "9:16", "single_word", True
+    )
+    try:
+        jobs._run_rerender_clip_job(new_job_id)
+        updated = jobs.get_job(parent_id)
+        assert updated["clips"][0]["v"] > 0
+        assert updated["clips"][0]["custom_subtitle_path"].endswith("clip_0_custom.words.json")
+        assert saved["clips"][0]["v"] == updated["clips"][0]["v"]
+    finally:
+        jobs.job_queue.cancel(new_job_id)
+        jobs.active_jobs.pop(new_job_id, None)
+        jobs.active_jobs.pop(parent_id, None)
+
+
+def test_cancelling_a_single_clip_rerender_does_not_create_a_history_row(monkeypatch):
+    calls = []
+    monkeypatch.setattr(jobs, "_start_job", lambda *a, **k: None)
+    fake_save = lambda *a, **k: calls.append(a)
+    monkeypatch.setattr("backend.db.save_history", fake_save)
+    monkeypatch.setattr(jobs, "save_history", fake_save)
+
+    new_job_id = jobs.create_rerender_clip_job("parent-1", 0, [], "9:16", "single_word", True)
+    try:
+        jobs.cancel_job(new_job_id)
+        assert jobs.active_jobs[new_job_id]["status"] == "CANCELLED"
+        assert not any(c[0] == new_job_id for c in calls)
+    finally:
+        jobs.job_queue.cancel(new_job_id)
+        jobs.active_jobs.pop(new_job_id, None)

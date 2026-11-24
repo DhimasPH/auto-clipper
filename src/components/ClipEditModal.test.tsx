@@ -38,7 +38,7 @@ describe("ClipEditModal (Ubah subtitle atau tampilan)", () => {
 
   beforeEach(async () => {
     await i18n.changeLanguage("id");
-    setPlatform({ caps: CAPS.local } as unknown as Platform);
+    setPlatform({ caps: CAPS.local, openExternal: vi.fn().mockResolvedValue(undefined) } as unknown as Platform);
     vi.mocked(apiGetClipWords).mockResolvedValue({ words: WORDS.map((w) => ({ ...w })) });
     onClose = vi.fn<() => void>();
     onRerenderStart = vi.fn<(id: string) => void>();
@@ -203,5 +203,38 @@ describe("ClipEditModal (Ubah subtitle atau tampilan)", () => {
     expect(alert.textContent).toContain(i18n.t("clip_rerender.save_refused"));
     expect(alert.textContent).not.toContain(i18n.t("clip_rerender.save_failed"));
     expect(alert.textContent).toContain("Path is outside the allowed folders");
+  });
+
+  it("shows save_failed (not save_refused) for 5xx and 404 responses", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(apiCreateClipRerenderJob)
+      .mockRejectedValueOnce({
+        message: "Request failed with status code 500",
+        response: { status: 500, data: { message: "Internal Server Error" } },
+      })
+      .mockRejectedValueOnce({
+        message: "Request failed with status code 404",
+        response: { status: 404, data: { message: "Not Found" } },
+      });
+    await render();
+    await act(async () => button(i18n.t("clip_rerender.save_rerender"))!.click());
+    let alert = dialog().querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain(i18n.t("clip_rerender.save_failed"));
+    expect(alert.textContent).not.toContain(i18n.t("clip_rerender.save_refused"));
+
+    await act(async () => button(i18n.t("clip_rerender.save_rerender"))!.click());
+    alert = dialog().querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain(i18n.t("clip_rerender.save_failed"));
+    expect(alert.textContent).not.toContain(i18n.t("clip_rerender.save_refused"));
+  });
+
+  it("opens ChatGPT and Gemini through platform().openExternal", async () => {
+    const openExternal = vi.fn().mockResolvedValue(undefined);
+    setPlatform({ caps: CAPS.desktop, openExternal } as unknown as Platform);
+    await render();
+    await act(async () => button(i18n.t("moment.open_chatgpt"))!.click());
+    await act(async () => button(i18n.t("moment.open_gemini"))!.click());
+    expect(openExternal).toHaveBeenNthCalledWith(1, "https://chatgpt.com/");
+    expect(openExternal).toHaveBeenNthCalledWith(2, "https://gemini.google.com/app");
   });
 });

@@ -111,6 +111,11 @@ export const CreatePage: React.FC = () => {
       <StepIndicator states={stepStates(shownStep, finished)} />
 
       {failed && ctx.errorInfo && <ErrorCard info={ctx.errorInfo} handlers={jobErrorActions} announce />}
+      {failed && !ctx.errorInfo && ctx.errorMsg && (
+        <p role="alert" className="text-body text-error break-words">
+          {ctx.errorMsg}
+        </p>
+      )}
 
       {ctx.awaiting && (
         <MomentStep
@@ -158,7 +163,7 @@ export const CreatePage: React.FC = () => {
           />
           {!failed && ctx.errorInfo && <ErrorCard info={ctx.errorInfo} handlers={jobErrorActions} announce />}
           {/* A request that failed without error_info (old backend): its own words, as before SP2. */}
-          {ctx.errorMsg && !ctx.errorInfo && (
+          {!failed && ctx.errorMsg && !ctx.errorInfo && (
             <p role="alert" className="text-body text-error break-words">
               {ctx.errorMsg}
             </p>

@@ -517,12 +517,13 @@ def cancel_job(job_id: str):
                     proc.kill()
             except Exception as e:
                 log_error("jobs.cancel_job", e)
-        # Immediately record CANCELLED in DB
-        try:
-            from backend.db import save_history
-            save_history(job_id, job.get("url", ""), "CANCELLED", job.get("clips", []), job.get("metadata"))
-        except Exception as e:
-            log_error("jobs.cancel_job_db", e)
+        # Immediately record CANCELLED in DB (single-clip rerenders belong to parent_job_id, not their own history row)
+        if job.get("type") != "rerender_clip":
+            try:
+                from backend.db import save_history
+                save_history(job_id, job.get("url", ""), "CANCELLED", job.get("clips", []), job.get("metadata"))
+            except Exception as e:
+                log_error("jobs.cancel_job_db", e)
 
 @_with_timings
 def _run_job(job_id: str):
@@ -1502,6 +1503,9 @@ def _run_rerender_clip_job(new_job_id: str):
     clip_index = job["clip_index"]
 
     try:
+        if job.get("cancelled", False):
+            job["status"] = "CANCELLED"
+            return
         job["status"] = "CROPPING"
         job["progress"] = "Preparing custom subtitle..."
         set_context(clip=clip_index + 1)
@@ -1574,6 +1578,7 @@ def _run_rerender_clip_job(new_job_id: str):
                 source_path, hook_output, seg["hook_start"], seg["hook_end"],
                 subtitle_path=custom_subtitle_path,
                 aspect_ratio=job["aspect_ratio"],
+                register_proc=lambda p: _register_proc(job, p),
                 should_cancel=lambda: job.get("cancelled", False),
                 layout=job_layout,
                 canvas_config=job.get("canvas_config"),
@@ -1586,6 +1591,7 @@ def _run_rerender_clip_job(new_job_id: str):
                 source_path, main_output, start_t, end_t,
                 subtitle_path=custom_subtitle_path,
                 aspect_ratio=job["aspect_ratio"],
+                register_proc=lambda p: _register_proc(job, p),
                 should_cancel=lambda: job.get("cancelled", False),
                 layout=job_layout,
                 canvas_config=job.get("canvas_config"),
@@ -1611,6 +1617,7 @@ def _run_rerender_clip_job(new_job_id: str):
                 source_path, temp_output, start_t, end_t,
                 subtitle_path=custom_subtitle_path,
                 aspect_ratio=job["aspect_ratio"],
+                register_proc=lambda p: _register_proc(job, p),
                 should_cancel=lambda: job.get("cancelled", False),
                 layout=job_layout,
                 canvas_config=job.get("canvas_config"),
@@ -1618,6 +1625,15 @@ def _run_rerender_clip_job(new_job_id: str):
                 tracking_mode=job.get("tracking_mode", "auto"),
                 engine=job.get("face_tracking_engine", "haar")
             )
+
+        if job.get("cancelled", False):
+            job["status"] = "CANCELLED"
+            if temp_output and os.path.exists(temp_output) and temp_output.endswith(".tmp.mp4"):
+                try:
+                    os.remove(temp_output)
+                except Exception:
+                    pass
+            return
 
         # Atomic replace: move temp to final path
         final_path = render_path or result_path
@@ -1645,6 +1661,8 @@ def _run_rerender_clip_job(new_job_id: str):
                 if custom_subtitle_path:
                     fresh_clips[clip_index]["custom_subtitle_path"] = custom_subtitle_path
                 save_history(parent_job_id, fresh_history["url"], fresh_history["status"], fresh_clips, fresh_metadata)
+                if parent_job_id in active_jobs:
+                    active_jobs[parent_job_id]["clips"] = fresh_clips
                 job["clips"].append(fresh_clips[clip_index])
         else:
             target_clip["path"] = result_path
@@ -1656,10 +1674,13 @@ def _run_rerender_clip_job(new_job_id: str):
         job["progress"] = "Done"
 
     except Exception as e:
-        log_error(f"RERENDER CLIP JOB {new_job_id}", e)
-        _record_error(job, e)
-        job["status"] = "ERROR"
-        # Clean up temp file on error
+        if job.get("cancelled", False):
+            job["status"] = "CANCELLED"
+        else:
+            log_error(f"RERENDER CLIP JOB {new_job_id}", e)
+            _record_error(job, e)
+            job["status"] = "ERROR"
+        # Clean up temp file on error/cancel
         try:
             if 'temp_output' in dir() and temp_output and os.path.exists(temp_output) and temp_output.endswith(".tmp.mp4"):
                 os.remove(temp_output)

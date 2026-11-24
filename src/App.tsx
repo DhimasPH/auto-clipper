@@ -109,13 +109,6 @@ export default function App() {
   const [title, setTitle] = useState("");
   const pexelsApiKey = apiKeys["pexels"] || "";
 
-  // Smart Manual Clipper state, lifted here so it survives route changes
-  // (the editor page unmounts on navigation and would otherwise reset).
-  const [manualFile, setManualFile] = useState<File | null>(null);
-  const [manualLocalUrl, setManualLocalUrl] = useState<string | null>(null);
-  const [manualClips, setManualClips] = useState<any[]>([]);
-  const [manualMeta, setManualMeta] = useState<any>(null);
-
   // Cookies upload opened from an error card. `onRetry` runs the failed step again.
   const [cookiesModal, setCookiesModal] = useState<{ onRetry?: () => void } | null>(null);
   // Set by the "Unggah file video" action; the workspace form focuses its file input once.
@@ -179,7 +172,6 @@ export default function App() {
     enableHook,
     pexelsApiKey,
     notify,
-    closeHistory: () => {},
     maxClips,
     isGamingVideo,
     whisperModel,
@@ -284,10 +276,6 @@ export default function App() {
     handleGenerate,
     handleManualGenerate,
     cancelJob,
-    manualFile, setManualFile,
-    manualLocalUrl, setManualLocalUrl,
-    manualClips, setManualClips,
-    manualMeta, setManualMeta,
     clips,
     failedCount,
     historyVersion,

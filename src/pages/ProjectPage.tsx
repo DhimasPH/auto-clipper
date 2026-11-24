@@ -6,6 +6,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import { AppContext } from "../App";
 import { ClipEditModal } from "../components/ClipEditModal";
 import ClipsResult from "../components/ClipsResult";
+import { ErrorCard } from "../components/ErrorCard";
 import { JobReport } from "../components/JobReport";
 import { AiCorrectDialog } from "../components/projects/AiCorrectDialog";
 import { DeleteFailedAlert } from "../components/projects/DeleteFailedAlert";
@@ -14,6 +15,7 @@ import { RerenderAllDialog } from "../components/projects/RerenderAllDialog";
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { OverflowMenu, type OverflowItem } from "../components/ui/OverflowMenu";
+import { useErrorActions } from "../hooks/useErrorActions";
 import { asErrorInfo, hasRerunAction } from "../lib/errorInfo";
 import { canRerunAI } from "../lib/history";
 import { projectPrimaryAction, projectStatusKey } from "../lib/projectStatus";
@@ -41,6 +43,8 @@ export const ProjectPage: React.FC = () => {
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [rerenderOpen, setRerenderOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const showHistoryRequestError = ctx?.jobOrigin === "history" && ctx?.status === "IDLE" && !!(ctx?.errorInfo || ctx?.errorMsg);
+  const requestErrorActions = useErrorActions({ jobId: ctx?.failedJobId ?? (id || null), origin: "history" });
   // A retry button disappears once pressed; keyboard focus waits on a heading instead of falling to <body>.
   const headingRef = useRef<HTMLHeadingElement>(null);
   const backRef = useRef<HTMLAnchorElement>(null);
@@ -171,6 +175,15 @@ export const ProjectPage: React.FC = () => {
           }}
         />
       )}
+
+      {showHistoryRequestError &&
+        (ctx.errorInfo ? (
+          <ErrorCard info={ctx.errorInfo} handlers={requestErrorActions} announce quiet />
+        ) : (
+          <p role="alert" className="m-0 text-body text-error break-words">
+            {ctx.errorMsg}
+          </p>
+        ))}
 
       {primary === "paste_answer" && (
         <div>

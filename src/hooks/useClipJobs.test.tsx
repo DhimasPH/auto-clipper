@@ -349,6 +349,54 @@ describe("useClipJobs handleResumeJob (Ruling P2)", () => {
     act(() => latest.watchJob("someone-else"));
     expect(latest.activeJobId).toBe("mine");
   });
+
+  it("keeps failedJobId and returns to IDLE when handleResumeJob fails with error_info", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    mockPlatform(CAPS.desktop);
+    const error_info = {
+      code: "AI_KEY_MISSING",
+      title: "Kunci API belum diisi",
+      message: "Isi kunci dulu.",
+      title_en: "No API key",
+      message_en: "Enter key.",
+      actions: [{ id: "resume", label: "Lanjutkan", label_en: "Resume" }],
+      technical: "missing key",
+    };
+    vi.spyOn(axios, "post").mockRejectedValueOnce({ response: { status: 400, data: { message: "missing", error_info } } });
+    await act(async () => root.render(<Probe params={makeParams({ aiMode: "auto", apiKey: "" })} />));
+    await act(async () => latest.handleResumeJob("job-missing-key", "history"));
+    expect(latest.status).toBe("IDLE");
+    expect(latest.jobOrigin).toBe("history");
+    expect(latest.failedJobId).toBe("job-missing-key");
+    expect(latest.errorInfo?.code).toBe("AI_KEY_MISSING");
+  });
+
+  it("switches a running history job to workspace results when watchJob is called for it", async () => {
+    vi.useFakeTimers();
+    mockPlatform(CAPS.desktop);
+    vi.spyOn(axios, "post").mockResolvedValueOnce({ data: { status: "success", job_id: "hist-run-1" } });
+    vi.spyOn(axios, "get").mockResolvedValueOnce({
+      data: {
+        status: "DONE",
+        failed: 0,
+        clips: [{ path: "C:/c1.mp4", description: "d", start: "0", end: "1", subs: true, v: 0 }],
+        metadata: { title: "Resumed" },
+      },
+    });
+    await act(async () => root.render(<Probe params={makeParams()} />));
+    await act(async () => latest.handleResumeJob("hist-orig", "history"));
+    expect(latest.jobOrigin).toBe("history");
+
+    act(() => latest.watchJob("hist-run-1"));
+    expect(latest.jobOrigin).toBe("workspace");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(latest.status).toBe("DONE");
+    expect(latest.resultJobId).toBe("hist-run-1");
+    expect(latest.clips).toHaveLength(1);
+  });
 });
 
 describe("useClipJobs handleManualGenerate overrides (Task 14 downloader)", () => {

@@ -367,4 +367,31 @@ describe("ProjectsPage (spec 4.5)", () => {
     expect(document.activeElement).toBe(container.querySelector("h1"));
     consoleError.mockRestore();
   });
+
+  it("shows the ErrorCard when a Riwayat request (resume/rerender/AI) fails synchronously", async () => {
+    const handleResumeJob = vi.fn();
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: { status: "success", history: [doneJob] } });
+    await renderPage(
+      makeCtx({
+        jobOrigin: "history",
+        status: "IDLE",
+        failedJobId: "j1",
+        handleResumeJob,
+        errorInfo: {
+          code: "AI_KEY_MISSING",
+          title: "Kunci API belum diisi",
+          message: "Isi kunci di Pengaturan.",
+          title_en: "No API key",
+          message_en: "Add key.",
+          actions: [{ id: "resume", label: "Lanjutkan", label_en: "Resume" }],
+          technical: "missing",
+        },
+      }),
+    );
+
+    const alert = container.querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain("Kunci API belum diisi");
+    act(() => buttonWith(alert as HTMLElement, "Lanjutkan")[0].click());
+    expect(handleResumeJob).toHaveBeenCalledWith("j1", "history");
+  });
 });

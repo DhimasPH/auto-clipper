@@ -50,6 +50,8 @@ export const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
   const caps = platform().caps;
   const lang = toLang(i18n.language);
+  const showHistoryRequestError = ctx?.jobOrigin === "history" && ctx?.status === "IDLE" && !!(ctx?.errorInfo || ctx?.errorMsg);
+  const requestErrorActions = useErrorActions({ jobId: ctx?.failedJobId, origin: "history" });
 
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +111,15 @@ export const ProjectsPage: React.FC = () => {
           {t("projects.refresh")}
         </Button>
       </div>
+
+      {showHistoryRequestError &&
+        (ctx.errorInfo ? (
+          <ErrorCard info={ctx.errorInfo} handlers={requestErrorActions} announce quiet />
+        ) : (
+          <p role="alert" className="m-0 text-body text-error break-words">
+            {ctx.errorMsg}
+          </p>
+        ))}
 
       {loading && projects.length === 0 && !loadFailed ? (
         <p role="status" className="text-body text-text-secondary">{t("projects.loading")}</p>

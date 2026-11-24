@@ -36,7 +36,7 @@ export interface ClipJobParams {
   enableHook: boolean;
   pexelsApiKey: string;
   notify: (text: string, kind?: ToastKind) => void;
-  closeHistory: () => void;
+  closeHistory?: () => void;
   maxClips: number;
   isGamingVideo: boolean;
   whisperModel: string;
@@ -147,11 +147,11 @@ export function useClipJobs(p: ClipJobParams) {
   };
 
   /** Show a failed request: the structured card when the backend sent error_info, else the raw text. */
-  const showRequestError = (err: unknown, fallback: string) => {
+  const showRequestError = (err: unknown, fallback: string, jobId: string | null = null) => {
     const { message, info } = requestError(err, fallback);
     setErrorMsg(message);
     setErrorInfo(info);
-    setFailedJobId(null);
+    setFailedJobId(jobId);
     notify(info ? localizedText(info, toLang(i18n.language)).title : message, "error");
   };
 
@@ -169,19 +169,21 @@ export function useClipJobs(p: ClipJobParams) {
 
           if (job.status === "DONE") {
             const failedN = job.failed || 0;
+            const isClipRerender = String(activeJobId).startsWith("rerender_clip_");
+            const onCreateRoute = !window.location.hash || window.location.hash === "#/" || window.location.hash === "#";
             setStatus("DONE");
             setCurrent(null);
             setMakePhase(false);
             setLiveMeta(job.metadata || null);
-            if (jobOrigin === "workspace") {
+            setHistoryVersion((v) => v + 1);
+            if (jobOrigin === "workspace" || (onCreateRoute && !isClipRerender && Array.isArray(job.clips) && job.clips.length > 0)) {
               setClips(job.clips);
               setFailedCount(failedN);
               setJobMeta(job.metadata || null);
               setResultJobId(activeJobId);
-            } else {
-              // History-origin job (re-render / AI correction): refresh History, leave Workspace untouched.
-              setHistoryVersion((v) => v + 1);
-              if (resultJobId) void reloadResult(resultJobId);
+            } else if (resultJobId) {
+              // History-origin job (re-render / AI correction): refresh existing Workspace results if shown.
+              void reloadResult(resultJobId);
             }
             setActiveJobId(null);
             setProgress("");
@@ -444,13 +446,14 @@ export function useClipJobs(p: ClipJobParams) {
       if (res.data.status === "error") throw new Error(res.data.message);
 
       setActiveJobId(res.data.job_id);
-      p.closeHistory();
+      setHistoryVersion((v) => v + 1);
+      p.closeHistory?.();
       notify(t('toast.starting_rerender'));
     } catch (err: any) {
       console.error(err);
-      setStatus("ERROR");
+      setStatus("IDLE");
       setProgress("");
-      showRequestError(err, t('toast.rerender_fail'));
+      showRequestError(err, t('toast.rerender_fail'), historyJobId);
     }
   };
 
@@ -485,13 +488,14 @@ export function useClipJobs(p: ClipJobParams) {
       if (res.data.status === "error") throw new Error(res.data.message);
 
       setActiveJobId(res.data.job_id);
-      p.closeHistory();
+      setHistoryVersion((v) => v + 1);
+      p.closeHistory?.();
       notify(t('toast.starting_ai_correct'));
     } catch (err: any) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      showRequestError(err, t('toast.ai_correct_fail'));
+      showRequestError(err, t('toast.ai_correct_fail'), historyJobId);
     }
   };
 
@@ -517,13 +521,14 @@ export function useClipJobs(p: ClipJobParams) {
       if (res.data.status === "error") throw new Error(res.data.message);
 
       setActiveJobId(res.data.job_id);
-      p.closeHistory();
+      setHistoryVersion((v) => v + 1);
+      p.closeHistory?.();
       notify(t('toast.starting_resume'));
     } catch (err: any) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      showRequestError(err, t('toast.resume_fail'));
+      showRequestError(err, t('toast.resume_fail'), historyJobId);
     }
   };
 
@@ -591,7 +596,10 @@ export function useClipJobs(p: ClipJobParams) {
    * is left alone.
    */
   const watchJob = (jobId: string) => {
-    if (activeJobId) return;
+    if (activeJobId) {
+      if (activeJobId === jobId) setJobOrigin("workspace");
+      return;
+    }
     resetJobState();
     beginJob("workspace", false);
     setStatus("PENDING");

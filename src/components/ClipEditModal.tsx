@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Copy, RotateCcw } from "lucide-react";
+import { Copy, ExternalLink, RotateCcw } from "lucide-react";
 import { AppContext } from "../App";
+import { CHATGPT_URL, GEMINI_URL } from "./create/MomentStep";
 import { Button } from "./ui/Button";
 import { Dialog } from "./ui/Dialog";
 import { Select } from "./ui/Select";
@@ -168,8 +169,9 @@ export const ClipEditModal: React.FC<Props> = ({
       onRerenderStart(data.job_id);
     } catch (e) {
       console.error(e);
-      const answered = !!(e as { response?: unknown } | null)?.response;
-      setSaveFailed({ cause: answered ? "refused" : "offline", technical: requestError(e, "").message });
+      const status = (e as { response?: { status?: number } } | null)?.response?.status;
+      const refused = typeof status === "number" && status >= 400 && status < 500 && status !== 404;
+      setSaveFailed({ cause: refused ? "refused" : "offline", technical: requestError(e, "").message });
     } finally {
       setSaving(false);
     }
@@ -281,22 +283,12 @@ export const ClipEditModal: React.FC<Props> = ({
                   <Button variant="outline" icon={Copy} onClick={() => void copyPrompt()}>
                     {copyState === "copied" ? t("moment.copied") : t("moment.copy")}
                   </Button>
-                  <a
-                    href="https://chatgpt.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-[44px] items-center rounded-button px-3 text-body text-accent underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
+                  <Button variant="outline" icon={ExternalLink} onClick={() => void platform().openExternal(CHATGPT_URL).catch(console.error)}>
                     {t("moment.open_chatgpt")}
-                  </a>
-                  <a
-                    href="https://gemini.google.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-[44px] items-center rounded-button px-3 text-body text-accent underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
+                  </Button>
+                  <Button variant="outline" icon={ExternalLink} onClick={() => void platform().openExternal(GEMINI_URL).catch(console.error)}>
                     {t("moment.open_gemini")}
-                  </a>
+                  </Button>
                 </div>
                 {copyState === "failed" && <p role="alert" className="text-body text-error">{t("clip_rerender.copy_failed")}</p>}
                 <label className="flex flex-col gap-1.5 text-label text-text-primary">
