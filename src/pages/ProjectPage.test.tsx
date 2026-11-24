@@ -199,4 +199,52 @@ describe("ProjectPage (spec 4.5)", () => {
     expect(buttonWith(container, i18n.t("projects.retry_load"))).toHaveLength(0);
     consoleError.mockRestore();
   });
+
+  it("keeps keyboard focus on the page when a retry button disappears", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(axios.get)
+      .mockRejectedValueOnce(new Error("Network Error"))
+      .mockResolvedValueOnce({ data: { id: "j1", status: "DONE", clips: [{ path: "a.mp4" }], metadata: { title: "Podcast" } } });
+    vi.mocked(axios.delete).mockRejectedValue(new Error("file in use"));
+    await renderPage(makeCtx());
+
+    const retryLoad = buttonWith(container, i18n.t("projects.retry_load"))[0];
+    retryLoad.focus();
+    await act(async () => retryLoad.click());
+    expect(container.querySelector("h1")?.textContent).toBe("Podcast");
+    expect(document.activeElement).toBe(container.querySelector('a[href="/riwayat"]'));
+
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
+    act(() => buttonWith(container, i18n.t("projects.menu_delete"))[0].click());
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+    await act(async () => buttonWith(dialog, i18n.t("projects.delete_confirm"))[0].click());
+    await act(() => new Promise((resolve) => setTimeout(resolve, 100)));
+    const retryDelete = buttonWith(container, i18n.t("projects.delete_retry"))[0];
+    retryDelete.focus();
+    await act(async () => retryDelete.click());
+    await act(() => new Promise((resolve) => setTimeout(resolve, 100)));
+    expect(document.activeElement).toBe(container.querySelector("h1"));
+    consoleError.mockRestore();
+  });
+
+  it("keeps what the user typed when the project reloads behind an open dialog", async () => {
+    setPlatform({ caps: CAPS.desktop } as unknown as Platform);
+    const job = { id: "j1", status: "DONE", clips: [{ path: "a.mp4" }], metadata: { title: "Podcast", ai_job: true } };
+    vi.mocked(axios.get).mockResolvedValue({ data: job });
+    await renderPage(makeCtx({ historyVersion: 0 }));
+
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
+    act(() => buttonWith(container, i18n.t("projects.menu_ai_rerun"))[0].click());
+    let textarea = document.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea')!;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "cari bagian lucu");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    // A job finishing elsewhere bumps historyVersion, so the page loads the project again.
+    await renderPage(makeCtx({ historyVersion: 1 }));
+    await renderPage(makeCtx({ historyVersion: 2 }));
+    expect(axios.get).toHaveBeenCalledTimes(3);
+    textarea = document.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea')!;
+    expect(textarea.value).toBe("cari bagian lucu");
+  });
 });

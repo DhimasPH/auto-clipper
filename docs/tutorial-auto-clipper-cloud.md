@@ -206,9 +206,9 @@ Kedua kotak Bagian 4 mengatur `AUTO_CLIPPER_WORKSPACE=/content/drive/MyDrive/Aut
 
 ```text
 [OK] Pengolah video siap
-    Aplikasi menemukan FFmpeg.
-[PERHATIAN] Render memakai prosesor
-    Kartu grafis di perangkat ini tidak bisa dipakai untuk merender klip, ...
+    Program pengolah video ditemukan.
+[PERHATIAN] Klip dibuat dengan prosesor
+    Kartu grafis di perangkat ini tidak bisa dipakai untuk membuat klip, ...
 ```
 
 `[PERHATIAN]` tidak menghentikan apa pun. `[MASALAH]` (FFmpeg tidak ada, disk hampir penuh, atau Google Drive belum terhubung) membuat setiap job berhenti sebelum mulai dengan pesan yang sama, sampai masalahnya diperbaiki. Skrip selalu selesai dengan kode 0 agar server tetap dijalankan.
@@ -381,7 +381,7 @@ Sejak v1.19.0 aplikasi web memakai halaman yang sama dengan aplikasi desktop. Al
 ### Kendala 4: Memory GPU Penuh (OOM) & Fallback Otomatis NVENC
 * **Penyebab:** Video input memiliki resolusi sangat tinggi (4K/60fps) atau durasi transkripsi sangat panjang.
 * **Solusi:**
-  1. Auto Clipper menguji encoder `h264_nvenc` sekali. Jika tidak tersedia atau gagal, render memakai `libx264` di CPU. Peralihan ini tidak lagi diam-diam: Pemeriksaan awal menulis `[PERHATIAN] Render memakai prosesor`, dan "Detail waktu" mencatat encoder yang dipakai tiap job.
+  1. Auto Clipper menguji encoder `h264_nvenc` sekali. Jika tidak tersedia atau gagal, render memakai `libx264` di CPU. Peralihan ini tidak lagi diam-diam: Pemeriksaan awal menulis `[PERHATIAN] Klip dibuat dengan prosesor`, dan "Detail waktu" mencatat encoder yang dipakai tiap job.
   2. Untuk transkripsi video panjang di atas 1 jam, gunakan model Whisper `small` atau `medium` yang ramah memori.
 
 ---

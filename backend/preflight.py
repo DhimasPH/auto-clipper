@@ -192,8 +192,8 @@ def check_ffmpeg() -> dict:
         return _from_error_code("ffmpeg", "block", "FFMPEG_MISSING", technical="ffmpeg executable not found")
     return _result(
         "ffmpeg", "ok",
-        "Pengolah video siap", "Aplikasi menemukan FFmpeg.",
-        "Video processing is ready", "The app found FFmpeg.",
+        "Pengolah video siap", "Program pengolah video ditemukan.",
+        "Video processing is ready", "The video processing program was found.",
         technical=f"ffmpeg at {path}",
     )
 
@@ -206,11 +206,11 @@ def check_disk() -> dict:
         return _result(
             "disk", "block",
             "Ruang penyimpanan penuh",
-            f"Ruang kosong tinggal {free_id} GB, tidak cukup untuk mengunduh dan merender video. "
+            f"Ruang kosong tinggal {free_id} GB, tidak cukup untuk mengunduh video dan membuat klipnya. "
             "Proses tidak dimulai agar tidak berhenti di tengah jalan. "
             "Hapus proyek lama atau file lain yang tidak dipakai, lalu coba lagi.",
             "Storage is full",
-            f"Only {free_en} GB of space is free, which is not enough to download and render a video. "
+            f"Only {free_en} GB of space is free, which is not enough to download a video and make its clips. "
             "The process was not started so it would not stop partway. "
             "Delete old projects or other files you no longer need, then try again.",
             code="DISK_FULL", technical=technical,
@@ -294,15 +294,15 @@ def check_gpu_render() -> dict:
     if not _gpu_encoder_available():
         return _result(
             "gpu_render", "warn",
-            "Render memakai prosesor",
-            "Kartu grafis di perangkat ini tidak bisa dipakai untuk merender klip, "
-            "jadi render memakai prosesor dan berjalan lebih lambat. "
+            "Klip dibuat dengan prosesor",
+            "Kartu grafis di perangkat ini tidak bisa dipakai untuk membuat klip, "
+            "jadi prosesor yang membuatnya dan hasilnya keluar lebih lambat. "
             "Di Google Colab ini bisa terjadi walaupun GPU aktif: GPU tetap dipakai untuk membuat subtitle. "
             "Di komputer tanpa kartu grafis NVIDIA, ini juga normal. "
             "Proses tetap berjalan, tidak ada yang perlu dilakukan.",
-            "Rendering uses the processor",
-            "The graphics card on this device cannot be used to render clips, "
-            "so rendering runs on the processor and is slower. "
+            "Clips are made on the processor",
+            "The graphics card on this device cannot be used to make clips, "
+            "so the processor makes them and they take longer. "
             "On Google Colab this can happen even when the GPU is active: the GPU is still used to make subtitles. "
             "It is also normal on a computer without an NVIDIA graphics card. "
             "The process still works and you do not need to do anything.",
@@ -310,8 +310,8 @@ def check_gpu_render() -> dict:
         )
     return _result(
         "gpu_render", "ok",
-        "Render memakai GPU", "Klip dirender memakai kartu grafis.",
-        "Rendering uses the GPU", "Clips are rendered on the graphics card.",
+        "Klip dibuat dengan GPU", "Klip dibuat memakai kartu grafis.",
+        "Clips are made on the GPU", "Clips are made on the graphics card.",
     )
 
 

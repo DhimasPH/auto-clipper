@@ -11,11 +11,12 @@ export const Badge: React.FC<BadgeProps> = ({
   children,
   className = ''
 }) => {
+  // Opaque background: a translucent tint drops status text below 4.5:1 on the light page.
   const variants = {
-    success: 'bg-success/10 text-success border border-success/20',
-    error: 'bg-error/10 text-error border border-error/20',
-    warning: 'bg-warning/10 text-warning border border-warning/20',
-    info: 'bg-info/10 text-info border border-info/20',
+    success: 'bg-bg-secondary text-success border border-success',
+    error: 'bg-bg-secondary text-error border border-error',
+    warning: 'bg-bg-secondary text-warning border border-warning',
+    info: 'bg-bg-secondary text-info border border-info',
     neutral: 'bg-bg-surface text-text-secondary border border-border',
   };
 

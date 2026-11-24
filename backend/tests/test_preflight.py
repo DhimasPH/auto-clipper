@@ -252,6 +252,22 @@ def test_no_message_uses_jargon_and_problems_say_what_to_do(healthy, monkeypatch
             assert r["message_en"].count(".") >= 2, r["id"]
 
 
+# SP2 spec 4.6: preflight notes and cards show on the Buat klip screen, so they follow the
+# main-screen word list of src/locales/plainWords.test.ts (technical words stay in "technical").
+MAIN_SCREEN_BANNED = [
+    "transkripsi", "transcription", "render", "encoder", "json", "sidecar", "token",
+    "prompt", "backend", "ffmpeg", "nvenc", "cuda", "whisper",
+]
+
+
+def test_messages_shown_on_the_main_screen_avoid_the_banned_words(healthy, monkeypatch):
+    for r in _all_states(monkeypatch):
+        for field in ("title", "message", "title_en", "message_en"):
+            lowered = r[field].lower()
+            hits = [word for word in MAIN_SCREEN_BANNED if word in lowered]
+            assert not hits, f"{r['id']}.{field} contains {hits}"
+
+
 # --- blocking a job -----------------------------------------------------------
 
 def test_blocking_error_is_an_app_error_with_the_check_code(healthy, monkeypatch):

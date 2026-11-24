@@ -32,10 +32,17 @@ const TEXT: [string, string][] = [
   ["accent", "accent-muted"], ["text-primary", "accent-muted"], ["on-accent", "accent"],
   ["on-accent", "accent-hover"], ["error", "bg-primary"], ["error", "bg-secondary"],
   ["warning", "bg-secondary"], ["success", "bg-secondary"],
+  // Status text also sits on the page, on wells and on selected rows (Task 15 audit).
+  ["warning", "bg-primary"], ["warning", "bg-surface"], ["warning", "accent-muted"],
+  ["success", "bg-primary"], ["success", "bg-surface"], ["success", "accent-muted"],
+  ["error", "bg-surface"], ["error", "accent-muted"], ["accent", "bg-surface"],
+  ["text-secondary", "accent-muted"],
 ];
 // Control edges and the focus ring (WCAG 1.4.11): 3:1.
 const UI: [string, string][] = [
-  ["border-active", "bg-primary"], ["border-active", "bg-secondary"], ["accent", "bg-primary"],
+  ["border-active", "bg-primary"], ["border-active", "bg-secondary"], ["border-active", "bg-surface"],
+  ["accent", "bg-primary"], ["accent", "bg-secondary"], ["accent", "bg-surface"], ["accent", "accent-muted"],
+  ["on-accent", "accent"], ["text-secondary", "bg-surface"],
 ];
 
 describe("contrast formula", () => {
@@ -59,5 +66,14 @@ describe.each([
 
   it.each(UI)("%s against %s is at least 3:1", (fg, bg) => {
     expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// A translucent tint (bg-success/10) mixes with whatever is behind it: on the light page
+// (#F6F6F4) success and warning text drop to 4.36 and 4.38:1. Status chips use opaque tokens.
+describe("status badges", () => {
+  it("use an opaque background, so their text keeps the checked contrast on any surface", () => {
+    const badge = readFileSync("src/components/ui/Badge.tsx", "utf8");
+    expect(badge).not.toMatch(/\bbg-[\w-]+\/\d+/);
   });
 });

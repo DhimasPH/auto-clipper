@@ -359,8 +359,12 @@ describe("ProjectsPage (spec 4.5)", () => {
     await renderPage(makeCtx());
 
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(i18n.t("projects.load_failed"));
-    await act(async () => buttonWith(container, i18n.t("projects.retry_load"))[0].click());
+    const retry = buttonWith(container, i18n.t("projects.retry_load"))[0];
+    retry.focus();
+    await act(async () => retry.click());
     expect(container.textContent).toContain("Podcast Pagi");
+    // The retry button is gone; keyboard focus waits on the page title, not on <body>.
+    expect(document.activeElement).toBe(container.querySelector("h1"));
     consoleError.mockRestore();
   });
 });

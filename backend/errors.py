@@ -219,13 +219,13 @@ ERROR_CODES = {
     "FFMPEG_MISSING": {
         "title": "Komponen pengolah video tidak ditemukan",
         "message": (
-            "Aplikasi tidak menemukan FFmpeg, program yang dipakai untuk memotong dan merender video. "
+            "Aplikasi tidak menemukan program pengolah video yang dipakai untuk memotong video menjadi klip. "
             "Tanpa program itu tidak ada klip yang bisa dibuat. "
             "Di aplikasi desktop, pasang ulang Auto Clipper. Di Google Colab, jalankan ulang langkah instalasi di notebook."
         ),
         "title_en": "The video processing component is missing",
         "message_en": (
-            "The app could not find FFmpeg, the program it uses to cut and render video. "
+            "The app could not find the video processing program it uses to cut a video into clips. "
             "No clip can be made without it. "
             "In the desktop app, reinstall Auto Clipper. On Google Colab, run the notebook's install step again."
         ),

@@ -28,7 +28,8 @@ export function mainScreenTexts(locale: Record<string, unknown>): Entry[] {
   const out = MAIN_NAMESPACES.flatMap((ns) => (ns in locale ? texts(locale[ns], ns) : []));
   const timing = (locale.timing ?? {}) as Record<string, unknown>;
   for (const [key, value] of Object.entries(timing)) {
-    if (key.startsWith("stage_")) out.push(...texts(value, `timing.${key}`));
+    // device_* sits next to the stage rows on the progress screen (Task 15).
+    if (key.startsWith("stage_") || key.startsWith("device_")) out.push(...texts(value, `timing.${key}`));
   }
   return out;
 }
@@ -49,6 +50,20 @@ describe.each([
   it("has no emoji and no em dash", () => {
     const hits = entries
       .filter(([, text]) => EMOJI.test(text) || text.includes("\u2014"))
+      .map(([path, text]) => `${path}: ${text}`);
+    expect(hits).toEqual([]);
+  });
+});
+
+// Settings, gates and error cards are not main screens, so technical words may appear there,
+// but decorative emoji and the em dash are banned in every text the app can show (spec 4.6, Task 15).
+describe.each([
+  ["id", id],
+  ["en", en],
+])("every text (%s)", (_lang, locale) => {
+  it("has no emoji and no em dash", () => {
+    const hits = texts(locale, "")
+      .filter(([, text]) => EMOJI.test(text) || text.includes("—"))
       .map(([path, text]) => `${path}: ${text}`);
     expect(hits).toEqual([]);
   });
