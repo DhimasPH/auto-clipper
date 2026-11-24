@@ -108,12 +108,50 @@ Di luar daftar itu, implementer sebelumnya juga menyelesaikan minor Task 13 "Lih
 4. Pratinjau "pop" subtitle berulang terus: menunjukkan animasi yang dipilih pengguna untuk klipnya, berada di pratinjau `aria-hidden`, dan berhenti lewat aturan global `prefers-reduced-motion` di `src/index.css`. Biaya bila salah: pratinjau diam.
 5. Watermark 12 px putih di pratinjau: simulasi ukuran watermark di video, bukan teks antarmuka, kontras 5,11:1 di bingkai `#6B6E74`. Biaya bila salah: ukuran pratinjau dinaikkan.
 6. Tombol utama nonaktif (opacity 50 %) di bawah 4,5:1: WCAG 1.4.3 tidak berlaku untuk kontrol nonaktif, dan alasannya tertulis di bawah tombol dengan `text-secondary` ("Tempel link atau pilih file video dulu."). Biaya bila salah: gaya nonaktif baru untuk `Button`.
+7. (Review Task 15, minor 1, diputuskan controller.) "Buat judul dan tagar" di Bagikan (`SocialKitModal`) dan "Perbaiki otomatis" di Ubah subtitle (`ClipEditModal`) hanya muncul bila mode AI "Pakai API key" (`aiMode === "auto"`), `caps.apiKeys`, dan ada kunci (atau server sendiri). Alasan: spec 4.2 menjadikan API key opsi lanjutan, dan `settingsVisibility` menyembunyikan kunci penyedia di mode AI manual, jadi tombol di mode manual akan memakai kunci yang tidak bisa dilihat pengguna. Di mode manual, Bagikan menjelaskan cara menyalakannya dan Ubah subtitle menawarkan cara salin ke ChatGPT/Gemini. Dikunci tes di `SocialKitModal.test.tsx` dan `ClipEditModal.test.tsx`. Biaya bila salah: satu kondisi per tombol.
 
 ## Belum diverifikasi
 
-- Tidak diperiksa di browser: gerbang masuk cloud (`AuthGate`), `LocalGate`, `SplashScreen`, dialog Google Drive, dialog cookies, overlay pembaruan, dan bagian Pengaturan di bawah 16 tombol pertama (YouTube dan Lanjutan hanya sebagian lewat Tab). Semuanya hanya diperiksa lewat kode dan tes komponen.
+- Bagian Pengaturan di bawah 16 tombol pertama (YouTube dan Lanjutan) hanya sebagian lewat Tab. Enam layar yang dulu belum dibuka di browser kini sudah (lihat "Putaran perbaikan 1"); `SplashScreen` dan overlay pembaruan lewat harness, bukan lewat aplikasi utuh.
 - Data backend di browser adalah tiruan (job, riwayat, kata subtitle); alur penuh dengan video sungguhan tidak dijalankan.
 - Pembaca layar (NVDA/VoiceOver) tidak dipakai; label diperiksa lewat atribut dan urutan fokus saja.
 - Zoom 200 % dan keyboard layar HP tidak diuji.
 - Desktop Tauri tidak bisa dijalankan di mesin ini (tidak ada Rust).
 - Uji pemakaian oleh orang awam tetap menunggu pemilik (Task 18).
+
+## Putaran perbaikan 1 (review Task 15)
+
+Tanggal: 2026-11-24, FIX_BASE `7453308`. Temuan review: `.superpowers/sdd/2026-11-20-sp2-ux-for-everyone/task-15-review.md`.
+
+### Browser: enam layar yang belum diperiksa
+
+Edge headless lewat CDP, 360×780, 768×1024, 1280×800, terang dan gelap (6 kombinasi). Skrip memakai ukuran yang sama dengan putaran pertama (overflow, elemen keluar tepi, kontrol di bawah 44 px, huruf di bawah 14 px, error console) dan membuka dialog dengan keyboard (fokus lalu Enter), supaya cincin fokus mengikuti aturan `:focus-visible`. Tangkapan layar: `.superpowers/sdd/2026-11-20-sp2-ux-for-everyone/screens-t15fix/` (gambar dan `report-t15fix.json`, tidak ikut git).
+
+Cara tiap layar dijangkau:
+- `LocalGate`: build `npm run build` dilayani `backend.main --web`. Tanpa token di alamat: kartu "Buka lewat Auto Clipper Web". Token ditolak (cek token dijawab 401 tiruan): kartu kunci kedaluwarsa. Server tidak menjawab (permintaan digagalkan): kartu "Jendela Auto Clipper sudah ditutup", lalu "Coba lagi" dengan server kembali membuka Buat klip.
+- Dialog cookies: dari kartu error proyek gagal di Riwayat, tombol "Unggah cookies.txt". Status dan hapus cookies dijawab tiruan (file cookies asli di mesin ini tidak disentuh).
+- `AuthGate` dan dialog Google Drive: build cloud (`vite build --mode cloud`) dilayani server statis, alamat backend diarahkan ke asal yang sama, semua jawaban backend tiruan (`/api/settings/whisper-models` hanya menerima token yang benar; `/gdrive-browser` dengan folder berisi, folder gagal, dan nama file panjang tanpa spasi).
+- `SplashScreen` dan overlay pembaruan: harness Vite (`.superpowers/harness/`, tidak ikut git) yang merender komponen asli dengan CSS dan font aplikasi. Di build web, splash hilang dalam sekejap karena tidak ada yang ditunggu dari jaringan, dan pembaruan hanya ada di desktop (Tauri tidak bisa dijalankan di mesin ini). Harness memakai `UpdaterSection` asli dengan updater tiruan yang berhenti di 40 %, jadi alurnya sama: Periksa pembaruan, pertanyaan "Pasang sekarang", lalu overlay.
+
+| Layar | Hasil (6 kombinasi lebar × tema) |
+|---|---|
+| `LocalGate` (3 kartu) | 18 halaman: overflow 0, kontrol < 44 px 0, huruf < 14 px 0. Tab: "Coba lagi" bercincin fokus; kartu tanpa token tidak punya tombol (petunjuknya: buka lagi Auto Clipper Web). "Coba lagi" setelah server kembali membuka Buat klip di keenam kombinasi. |
+| Dialog cookies | 18 halaman (dialog, konfirmasi hapus, sesudah hapus): 0 masalah ukur. Fokus masuk ke tombol Tutup, Tab berputar di dalam (Ganti file cookies, Hapus cookies, Tutup, Tutup), Escape menutup dan fokus kembali ke "Unggah cookies.txt". Konfirmasi hapus: fokus di Batal. Sesudah hapus: fokus di "Pilih file cookies.txt" (perbaikan minor 5), bukan `<body>`. |
+| `AuthGate` | 12 halaman (form, kode salah): 0 masalah ukur. Kolom kode akses fokus otomatis; Tab: kolom, Tampilkan kode akses, tujuh tautan komunitas, semua bercincin fokus. Kode salah lewat Enter: pesan "Kode akses ditolak ..." (`role="alert"`); kode benar membuka aplikasi. Ditemukan dan diperbaiki: Edge menggambar ikon mata kedua di dalam kolom kata sandi, di samping tombol Tampilkan milik aplikasi. `src/index.css` kini menyembunyikan `::-ms-reveal` (tes penjaga di `contrast.test.ts`), dicek ulang di browser. |
+| Dialog Google Drive | 18 halaman (akar, subfolder dengan nama panjang, folder gagal): 0 masalah ukur, nama panjang terlipat. Fokus masuk ke Tutup, Tab berputar di dalam, Escape menutup dan fokus kembali ke "Pilih dari Google Drive". Dibuka lagi: langsung di folder terakhir (perbaikan minor 3). Folder gagal: pesan dan "Muat lagi". |
+| `SplashScreen` (harness) | 6 halaman: 0 masalah ukur. Tidak ada kontrol; status dibacakan lewat `role="status"`. |
+| Overlay pembaruan (harness) | 12 halaman (pertanyaan, overlay): 0 masalah ukur. Pertanyaan: fokus di "Nanti saja". Overlay: tanpa tombol tutup, Escape tidak menutup, fokus tetap di panel dialog (tidak ada kontrol yang bisa dioperasikan), progres memakai `role="progressbar"`. |
+
+Total 84 halaman diukur, 0 overflow, 0 kontrol < 44 px, 0 huruf < 14 px. Pesan console yang muncul hanya yang sengaja dipicu tiruan (401, koneksi ditolak, 500 untuk folder gagal) dan `favicon.ico` 404 di harness. Satu putaran harness 360 gelap terganggu muat ulang server Vite (halaman masuk back-forward cache); diulang sendiri dan lulus.
+
+Catatan: di `AuthGate`, tombol Masuk nonaktif selama kolom kosong, jadi Enter di kolom kosong tidak memunculkan pesan "isi dulu". Sama dengan Ruling 6 (kontrol nonaktif), tidak diubah.
+
+### Perbaikan kode lain di putaran ini
+
+- `Dialog`: `footer` boleh berupa fungsi yang menerima `requestClose`. Tombol Batal di `ClipEditModal`, `RerenderAllDialog`, `AiCorrectDialog`, dan dialog server sendiri (`ProviderSection`) kini lewat penjaga isian yang sama dengan Escape, X, dan klik di luar. Escape yang sudah dipakai kolom di dalam (`defaultPrevented`) tidak lagi menutup dialog; kotak Cari kata di Ubah subtitle memakainya untuk mengosongkan pencarian saja. `focusableIn` tidak diekspor lagi.
+- `GDriveBrowserModal`: dibuka lagi di folder terakhir (kembali ke akar bila folder itu sudah tidak ada); Muat lagi mengulang folder yang gagal.
+- `ClipEditModal`: pesan gagal dibuat ulang dibedakan menurut sebabnya: aplikasi tidak menjawab (`save_failed`) atau aplikasi menolak permintaan (`save_refused`, alasan di Detail teknis).
+- `SocialKitModal`: "Tersalin" diumumkan lewat `role="status"`; kalimat "Salin deskripsi di atas" hanya muncul bila deskripsi memang ditampilkan, selain itu `social.empty_no_text`.
+- `CookiesPanel`: setelah hapus, fokus ke tombol unggah (atau kembali ke Hapus cookies bila gagal).
+- `TechnicalDetails`: kunci sendiri `common.technical_details`.
+- Tes perilaku baru untuk jalur permintaan yang ditulis ulang: `ClipEditModal`, `SocialKitModal`, `ProviderSection`, `TranscriptionSection`, `UpdaterSection` (argumen dan isi permintaan, syarat mode AI, pesan berhasil dan gagal).
