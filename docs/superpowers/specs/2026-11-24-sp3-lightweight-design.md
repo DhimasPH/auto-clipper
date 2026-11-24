@@ -1,6 +1,6 @@
 # Spec SP3: Aplikasi Ringan, Komponen Tambahan Opsional, dan Keamanan Folder Hasil
 
-Tanggal: 2026-11-24 · Status: disetujui pemilik per bagian, menunggu review dokumen tertulis · Induk: `2026-11-12-enhancement-roadmap.md` · Bergantung: SP0 (`2026-11-12-pipeline-stability-design.md`), SP1 (`2026-11-18-sp1-single-frontend-web-local-design.md`), SP2 (`2026-11-20-sp2-ux-for-everyone-design.md`)
+Tanggal: 2026-11-24 · Status: disetujui pemilik (per bagian dan dokumen tertulis, 2026-11-24) · Induk: `2026-11-12-enhancement-roadmap.md` · Bergantung: SP0 (`2026-11-12-pipeline-stability-design.md`), SP1 (`2026-11-18-sp1-single-frontend-web-local-design.md`), SP2 (`2026-11-20-sp2-ux-for-everyone-design.md`)
 
 ---
 
