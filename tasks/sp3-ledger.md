@@ -62,3 +62,6 @@ Ruling: fix /assets UNC in Task 4 fix round 2 (same class as the ruled principle
 Ruling: fix round 2 also takes minors 2 (pin the device-prefix rule with \?\Volume{GUID}\ and \?\GLOBALROOT\Device\HarddiskVolumeN\ forms), 3 (refuse a project folder inside app data addons/ or temp_downloads/), 5 (rename two overclaiming tests).
 Ruling: sanitize_title strips trailing dots/spaces on every platform — one folder name rule across platforms; Windows cannot create such names anyway — cost if wrong: an old mac/Colab "Wow..." project rerenders into "Wow" (rare; delete_history's in-use check prevents loss).
 Task 4: fix round 2 dispatched
+Task 4: fix round 2/5 (4 addressed, 0 open; commit 4ded4d2) — pytest 1062 passed, 7 skipped; probe p8 now 404 with no realpath on the network path; mutate_device now fails 4 new tests. Scoped re-review by controller (web_ui._serve text check before os.path.join; jobs._NO_PROJECTS_INSIDE) — clean.
+Task 4: minor (deferred): temp_downloads under AUTO_CLIPPER_WORK_DIR (workspace.uploads_dir) not in _NO_PROJECTS_INSIDE.
+Task 4: complete (commits 665b2c8..4ded4d2, review clean after fix round 2)
