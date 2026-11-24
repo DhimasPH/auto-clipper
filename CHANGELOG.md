@@ -4,23 +4,43 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file in
 
 ## [1.19.0] - belum dirilis
 
-Rilis SP1 (frontend tunggal dan web lokal). Tanggal diisi saat rilis (plan question 10).
+Rilis SP1 (frontend tunggal dan web lokal) dan SP2 (tampilan untuk orang awam). Tanggal diisi saat rilis (plan question 10).
 
 ### Added
+- **Alur Buat Klip Empat Langkah (SP2)**: Satu layar dengan penanda langkah **1 Video → 2 Siapkan → 3 Pilih momen → 4 Klip**. Langkah 1 berisi kotak link (link yang tidak didukung langsung diberi pesan), **Pilih file video** di semua platform (`platform().pickVideo()`), **Pilih dari Google Drive** di cloud, dan **Bentuk klip** (Vertikal, Persegi, Lebar). Pilihan lain ada di **Atur tampilan klip** (tertutup bawaan) dan diingat untuk video berikutnya (`ac_clip_choices`). Nama proyek boleh kosong; judul dibuat dari video dan waktu sekarang.
+- **AI Manual Dipandu (SP2)**: Jalur bawaan untuk memilih momen, tanpa API key: **Salin perintah**, **Buka ChatGPT** atau **Buka Gemini**, tempel jawaban di **Tempel jawaban AI di sini**, lalu **Buat klip**. Jawaban diperiksa sebelum dikirim; jawaban kosong, terpotong, bukan jawaban AI, tanpa momen, atau momen tanpa waktu ditolak dengan pesan yang menyebut apa yang kurang. Proyek yang menunggu jawaban tersimpan di Riwayat dengan tombol **Tempel jawaban AI**.
+- **Layar Progres dengan Tahap Nyata (SP2)**: Daftar tahap memakai nama yang sama dengan Detail waktu. Tahap selesai bercentang dengan lamanya, tahap berjalan menampilkan waktu berjalan, persen unduhan, dan "Membuat klip 3 dari 10". Bila subtitle atau klip dibuat dengan prosesor, layar memberi tahu. Pesan per platform soal boleh tidaknya halaman ditutup, urutan antrean, dan **Batalkan** dengan konfirmasi. Saat pengguna pindah menu, bilah "Ada proses yang sedang berjalan." dengan tautan **Lihat progres** tetap terlihat.
+- **Pemeriksaan Awal di Layar Buat Klip (SP2)**: Hasil `GET /api/preflight` tampil saat layar dibuka dan saat koneksi pulih. Peringatan tampil sebagai **Catatan sebelum mulai**; masalah yang menghalangi tampil sebagai kartu error dan tombol **Mulai** nonaktif sampai **Periksa lagi** lolos.
+- **Hasil Klip (SP2)**: Satu kolom di HP, grid di layar lebar. Per klip: pemutar, judul dari AI, durasi, **Unduh**, **Bagikan** (judul, deskripsi, tagar), dan menu titik tiga (**Ubah subtitle atau tampilan**, **Buka folder** bila tersedia). **Unduh semua** untuk lebih dari satu klip: desktop meminta satu folder, browser mengunduh satu per satu (`platform().saveClips()`).
+- **Riwayat Baru (SP2)**: Daftar proyek dengan judul, tanggal, status yang mudah dipahami (Selesai, Gagal, Menunggu jawaban AI, Sedang diproses, Menunggu giliran, Dibatalkan), jumlah klip, dan satu tombol utama (**Lihat klip**, **Tempel jawaban AI**, **Lihat progres**, **Lanjutkan**, **Coba lagi**). Menu titik tiga: **Buat ulang semua klip**, **Pilih ulang momen dengan AI** (hanya di desktop dan web lokal), **Hapus** dengan konfirmasi. Halaman satu proyek di `/riwayat/:id`.
+- **Pengaturan Empat Bagian (SP2)**: **Umum** (tema, bahasa), **YouTube** (cookies), **Lanjutan** (saklar **Pakai API key** untuk AI otomatis, bawaan mati, dan kunci Pexels, keduanya hanya di desktop dan web lokal; cara mengikuti wajah Standar/Teliti; folder hasil di desktop; kualitas unduhan; model subtitle; **Unduh video tanpa membuat klip** dengan pilihan bentuk dan subtitle sendiri), **Bantuan** (langkah singkat, pertanyaan umum, versi, pembaruan di desktop, Detail teknis berisi catatan kerja aplikasi).
+- **Status Tahap Berjalan di Backend (SP2)**: `GET /jobs/{id}` membawa objek `current` (`stage`, `started_at`, `elapsed_seconds`, dan bila ada `device`, `clip`, `clips_total`, `percent`) dari `stage_timer`. `timings` tidak berubah. ADR-014.
+- **Unggah Gambar Latar Kanvas (SP2)**: `POST /upload-image` (PNG, JPG, WEBP) menyimpan gambar di folder unggahan backend dan mengembalikan path-nya.
 - **Auto Clipper Web (tanpa instalasi)**: Paket zip untuk Windows, macOS Apple Silicon, macOS Intel, dan Linux. Klik dua kali "Auto Clipper Web", lalu aplikasi terbuka di browser; semua proses tetap di komputer sendiri. Jendela "Auto Clipper berjalan" harus tetap terbuka selama dipakai. Membuka "Auto Clipper Web" lagi hanya membuka tab baru pada aplikasi yang sudah berjalan. Port yang sama dipakai lagi setiap kali dibuka (bila masih kosong), jadi pengaturan dan API key yang tersimpan di browser tetap ada. macOS 15 ke atas: pembukaan pertama lewat System Settings → Privacy & Security → **Open Anyway**. Paket Linux butuh Ubuntu 22.04 atau lebih baru (glibc 2.35).
 - **Kartu error baru**: "Video tidak bisa diputar" (dengan **Coba lagi**), serta untuk web lokal: halaman yang dibuka tanpa kunci akses, kunci akses yang sudah tidak berlaku, dan jendela Auto Clipper yang sudah ditutup.
 
 ### Changed
-- **Satu Aplikasi untuk Desktop, Web Lokal, dan Cloud**: Aplikasi web untuk Google Colab kini memakai kode dan halaman yang sama dengan aplikasi desktop (Manual AI Editor, Riwayat, Pengaturan cookies). Gerbang kode akses, alamat backend, dan penjelajah Google Drive tetap ada.
+- **Tiga Menu dan Navigasi untuk HP (SP2)**: Enam menu lama diganti **Buat klip** (`/`), **Riwayat** (`/riwayat`), dan **Pengaturan** (`/pengaturan`). Di layar di bawah 768 px menu ada di bawah layar, di layar lebih lebar di sisi kiri. Status koneksi tampil di header; bila backend terputus, banner menjelaskan per platform dengan tombol **Hubungkan ulang**. Alamat lama (`/manual-ai`, `/downloader`, `/history`, `/settings`, `/help`) dialihkan. Aplikasi langsung membuka Buat klip.
+- **Tampilan Tenang dan Mudah Dibaca (SP2)**: Latar netral dengan satu warna aksen biru, mode terang dan gelap, huruf isi 16 px, area sentuh minimal 44 × 44 px, cincin fokus terlihat, dan kontras WCAG AA yang diuji otomatis (`src/styles/contrast.test.ts`). Semua dialog memakai satu bingkai dengan fokus terkunci di dalam, fokus kembali ke tombol pembuka, dan pertanyaan sebelum isian dibuang. `alert()` dan `confirm()` diganti pesan di tempat.
+- **Teks Layar dalam Bahasa Sehari-hari (SP2)**: Semua teks id dan en ditulis ulang: kalimat pendek, tombol berupa kata kerja, tanpa istilah teknis di layar utama, tanpa emoji dan em dash (dijaga `src/locales/plainWords.test.ts`). Teks pemeriksaan awal dan kartu "Komponen pengolah video tidak ditemukan" (`FFMPEG_MISSING`) dari backend tidak lagi menyebut FFmpeg atau render; nama teknis tetap ada di Detail teknis.
+- **Masuk di Cloud (SP2)**: Halaman masuk langsung menampilkan kotak **Kode akses** dan tombol **Masuk**.
+- **Satu Aplikasi untuk Desktop, Web Lokal, dan Cloud**: Aplikasi web untuk Google Colab kini memakai kode dan halaman yang sama dengan aplikasi desktop. Gerbang kode akses, alamat backend, dan penjelajah Google Drive tetap ada.
 - **Vercel**: Aplikasi cloud dibangun dari folder utama repositori dengan `npm run build:cloud` (`vercel.json`). Proyek Vercel lama harus mengosongkan Root Directory dan memakai Node.js 22.x (lihat tutorial cloud, Langkah 5.2).
 - **Tombol aksi kartu error per platform**: **Pilih video dari Google Drive** di cloud, pemilih file di desktop dan web lokal; **Buka Pengaturan** untuk API key tidak tampil di cloud.
 - Frontend memakai React 19, Vite 8, dan TypeScript 6; uji frontend dengan Vitest.
 
+### Fixed
+- **Gambar Latar Kanvas di Web Lokal dan Cloud (SP2)**: Gambar latar dikirim sebagai alamat `blob:` yang tidak bisa dibaca backend, sehingga latar gambar tidak pernah dipakai. Kini gambar diunggah lewat `POST /upload-image` dan path backend-nya yang dipakai.
+
 ### Security
+- **Path gambar latar kanvas diperiksa (SP2)**: `canvas_config.background_image_path` di `POST /jobs`, `/jobs/manual`, `/jobs/{id}/rerender`, `/jobs/{id}/rerun_ai`, dan render ulang per klip lewat `path_guard` (403 untuk file privat), sama seperti endpoint lain yang menerima path (T0.19). Nama file unggahan gambar lewat `safe_upload_name()`.
 - **Alamat video bertanda tangan**: `/video` tidak lagi bisa dibuka tanpa tanda tangan di semua platform (T0.19). Setiap link hanya membuka satu klip. Kunci tanda tangan (`video_signing.key`) disimpan di folder data aplikasi; menghapusnya membatalkan semua link lama.
 
 ### Removed
 - Folder `web/` (aplikasi web lama). Isinya sudah dipindah ke `src/`.
+- **Layar proses lama (SP2)**: `BusyOverlay` beserta pesan berdasarkan waktu ("hampir siap", "sabar yaa", "diproses di GPU Cloud") dan pesan tahap yang berputar. Diganti layar progres dengan tahap nyata.
+- **Halaman lama (SP2)**: Halaman pembuka desktop, Workspace, Manual AI Editor, Manual Downloader, History, dan Help / FAQ. Isinya pindah ke Buat klip, Riwayat, dan Pengaturan (pengunduh di Lanjutan, bantuan di Bantuan). Formulir `GenerateForm`, sidebar 240 px, dan jendela "Lanjut Manual" lama ikut dihapus.
+- **Lencana skor AI di kartu klip (SP2)**, serta teks dan animasi yang tidak lagi dipakai.
 
 ## [1.18.0] - 2026-11-18
 

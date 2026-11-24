@@ -1,6 +1,6 @@
 # Daftar Task Peningkatan Auto Clipper
 
-Terakhir diperbarui: 2026-11-12. Peta induk: `docs/superpowers/specs/2026-11-12-enhancement-roadmap.md`.
+Terakhir diperbarui: 2026-11-24. Peta induk: `docs/superpowers/specs/2026-11-12-enhancement-roadmap.md`.
 
 Cara pakai: kerjakan dari atas ke bawah, satu sub-proyek aktif pada satu waktu. Centang task saat kriteria selesai terpenuhi dan terverifikasi. Sebelum mulai sub-proyek, tulis rencana implementasi rinci lewat skill `writing-plans`. `tasks/todo.md` dan `tasks/plan.md` yang lama (Enhanced Face Crop) sudah selesai dan dibiarkan sebagai arsip.
 
@@ -112,10 +112,24 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 - [ ] T1.y (dari T0.19, tidak dicakup spec SP1) `output_dir` masih menerima path bebas (tujuan tulis). Pindah ke SP3 (`output_dir` stays a free path).
 - [x] T1.y Gambar latar kanvas di web lokal dan cloud tidak lagi memakai `blob:`, diunggah lewat `POST /upload-image` (SP2 Task 3, `960768d`).
 
-## SP2: Revamp UI/UX untuk orang awam, bebas AI slop (belum dimulai)
+## SP2: Revamp UI/UX untuk orang awam, bebas AI slop (sedang berjalan)
 
-- [ ] T2.0 Brainstorm dan spec SP2 (alur utama, onboarding, bahasa, antislop: skill `antislop-*`)
-- [ ] T2.x Audit alur dan copy saat ini, sasaran: pengguna awam selesai dari link ke klip tanpa panduan
+Status per task dan angka tes: `tasks/sp2-ledger.md`. Rentang commit di bawah diambil dari ledger.
+
+- [x] T2.0 Brainstorm dan spec SP2 (alur utama, onboarding, bahasa, antislop: skill `antislop-*`) · spec disetujui pemilik `4bed222`, rencana `383fce2`, pemindaian pre-flight 16 ruling `0f315db`. Item dokumen, tanpa tes.
+- [~] T2.x Audit alur dan copy saat ini, sasaran: pengguna awam selesai dari link ke klip tanpa panduan · audit antislop Task 15 (`88f8540..f18e4cf`, hasil di `tasks/sp2-audit.md`) masih menunggu review. Uji pemakaian oleh orang awam (Task 18) butuh pemilik `[!]`.
+- [x] T2.x Objek `current` di status job: tahap berjalan, perangkat, klip ke berapa, persen unduhan (Task 1–2, `0f315db..6acf284`, pytest 829 lulus, 12 dilewati)
+- [x] T2.x Gambar latar kanvas diunggah lewat `POST /upload-image` + `path_guard` di endpoint pembuat job (Task 3, `66d5047..57b5e49`, pytest 844, Vitest 92)
+- [x] T2.x Token warna tenang, huruf 16 px, area sentuh 44 px, tes kontras (Task 4, `4de37f9..c8e71f6`, Vitest 142)
+- [x] T2.x Tiga menu (navigasi bawah di HP, sidebar di layar lebar), rute baru dan pengalihan rute lama, banner koneksi (Task 5, `308457d..1bb7dff`, Vitest 153)
+- [x] T2.x Langkah 1 Buat klip: logika alur, pemeriksaan awal, `pickVideo()`, pilihan yang diingat (Task 6–8, `bc5859d`, `652ebb8`, `45bbd4d..59eb6bd`, Vitest 206)
+- [x] T2.x Langkah 3 Pilih momen: AI manual dipandu dan pemeriksaan jawaban AI (Task 11, `5b16242..67025c1`, Vitest 243)
+- [x] T2.x Hasil klip: Unduh, Bagikan, menu titik tiga, Unduh semua (Task 12, `de08142..d8c6fa5`, Vitest 262)
+- [x] T2.x Riwayat: daftar proyek dan halaman proyek dengan status awam dan satu tombol utama (Task 13, `788261d..1d120a7`, Vitest 283)
+- [x] T2.x Pengaturan empat bagian, saklar API key, pengunduh dan bantuan pindah ke sana (Task 14, `b24cd60..34884e3`, Vitest 325)
+- [x] T2.x Item terbawa dari SP1: cek port web lokal dengan `connect`, panah rusak di tutorial, komentar tes (Task 16, `2f455e2..34781a6`, pytest 849)
+- [~] T2.x Dokumen pengguna, CHANGELOG, ADR-014, AGENTS.md (Task 17, menunggu review)
+- [ ] T2.x Uji pemakaian oleh orang awam di HP lewat Colab dan di desktop/web lokal, lalu review akhir SP2 (Task 18) `[!]` butuh pemilik
 - [x] T2.x Teks layar proses (BusyOverlay) jujur, di `src/` dan `web/`. Diminta pemilik 2026-11-18 setelah uji Colab: di menit ke-24 layar menampilkan teks generik padahal subtitle masih dibuat dengan prosesor. (SP2 Task 1–2 + Task 9–10, `bd48e0d..6afd704`; `BusyOverlay.tsx` digantikan `ProgressPanel.tsx` dengan tahap & perangkat nyata, `web/` sudah dihapus di SP1). Masalah yang ada sebelumnya:
   - Setelah 10/20/40 menit, pesan berdasarkan waktu menggantikan tahap sebenarnya ("Sedang diproses di GPU Cloud...", "Sabar yaa, lagi proses nih...", "Video kamu hampir siap!").
   - Web selalu mengklaim GPU ("Menyiapkan proses di Google Colab GPU…", catatan "Video sedang diproses di GPU Colab"), juga saat jatuh ke prosesor.

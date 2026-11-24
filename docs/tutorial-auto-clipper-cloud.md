@@ -35,10 +35,11 @@ Transkripsi Whisper memakai GPU T4. Notebook memasang FFmpeg standar dari Ubuntu
    - [Langkah 5.4: Pengaturan Domain Frontend (Custom Domain vs Default Vercel)](#langkah-54-pengaturan-domain-frontend-custom-domain-vs-default-vercel)
 6. [SOP Pengoperasian Harian via Smartphone](#6-sop-pengoperasian-harian-via-smartphone)
    - [Langkah 0: Masuk](#langkah-0-masuk)
-   - [Langkah 1: Video dan Gaya](#langkah-1-video-dan-gaya)
-   - [Langkah 2: Prompt untuk AI](#langkah-2-prompt-untuk-ai)
-   - [Langkah 3: Hasil JSON dari AI](#langkah-3-hasil-json-dari-ai)
-   - [Langkah 4: Render dan Unduh](#langkah-4-render-dan-unduh)
+   - [Langkah 1: Video](#langkah-1-video)
+   - [Langkah 2: Siapkan](#langkah-2-siapkan)
+   - [Langkah 3: Pilih momen](#langkah-3-pilih-momen)
+   - [Langkah 4: Klip dan Unduh](#langkah-4-klip-dan-unduh)
+   - [Riwayat dan Pengaturan](#riwayat-dan-pengaturan)
 7. [Panduan Pemeliharaan, Troubleshooting & FAQ](#7-panduan-pemeliharaan-troubleshooting--faq)
    - [Kendala 1: Sesi Google Colab Terputus / Idle Timeout](#kendala-1-sesi-google-colab-terputus--idle-timeout)
    - [Kendala 2: Error 401 Unauthorized / Token Mismatch](#kendala-2-error-401-unauthorized--token-mismatch)
@@ -318,29 +319,37 @@ Buka bagian **Environment Variables** di Vercel dan tambahkan variabel penunjuk 
 
 ## 6. SOP Pengoperasian Harian via Smartphone
 
-Sejak v1.19.0 aplikasi web memakai halaman yang sama dengan aplikasi desktop. Alurnya:
+Sejak v1.19.0 aplikasi web memakai kode yang sama dengan aplikasi desktop. Aplikasi punya tiga menu: **Buat klip** (`#/`), **Riwayat** (`#/riwayat`), dan **Pengaturan** (`#/pengaturan`). Di HP menu ada di bawah layar; dari lebar 768 px ke atas menu pindah ke sisi kiri. Alamat lama (`#/manual-ai`, `#/history`, `#/settings`, `#/downloader`, `#/help`) dialihkan otomatis.
+
+Layar **Buat klip** memandu empat langkah: **1 Video → 2 Siapkan → 3 Pilih momen → 4 Klip**. Di cloud tidak ada API key: momen dipilih lewat ChatGPT atau Gemini yang Anda buka sendiri.
 
 ### Langkah 0: Masuk
 1. Pastikan notebook Colab sudah berjalan sampai server menyala.
-2. Buka alamat Vercel Anda di browser HP, tekan **Masuk ke Workspace**, lalu masukkan kode akses (`API_SECRET_TOKEN` dari notebook), lalu tekan **Masuk**. Kode disimpan di browser itu saja.
+2. Buka alamat Vercel Anda di browser HP, isi **Kode akses** dengan `API_SECRET_TOKEN` dari notebook, lalu tekan **Masuk**. Kode disimpan di browser itu saja.
 
-### Langkah 1: Video dan Gaya
-1. Aplikasi terbuka di **Manual AI Editor**. Isi **Judul Proyek**.
-2. Tempel link pada tab **URL Video (YouTube)**, atau buka tab **Local Video (.mp4)** dan tekan **Pilih video dari Google Drive**.
-3. Pilih rasio, subtitle, dan gaya kanvas, lalu tekan **Generate Viral Clips**.
+### Langkah 1: Video
+1. Tempel link di kotak **Tempel link YouTube, TikTok, atau Instagram**, atau tekan **Pilih dari Google Drive** (video di Drive) atau **Pilih file video** (diunggah ke disk kerja Colab, hilang saat sesi berakhir).
+2. Pilih **Bentuk klip** (Vertikal, Persegi, Lebar). Pilihan lain ada di **Atur tampilan klip** (tertutup bawaan) dan diingat untuk video berikutnya. **Nama proyek** boleh kosong; judul dibuat dari video dan waktu sekarang.
+3. Layar memanggil `GET /api/preflight` saat dibuka. Hasil `warn` tampil di **Catatan sebelum mulai**; hasil `block` tampil sebagai kartu error dan tombol **Mulai** nonaktif sampai **Periksa lagi** lolos.
+4. Tekan **Mulai**.
 
-### Langkah 2: Prompt untuk AI
-1. Setelah transkripsi selesai, aplikasi pindah ke **Riwayat** dengan pesan "Prompt manual berhasil dibuat".
-2. Pada proyek itu tekan **Lanjut Manual**, lalu **Salin Prompt**, dan tempel ke ChatGPT, Gemini, atau Claude.
+### Langkah 2: Siapkan
+Layar progres menampilkan tahap nyata dari objek `current` di `GET /jobs/{id}`: **Mengunduh video** (dengan persen bila yt-dlp melaporkannya), **Mengambil suara dari video**, **Membuat subtitle**. Tahap selesai bercentang dengan lamanya. Bila subtitle dibuat dengan CPU, muncul catatan "Subtitle dibuat dengan prosesor, bukan GPU." Di cloud layar menulis bahwa halaman boleh ditutup: job tetap berjalan di Colab. **Batalkan** menghentikan job setelah konfirmasi.
 
-### Langkah 3: Hasil JSON dari AI
-1. Salin balasan AI yang berbentuk `[ ... ]`.
-2. Tempel di kolom **Hasil JSON dari AI**, lalu tekan **Lanjutkan Proses**.
+### Langkah 3: Pilih momen
+1. Tekan **Salin perintah** (transkrip dan petunjuk untuk AI).
+2. Tekan **Buka ChatGPT** atau **Buka Gemini**, tempel perintahnya, lalu kirim.
+3. Salin seluruh jawaban AI, tempel di **Tempel jawaban AI di sini**, lalu tekan **Buat klip**. Jawaban diperiksa sebelum dikirim; jawaban terpotong, kosong, atau bukan jawaban AI ditolak dengan pesan di bawah kotak.
+4. Proyek yang belum diberi jawaban tersimpan di **Riwayat** dengan status **Menunggu jawaban AI** dan tombol **Tempel jawaban AI**.
 
-### Langkah 4: Render dan Unduh
-1. Klip dirender di Colab (`AUTO_CLIPPER_MAX_HEAVY_JOBS`, bawaan 1 job berat dalam satu waktu). Layar boleh ditutup; buka lagi aplikasi nanti.
-2. Di **Riwayat**, putar klip langsung atau tekan **Download** / **Download MP4** untuk menyimpannya ke HP. Buka **Detail waktu** di atas daftar klip untuk melihat lama tiap tahap.
+### Langkah 4: Klip dan Unduh
+1. Klip dibuat di Colab (`AUTO_CLIPPER_MAX_HEAVY_JOBS`, bawaan 1 job berat dalam satu waktu). Layar progres menampilkan **Membuat klip 3 dari 10** dan seterusnya; antrean tampil sebagai "Menunggu giliran. Urutan ke-N."
+2. Setiap klip punya pemutar, **Unduh**, **Bagikan** (judul, deskripsi, tagar), dan menu titik tiga (**Ubah subtitle atau tampilan**). **Unduh semua** mengunduh klip satu per satu lewat browser. **Detail waktu** ada di bawah daftar klip.
 3. Bila job gagal, kartu error menampilkan judul, penjelasan, dan tombol aksi (**Lanjutkan**, **Unggah cookies.txt**, **Pilih video dari Google Drive**); pesan mentah ada di **Detail teknis** dengan tombol **Salin**.
+
+### Riwayat dan Pengaturan
+- **Riwayat** menampilkan judul, tanggal, status (Selesai, Gagal, Menunggu jawaban AI, Sedang diproses, Menunggu giliran, Dibatalkan), dan jumlah klip, dengan satu tombol utama: **Lihat klip**, **Tempel jawaban AI**, **Lihat progres**, **Lanjutkan**, atau **Coba lagi**. Menu titik tiga: **Buat ulang semua klip** dan **Hapus** (dengan konfirmasi).
+- **Pengaturan** punya empat bagian: **Umum** (tema, bahasa), **YouTube** (cookies), **Lanjutan** (cara mengikuti wajah, kualitas unduhan, model subtitle, **Unduh video tanpa membuat klip**), dan **Bantuan** (`#/pengaturan#bantuan`: langkah singkat, pertanyaan umum, versi, Detail teknis). Pilihan **AI otomatis dengan API key** hanya ada di desktop dan web lokal.
 
 ---
 
@@ -418,10 +427,10 @@ Sejak v1.19.0 aplikasi web memakai halaman yang sama dengan aplikasi desktop. Al
 * **Solusi 1: Unggah `cookies.txt`** dari akun YouTube **cadangan** (bukan akun utama, karena akun yang cookies-nya dipakai bisa dibatasi YouTube):
   1. Di browser komputer, pasang ekstensi "Get cookies.txt LOCALLY".
   2. Buka youtube.com, login dengan akun cadangan.
-  3. Di tab itu, klik ikon ekstensi, pilih Export, lalu unggah filenya lewat tombol **Unggah cookies.txt** di kartu error atau lewat menu **Pengaturan** → **Cookies YouTube** di Web UI.
+  3. Di tab itu, klik ikon ekstensi, pilih Export, lalu unggah filenya lewat tombol **Unggah cookies.txt** di kartu error atau lewat menu **Pengaturan**, bagian **YouTube**, di Web UI.
 
   Backend memvalidasi file (format Netscape, ada cookie `youtube.com`, belum kedaluwarsa, maks. 1 MB) dan menyimpannya di `<AUTO_CLIPPER_WORKSPACE>/cookies/cookies.txt`, yang di Colab berarti folder `AutoClipperData/cookies/` di Google Drive. yt-dlp hanya menerima salinan sementara di folder temp sistem yang dihapus setelah unduhan; isi cookie tidak pernah ditulis ke log atau dikirim ke Web UI (`GET /api/settings/cookies` hanya mengembalikan status dan tanggal berlaku). Bila YouTube tetap menolak walau cookies sudah dipakai, unduhan langsung dihentikan tanpa mencoba ulang, demi melindungi akun.
-* **Solusi 2: Pakai file video.** Unduh video sendiri, simpan ke Google Drive, lalu pilih lewat **Pilih video dari Google Drive** di kartu error, atau buka tab **Local Video (.mp4)** dan tekan tombol **Pilih video dari Google Drive** di bawah kolom file.
+* **Solusi 2: Pakai file video.** Unduh video sendiri, simpan ke Google Drive, lalu pilih lewat **Pilih video dari Google Drive** di kartu error, atau tekan **Pilih dari Google Drive** di langkah 1 layar **Buat klip**.
 
 ---
 

@@ -20,17 +20,19 @@ Jika Anda adalah kreator konten, podcaster, atau streamer, Anda tahu betapa mele
 - 💬 **Subtitle yang Siap Tayang** – Ditenagai teknologi _speech-to-text_ kelas dunia, subtitle sudah langsung menyatu dengan video (_burned-in_).
 - ✍️ **Edit Subtitle Cerdas** – Koreksi salah eja secara manual atau biarkan AI merapikannya untuk Anda, lalu *rerender* klip spesifik dalam hitungan detik.
 - ☁️ **Dukungan Cloud GPU** – Jalankan mesin render berat di Google Colab (Gratis) dan akses UI lewat browser tanpa perlu PC mahal!
-- 🚀 **Semudah Copy-Paste** – Tanpa pengaturan _framerate_ atau _bitrate_ yang membingungkan. Paste Link $\rightarrow$ Klik Proses $\rightarrow$ Dapatkan Video MP4.
+- 🚀 **Semudah Copy-Paste** – Tanpa pengaturan _framerate_ atau _bitrate_ yang membingungkan. Tempel link → tekan **Mulai** → salin perintah ke ChatGPT atau Gemini dan tempel jawabannya → unduh klip MP4.
+- 🧭 **Empat Langkah yang Jelas** – Satu layar **Buat klip** memandu dari video sampai klip (1 Video → 2 Siapkan → 3 Pilih momen → 4 Klip), dengan tiga menu: **Buat klip**, **Riwayat**, dan **Pengaturan**. Layar progres menampilkan tahap yang benar-benar sedang berjalan. Tampilan yang sama dipakai di HP dan komputer.
+- 🔑 **Tanpa API Key** – Momen terbaik dipilih lewat ChatGPT atau Gemini yang Anda buka sendiri. API key (OpenAI, Gemini, dan lainnya) tetap bisa dipakai di aplikasi desktop dan Auto Clipper Web lewat **Pengaturan** → **Lanjutan** → **Pakai API key**.
 
 ## 💻 Spesifikasi Minimal Komputer (PC/Laptop)
 
 Karena aplikasi ini melakukan pemrosesan video dan pelacakan wajah secara lokal, pastikan perangkat Anda memenuhi spesifikasi berikut:
 
-- **Sistem Operasi:** Windows 10/11 (64-bit), atau macOS 12 (Monterey) ke atas — Apple Silicon (M1/M2/M3…) maupun Intel
+- **Sistem Operasi:** Windows 10/11 (64-bit), atau macOS 12 (Monterey) ke atas, baik Apple Silicon (M1/M2/M3…) maupun Intel
 - **Prosesor (CPU):** Intel Core i5 (Generasi ke-8) atau AMD Ryzen 5 (Multicore sangat disarankan untuk kecepatan _render_ video)
 - **RAM:** Minimal 8 GB (Direkomendasikan 16 GB untuk pemrosesan video HD)
 - **Penyimpanan:** Minimal 2 GB ruang kosong (siapkan ruang tambahan untuk menyimpan file video asli yang diunduh)
-- **Koneksi Internet:** Wajib (untuk mengunduh video YouTube dan memanggil API transkripsi/AI)
+- **Koneksi Internet:** Wajib (untuk mengunduh video dan membuka ChatGPT/Gemini atau memanggil API AI)
 
 ## 🚀 Cara Instalasi & Penggunaan
 
@@ -59,7 +61,7 @@ xattr -cr "/Applications/Auto Clipper.app"
 
 Setelah itu aplikasi bisa dibuka normal dari Launchpad atau folder Applications.
 
-**Cara update:** gunakan updater bawaan aplikasi — klik tombol _"Update"_ di dalam aplikasi saat tersedia (terverifikasi secara kriptografis dengan Minisign). Anda juga selalu bisa mengunduh DMG versi terbaru dari halaman Releases.
+**Cara update:** gunakan updater bawaan aplikasi: klik tombol _"Update"_ di dalam aplikasi saat tersedia (terverifikasi secara kriptografis dengan Minisign). Anda juga selalu bisa mengunduh DMG versi terbaru dari halaman Releases.
 
 > Catatan: aplikasi membundel backend Python (transkripsi Whisper, OpenCV, FFmpeg), jadi ukuran unduhan cukup besar (ratusan MB). Unduhan pertama akan memakan waktu.
 
@@ -67,7 +69,7 @@ Setelah itu aplikasi bisa dibuka normal dari Launchpad atau folder Applications.
 
 Jika Anda ingin ikut berkontribusi atau mengembangkan fitur baru:
 
-1. **Persiapan:** Pastikan Anda memiliki Node.js (v20+), Python (3.11+), Rust / Cargo (untuk build desktop), dan OpenAI API Key.
+1. **Persiapan:** Pastikan Anda memiliki Node.js (v20+), Python (3.11+), dan Rust / Cargo (untuk build desktop). API key AI tidak wajib.
 2. **Jalankan Backend (Python):**
    _(Tauri akan menjalankan sidecar backend secara otomatis, tetapi untuk build awal sidecar-nya Anda perlu meng-compile-nya sekali saja)_
    ```bash
@@ -113,7 +115,7 @@ Jika Anda pengembang di Mac dan ingin mem-build aplikasi macOS sendiri (misalnya
    chmod +x build-mac-local.sh
    ./build-mac-local.sh
    ```
-2. Rust, Node, dan Python akan dipasang otomatis jika belum ada. Untuk **Xcode Command Line Tools** (`xcode-select --install`) dan **Homebrew** yang butuh interaksi/kata sandi, script berhenti dan memberi instruksi — pasang lalu jalankan ulang.
+2. Rust, Node, dan Python akan dipasang otomatis jika belum ada. Untuk **Xcode Command Line Tools** (`xcode-select --install`) dan **Homebrew** yang butuh interaksi/kata sandi, script berhenti dan memberi instruksi. Pasang, lalu jalankan ulang.
 3. Hasil build (`.app` + `.dmg`) muncul di `src-tauri/target/x86_64-apple-darwin/release/bundle/` dan disalin ke `./dist-macos/`. Buka DMG-nya, drag **Auto Clipper** ke `/Applications`, lalu jalankan.
 
 > **Catatan:** Ini _build pengujian_ (artifact auto-updater dimatikan, jadi tidak perlu signing key). Script menyasar target **Intel (x86_64)**; jika Anda di Apple Silicon, ubah variabel `TARGET` di dalam script menjadi `aarch64-apple-darwin`. Untuk menghemat ruang setelah selesai, jalankan `CLEAN=1 ./build-mac-local.sh` (sisa build dihapus, DMG tetap disimpan). Jika Gatekeeper memblokir: `xattr -cr "/Applications/Auto Clipper.app"`.
@@ -126,11 +128,11 @@ Jika Anda ingin memproses video dari smartphone atau PC Anda tidak memiliki GPU 
 
 **Ringkasan Cepat:**
 1. Buka file **[`Auto_Clipper_Colab.ipynb`](Auto_Clipper_Colab.ipynb)** di Google Colab.
-2. Pastikan Runtime Colab di-set ke **T4 GPU** (*Runtime $\rightarrow$ Change runtime type $\rightarrow$ T4 GPU*).
+2. Pastikan Runtime Colab di-set ke **T4 GPU** (*Runtime → Change runtime type → T4 GPU*).
 3. Masukkan `CLOUDFLARE_TUNNEL_TOKEN` (atau token Ngrok) dan `API_SECRET_TOKEN` rahasia Anda, lalu jalankan semua sel (*Run All*).
 4. Buka antarmuka Web UI di browser smartphone Anda (misal `https://clipper.dhims.web.id` yang di-deploy di Vercel dari root repo dengan `npm run build:cloud`; untuk mencobanya di komputer: `npm run dev -- --mode cloud`).
 5. Masukkan token rahasia Anda pada layar login Web UI.
-6. Nikmati kemudahan memotong klip dan transkripsi video otomatis berkecepatan tinggi langsung dari genggaman HP Anda!
+6. Di layar **Buat klip**, tempel link video lalu ikuti empat langkahnya. Panduan untuk pemula: [`docs/panduan-penggunaan-awam.md`](docs/panduan-penggunaan-awam.md).
 
 
 ### Opsi 6: Auto Clipper Web (di Browser, Tanpa Instalasi)

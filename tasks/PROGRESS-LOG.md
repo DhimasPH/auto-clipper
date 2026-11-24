@@ -623,7 +623,7 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 
 - Review menyeluruh independen (opus; fable butuh kredit) atas `2afbb42..89fce4f`: 0 Critical, 2 Important, 8 Minor, tanpa celah keamanan. Satu gelombang perbaikan `7cfacb6..247141c` (port web lokal dipakai ulang sesuai keputusan pemilik, dokumen macOS 15+, header CORS pada 401, peluncur Linux/Windows, `npm audit` 0). Re-review: semua tertangani.
 - Pemeriksaan controller: pytest 805 lulus / 12 dilewati, Vitest 89, build desktop dan cloud OK, `npm audit` 0.
-- Diparkir untuk dikerjakan sebelum PR akhir: cek port bebas juga menguji `connect` ke 127.0.0.1; `$\rightarrow$` rusak di tutorial Kendala 9; komentar tes yang menyesatkan. Detail di `tasks/sp1-ledger.md`.
+- Diparkir untuk dikerjakan sebelum PR akhir: cek port bebas juga menguji `connect` ke 127.0.0.1; panah LaTeX `\rightarrow` yang rusak di tutorial Kendala 9; komentar tes yang menyesatkan. Detail di `tasks/sp1-ledger.md`.
 - Berikutnya: pemilik menjalankan daftar cek manual SP1 dan memicu CI setelah push; lalu SP2 dimulai dengan brainstorm + spec.
 
 ---
@@ -676,5 +676,10 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 ### 2026-11-24 · SP2 Task 16 (item terbawa dari SP1)
 - `backend/web_mode.py` `port_is_free()`: port dianggap terpakai bila `connect(("127.0.0.1", port))` berhasil (batas waktu 0,2 detik), baru setelah itu uji bind. Sebelum perbaikan, di Windows port yang didengar program lain di 0.0.0.0 tetap dianggap kosong (direproduksi oleh tes baru).
 - Tes baru di `backend/tests/test_web_mode.py`: pendengar 0.0.0.0, pendengar 127.0.0.1, dan dua tes dengan socket tiruan (bind berhasil tetapi connect dijawab, serta connect ditolak lalu bind berhasil). Komentar "the real liveness check" diganti penjelasan yang benar.
-- `docs/tutorial-auto-clipper-cloud.md`: panah Kendala 9 yang terpecah dua baris diperbaiki, dan 16 `$\rightarrow$` lain di file itu diganti `→`. `README.md` masih punya 4 di 2 baris (di luar cakupan task ini).
+- `docs/tutorial-auto-clipper-cloud.md`: panah Kendala 9 yang terpecah dua baris diperbaiki, dan 16 panah LaTeX `\rightarrow` lain di file itu diganti `→`. `README.md` masih punya 4 di 2 baris (di luar cakupan task ini).
 - Angka: pytest 849 lulus, 12 dilewati (+4). Tersisa: review Task 16, lalu Task 17 dan 18.
+
+### 2026-11-24 · SP2 Task 17 (dokumen)
+- `docs/panduan-penggunaan-awam.md` Langkah 3 ditulis ulang untuk alur empat langkah Buat klip (Salin perintah, Buka ChatGPT/Gemini, Tempel jawaban AI di sini, Buat klip), layar progres, Unduh semua, Riwayat, dan Pengaturan empat bagian; nama menu lama (History, Local Video, Cookies YouTube) diganti. Tutorial cloud bagian 6 disamakan dengan layar SP2. `README.md`: 4 panah LaTeX (`\rightarrow` di antara tanda dolar) diganti `→`, ringkasan fitur menyebut alur empat langkah dan AI tanpa API key.
+- `CHANGELOG.md`: SP2 di bawah `## [1.19.0] - belum dirilis` (Added, Changed, Fixed, Security, Removed). ADR-014 baru (`docs/decisions/014-sp2-live-stage-and-step-ui.md`). `.agents/AGENTS.md`: E.14 (path kanvas, `/upload-image`), E.18 (cek `connect`), E.19 (`current`), E.20 (`effectiveProvider`), F.5 (desain), F.8–F.10 (penjaga teks dan kontras, `caps.keepOpen`/`saveClips`, fungsi murni), daftar file penting.
+- `tasks/roadmap-todo.md`: item SP2 per task dengan rentang commit dari ledger; audit Task 15 dan uji pemakaian (Task 18) belum dicentang. Tidak ada kode yang diubah, jadi tes tidak dijalankan ulang. Tersisa: review Task 15 dan 17, lalu Task 18.

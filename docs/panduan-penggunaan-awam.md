@@ -1,4 +1,4 @@
-# 📖 Panduan Santai Menggunakan Auto Clipper Cloud (Untuk Pemula)
+# Panduan Santai Menggunakan Auto Clipper Cloud (Untuk Pemula)
 
 Selamat datang! Panduan ini dibuat khusus agar siapa saja bisa menjalankan sistem pembuat klip video otomatis (Auto Clipper) tanpa pusing dengan istilah teknis.
 
@@ -11,7 +11,7 @@ Mari kita gunakan perumpamaan sederhana:
 
 ---
 
-## 🎯 Pemanasan: Bikin Akun Gratis
+## Pemanasan: Bikin Akun Gratis
 Sebelum mulai, pastikan Anda sudah punya akun-akun ini (semuanya gratis):
 1. **Akun Google**: Untuk buka Google Colab & nyimpen hasil video di Google Drive.
 2. **Akun GitHub** ([github.com](https://github.com)): Untuk menyimpan kode program.
@@ -23,7 +23,7 @@ Sebelum mulai, pastikan Anda sudah punya akun-akun ini (semuanya gratis):
 
 ---
 
-## 🏭 Langkah 1: Menyalakan "Mesin Pabrik" (Google Colab)
+## Langkah 1: Menyalakan "Mesin Pabrik" (Google Colab)
 
 Langkah ini dilakukan di laptop/komputer.
 
@@ -74,7 +74,7 @@ Biarkan tab Google Colab ini tetap terbuka!
 
 ---
 
-## 📱 Langkah 2: Menyiapkan "Remote Control" (Vercel)
+## Langkah 2: Menyiapkan "Remote Control" (Vercel)
 
 Langkah ini juga dilakukan sekali saja.
 
@@ -90,44 +90,116 @@ Langkah ini juga dilakukan sekali saja.
 
 ---
 
-## 🎬 Langkah 3: Cara Pakai Sehari-hari (Bikin Video lewat HP)
+## Langkah 3: Membuat Klip dari HP
 
-Setelah mesin dan remote siap, Anda cukup menggunakan HP setiap harinya.
+Setelah Mesin Pabrik dan Remote Control siap, sehari-hari Anda cukup memakai HP.
 
-1. Buka browser di HP, buka link Remote Control Anda (link Vercel tadi).
-2. Tekan **Masuk ke Workspace**, lalu masukkan *password* rahasia (`rahasia123`) yang Anda buat dan tekan **Masuk**.
-3. **Mulai Bikin Video** (halaman **Manual AI Editor**):
-   - Isi **Judul Proyek**. Tempel link video YouTube/TikTok, atau buka tab **Local Video (.mp4)** lalu tekan **Pilih video dari Google Drive**. Pilih rasio (Vertical 9:16) dan gaya tulisan.
-   - Tekan **Generate Viral Clips**. Mesin di Colab mengambil teks dari video, lalu aplikasi pindah ke menu **Riwayat**.
-4. **Pilih Bagian Terbaik Pakai AI:**
-   - Di menu **Riwayat**, pada proyek Anda tekan **Lanjut Manual**, lalu **Salin Prompt**.
-   - Tempel ke aplikasi AI di HP Anda (ChatGPT / Gemini).
-   - *Copy* balasan AI yang berbentuk tanda kurung `[ ... ]` (*JSON*), tempel di kolom **Hasil JSON dari AI**, lalu tekan **Lanjutkan Proses**.
-5. **Selesai!** HP boleh ditutup. Buka lagi web beberapa menit kemudian, buka **Riwayat**, lalu tekan **Download** (atau **Download MP4**) untuk menyimpan videonya ke galeri HP.
+### Masuk
+
+1. Buka link Remote Control (link Vercel tadi) di browser HP.
+2. Isi kotak **Kode akses** dengan *password* rahasia yang Anda buat di Kotak 4 (contoh: `rahasia123`), lalu tekan **Masuk**. Kode ini hanya disimpan di browser HP itu.
+
+Aplikasi langsung membuka **Buat klip**. Di bawah layar ada tiga menu: **Buat klip**, **Riwayat**, dan **Pengaturan**. Di layar yang lebar (tablet atau laptop), menu ini ada di sisi kiri. Di bagian atas ada tulisan kecil **Terhubung**. Kalau tulisannya **Terputus**, lihat Tanya Jawab nomor 1.
+
+Di atas layar Buat klip ada empat langkah: **1 Video → 2 Siapkan → 3 Pilih momen → 4 Klip**. Langkah yang sudah lewat diberi centang.
+
+### 1 Video
+
+1. Tempel link video di kotak **Tempel link YouTube, TikTok, atau Instagram**. Kalau linknya tidak bisa dipakai, pesannya muncul di bawah kotak.
+   - Videonya ada di Google Drive? Tekan **Pilih dari Google Drive**.
+   - Videonya ada di HP? Tekan **Pilih file video**. Video ini dikirim ke Mesin Pabrik dan hilang saat sesi Colab berakhir (lihat "Di Mana Video Anda Disimpan?").
+2. Pilih **Bentuk klip**: **Vertikal untuk TikTok/Reels/Shorts** (bawaan), **Persegi**, atau **Lebar**.
+3. Mau mengatur lebih jauh? Ketuk **Atur tampilan klip**. Di sana ada nama proyek, subtitle, posisi gambar, hook pembuka, video ilustrasi (B-roll), kualitas unduhan, dan jumlah klip. Semuanya boleh dibiarkan. Pilihan Anda diingat untuk video berikutnya.
+   - Nama proyek boleh kosong. Aplikasi membuatnya dari judul video dan waktu sekarang.
+4. Kalau ada **Catatan sebelum mulai**, baca dulu. Catatan biasa tidak menghalangi. Kalau muncul kotak bergaris merah, tombol **Mulai** tidak bisa ditekan. Ikuti petunjuk di kotak itu, lalu tekan **Periksa lagi**.
+5. Tekan **Mulai**.
+
+### 2 Siapkan
+
+Layar menampilkan tahap yang sedang dikerjakan Mesin Pabrik: **Mengunduh video**, **Mengambil suara dari video**, dan **Membuat subtitle**.
+
+- Tahap yang selesai diberi centang dan lamanya.
+- Tahap yang sedang berjalan menunjukkan sudah berapa lama berjalan. Saat mengunduh, persennya juga tampil.
+- Kalau muncul "Subtitle dibuat dengan prosesor, bukan GPU", Colab tidak memakai GPU. Video panjang bisa jauh lebih lama. Lain kali, pastikan runtime **T4 GPU** (Langkah 1 nomor 3).
+
+Halaman ini boleh ditutup. Proses tetap jalan selama Colab menyala, dan hasilnya bisa dilihat di **Riwayat**.
+
+Mau berhenti? Tekan **Batalkan**, lalu **Ya, batalkan**. Proyeknya tetap ada di Riwayat.
+
+### 3 Pilih momen
+
+Setelah subtitle jadi, layar menampilkan **Pilih momen terbaik dengan bantuan AI**. Anda memakai ChatGPT atau Gemini biasa, tanpa API key.
+
+1. Tekan **Salin perintah**. Teks ini berisi isi ucapan video dan petunjuk untuk AI.
+2. Tekan **Buka ChatGPT** atau **Buka Gemini**. Tempel perintah tadi di kolom chat, lalu kirim.
+3. Tunggu sampai AI selesai menjawab. Salin seluruh jawabannya (tombol salin di bawah jawaban paling aman).
+4. Kembali ke Auto Clipper. Tempel di kotak **Tempel jawaban AI di sini**, lalu tekan **Buat klip**.
+
+Kalau ada yang kurang, pesannya muncul di bawah kotak. Contoh: "Jawaban belum lengkap. Salin seluruh jawaban AI, termasuk tanda kurung di awal dan akhir." Salin ulang jawabannya, lalu tekan **Buat klip** lagi.
+
+Kalau **Salin perintah** tidak berhasil, tekan lama teks perintah di layar, pilih semua, lalu salin.
+
+Belum sempat ke ChatGPT? Tinggalkan saja. Proyek tersimpan di **Riwayat** dengan status **Menunggu jawaban AI**. Nanti buka Riwayat, tekan **Tempel jawaban AI**, dan langkah ini muncul lagi.
+
+### 4 Klip
+
+Layar progres muncul lagi: **Melacak wajah**, **Membuat klip** (misalnya "3 dari 10"), lalu **Menyimpan ke folder penyimpanan**. Klip yang sudah jadi langsung tampil di bawahnya.
+
+Setelah semua selesai:
+
+- Putar klip langsung di layar.
+- Tekan **Unduh** di bawah klip untuk menyimpannya ke HP.
+- Ada beberapa klip? Tekan **Unduh semua** di atas daftar. Browser mengunduh klip satu per satu. Kalau browser meminta izin mengunduh beberapa file, izinkan.
+- Tekan **Bagikan** untuk melihat pilihan judul, deskripsi, dan tagar. Tekan **Salin** di bagian yang mau dipakai.
+- Tombol titik tiga di setiap klip berisi **Ubah subtitle atau tampilan**: perbaiki kata yang salah atau ganti tampilan, lalu tekan **Buat ulang klip ini**.
+- Tekan **Buat klip dari video lain** untuk mulai lagi dari langkah 1.
+
+### Riwayat
+
+Menu **Riwayat** berisi semua proyek: judul, tanggal, status, dan jumlah klip. Setiap proyek punya satu tombol utama:
+
+| Status | Tombol |
+|---|---|
+| Selesai | **Lihat klip** |
+| Menunggu jawaban AI | **Tempel jawaban AI** |
+| Sedang diproses, atau Menunggu giliran | **Lihat progres** |
+| Gagal | Kotak bergaris merah dengan tombol perbaikan, misalnya **Lanjutkan** |
+| Dibatalkan | **Coba lagi** |
+
+Tombol titik tiga di setiap proyek berisi **Buat ulang semua klip** (untuk mengganti tampilan semua klip sekaligus) dan **Hapus**.
+
+### Pengaturan
+
+Menu **Pengaturan** punya empat bagian:
+
+- **Umum**: tema tampilan dan bahasa.
+- **YouTube**: unggah atau hapus file cookies (lihat Tanya Jawab nomor 7).
+- **Lanjutan**: cara mengikuti wajah, kualitas unduhan, model subtitle, dan **Unduh video tanpa membuat klip** (mengunduh seluruh video dari link, hasilnya muncul di Riwayat).
+- **Bantuan**: langkah singkat, pertanyaan umum, versi aplikasi, dan **Detail teknis** (catatan kerja aplikasi untuk dikirim ke pengembang).
 
 ### Tulisan "Menunggu giliran"
 
-Mesin Pabrik hanya mengerjakan **satu video berat dalam satu waktu**, supaya memorinya tidak habis. Kalau Anda memulai video kedua saat video pertama masih diproses, layar menulis **"Menunggu giliran. Proses ini berikutnya."** atau **"Menunggu giliran. Urutan ke-2 dalam antrean."**
+Mesin Pabrik hanya mengerjakan **satu video berat dalam satu waktu**, supaya memorinya tidak habis. Kalau Anda memulai video kedua saat video pertama masih diproses, layar progres menulis **"Menunggu giliran. Urutan ke-2."** dan di Riwayat statusnya **Menunggu giliran**.
 
-Artinya video Anda sudah tercatat dan akan dikerjakan otomatis begitu video sebelumnya selesai. Tidak perlu menekan apa-apa. Jangan menekan **Lanjutkan** berulang kali: proyek yang masih diproses akan menolak dengan pesan "Proyek ini masih diproses".
+Video Anda sudah tercatat dan dikerjakan otomatis begitu video sebelumnya selesai. Tidak perlu menekan apa-apa. Jangan menekan **Lanjutkan** berulang kali: proyek yang masih diproses menolak dengan pesan "Proyek ini masih diproses".
 
 ### "Detail waktu": berapa lama tiap tahap
 
-Setelah video selesai, di atas daftar klip ada tulisan **Detail waktu** yang bisa diketuk untuk dibuka. Isinya:
-- Lama tiap tahap (mengunduh video, membuat subtitle, melacak wajah, merender klip, menyimpan ke folder penyimpanan) beserta totalnya.
-- **Yang mengerjakan**: apakah subtitle dan render memakai **GPU (cepat)** atau **prosesor biasa, tanpa GPU (lebih lambat)**.
+Setelah video selesai, di bawah daftar klip ada tulisan **Detail waktu**. Ketuk untuk membukanya. Isinya:
+- Lama tiap tahap (mengunduh video, membuat subtitle, melacak wajah, membuat klip, menyimpan ke folder penyimpanan) beserta totalnya.
+- **Yang mengerjakan**: apakah subtitle dan pembuatan klip memakai **GPU (cepat)** atau **prosesor biasa, tanpa GPU (lebih lambat)**.
 
-Detail waktu juga ada di menu **History**, di setiap proyek yang Anda buka.
+Detail waktu juga ada di halaman setiap proyek di **Riwayat**.
 
-### Kalau proses gagal: kotak merah dan "Detail teknis"
+### Kalau proses gagal: kotak bergaris merah dan "Detail teknis"
 
-Kalau ada yang gagal, muncul kotak merah berisi judul masalah, penjelasan singkat, dan tombol untuk memperbaikinya (misalnya **Lanjutkan**, **Unggah cookies.txt**, atau **Pilih video dari Google Drive**).
+Kalau ada yang gagal, muncul kotak bergaris merah berisi judul masalah, penjelasan singkat, dan tombol untuk memperbaikinya (misalnya **Lanjutkan**, **Unggah cookies.txt**, atau **Pilih video dari Google Drive**).
 
-Di bagian bawah kotak merah ada tulisan **Detail teknis**. Ketuk untuk membukanya, lalu tekan **Salin**. Teks itu tidak perlu Anda pahami: kirimkan saja ke pengembang kalau masalahnya tidak hilang.
+Di bagian bawah kotak itu ada tulisan **Detail teknis**. Ketuk untuk membukanya, lalu tekan **Salin**. Teks itu tidak perlu Anda pahami: kirimkan saja ke pengembang kalau masalahnya tidak hilang.
 
 ---
 
-## 🗂️ Di Mana Video Anda Disimpan?
+## Di Mana Video Anda Disimpan?
 
 - **Selama proses**, Mesin Pabrik bekerja di "meja kerja" sementara milik Colab (folder `/content/work`). Meja ini cepat, tetapi **dibersihkan setiap kali sesi Colab berakhir**.
 - **Setiap klip yang selesai langsung disalin** ke Google Drive Anda, di folder `AutoClipperData`. Riwayat proyek (`history.db`) juga ikut disalin ke sana secara berkala.
@@ -135,7 +207,7 @@ Di bagian bawah kotak merah ada tulisan **Detail teknis**. Ketuk untuk membukany
 
 ### Kalau sesi Colab mati (tab tertutup, terputus, atau kehabisan waktu)
 
-- **Klip yang sudah jadi dan riwayat proyek aman** di Google Drive. Setelah Kotak 1-4 dijalankan lagi, semuanya muncul kembali di menu **History**.
+- **Klip yang sudah jadi dan riwayat proyek aman** di Google Drive. Setelah Kotak 1-4 dijalankan lagi, semuanya muncul kembali di menu **Riwayat**.
 - **Melanjutkan proyek dari link YouTube**: video aslinya diunduh ulang secara otomatis. Ini butuh waktu tambahan, dan bisa saja YouTube meminta verifikasi lagi.
 - **Melanjutkan proyek dari video Google Drive**: video disalin ulang dari Drive Anda, asalkan file itu belum dihapus atau dipindah.
 - **Video yang diunggah langsung ke mesin (bukan dipilih dari Drive)** ikut hilang bersama meja kerja. Kalau muncul pesan **"File video yang diunggah sudah tidak ada"**, unggah videonya sekali lagi sebagai proyek baru. Klip yang sudah jadi tetap aman.
@@ -143,13 +215,13 @@ Di bagian bawah kotak merah ada tulisan **Detail teknis**. Ketuk untuk membukany
 
 ---
 
-## 🛠️ Solusi Masalah Umum (Tanya Jawab Lengkap)
+## Solusi Masalah Umum (Tanya Jawab Lengkap)
 
 **1. Kenapa loading di HP muter-muter terus dan tidak ada reaksi?**
 **J:** Kemungkinan Mesin Pabrik (Google Colab) tertidur karena lama tidak dipakai. Buka lagi Google Colab di laptop, klik *Reconnect*, lalu jalankan lagi Kotak 1 sampai Kotak 4. Baca bagian "Kalau sesi Colab mati" di atas untuk tahu apa yang tetap aman.
 
-**2. Muncul peringatan "Unauthorized" atau salah password di HP?**
-**J:** Anda salah memasukkan Password rahasia. Hapus riwayat (*cache/local storage*) website di HP Anda, *refresh* web-nya, lalu ketik password yang sama persis dengan yang ada di Google Colab.
+**2. Muncul "Kode akses ditolak" atau "Kode akses tidak berlaku lagi" di HP?**
+**J:** Kode yang Anda ketik tidak sama dengan *password* rahasia di Kotak 4, atau server Colab baru dinyalakan ulang dengan *password* lain. Salin lagi *password* dari Kotak 4, tempel di kotak **Kode akses**, lalu tekan **Masuk**.
 
 **3. Muncul Error "Network Failed" / Gagal Koneksi?**
 **J:** Ini berarti HP gagal menyambung ke Mesin.
@@ -160,7 +232,7 @@ Di bagian bawah kotak merah ada tulisan **Detail teknis**. Ketuk untuk membukany
 **J:** Saat mengatur *Public Hostname* di Cloudflare, bagian **URL** *wajib* diisi dengan angka `127.0.0.1:8000`. Jika Anda mengisi tulisan `localhost:8000`, koneksinya akan nyangkut dan error.
 
 **5. Proses memotong video tiba-tiba mati / muncul "Memori perangkat habis"?**
-**J:** Kalau videonya sangat panjang (lebih dari 1 jam), memori mesin Google Colab bisa habis. Pakai model suara (*Whisper model*) ukuran **Small** dan pelacakan wajah mode standar, lalu tekan **Lanjutkan**. Bagian yang sudah selesai tidak diulang.
+**J:** Kalau videonya sangat panjang (lebih dari 1 jam), memori mesin Google Colab bisa habis. Buka **Pengaturan**, bagian **Lanjutan**: pilih model subtitle **Small** dan **Cara mengikuti wajah** **Standar**. Setelah itu buka **Riwayat** dan tekan **Lanjutkan** pada proyek itu. Bagian yang sudah selesai tidak diulang.
 
 **6. Google Drive saya kepenuhan, apa yang harus dihapus?**
 **J:** Buka Google Drive, masuk ke folder `AutoClipperData` -> `projects`. Isinya klip dan subtitle tiap proyek. Anda boleh menghapus folder proyek lama yang klipnya sudah di-download ke HP. **Sangat Penting:** Jangan pernah menghapus file `history.db`! File ini adalah buku catatan riwayat video Anda di HP. Setelah menghapus, kosongkan juga *Sampah (Trash)* di Google Drive.
@@ -173,19 +245,16 @@ Di bagian bawah kotak merah ada tulisan **Detail teknis**. Ketuk untuk membukany
 2. Buka youtube.com, lalu login dengan **akun cadangan**.
 3. Di tab YouTube itu, klik ikon ekstensi tadi, pilih Export, lalu unggah file hasilnya.
 
-Unggah lewat tombol **Unggah cookies.txt** di kotak merah, atau kapan saja lewat menu **Pengaturan** -> **Cookies YouTube** -> **Pilih file cookies.txt**. Kalau Anda mengunggah dari kotak merah, setelah file diterima tekan **Coba lagi sekarang**.
+Unggah lewat tombol **Unggah cookies.txt** di kotak bergaris merah, atau kapan saja lewat menu **Pengaturan**, bagian **YouTube**, tombol **Pilih file cookies.txt**. Kalau Anda mengunggah dari kotak bergaris merah, setelah file diterima tekan **Coba lagi sekarang**.
 
 > ⚠️ **Pakai akun cadangan, bukan akun utama.** YouTube bisa membatasi akun yang cookies-nya dipakai untuk mengunduh. Jangan pernah memakai akun Google utama Anda.
 
 Yang perlu diketahui:
-- File cookies tersimpan di folder `AutoClipperData` di Google Drive Anda, jadi masih ada di sesi Colab berikutnya. Isinya hanya dipakai oleh pengunduh video. Untuk menghapusnya, buka **Pengaturan** -> **Cookies YouTube** -> **Hapus cookies**.
+- File cookies tersimpan di folder `AutoClipperData` di Google Drive Anda, jadi masih ada di sesi Colab berikutnya. Isinya hanya dipakai oleh pengunduh video. Untuk menghapusnya, buka **Pengaturan**, bagian **YouTube**, lalu tekan **Hapus cookies**.
 - Cookies punya masa berlaku. Kalau muncul "Cookies YouTube sudah kedaluwarsa", login lagi dengan akun cadangan, ekspor ulang, lalu unggah file baru.
 - Kalau muncul "File ini bukan dari akun yang sedang login", Anda mengekspor saat belum login. Login dulu, baru ekspor.
 
-*Cara 2: Pakai file videonya langsung.* Unduh videonya sendiri, simpan ke Google Drive Anda, lalu tekan **Pilih video dari Google Drive** di kotak merah (atau buka tab **Local Video (.mp4)** dan tekan tombol **Pilih video dari Google Drive** di sana) dan pilih file tersebut.
+*Cara 2: Pakai file videonya langsung.* Unduh videonya sendiri, simpan ke Google Drive Anda, lalu tekan **Pilih video dari Google Drive** di kotak bergaris merah (atau **Pilih dari Google Drive** di langkah 1 Buat klip) dan pilih file tersebut.
 
 **8. Muncul "YouTube membatasi unduhan untuk sementara"?**
 **J:** YouTube menerima terlalu banyak permintaan dari mesin yang sama. Tunggu hingga satu jam lalu coba lagi, atau pakai Cara 2 di nomor 7.
-
----
-Selamat membuat konten viral dengan mudah! 🚀
