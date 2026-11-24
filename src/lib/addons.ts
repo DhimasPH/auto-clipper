@@ -54,14 +54,15 @@ export function asAddonStatuses(data: unknown): Record<string, AddonStatus> {
 }
 
 /**
- * What the card shows. "finishing": the backend holds the percent at 99 until the files are
- * checked and moved into place, so the last moments are not shown as a stuck download.
+ * What the card shows. "finishing": every byte has arrived and the backend is checking the files
+ * and moving them into place, so the last moments are not shown as a stuck download. The percent
+ * cannot tell: the backend rounds it down and holds it at 99 until the install is done.
  */
 export type AddonView = "unknown" | "unavailable" | "absent" | "downloading" | "finishing" | "installed";
 
 export function addonView(status: AddonStatus | null | undefined): AddonView {
   if (!status) return "unknown";
-  if (status.downloading) return status.percent >= 99 ? "finishing" : "downloading";
+  if (status.downloading) return status.total_mb > 0 && status.downloaded_mb >= status.total_mb ? "finishing" : "downloading";
   if (status.installed) return "installed";
   if (!status.available) return "unavailable";
   return "absent";

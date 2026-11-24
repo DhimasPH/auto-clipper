@@ -15,6 +15,8 @@ export const SETTINGS_ANCHORS = {
   general: "umum",
   youtube: "youtube",
   advanced: "lanjutan",
+  /** Standar or Teliti, and installing the precise tracker (SP3). */
+  faceTracking: "pelacak-wajah",
   downloader: "pengunduh",
   help: "bantuan",
 } as const;

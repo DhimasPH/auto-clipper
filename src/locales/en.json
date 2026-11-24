@@ -192,11 +192,16 @@
     "addon_face_ready": "The precise tracker is installed and uses {{mb}} MB of storage.",
     "addon_face_unavailable": "The precise tracker is not available for this computer yet, so the app uses Standard mode.",
     "addon_size": "Download size about {{mb}} MB.",
-    "addon_progress_label": "Download progress",
+    "addon_progress_label": "{{name}} download progress",
     "addon_downloading": "Downloading {{done}} MB of {{total}} MB ({{percent}}%). You can open other pages while you wait.",
     "addon_finishing": "Download finished. Checking and installing the component.",
     "addon_download_failed": "The add-on could not be downloaded, usually because the connection dropped or storage is full. Check both, then press the install button again.",
-    "addon_remove_failed": "The add-on could not be removed. Close and reopen the app, then try removing it again."
+    "addon_remove_failed": "The add-on could not be removed. Close and reopen the app, then try removing it again.",
+    "whisper_cpu_note_no_gpu": "This computer makes subtitles with the processor. With this model, a 30-minute video can take more than an hour. It is still fine for short videos.",
+    "face_engine_cloud_note": "The precise tracker is not available here, so the app uses Standard mode.",
+    "addon_gpu_remove_confirm_title": "Remove graphics card support?",
+    "addon_gpu_remove_confirm_body": "After removal, subtitles are made with the processor again, which is slower. To use the graphics card again, the add-on of about {{mb}} MB must be downloaded again.",
+    "addon_gpu_remove_confirm": "Yes, remove"
   },
   "toast": {
     "clip_failed": "Cannot start yet: {{msg}}",
@@ -557,9 +562,10 @@
     "cancel_keep": "Keep going",
     "running_bar": "A job is running.",
     "running_bar_link": "See progress",
-    "fallback_tracking": "The precise tracker add-on is not installed yet, so this video uses Standard mode. Install it in Settings when needed.",
+    "fallback_tracking": "The precise tracker add-on is not installed yet, so this video uses Standard mode. Your clips are still made as usual.",
     "fallback_tracking_failed": "The precise tracker could not run, so this video uses Standard mode. Your clips are still made as usual.",
-    "fallback_tracking_unavailable": "The precise tracker is not available here, so this video uses Standard mode. Your clips are still made as usual."
+    "fallback_tracking_unavailable": "The precise tracker is not available here, so this video uses Standard mode. Your clips are still made as usual.",
+    "fallback_tracking_link": "Install the precise tracker in Settings"
   },
   "moment": {
     "title": "Pick the best moments with an AI chat",

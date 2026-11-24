@@ -3,6 +3,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { CAPS, setPlatform, type Platform } from "../../platform";
+import { MemoryRouter } from "react-router-dom";
+import { ROUTES, SETTINGS_ANCHORS } from "../../lib/routes";
 import { ProgressPanel } from "./ProgressPanel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -82,14 +84,29 @@ describe("ProgressPanel (spec 4.3)", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it("says when Teliti was not installed and Standar was used, with what to do where add-ons exist (SP3)", () => {
+  it("says when Teliti was not installed and Standar was used, with a link to install it where add-ons exist (SP3)", () => {
     const meta = { tracking_engine_requested: "mediapipe", tracking_engine_used: "haar", tracking_fallback_reason: "addon_not_installed" };
-    act(() => root.render(<ProgressPanel {...base} step={4} current={{ stage: "render", started_at: 1, clip: 1 }} meta={meta} />));
+    const timings = [{ stage: "tracking", seconds: 4, ok: true, ...meta }];
+    const panel = (m: typeof meta) => (
+      <MemoryRouter>
+        <ProgressPanel {...base} step={4} timings={timings} current={{ stage: "render", started_at: 1, clip: 1 }} meta={m} />
+      </MemoryRouter>
+    );
+    act(() => root.render(panel(meta)));
     expect(container.textContent).toContain(i18n.t("progress.fallback_tracking"));
+    const link = [...container.querySelectorAll("a")].find((a) => a.textContent === i18n.t("progress.fallback_tracking_link"))!;
+    expect(link.getAttribute("href")).toBe(`${ROUTES.settings}#${SETTINGS_ANCHORS.faceTracking}`);
 
     setPlatform({ caps: CAPS.cloud } as Platform);
-    act(() => root.render(<ProgressPanel {...base} step={4} current={{ stage: "render", started_at: 1, clip: 1 }} meta={{ ...meta }} />));
+    act(() => root.render(panel({ ...meta })));
     expect(container.textContent).not.toContain(i18n.t("progress.fallback_tracking"));
     expect(container.textContent).toContain(i18n.t("progress.fallback_tracking_unavailable"));
+    expect(container.querySelector("a")).toBeNull();
+  });
+
+  it("does not repeat an old project's tracker note before this run's tracking has reported (Resume)", () => {
+    const stale = { tracking_engine_requested: "mediapipe", tracking_engine_used: "haar", tracking_fallback_reason: "addon_not_installed" };
+    act(() => root.render(<ProgressPanel {...base} step={4} timings={[]} current={{ stage: "tracking", started_at: 1, clip: 1 }} meta={stale} />));
+    expect(container.textContent).not.toContain(i18n.t("progress.fallback_tracking"));
   });
 });

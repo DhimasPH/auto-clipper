@@ -7,8 +7,9 @@ import { requestError } from '../../lib/errorInfo';
 import { TechnicalDetails } from '../ui/TechnicalDetails';
 import { Button } from '../ui/Button';
 import { useAddons } from '../../hooks/useAddons';
-import { addonView } from '../../lib/addons';
+import { addonView, megabytes } from '../../lib/addons';
 import { AddonControls } from './AddonControls';
+import { useKeepFocus } from '../../hooks/useKeepFocus';
 
 export interface WhisperModelInfo {
   id: string;
@@ -67,7 +68,7 @@ export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whis
   };
 
   // Only a server that reports gpu_ready knows add-ons (Ruling P8: older servers are never asked).
-  const { addons, pending, failures, install, remove } = useAddons(addonsEnabled && gpuReady !== null, 'cuda');
+  const { addons, pending, failures, removalScheduled, install, remove } = useAddons(addonsEnabled && gpuReady !== null, 'cuda');
   const cuda = addons.cuda;
   const cudaView = addonView(cuda);
   // Installing or removing the support changes gpu_ready: reload so the processor notes match.
@@ -79,6 +80,9 @@ export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whis
     seenInstalled.current = cudaInstalled;
     if (before !== null && before !== cudaInstalled) void fetchModels(true);
   }, [cudaInstalled]);
+  // After a removal the card hides until the models are read again: keep the focus in this section.
+  const sectionRef = useRef<HTMLDivElement>(null);
+  useKeepFocus(pending.cuda, () => sectionRef.current);
   const showGpuCard =
     cudaView === 'downloading' || cudaView === 'finishing' || cudaView === 'installed' || (cudaView === 'absent' && gpuReady === false);
 
@@ -103,7 +107,7 @@ export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whis
   const busy = download.kind === 'running';
 
   return (
-    <div className="flex flex-col gap-4 rounded-card border border-border bg-bg-secondary p-5">
+    <div ref={sectionRef} tabIndex={-1} className="flex flex-col gap-4 rounded-card border border-border bg-bg-secondary p-5 focus:outline-none">
       <div>
         <h3 id={`${groupName}-title`} className="text-card-title text-text-primary">{t('settings.transcription_title')}</h3>
         <p className="mt-1 text-body text-text-secondary">{t('settings.transcription_subtitle')}</p>
@@ -133,7 +137,8 @@ export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whis
                 {gpuReady === false && slowModels.includes(m.id) && (
                   <p className="flex items-start gap-2 text-body text-text-primary">
                     <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
-                    <span>{t('settings.whisper_cpu_note')}</span>
+                    {/* No graphics card option here (no NVIDIA card, Mac, Linux, cloud): no talk of one. */}
+                    <span>{t(showGpuCard ? 'settings.whisper_cpu_note' : 'settings.whisper_cpu_note_no_gpu')}</span>
                   </p>
                 )}
               </div>
@@ -197,9 +202,17 @@ export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whis
           {cudaView === 'absent' && <p className="text-body text-text-secondary">{t('settings.addon_gpu_desc')}</p>}
           <AddonControls
             status={cuda}
+            name={t('settings.addon_gpu_title')}
             offerInstall={gpuReady === false}
             pending={pending.cuda}
             failure={failures.cuda}
+            removalScheduled={removalScheduled.cuda}
+            // About 528 MB to download again: ask first (the small Teliti add-on goes right away).
+            confirmRemove={{
+              title: t('settings.addon_gpu_remove_confirm_title'),
+              message: t('settings.addon_gpu_remove_confirm_body', { mb: megabytes(cuda?.size_hint_mb ?? 0) }),
+              confirmLabel: t('settings.addon_gpu_remove_confirm'),
+            }}
             installLabel={t('settings.addon_gpu_install')}
             removeLabel={t('settings.addon_gpu_remove')}
             readyKey="settings.addon_gpu_ready"

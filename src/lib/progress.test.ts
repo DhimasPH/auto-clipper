@@ -123,7 +123,17 @@ describe("deviceNotes: Teliti fell back to Standar (SP3 spec 4.2.C)", () => {
   it("tells a failure of an installed tracker apart from a missing one", () => {
     const failed = timing("tracking", 5, { ...fellBack, tracking_fallback_reason: "mediapipe crashed on frame 12" });
     expect(deviceNotes(live("tracking", { device: "haar_fallback" }), [failed], make)).toEqual(["fallback_tracking_failed"]);
-    expect(deviceNotes(null, [], make, { ...fellBack, tracking_fallback_reason: "boom" })).toEqual(["fallback_tracking_failed"]);
+    expect(deviceNotes(null, [timing("tracking", 5)], make, { ...fellBack, tracking_fallback_reason: "boom" })).toEqual(["fallback_tracking_failed"]);
+  });
+
+  it("ignores tracking facts in the metadata until this run's tracking stage has reported (Resume, re-render)", () => {
+    // A resumed or re-rendered job starts from the old project's metadata: the add-on may be installed by now.
+    const stale = { ...fellBack, tracking_fallback_reason: "addon_not_installed" };
+    expect(deviceNotes(null, [], make, stale)).toEqual([]);
+    expect(deviceNotes(live("render", { clip: 1 }), [timing("download", 3)], make, stale)).toEqual([]);
+    expect(deviceNotes(live("tracking"), [], make, stale)).toEqual([]);
+    // Once this run's tracking row is there, the synced metadata counts again.
+    expect(deviceNotes(null, [timing("tracking", 5)], make, stale)).toEqual(["fallback_tracking"]);
   });
 
   it("says nothing when Teliti ran, Standar was chosen, or no face tracking happens", () => {

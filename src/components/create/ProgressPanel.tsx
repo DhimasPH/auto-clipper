@@ -1,8 +1,10 @@
 import React, { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { Circle, CircleCheck, LoaderCircle, X } from "lucide-react";
 import { useNow } from "../../hooks/useNow";
 import { deviceNotes, progressRows, stagesFor, type DeviceNote, type LiveStage, type ProgressRow, type TrackingMeta } from "../../lib/progress";
+import { ROUTES, SETTINGS_ANCHORS } from "../../lib/routes";
 import { formatDuration } from "../../lib/timings";
 import { platform } from "../../platform";
 import { Button } from "../ui/Button";
@@ -55,6 +57,8 @@ export const ProgressPanel: React.FC<ProgressPanelProps> = ({
   // Where add-ons cannot be installed (cloud), "install it in Settings" would send people nowhere.
   const noteKey = (note: DeviceNote) =>
     note === "fallback_tracking" && !caps.addons ? "progress.fallback_tracking_unavailable" : `progress.${note}`;
+  // Where the add-on can be installed, the note leads to it.
+  const installLink = (note: DeviceNote) => note === "fallback_tracking" && caps.addons;
   const units = { hour: t("timing.unit_hour"), minute: t("timing.unit_minute"), second: t("timing.unit_second") };
 
   const label = (row: ProgressRow) => {
@@ -112,6 +116,17 @@ export const ProgressPanel: React.FC<ProgressPanelProps> = ({
       {notes.map((note) => (
         <p key={note} className="rounded-card border border-border bg-bg-surface p-3 text-body text-text-primary">
           {t(noteKey(note))}
+          {installLink(note) && (
+            <>
+              {" "}
+              <Link
+                to={`${ROUTES.settings}#${SETTINGS_ANCHORS.faceTracking}`}
+                className="rounded font-medium text-accent underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                {t("progress.fallback_tracking_link")}
+              </Link>
+            </>
+          )}
         </p>
       ))}
 

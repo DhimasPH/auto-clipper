@@ -116,16 +116,23 @@ export function deviceNotes(current: LiveStage | null, timings: unknown, stages:
     if (note) notes.add(note);
   };
   if (current) look(current.stage, current.device);
+  let trackedThisRun = false;
   if (Array.isArray(timings)) {
     for (const entry of timings) {
       if (!entry || typeof entry !== "object") continue;
       const e = entry as Record<string, unknown>;
       look(e.stage, e.whisper_device);
       look(e.stage, e.encoder);
-      if (e.stage === "tracking") addFallback(e);
+      if (e.stage === "tracking") {
+        trackedThisRun = true;
+        addFallback(e);
+      }
     }
   }
-  if (meta && typeof meta === "object") addFallback(meta);
+  // A resumed or re-rendered job starts from the old project metadata, whose tracking facts may be
+  // out of date (the add-on can be installed since). The backend refreshes them from this run's
+  // timings after its tracking stage, so they count only once such a row is there.
+  if (trackedThisRun && meta && typeof meta === "object") addFallback(meta);
   // One reason per video: a known failure says more than "not installed".
   if (notes.has("fallback_tracking_failed")) notes.delete("fallback_tracking");
   return [...notes];

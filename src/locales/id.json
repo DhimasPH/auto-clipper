@@ -192,11 +192,16 @@
     "addon_face_ready": "Pelacak teliti sudah terpasang dan memakai {{mb}} MB ruang penyimpanan.",
     "addon_face_unavailable": "Pelacak teliti belum tersedia untuk komputer ini, jadi aplikasi memakai mode Standar.",
     "addon_size": "Ukuran unduhan sekitar {{mb}} MB.",
-    "addon_progress_label": "Progres unduhan",
+    "addon_progress_label": "Progres unduhan {{name}}",
     "addon_downloading": "Mengunduh {{done}} MB dari {{total}} MB ({{percent}}%). Anda boleh membuka halaman lain selama menunggu.",
     "addon_finishing": "Unduhan selesai. Sedang memeriksa dan memasang komponen.",
     "addon_download_failed": "Komponen gagal diunduh, biasanya karena koneksi terputus atau ruang penyimpanan penuh. Periksa keduanya, lalu tekan tombol pasang lagi.",
-    "addon_remove_failed": "Komponen gagal dihapus. Tutup lalu buka lagi aplikasi, kemudian coba hapus lagi."
+    "addon_remove_failed": "Komponen gagal dihapus. Tutup lalu buka lagi aplikasi, kemudian coba hapus lagi.",
+    "whisper_cpu_note_no_gpu": "Komputer ini membuat subtitle dengan prosesor. Dengan model ini, video 30 menit bisa makan waktu lebih dari satu jam. Untuk video pendek tetap boleh dipakai.",
+    "face_engine_cloud_note": "Pelacak teliti tidak tersedia di sini, jadi aplikasi memakai mode Standar.",
+    "addon_gpu_remove_confirm_title": "Hapus dukungan kartu grafis?",
+    "addon_gpu_remove_confirm_body": "Setelah dihapus, subtitle kembali dibuat dengan prosesor dan lebih lambat. Untuk memakai kartu grafis lagi, komponen sekitar {{mb}} MB harus diunduh ulang.",
+    "addon_gpu_remove_confirm": "Ya, hapus"
   },
   "toast": {
     "clip_failed": "Belum bisa mulai: {{msg}}",
@@ -557,9 +562,10 @@
     "cancel_keep": "Lanjutkan proses",
     "running_bar": "Ada proses yang sedang berjalan.",
     "running_bar_link": "Lihat progres",
-    "fallback_tracking": "Pelacak teliti belum terpasang, jadi video ini memakai cara Standar. Pasang komponennya di Pengaturan bila dibutuhkan.",
+    "fallback_tracking": "Pelacak teliti belum terpasang, jadi video ini memakai cara Standar. Klip tetap dibuat seperti biasa.",
     "fallback_tracking_failed": "Pelacak teliti tidak bisa berjalan, jadi video ini memakai cara Standar. Klip tetap dibuat seperti biasa.",
-    "fallback_tracking_unavailable": "Pelacak teliti tidak tersedia di sini, jadi video ini memakai cara Standar. Klip tetap dibuat seperti biasa."
+    "fallback_tracking_unavailable": "Pelacak teliti tidak tersedia di sini, jadi video ini memakai cara Standar. Klip tetap dibuat seperti biasa.",
+    "fallback_tracking_link": "Pasang pelacak teliti di Pengaturan"
   },
   "moment": {
     "title": "Pilih momen terbaik dengan bantuan AI",

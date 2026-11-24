@@ -4,6 +4,7 @@ import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { setApiUrl } from "../../platform/backendUrl";
+import { CAPS, setPlatform, type Platform } from "../../platform";
 import { TranscriptionSection, type WhisperModelInfo } from "./TranscriptionSection";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -28,6 +29,7 @@ describe("TranscriptionSection (Lanjutan, model subtitle)", () => {
   beforeEach(async () => {
     await i18n.changeLanguage("id");
     setApiUrl(API);
+    setPlatform({ caps: CAPS.desktop } as Platform);
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -37,6 +39,7 @@ describe("TranscriptionSection (Lanjutan, model subtitle)", () => {
     act(() => root.unmount());
     container.remove();
     vi.resetAllMocks();
+    setPlatform(null);
   });
 
   const render = async (whisperModel = "small", addonsEnabled = true) => {
@@ -147,8 +150,10 @@ describe("TranscriptionSection (Lanjutan, model subtitle)", () => {
     );
     await render("small");
     const note = i18n.t("settings.whisper_cpu_note");
-    expect(container.textContent!.split(note).length - 1).toBe(2);
-    // No NVIDIA card: nothing to install, so no card.
+    const plainNote = i18n.t("settings.whisper_cpu_note_no_gpu");
+    expect(container.textContent!.split(plainNote).length - 1).toBe(2);
+    // No NVIDIA card: nothing to install, so no card and no talk of a graphics card.
+    expect(container.textContent).not.toContain(note);
     expect(container.textContent).not.toContain(i18n.t("settings.addon_gpu_title"));
 
     act(() => root.unmount());
@@ -158,6 +163,7 @@ describe("TranscriptionSection (Lanjutan, model subtitle)", () => {
     );
     await render("small");
     expect(container.textContent).not.toContain(note);
+    expect(container.textContent).not.toContain(plainNote);
     expect(container.textContent).not.toContain(i18n.t("settings.addon_gpu_install"));
   });
 
@@ -184,7 +190,8 @@ describe("TranscriptionSection (Lanjutan, model subtitle)", () => {
     vi.mocked(axios.get).mockResolvedValue({ data: { ...SP3_MODELS, gpu_ready: false } });
     await render("small", false);
     expect(vi.mocked(axios.get).mock.calls.map((c) => c[0])).toEqual([`${API}/api/settings/whisper-models`]);
-    expect(container.textContent).toContain(i18n.t("settings.whisper_cpu_note"));
+    expect(container.textContent).toContain(i18n.t("settings.whisper_cpu_note_no_gpu"));
+    expect(container.textContent).not.toContain(i18n.t("settings.whisper_cpu_note"));
   });
 
   it("after the graphics card support is installed, reloads the models so the processor notes go away", async () => {
@@ -211,5 +218,44 @@ describe("TranscriptionSection (Lanjutan, model subtitle)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+  it("asks before removing the graphics card support, and removes only after Ya, hapus", async () => {
+    vi.mocked(axios.get).mockImplementation(async (url: string) =>
+      url.endsWith("/addons")
+        ? { data: { status: "success", addons: { cuda: cuda({ installed: true, percent: 100, disk_mb: 527.6 }) } } }
+        : { data: { ...SP3_MODELS, gpu_ready: true } },
+    );
+    vi.mocked(axios.delete).mockResolvedValueOnce({ data: { status: "success", addon: cuda() } });
+    await render("small");
+    const removeBtn = () => [...container.querySelectorAll("button")].find((b) => b.textContent?.includes(i18n.t("settings.addon_gpu_remove")))!;
+    const dialogButton = (label: string) => [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent === label) as HTMLButtonElement;
+
+    await act(async () => removeBtn().click());
+    expect(axios.delete).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain(i18n.t("settings.addon_gpu_remove_confirm_title"));
+    expect(document.body.textContent).toContain(i18n.t("settings.addon_gpu_remove_confirm_body", { mb: "528" }));
+    await act(async () => dialogButton(i18n.t("common.cancel")).click());
+    expect(axios.delete).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    removeBtn().focus();
+    await act(async () => removeBtn().click());
+    await act(async () => dialogButton(i18n.t("settings.addon_gpu_remove_confirm")).click());
+    expect(vi.mocked(axios.delete)).toHaveBeenCalledWith(`${API}/api/settings/addons/cuda`);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    // The card hides until the models are read again; the focus stays in the section, not on the page.
+    expect(document.activeElement).not.toBe(document.body);
+    expect(container.contains(document.activeElement)).toBe(true);
+  });
+
+  it("names the graphics card download on its progress bar", async () => {
+    vi.mocked(axios.get).mockImplementation(async (url: string) =>
+      url.endsWith("/addons")
+        ? { data: { status: "success", addons: { cuda: cuda({ downloading: true, percent: 10, downloaded_mb: 53, total_mb: 527.5 }) } } }
+        : { data: { ...SP3_MODELS, gpu_ready: false } },
+    );
+    await render("small");
+    const bar = container.querySelector('[role="progressbar"]')!;
+    expect(bar.getAttribute("aria-label")).toContain(i18n.t("settings.addon_gpu_title"));
   });
 });

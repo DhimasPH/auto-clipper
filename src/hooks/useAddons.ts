@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { API_URL } from "../platform/backendUrl";
 import { asAddonStatus, asAddonStatuses, type AddonId, type AddonStatus } from "../lib/addons";
@@ -30,6 +30,9 @@ export function useAddons(enabled: boolean, watch?: AddonId) {
   const [addons, setAddons] = useState<Record<string, AddonStatus>>({});
   const [pending, setPending] = useState<Partial<Record<AddonId, "install" | "remove">>>({});
   const [failures, setFailures] = useState<Partial<Record<AddonId, AddonFailure>>>({});
+  // Removal waits for the app to open again (ADDON_IN_USE). The server does not report this, so it
+  // lasts while the page is open; pressing remove again on a later visit gets the same answer.
+  const [scheduled, setScheduled] = useState<Partial<Record<AddonId, boolean>>>({});
   const [round, setRound] = useState(0);
   // Bumped after every answer, also a failed one, so polling goes on through a dropped request.
   const [answers, setAnswers] = useState(0);
@@ -59,9 +62,15 @@ export function useAddons(enabled: boolean, watch?: AddonId) {
     return () => clearTimeout(timer);
   }, [enabled, downloading, answers]);
 
+  // Requests on their way, set before React draws the busy button: a quick second press sends nothing.
+  const inFlight = useRef(new Set<AddonId>());
   const run = useCallback(async (id: AddonId, action: "install" | "remove") => {
+    if (inFlight.current.has(id)) return;
+    inFlight.current.add(id);
     setPending((p) => ({ ...p, [id]: action }));
     setFailures((f) => ({ ...f, [id]: undefined }));
+    // A new try replaces the failure of the last download in the background.
+    if (action === "install") setAddons((all) => (all[id]?.error_info ? { ...all, [id]: { ...all[id], error_info: null } } : all));
     try {
       const res =
         action === "install"
@@ -73,7 +82,12 @@ export function useAddons(enabled: boolean, watch?: AddonId) {
     } catch (err) {
       const { message, info } = requestError(err, "");
       setFailures((f) => ({ ...f, [id]: { action, technical: info?.technical || message, info } }));
+      // In use: the files stay until the app opens again, so the card stops offering to remove them.
+      if (action === "remove" && info?.code === "ADDON_IN_USE") setScheduled((s) => ({ ...s, [id]: true }));
+      // The request failed, but the add-on may have changed (e.g. a download already running): read it again.
+      setRound((n) => n + 1);
     } finally {
+      inFlight.current.delete(id);
       setPending((p) => ({ ...p, [id]: undefined }));
     }
   }, []);
@@ -81,5 +95,5 @@ export function useAddons(enabled: boolean, watch?: AddonId) {
   const install = useCallback((id: AddonId) => run(id, "install"), [run]);
   const remove = useCallback((id: AddonId) => run(id, "remove"), [run]);
 
-  return { addons, pending, failures, install, remove };
+  return { addons, pending, failures, removalScheduled: scheduled, install, remove };
 }

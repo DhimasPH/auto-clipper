@@ -38,8 +38,18 @@ describe("addonView", () => {
     expect(addonView(asAddonStatus(status({ available: false })))).toBe("unavailable");
     expect(addonView(asAddonStatus(status()))).toBe("absent");
     expect(addonView(asAddonStatus(status({ downloading: true, percent: 40 })))).toBe("downloading");
-    expect(addonView(asAddonStatus(status({ downloading: true, percent: 99 })))).toBe("finishing");
+    expect(addonView(asAddonStatus(status({ downloading: true, percent: 99, downloaded_mb: 35, total_mb: 35 })))).toBe("finishing");
     expect(addonView(asAddonStatus(status({ installed: true, available: false })))).toBe("installed");
+  });
+});
+
+describe("addonView: finishing", () => {
+  it("says finished only when every byte has arrived (the server floors the percent at 99)", () => {
+    // 99 % of 528 MB still leaves about 5 MB to download.
+    expect(addonView(asAddonStatus(status({ downloading: true, percent: 99, downloaded_mb: 523.1, total_mb: 527.5 })))).toBe("downloading");
+    expect(addonView(asAddonStatus(status({ downloading: true, percent: 99, downloaded_mb: 527.5, total_mb: 527.5 })))).toBe("finishing");
+    // Before the first bytes: 0 of 0 is not finished.
+    expect(addonView(asAddonStatus(status({ downloading: true, percent: 99, downloaded_mb: 0, total_mb: 0 })))).toBe("downloading");
   });
 });
 
