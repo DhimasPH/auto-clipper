@@ -78,3 +78,6 @@ Task 14: fix round 1/5 (5 addressed, 0 open — downloader own shape/subtitle co
 Task 14: minor (deferred): redundant comment lines HelpSection.tsx:8-9; non-override handleManualGenerate path omits tracking_mode/face_tracking_engine (pre-existing, backend defaults).
 Task 14: complete (commits b24cd60..34884e3, review clean after fix round 1) — Vitest 325 passed, oxlint 0 errors, build + build:cloud OK.
 Task 15: dispatched (BASE a068ee6), implementer opus afa2822b9b56be459
+Task 15: resumed after quota stop (wip 2eb263a), finisher opus a581388b13bc99d7f
+Task 15: implementer DONE_WITH_CONCERNS, commits 88f8540, 031a6da, 2eb263a, 7d0862a, f18e4cf. Deviations: backend preflight/errors wording edited (main-screen text, spec 4.6); kept JSON/Deno/NVIDIA/GPU/API key; pop preview animation + 12px watermark + disabled-button contrast accepted as exceptions; watchJob "Lihat progres" fix pulled in from Task 13.
+Task 15: concern — not checked in a browser: AuthGate, LocalGate, SplashScreen, GDrive dialog, cookies dialog, update overlay, Settings past 16 Tab stops (component tests only); no screen reader / 200% zoom / desktop run.
