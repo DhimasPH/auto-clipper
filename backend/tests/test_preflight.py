@@ -462,3 +462,60 @@ def test_job_cancelled_just_before_its_turn_does_no_work_and_is_not_blocked(heal
     assert ran == []
     assert jobs.active_jobs[job_id]["status"] == "CANCELLED"
     assert not jobs.active_jobs[job_id].get("error_info")
+
+
+# --- get_ffmpeg_path source-mode fallback -------------------------------------
+
+import os
+
+from backend import video_utils
+
+
+def test_get_ffmpeg_path_falls_back_to_node_modules_ffmpeg_static_when_not_frozen(tmp_path, monkeypatch):
+    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    nm_ffmpeg = tmp_path / "node_modules" / "ffmpeg-static" / exe
+    nm_ffmpeg.parent.mkdir(parents=True)
+    nm_ffmpeg.write_bytes(b"x")
+
+    monkeypatch.setattr(video_utils.shutil, "which", lambda name: None)
+    monkeypatch.setattr(video_utils, "__file__", str(tmp_path / "backend" / "video_utils.py"))
+    monkeypatch.setattr(video_utils.sys, "frozen", False, raising=False)
+
+    assert video_utils.get_ffmpeg_path() == str(nm_ffmpeg)
+
+
+def test_get_ffmpeg_path_prefers_bin_and_src_tauri_bin_before_node_modules(tmp_path, monkeypatch):
+    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    nm_ffmpeg = tmp_path / "node_modules" / "ffmpeg-static" / exe
+    nm_ffmpeg.parent.mkdir(parents=True)
+    nm_ffmpeg.write_bytes(b"x")
+
+    tauri_ffmpeg = tmp_path / "src-tauri" / "bin" / exe
+    tauri_ffmpeg.parent.mkdir(parents=True)
+    tauri_ffmpeg.write_bytes(b"x")
+
+    monkeypatch.setattr(video_utils.shutil, "which", lambda name: None)
+    monkeypatch.setattr(video_utils, "__file__", str(tmp_path / "backend" / "video_utils.py"))
+    monkeypatch.setattr(video_utils.sys, "frozen", False, raising=False)
+
+    assert video_utils.get_ffmpeg_path() == str(tauri_ffmpeg)
+
+    bin_ffmpeg = tmp_path / "bin" / exe
+    bin_ffmpeg.parent.mkdir(parents=True)
+    bin_ffmpeg.write_bytes(b"x")
+
+    assert video_utils.get_ffmpeg_path() == str(bin_ffmpeg)
+
+
+def test_get_ffmpeg_path_does_not_check_node_modules_when_frozen(tmp_path, monkeypatch):
+    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    nm_ffmpeg = tmp_path / "node_modules" / "ffmpeg-static" / exe
+    nm_ffmpeg.parent.mkdir(parents=True)
+    nm_ffmpeg.write_bytes(b"x")
+
+    monkeypatch.setattr(video_utils.shutil, "which", lambda name: None)
+    monkeypatch.setattr(video_utils, "__file__", str(tmp_path / "backend" / "video_utils.py"))
+    monkeypatch.setattr(video_utils.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(video_utils.sys, "executable", str(tmp_path / "dist" / "app" / exe), raising=False)
+
+    assert video_utils.get_ffmpeg_path() is None

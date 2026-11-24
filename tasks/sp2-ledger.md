@@ -123,3 +123,7 @@ Range `dc3ba66..f7aba4d` (173 files, excluding `package-lock.json`). Verdict: Ne
 - Final verification after `547531a`: pytest **851 passed, 12 skipped**; Vitest **424 passed** (64 files); oxlint **0 errors** (15 warnings); `npm run build` and `npm run build:cloud` OK; `npm audit --omit=dev` and `npm audit` **0 vulnerabilities**.
 - Scoped re-review (`547531a` diff): all findings (I1, I2, M1–M5) addressed, 0 new Critical/Important.
 - SP2: complete (code), review clean after one fix wave. Awaiting owner usability checklist (end of `tasks/PROGRESS-LOG.md`).
+
+## Post-review bugfix (2026-11-24)
+- Ruling: `get_ffmpeg_path()` in `backend/video_utils.py` falls back to `node_modules/ffmpeg-static/ffmpeg(.exe)` as the last candidate when not `sys.frozen` — running backend from source on Windows without system/bin FFmpeg was blocked by preflight `FFMPEG_MISSING` even though `node_modules/ffmpeg-static/ffmpeg.exe` exists; frozen PyInstaller candidate order is unchanged — cost if wrong: one extra `Path.exists()` check in non-frozen dev runs when FFmpeg is absent.
+- Verified with 3 new TDD unit tests in `backend/tests/test_preflight.py`: `pytest` **860 passed, 6 skipped** (+3 unit tests + 6 FFmpeg-dependent tests now active from source).

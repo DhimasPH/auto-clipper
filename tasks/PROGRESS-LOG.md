@@ -701,6 +701,11 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 - Angka akhir setelah perbaikan: `pytest` **851 lulus, 12 dilewati** (+2 tes baru); Vitest **424 lulus** di 64 file (+5 tes baru); `oxlint src` **0 error** (15 warning); `npm run build` dan `npm run build:cloud` sukses; `npm audit` (prod & penuh) **0 kerentanan**.
 - Semua kode SP2 selesai dan bersih setelah review. Menunggu uji pemakaian pemilik (daftar cek di bawah) sebelum PR akhir ke `main`.
 
+### 2026-11-24 · Perbaikan fallback FFmpeg dari kode sumber (`get_ffmpeg_path`)
+- Memperbaiki `get_ffmpeg_path()` di `backend/video_utils.py` lewat TDD: menambahkan `node_modules/ffmpeg-static/ffmpeg(.exe)` sebagai kandidat terakhir **khusus saat tidak `sys.frozen`** (urutan kandidat build PyInstaller tidak diubah), agar menjalankan backend dari kode sumber di Windows tidak diblokir preflight `FFMPEG_MISSING` saat `ffmpeg-static` tersedia.
+- Menambah 3 tes unit terisolasi di `backend/tests/test_preflight.py` (mode non-frozen, prioritas `bin/` & `src-tauri/bin/` di atas `node_modules`, serta mode `sys.frozen` yang tidak menyentuh `node_modules`). Ruling dicatat di `tasks/sp2-ledger.md`.
+- `pytest` penuh: **860 lulus, 6 dilewati** (+3 tes baru dan +6 tes FFmpeg nyata yang kini ikut berjalan dari kode sumber).
+
 ### Daftar cek uji pemakaian SP2 (pemilik)
 
 Catat untuk tiap butir: berhasil atau tidak, dan di langkah mana pengguna sempat ragu.

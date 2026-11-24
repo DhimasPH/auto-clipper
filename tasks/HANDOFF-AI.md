@@ -22,8 +22,8 @@ Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke lay
 
 ## 3. Posisi SP2 saat ini (2026-11-24)
 
-- **SP2 selesai dari sisi kode** (`dc3ba66..547531a`): Task 1–18 selesai, review menyeluruh independen (`dc3ba66..f7aba4d`), gelombang perbaikan akhir (`547531a`), dan re-review terbatas dinyatakan bersih (0 Critical, 0 Important tersisa).
-- Angka verifikasi akhir setelah `547531a`: `pytest` **851 lulus, 12 dilewati**; Vitest **424 lulus** (64 file); `oxlint src` **0 error**; `npm run build` dan `npm run build:cloud` OK; `npm audit` **0 kerentanan**.
+- **SP2 selesai dari sisi kode** (`dc3ba66..547531a`): Task 1–18 selesai, review menyeluruh independen (`dc3ba66..f7aba4d`), gelombang perbaikan akhir (`547531a`), dan re-review terbatas dinyatakan bersih (0 Critical, 0 Important tersisa); ditambah perbaikan fallback `node_modules/ffmpeg-static` di `get_ffmpeg_path()` saat tidak frozen.
+- Angka verifikasi akhir: `pytest` **860 lulus, 6 dilewati**; Vitest **424 lulus** (64 file); `oxlint src` **0 error**; `npm run build` dan `npm run build:cloud` OK; `npm audit` **0 kerentanan**.
 - **Yang tersisa (menunggu pemilik):**
   1. Jalankan daftar cek uji pemakaian SP2 di akhir `tasks/PROGRESS-LOG.md` (HP Colab 360 px bersama orang awam tanpa panduan, desktop Windows / Auto Clipper Web, kembali lewat `AWAITING_MANUAL`, mode terang/gelap, banner terputus, serta `SplashScreen` & `UpdateOverlay` di build desktop nyata) bersama sisa cek manual SP1 & SP0 (bagian 7).
   2. Setelah pemilik menyatakan uji pemakaian selesai, buka satu PR gabungan ke `main` dari branch `feat/sp2-ux-for-everyone` atas permintaan pemilik (draf lengkap SP0+SP1+SP2 ada di `tasks/pr-draft.md`, kelanjutan dari `tasks/pr-draft-sp0.md`).

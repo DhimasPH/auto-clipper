@@ -75,7 +75,7 @@ Rincian di `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md` bagi
 
 ## Pengujian & Audit
 
-- **Backend (`C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q -p no:cacheprovider`):** **851 lulus, 12 dilewati** (naik dari 694 di SP0 dan 805 di SP1).
+- **Backend (`C:\Users\dhima\projects\ac-venv\Scripts\python.exe -m pytest backend/tests -q -p no:cacheprovider`):** **860 lulus, 6 dilewati** (naik dari 694 di SP0 dan 805 di SP1, termasuk 3 tes fallback `ffmpeg-static` non-frozen dan 6 tes FFmpeg nyata).
 - **Frontend (`npx vitest run` dari `C:\Users\dhima\projects\auto-clipper`):** **64 file, 424 lulus** (termasuk `locales.test.ts`, `plainWords.test.ts`, `contrast.test.ts`, `imports.test.ts`, `videoUrl.test.ts`).
 - **Lint & Build:** `npx oxlint src` (**0 error**, 15 warning); `npm run build` dan `npm run build:cloud` (**exit 0**); `npm audit --omit=dev` dan `npm audit` (**0 kerentanan**).
 - **Audit browser headless (Edge CDP, SP2 Task 15):** pemeriksaan di `360×780`, `768×1024`, dan `1280×800` mode terang & gelap (75 + 84 layar/keadaan): 0 overflow horizontal, 0 kontrol `< 44 px`, navigasi keyboard/focus trap/Escape lulus (rincian di `tasks/sp2-audit.md`).

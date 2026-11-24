@@ -30,6 +30,10 @@ def get_ffmpeg_path() -> str | None:
             bin_dir.parent / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
             bin_dir.parent / "Resources" / "bin" / "ffmpeg",
         ])
+    else:
+        candidates.append(
+            project_root / "node_modules" / "ffmpeg-static" / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
+        )
     for c in candidates:
         if c.exists():
             return str(c)
