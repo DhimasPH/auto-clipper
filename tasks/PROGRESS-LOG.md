@@ -666,3 +666,9 @@ Untuk setiap platform: buat job dari URL, buat job dari file, klip hasil terputa
 - Task 15 (audit antislop, P11, item "deferred → Task 15", uji browser 360/768/1280) dihentikan di tengah jalan. Perubahan kerjanya di-commit sebagai `wip(sp2)` dan BELUM diverifikasi (tes, build, dan review belum dijalankan).
 - BASE Task 15: a068ee6. Sudah ada commit 88f8540 (dialog shell) dan 031a6da (audit layar lama) dari implementer.
 - Langkah berikutnya: baca `.superpowers/sdd/2026-11-20-sp2-ux-for-everyone/task-15-brief.md` dan laporan bila ada, cek `git diff a068ee6..HEAD`, selesaikan sisa audit, jalankan pytest, Vitest (path C:\ besar), build, build:cloud, oxlint, lalu review Task 15. Setelah itu Task 16 (brief siap), 17, 18, dan review akhir.
+
+### 2026-11-24 · SP2 Task 15 selesai diverifikasi (audit antislop)
+- Commit wip `2eb263a` diperiksa dan semua pemeriksaan hijau; audit dilengkapi. Perbaikan baru: `Badge` memakai latar padat (teks hijau/kuning di latar tipis hanya 4,36/4,38:1 di halaman terang), namespace locale lama yang tidak dipakai dan berisi emoji/em dash dihapus, teks pemeriksaan awal dan FFMPEG_MISSING di backend tanpa "FFmpeg"/"render" (dokumen ikut disesuaikan), tes fokus setelah tombol coba lagi hilang dan tes dialog ProjectPage saat dimuat ulang.
+- Penjaga otomatis baru: emoji/em dash di semua teks locale, `timing.device_*` di daftar kata layar utama, 16 pasangan kontras tambahan per tema, larangan latar transparan di `Badge`, kata terlarang di semua keadaan pemeriksaan awal (pytest).
+- Browser (Edge headless, data tiruan): 75 pemeriksaan di 360/768/1280 terang dan gelap, 0 overflow, 0 kontrol < 44 px, 0 error console; Tab, focus trap, Escape, dan penjaga isian lulus di keenam kombinasi. Hasil lengkap dan yang belum diverifikasi: `tasks/sp2-audit.md`.
+- Angka: pytest 845 lulus, 12 dilewati (+1); Vitest 378 lulus (+37 sejak wip); oxlint 0 error (17 warning); `build` dan `build:cloud` sukses. Tersisa: review Task 15, lalu Task 16.
