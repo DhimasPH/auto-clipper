@@ -65,3 +65,6 @@ Task 4: fix round 2 dispatched
 Task 4: fix round 2/5 (4 addressed, 0 open; commit 4ded4d2) — pytest 1062 passed, 7 skipped; probe p8 now 404 with no realpath on the network path; mutate_device now fails 4 new tests. Scoped re-review by controller (web_ui._serve text check before os.path.join; jobs._NO_PROJECTS_INSIDE) — clean.
 Task 4: minor (deferred): temp_downloads under AUTO_CLIPPER_WORK_DIR (workspace.uploads_dir) not in _NO_PROJECTS_INSIDE.
 Task 4: complete (commits 665b2c8..4ded4d2, review clean after fix round 2)
+Task 5: fix round 1/5 (Important + minors 1–9 addressed; Resume stale tracker metadata was real, fixed in src/lib/progress.ts; double-click sent two POSTs, now guarded; commit eedd9d7) — Vitest 464, pytest 1062/7, oxlint 0 errors, builds OK.
+Task 5: minor (deferred): "scheduled for removal" lasts only while Pengaturan is open — backend status has no pending_remove field; resume_manual_job copies old timings (tracking rows unlikely there).
+Task 5: re-review dispatched (d35bf13..eedd9d7, src only)
