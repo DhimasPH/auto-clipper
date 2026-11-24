@@ -232,17 +232,50 @@ def _resolve_safe_output_dir(output_dir: str, endpoint: str, title="") -> tuple:
     if not raw:
         return "", None
     from backend.path_guard import denied, is_protected
+    # By its text first: a network or device path never reaches the file system (SP3 review).
+    if not _is_local_absolute_folder(raw):
+        return "", denied(endpoint, raw)
     if is_protected(raw):
         return "", denied(endpoint, raw)
-    resolved = os.path.abspath(raw)
+    resolved = _resolved_folder(raw)
     if callable(title):
-        title = title()
+        try:
+            title = title()
+        except Exception as e:  # an unreadable history: the endpoint's own JSON error, not a bare 500
+            log_error(f"main.{endpoint}", e)
+            return "", JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
     if title:
-        from backend.jobs import project_library_dir
+        from backend.jobs import project_library_dir, refuse_protected_project_dir
         library_dir = project_library_dir(title, resolved)
-        if is_protected(library_dir):
+        try:
+            refuse_protected_project_dir(resolved, library_dir)
+        except AppError:
             return "", denied(endpoint, library_dir)
     return resolved, None
+
+
+_WINDOWS_DRIVE_PATH = re.compile(r"[A-Za-z]:[\\/]")
+
+
+def _is_local_absolute_folder(path: str) -> bool:
+    """A drive-letter path (``C:\\...``) on Windows, an absolute path (``/...``) elsewhere; never UNC or a device path."""
+    from backend.path_guard import is_network_or_device_path
+    if is_network_or_device_path(path):
+        return False
+    if os.name == "nt":
+        return bool(_WINDOWS_DRIVE_PATH.match(path))
+    return path.startswith("/")
+
+
+def _resolved_folder(path: str) -> str:
+    """The chosen folder with links resolved, so history and the /video allowlist hold one spelling.
+
+    A mapped network drive resolves to its ``\\\\server\\share`` path, which
+    /video and /save_file refuse by text: keep the drive letter then.
+    """
+    absolute = os.path.normpath(os.path.abspath(path))
+    resolved = os.path.realpath(absolute)
+    return resolved if _is_local_absolute_folder(resolved) else absolute
 
 @app.get("/probe")
 def api_probe(url: str):
@@ -540,8 +573,12 @@ def _in_allowed_folder(path: str, base_dirs: list) -> bool:
 
 @app.post("/save_file")
 def api_save_file(req: SaveFileRequest):
-    from backend.path_guard import denied, is_protected
+    from backend.path_guard import denied, is_network_or_device_path, is_protected
     from backend.workspace import get_work_dir
+    # By their text, before any file system call (even isdir): a network path would contact its host.
+    for path in (req.src, req.dest):
+        if is_network_or_device_path(path):
+            return denied("save_file", path)
     try:
         # copy2 into a folder keeps the source's name: check the file it would write.
         dest = os.path.join(req.dest, os.path.basename(req.src)) if os.path.isdir(req.dest) else req.dest
@@ -1143,10 +1180,11 @@ def get_video(path: str, sig: str = "", dl: int = 0, title: str = None):
     so seeking works in the player.
     """
     from backend.logger import log_app
-    from backend.path_guard import DENIED_MESSAGE, denied, is_protected
+    from backend.path_guard import DENIED_MESSAGE, denied, is_network_or_device_path, is_protected
 
-    # Before anything that could tell whether the file exists.
-    if is_protected(path):
+    # By its text first: this endpoint needs no token, and resolving a network path would make
+    # this machine contact that host (SP3 review). Then before anything that could tell whether the file exists.
+    if is_network_or_device_path(path) or is_protected(path):
         return denied("video", path)
     if not video_sign.verify(path, sig):
         log_app("[video] Refused: missing or wrong signature")

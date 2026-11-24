@@ -166,7 +166,8 @@ def sanitize_title(title: str) -> str:
     # drops trailing dots and spaces, so "..." and ". ." are the same folder too.
     if not sanitized.strip(". "):
         return "AutoClipper_Project"
-    return sanitized
+    # "Wow..." would be a folder Windows cannot open by that name; the same name on every platform.
+    return sanitized.rstrip(". ")
 
 def check_title_uniqueness(title: str):
     safe_title = sanitize_title(title).lower()
@@ -193,24 +194,37 @@ def _project_folder_name(title: str, job_id: str = "") -> str:
     return safe_title
 
 
+def _usable_output_dir(output_dir: str) -> str:
+    """The chosen output folder, or "" on Cloud: no request there may choose one, so one in history is old and untrusted."""
+    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE") or not isinstance(output_dir, str):
+        return ""
+    return output_dir.strip()
+
+
 def project_library_dir(title: str, output_dir: str = "", job_id: str = "") -> str:
     """Where a project's finished files are kept: ``<output folder or app data/projects>/<title>``.
 
     Pure path arithmetic, nothing is created.
     """
-    if output_dir and output_dir.strip():
-        base_dir = output_dir.strip()
-    else:
-        base_dir = os.path.join(get_app_data_dir(), "projects")
+    base_dir = _usable_output_dir(output_dir) or os.path.join(get_app_data_dir(), "projects")
     return os.path.join(base_dir, _project_folder_name(title, job_id))
 
 
+# The app's own working folders in app data. A project folder that is, or holds, one of them would
+# mix with them, and deleting the project from history would remove them.
+_APP_WORK_FOLDERS = ("projects", "addons", "temp_downloads")
+
+
 def refuse_protected_project_dir(output_dir: str, library_dir: str) -> None:
-    """T1.y: a project never writes into a private app file or folder (``path_guard``)."""
-    from backend.path_guard import is_protected
-    for path in ((output_dir or "").strip(), library_dir):
+    """T1.y: a project never writes into a private app file or folder (``path_guard``), nor into one of the app's own folders."""
+    from backend.path_guard import is_protected, is_within, private_folders
+    for path in (_usable_output_dir(output_dir), library_dir):
         if path and is_protected(path):
             raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a protected project folder: {path!r}")
+    app_data = get_app_data_dir()
+    for folder in [os.path.join(app_data, name) for name in _APP_WORK_FOLDERS] + private_folders():
+        if is_within(folder, library_dir):
+            raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a project folder holding an app folder: {library_dir!r}")
 
 
 def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") -> dict:
@@ -1322,7 +1336,8 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "face_tracking_engine": face_tracking_engine or metadata.get("face_tracking_engine") or "haar",
         "caption_style": job_record.get("caption_style", "standard"),
         "burn_subs": burn_subs,
-        "output_dir": output_dir,
+        # The folder the run really writes to, so _finalize_job records it in history.
+        "output_dir": output_dir or metadata.get("output_dir", ""),
         "quality": "best",
         "title": job_record.get("metadata", {}).get("title", ""),
         "max_clips": max_clips,

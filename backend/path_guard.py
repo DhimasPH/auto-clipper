@@ -11,6 +11,7 @@ names and trailing dots resolved) and in lower case on every platform, because
 Windows and the default macOS file system ignore case.
 """
 import os
+import re
 import secrets
 
 from fastapi.responses import JSONResponse
@@ -29,22 +30,54 @@ _PRIVATE_FILE_PREFIXES = ("video_signing.key", "web_instance.json", "web_port.js
 DENIED_MESSAGE = "Access denied"
 
 
+# Win32 device and NT namespace prefixes (\\?\, \\.\, \??\), after "/" became "\".
+_DEVICE_PREFIXES = ("\\\\?\\", "\\\\.\\", "\\??\\")
+_DRIVE_ROOT = re.compile(r"[A-Za-z]:\\")
+
+
 def _drop_device_prefix(path: str) -> str:
-    """``\\\\?\\C:\\x`` and ``\\\\.\\C:\\x`` name the same file as ``C:\\x`` (and ``\\\\?\\UNC\\s\\x`` as ``\\\\s\\x``)."""
+    """``\\\\?\\C:\\x`` and ``\\\\.\\C:\\x`` name the same file as ``C:\\x`` (and ``\\\\?\\UNC\\s\\x`` as ``\\\\s\\x``).
+
+    Any other device form (``\\\\?\\GLOBALROOT\\??\\C:\\x``, ``\\??\\C:\\x``,
+    ``\\\\?\\Volume{...}\\x``, a named NTFS stream such as
+    ``folder::$INDEX_ALLOCATION``) can reach a file under another spelling,
+    so it raises ValueError: the callers then fail closed.
+    """
     if os.name != "nt":
         return path
     path = path.replace("/", "\\")
     for prefix in ("\\\\?\\UNC\\", "\\\\.\\UNC\\"):
         if path[:len(prefix)].upper() == prefix:
-            return "\\\\" + path[len(prefix):]
-    if path[:4] in ("\\\\?\\", "\\\\.\\"):
-        return path[4:]
+            path = "\\\\" + path[len(prefix):]
+            break
+    else:
+        if path[:4] in ("\\\\?\\", "\\\\.\\") and _DRIVE_ROOT.match(path, 4):
+            path = path[4:]
+    if path.startswith(_DEVICE_PREFIXES):
+        raise ValueError("unsupported device path")
+    # A colon only belongs in the drive letter; anything after it names an NTFS stream.
+    if ":" in (path[2:] if path[1:2] == ":" else path):
+        raise ValueError("unsupported path with a stream name")
     return path
 
 
 def _canonical(path: str) -> str:
     resolved = os.path.realpath(os.path.abspath(_drop_device_prefix(path)))
     return os.path.normcase(_drop_device_prefix(resolved)).lower()
+
+
+def is_network_or_device_path(path: str) -> bool:
+    """True for a UNC path (``\\\\host\\share``, ``//host/share``) or a device path (``\\\\?\\``, ``\\\\.\\``, ``\\??\\``), by its text alone.
+
+    /video and /save_file refuse these before any file system call: resolving
+    a UNC path opens an SMB connection to that host (and on Windows sends the
+    user's login hash), before any signature or folder check could refuse it.
+    The app never writes clips to such a path (``main._resolve_safe_output_dir``).
+    """
+    if not isinstance(path, str):
+        return True
+    text = path.strip().replace("/", "\\")
+    return text.startswith("\\\\") or text.startswith("\\??\\")
 
 
 def _within(path: str, root: str) -> bool:
@@ -70,6 +103,11 @@ def _protected_name(name: str) -> bool:
 def _protected_dirs() -> list:
     from backend import cookies
     return [os.path.dirname(cookies.get_cookies_path()), cookies._copy_dir()]
+
+
+def private_folders() -> list:
+    """The private folders (stored cookies, cookie working copies): nothing may be written into them or replace them."""
+    return list(_protected_dirs())
 
 
 def is_protected(path: str) -> bool:

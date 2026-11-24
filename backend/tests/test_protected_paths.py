@@ -286,3 +286,123 @@ def test_extract_metadata_refuses_private_app_files(app_files, name):
 
     assert r.status_code == 403
     assert r.json() == DENIED
+
+
+# --- NT device paths and network paths (SP3 Task 4 review, Critical 1 and Important 2) --------
+
+# Both reach C:\ through the NT object namespace, which the drive-letter and UNC prefix removal does not cover.
+NT_DEVICE_PREFIXES = ["\\\\?\\GLOBALROOT\\??\\", "\\??\\", "//?/GLOBALROOT/??/", "\\\\.\\GLOBALROOT\\??\\"]
+DRIVE_DEVICE_PREFIXES = ["\\\\?\\", "\\\\.\\"]
+windows_only = pytest.mark.skipif(sys.platform != "win32", reason="Windows device path prefixes")
+
+
+@windows_only
+@pytest.mark.parametrize("prefix", NT_DEVICE_PREFIXES)
+@pytest.mark.parametrize("name", ["cookies", "clip"])
+def test_any_other_device_path_counts_as_protected(app_files, prefix, name):
+    from backend.path_guard import is_protected
+
+    assert is_protected(prefix + str(app_files[name]))
+    assert is_protected(prefix + str(app_files[name].parent))
+
+
+@windows_only
+@pytest.mark.parametrize("prefix", NT_DEVICE_PREFIXES)
+def test_any_other_device_path_is_never_inside_a_folder(app_files, prefix):
+    from backend.path_guard import is_within
+
+    library = str(app_files["library"])
+    assert not is_within(prefix + str(app_files["clip"]), library)
+    assert not is_within(str(app_files["clip"]), prefix + library)
+    assert not is_within(prefix + library, prefix + library)
+
+
+@windows_only
+@pytest.mark.parametrize("prefix", DRIVE_DEVICE_PREFIXES)
+def test_a_plain_drive_letter_device_path_still_resolves(app_files, prefix):
+    from backend.path_guard import is_protected, is_within
+
+    assert is_protected(prefix + str(app_files["cookies"]))
+    assert not is_protected(prefix + str(app_files["clip"]))
+    assert is_within(prefix + str(app_files["clip"]), str(app_files["library"]))
+
+
+@windows_only
+@pytest.mark.parametrize("stream", ["::$INDEX_ALLOCATION", ":$I30:$INDEX_ALLOCATION"])
+def test_a_folder_named_by_its_ntfs_stream_counts_as_protected(app_files, stream):
+    from backend.path_guard import is_protected, is_within
+
+    path = str(app_files["cookies"].parent) + stream + "\\new.txt"
+    assert is_protected(path)
+    assert not is_within(str(app_files["library"] / "projects") + stream, str(app_files["library"]))
+
+
+def _record_device_project(app_files, prefix):
+    """A running Desktop job with output_dir=<prefix><app data> and title "cookies" (the reviewer's chain).
+
+    Before the fix such a job was accepted, and its project folder (the cookies
+    folder) joined the folders /video and /save_file may read.
+    """
+    from backend import jobs
+    jobs.active_jobs["job-device"] = {"id": "job-device", "title": "cookies", "metadata": {}, "clips": [],
+                                      "output_dir": prefix + str(app_files["library"])}
+
+
+@windows_only
+@pytest.mark.parametrize("prefix", NT_DEVICE_PREFIXES)
+def test_save_file_refuses_cookies_behind_an_nt_device_path(app_files, tmp_path, prefix):
+    _record_device_project(app_files, prefix)
+    before = app_files["cookies"].read_bytes()
+    dest = tmp_path / "stolen.txt"
+
+    from_cookies = client.post("/save_file", json={"src": prefix + str(app_files["cookies"]), "dest": str(dest)})
+    to_cookies = client.post("/save_file", json={"src": str(app_files["clip"]), "dest": prefix + str(app_files["cookies"])})
+
+    assert (from_cookies.status_code, to_cookies.status_code) == (403, 403)
+    assert not dest.exists()
+    assert app_files["cookies"].read_bytes() == before
+
+
+@windows_only
+@pytest.mark.parametrize("prefix", NT_DEVICE_PREFIXES)
+def test_video_refuses_a_signed_nt_device_path(app_files, prefix):
+    _record_device_project(app_files, prefix)
+    path = prefix + str(app_files["cookies_mp4"])
+
+    r = client.get("/video", params={"path": path, "sig": video_sign.sign(path)})
+
+    assert r.status_code == 403
+    assert b"secret" not in r.content
+
+
+UNC_PATHS = ["\\\\192.0.2.1\\share\\clip.mp4", "//192.0.2.1/share/clip.mp4",
+             "\\\\?\\UNC\\192.0.2.1\\share\\clip.mp4", "\\/192.0.2.1\\share\\clip.mp4"]
+
+
+@pytest.mark.parametrize("path", UNC_PATHS)
+def test_video_refuses_a_network_path_before_touching_it(app_files, no_filesystem_for_the_server, path):
+    r = client.get("/video", params={"path": path, "sig": "0" * 64})
+
+    assert (r.status_code, r.json()) == (403, DENIED)
+    assert no_filesystem_for_the_server == []
+
+
+@pytest.mark.parametrize("path", UNC_PATHS)
+def test_save_file_refuses_a_network_source_or_destination_before_touching_it(app_files, tmp_path, no_filesystem_for_the_server, path):
+    from_server = client.post("/save_file", json={"src": path, "dest": str(tmp_path / "copy.mp4")})
+    to_server = client.post("/save_file", json={"src": str(app_files["clip"]), "dest": path})
+
+    assert (from_server.status_code, from_server.json()) == (403, DENIED)
+    assert (to_server.status_code, to_server.json()) == (403, DENIED)
+    assert no_filesystem_for_the_server == []
+    assert not (tmp_path / "copy.mp4").exists()
+
+
+@windows_only
+@pytest.mark.parametrize("prefix", NT_DEVICE_PREFIXES + DRIVE_DEVICE_PREFIXES)
+def test_video_and_save_file_refuse_every_device_path_by_its_text(app_files, tmp_path, prefix):
+    clip = prefix + str(app_files["clip"])
+
+    assert client.get("/video", params={"path": clip, "sig": video_sign.sign(clip)}).status_code == 403
+    assert client.post("/save_file", json={"src": clip, "dest": str(tmp_path / "copy.mp4")}).status_code == 403
+    assert not (tmp_path / "copy.mp4").exists()

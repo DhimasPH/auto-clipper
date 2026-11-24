@@ -420,3 +420,208 @@ def test_video_matches_a_chosen_folder_in_another_case(library, tmp_path):
     r = client.get("/video", params={"path": upper, "sig": video_sign.sign(upper)})
 
     assert r.status_code == 200
+
+
+# --- Fix round 1 (SP3 Task 4 review) --------------------------------------------------------------
+
+NT_DEVICE_PREFIXES = ["\\\\?\\GLOBALROOT\\??\\", "\\??\\", "//?/GLOBALROOT/??/"]
+windows_only = pytest.mark.skipif(sys.platform != "win32", reason="Windows device paths and drive letters")
+
+
+@windows_only
+@pytest.mark.parametrize("prefix", NT_DEVICE_PREFIXES)
+@pytest.mark.parametrize("endpoint", ENDPOINTS)
+def test_desktop_refuses_an_nt_device_output_dir_that_names_the_cookies(library, captured, endpoint, prefix):
+    db.save_history("hist-1", "https://youtu.be/abc", "DONE", [], {"title": "cookies", "source_video": "x"})
+
+    r = _post(endpoint, prefix + str(library), title="cookies")
+
+    assert (r.status_code, r.json()) == (403, DENIED)
+    assert endpoint not in captured
+
+
+@windows_only
+@pytest.mark.parametrize("prefix", NT_DEVICE_PREFIXES + ["\\\\?\\", "\\\\.\\"])
+def test_desktop_refuses_any_device_output_dir_even_an_innocent_one(library, captured, tmp_path, prefix):
+    r = _post("jobs", prefix + str(tmp_path / "out"))
+
+    assert (r.status_code, r.json()) == (403, DENIED)
+    assert "jobs" not in captured
+
+
+@pytest.mark.parametrize("output_dir", ["\\\\192.0.2.1\\share\\out", "//192.0.2.1/share/out", "\\/192.0.2.1/share/out"])
+@pytest.mark.parametrize("endpoint", ENDPOINTS)
+def test_desktop_refuses_a_network_output_dir_before_touching_it(library, captured, no_filesystem_for_the_server, endpoint, output_dir):
+    db.save_history("hist-1", "https://youtu.be/abc", "DONE", [], {"title": "Talk", "source_video": "x"})
+
+    r = _post(endpoint, output_dir)
+
+    assert (r.status_code, r.json()) == (403, DENIED)
+    assert endpoint not in captured
+    assert no_filesystem_for_the_server == []
+
+
+@pytest.mark.parametrize("output_dir", ["out", "./out", "..\\out"] + (["C:out", "\\out", "/out"] if sys.platform == "win32" else []))
+def test_desktop_refuses_a_relative_output_dir(library, captured, output_dir):
+    r = _post("jobs", output_dir)
+
+    assert (r.status_code, r.json()) == (403, DENIED)
+    assert "jobs" not in captured
+
+
+def _link_folder(link, target):
+    """A junction on Windows (no admin needed), a symlink elsewhere."""
+    if sys.platform == "win32":
+        import _winapi
+        _winapi.CreateJunction(str(target), str(link))
+    else:
+        os.symlink(target, link, target_is_directory=True)
+
+
+def test_desktop_stores_the_resolved_output_dir(library, captured, tmp_path):
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    _link_folder(link, real)
+
+    r = _post("jobs", str(link))
+
+    assert r.status_code == 200, r.text
+    assert captured["jobs"] == os.path.realpath(str(real))
+
+
+@windows_only
+def test_desktop_keeps_a_mapped_drive_letter_instead_of_its_network_path(library, captured, monkeypatch):
+    # realpath turns a mapped drive (Z:\Clips) into \\server\share\Clips; clips must keep the drive letter
+    # so /video and /save_file, which refuse network paths, still open them.
+    real_realpath = os.path.realpath
+    monkeypatch.setattr(os.path, "realpath", lambda p, *a, **k: "\\\\nas\\share\\Clips" if str(p).upper().startswith("Z:") else real_realpath(p, *a, **k))
+
+    r = _post("jobs", "Z:\\Clips")
+
+    assert r.status_code == 200, r.text
+    assert captured["jobs"] == "Z:\\Clips"
+
+
+# Minor 5: the app's own working folders are not project folders.
+@pytest.mark.parametrize("title", ["projects", "addons", "temp_downloads", "Projects"])
+@pytest.mark.parametrize("endpoint", ["jobs", "jobs_manual"])
+def test_desktop_refuses_a_project_folder_that_is_an_app_folder(library, captured, endpoint, title):
+    r = _post(endpoint, str(library), title=title)
+
+    assert (r.status_code, r.json()) == (403, DENIED)
+    assert endpoint not in captured
+
+
+def test_desktop_refuses_a_project_folder_that_contains_the_app_data_folder(library, captured):
+    r = _post("jobs", str(library.parent), title=library.name)
+
+    assert (r.status_code, r.json()) == (403, DENIED)
+    assert "jobs" not in captured
+
+
+@pytest.mark.parametrize("title", ["projects", "addons", "temp_downloads"])
+def test_workspace_refuses_a_project_folder_that_is_an_app_folder(library, title):
+    with pytest.raises(AppError) as err:
+        jobs.get_project_workspace(title, output_dir=str(library))
+
+    assert err.value.code == "OUTPUT_DIR_REFUSED"
+
+
+def test_workspace_refuses_a_project_folder_that_contains_the_app_data_folder(library):
+    with pytest.raises(AppError):
+        jobs.get_project_workspace(library.name, output_dir=str(library.parent))
+
+
+def test_workspace_still_accepts_a_project_named_like_an_app_folder_in_another_folder(library, tmp_path):
+    ws = jobs.get_project_workspace("projects", output_dir=str(tmp_path / "out"))
+
+    assert os.path.isdir(ws["clips_dir"])
+
+
+# Minor 6: an unreadable history is the endpoint's JSON error, not a bare 500.
+@pytest.mark.parametrize("endpoint", ["rerender", "rerun_ai"])
+def test_rerun_with_an_unreadable_history_answers_json(library, captured, monkeypatch, tmp_path, endpoint):
+    def broken(job_id):
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr("backend.db.get_history", broken)
+
+    r = client.post({"rerender": "/jobs/hist-1/rerender", "rerun_ai": "/jobs/hist-1/rerun_ai"}[endpoint],
+                    json={"url": "https://youtu.be/abc", "title": "Talk", "provider": "manual_ai", "output_dir": str(tmp_path / "out")})
+
+    assert r.status_code == 400
+    assert r.json()["status"] == "error"
+    assert endpoint not in captured
+
+
+# Minor 7: an unreadable history opens nothing more.
+def test_allowed_dirs_are_empty_when_history_cannot_be_read(library, monkeypatch):
+    def broken():
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr("backend.db.get_all_history", broken)
+
+    assert workspace.allowed_project_output_dirs({}) == []
+
+
+def test_deleting_an_old_dotdot_project_keeps_the_output_folder_and_its_parent(library, tmp_path):
+    # Before sanitize_title refused it, a ".." title made <output>/.. the project folder.
+    parent = tmp_path / "parent"
+    out = parent / "out"
+    out.mkdir(parents=True)
+    (out / "keep.txt").write_text("mine")
+    (parent / "keep.txt").write_text("mine too")
+    db.save_history("old-dotdot", "https://youtu.be/abc", "DONE", [], {"title": "..", "output_dir": str(out)})
+
+    db.delete_history("old-dotdot")
+
+    assert (out / "keep.txt").read_text() == "mine"
+    assert (parent / "keep.txt").read_text() == "mine too"
+    assert db.get_history("old-dotdot") is None
+
+
+# Minor 3: AI Koreksi records the folder it really writes to.
+def test_rerun_ai_without_a_chosen_folder_keeps_the_projects_folder(library, tmp_path, monkeypatch):
+    out = tmp_path / "out"
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"video")
+    db.save_history("hist-1", "https://youtu.be/abc", "DONE", [], {"title": "Talk", "output_dir": str(out), "source_video": str(source)})
+    monkeypatch.setattr(jobs, "_start_job", lambda *a, **k: None)
+
+    job_id = jobs.create_rerun_ai_job("hist-1", "manual_ai", "", "9:16", True, "", "")
+
+    assert jobs.active_jobs[job_id]["output_dir"] == str(out)
+
+
+# Minor 4: Cloud never writes into an output folder from history.
+@pytest.mark.parametrize("output_dir", ["out", ""])
+def test_cloud_workspace_ignores_an_output_dir_from_history(library, tmp_path, monkeypatch, output_dir):
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    old = tmp_path / output_dir if output_dir else ""
+
+    ws = jobs.get_project_workspace("Talk", output_dir=str(old) if old else "")
+
+    assert os.path.realpath(ws["library_dir"]) == os.path.realpath(str(library / "projects" / "Talk"))
+    if old:
+        assert not old.exists()
+
+
+def test_cloud_rerender_writes_into_the_library_not_the_old_output_folder(library, tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    out = tmp_path / "old-out"
+
+    assert jobs.project_library_dir("Talk", str(out)) == os.path.join(str(library), "projects", "Talk")
+
+
+# Minor 8: Windows drops trailing dots and spaces, so "Wow..." would make a folder it cannot open.
+@pytest.mark.parametrize("title,folder", [("Wow...", "Wow"), ("Talk . ", "Talk"), ("A.b.", "A.b"), ("Wow!!!", "Wow")])
+def test_sanitize_title_drops_trailing_dots_and_spaces(title, folder):
+    assert jobs.sanitize_title(title) == folder
+
+
+def test_a_title_ending_in_dots_makes_a_usable_project_folder(library, tmp_path):
+    ws = jobs.get_project_workspace("Wow...", output_dir=str(tmp_path / "out"))
+
+    assert os.path.basename(ws["library_dir"]) == "Wow"
+    assert os.path.isdir(os.path.join(ws["library_dir"], "source"))

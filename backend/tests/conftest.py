@@ -34,3 +34,32 @@ def _preflight_passes(monkeypatch):
 
     monkeypatch.setattr(preflight, "_ffmpeg_path", lambda: "ffmpeg")
     monkeypatch.setattr(preflight, "_free_disk_gb", lambda: 100.0)
+
+
+# A documentation-only address (RFC 5737): a path naming it must never reach the file system.
+NETWORK_HOST = "192.0.2.1"
+
+
+@pytest.fixture
+def no_filesystem_for_the_server(monkeypatch):
+    """Fails the test when anything stats, resolves or lists a path naming NETWORK_HOST.
+
+    On Windows that would open an SMB connection to the host (and send the
+    user's NTLM hash) before any check could refuse it. Returns the list of
+    calls that touched it, for an exact assertion.
+    """
+    touched = []
+
+    def guard(fn):
+        def wrapper(path, *a, **k):
+            if NETWORK_HOST in str(path):
+                touched.append((fn.__name__, path))
+                raise AssertionError(f"{fn.__name__} touched {path!r}")
+            return fn(path, *a, **k)
+        return wrapper
+
+    for name in ("realpath", "isdir", "isfile", "exists", "lexists"):
+        monkeypatch.setattr(os.path, name, guard(getattr(os.path, name)))
+    for name in ("stat", "lstat", "listdir", "scandir"):
+        monkeypatch.setattr(os, name, guard(getattr(os, name)))
+    return touched
