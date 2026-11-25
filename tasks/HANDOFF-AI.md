@@ -23,7 +23,7 @@ Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke lay
 ## 3. Posisi SP2 & SP3 saat ini (2026-11-25)
 
 - **SP2 selesai dari sisi kode** (`dc3ba66..547531a`): Task 1–18 selesai, review menyeluruh independen (`dc3ba66..f7aba4d`), gelombang perbaikan akhir (`547531a`), dan re-review terbatas dinyatakan bersih.
-- **SP3 (Ringan) selesai secara kode & dokumen di branch `feat/sp3-lightweight`** (Task 0–6 + Teliti di Colab selesai, menunggu review dokumen Task 6 & review menyeluruh SP3 `9ff373f..HEAD`):
+- **SP3 (Ringan) selesai secara kode & dokumen di branch `feat/sp3-lightweight`** (`9ff373f..00642dc`): Task 0–6 + Teliti di Colab selesai, lolos review per-task dan **review menyeluruh SP3 independen (`Approved`, 0 Critical, 0 Important)**:
   - **Benchmark terukur (Windows `ac-venv`)**: `backend.exe` **248,99 MB → 198,68 MB** (bahkan sebelum CI bersih bebas `opencv-contrib-python`); startup `main+preflight+jobs` **3,77 dtk → 1,442 dtk** dan RSS **119,9 MB → 61,3 MB** (−48,9%, 0 modul berat di `sys.modules`).
   - **Verifikasi penuh terakhir**: `pytest` **1067 lulus, 7 dilewati**; Vitest **474 lulus** (66 file); `oxlint src` **0 error** (15 warning); `npm run build` & `npm run build:cloud` sukses; `npm audit` **0 kerentanan**. Rincian tiap task & minor deferred ada di `tasks/sp3-ledger.md` dan `tasks/PROGRESS-LOG.md`.
 - **Yang masih menunggu pemilik sebelum PR final ke `main`**:
