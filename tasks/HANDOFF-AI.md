@@ -28,7 +28,7 @@ Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke lay
   - **Verifikasi penuh terakhir**: `pytest` **1067 lulus, 7 dilewati**; Vitest **474 lulus** (66 file); `oxlint src` **0 error** (15 warning); `npm run build` & `npm run build:cloud` sukses; `npm audit` **0 kerentanan**. Rincian tiap task & minor deferred ada di `tasks/sp3-ledger.md` dan `tasks/PROGRESS-LOG.md`.
 - **Yang masih menunggu pemilik sebelum PR final ke `main`**:
   1. Uji pemakaian SP2 + SP3 (daftar cek SP2 di `tasks/PROGRESS-LOG.md`, plus unduh/hapus add-on `cuda` & `mediapipe` di Pengaturan Windows, dialog model Whisper CPU saat Mulai, pemutaran klip di folder hasil kustom Desktop, dan Teliti di Colab T4 nyata).
-  2. Setelah uji pemakaian selesai, buka PR ke `main` hanya atas permintaan pemilik (draf SP0+SP1+SP2 di `tasks/pr-draft.md`).
+  2. Setelah uji pemakaian selesai, buka PR ke `main` hanya atas permintaan pemilik (draf SP0+SP1+SP2+SP3 di `tasks/pr-draft.md`).
 
 ## 4. Cara mengerjakan setiap task
 
@@ -70,4 +70,4 @@ Jangan menunggu persetujuan pemilik di antara task. Putuskan sendiri hal yang am
 - **Protokol kuota:** bila pemilik bilang kuota sesinya hampir habis ("80%"), hentikan pekerjaan, pastikan semua tersimpan (commit `wip(sp2): ...` bila belum hijau), dan tulis entri baru di `tasks/PROGRESS-LOG.md` berisi posisi terakhir dan langkah berikutnya.
 - Laporan ke pemilik ditulis dalam bahasa Indonesia, singkat, berisi hasil nyata (angka tes, commit), dan jujur soal yang belum diverifikasi.
 - Masih menunggu pemilik, dilakukan sebelum PR akhir: daftar cek manual SP1 (di `tasks/PROGRESS-LOG.md`, termasuk CI setelah push dan proyek Vercel kedua), cek manual tampilan T0.12 dan uji notebook Colab T0.13 dari SP0, dan uji pemakaian SP2 oleh orang awam (langkah terakhir rencana SP2).
-- Draf deskripsi PR akhir gabungan SP0+SP1+SP2 ada di `tasks/pr-draft.md` (kelanjutan dari `tasks/pr-draft-sp0.md`).
+- Draf deskripsi PR akhir gabungan SP0+SP1+SP2+SP3 ada di `tasks/pr-draft.md` (kelanjutan dari `tasks/pr-draft-sp0.md`).
