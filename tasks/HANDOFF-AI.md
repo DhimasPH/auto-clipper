@@ -1,22 +1,22 @@
 # Serah terima untuk AI mana pun yang melanjutkan pekerjaan
 
-Ditulis ulang 2026-11-20, posisi diperbarui 2026-11-24, untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) yang melanjutkan **SP2** di repo ini. Baca seluruh file ini sebelum menyentuh kode. Tujuannya: kamu bekerja dengan aturan, keputusan, dan cara kerja yang sama dengan sesi sebelumnya.
+Ditulis ulang 2026-11-20, posisi diperbarui 2026-11-25, untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) yang melanjutkan di repo ini. Baca seluruh file ini sebelum menyentuh kode. Tujuannya: kamu bekerja dengan aturan, keputusan, dan cara kerja yang sama dengan sesi sebelumnya.
 
 ## 1. Urutan membaca
 
 1. File ini.
-2. `.agents/AGENTS.md`: aturan repo. Wajib dipatuhi, terutama bagian E (invarian backend E.1–E.20), F (frontend dan i18n F.1–F.10), G.8 (paket web lokal), H (ADR).
+2. `.agents/AGENTS.md`: aturan repo. Wajib dipatuhi, terutama bagian E (invarian backend E.1–E.21), F (frontend dan i18n F.1–F.10), G.1–G.8 (PyInstaller/web lokal), H (ADR).
 3. Entri terakhir `tasks/PROGRESS-LOG.md`: posisi terakhir dan langkah berikutnya. Ini selalu lebih baru dari file ini.
-4. `tasks/sp2-ledger.md` (bila sudah ada): status tiap task SP2, keputusan, dan temuan yang ditunda.
-5. Spec SP2: `docs/superpowers/specs/2026-11-20-sp2-ux-for-everyone-design.md`. Otoritas tertinggi bila rencana bertentangan dengan dirinya sendiri.
-6. Rencana SP2: `docs/superpowers/plans/2026-11-20-sp2-ux-for-everyone.md`. Baca "Global Constraints", "Questions for the owner" (semua pilihan bawaan dianggap DISETUJUI: pemilik berkata "ikuti rekomendasi, yang penting UX-nya jelas untuk orang awam"), dan "Spec gaps". Baca isi task hanya untuk task yang sedang dikerjakan.
+4. `tasks/sp3-ledger.md` dan `tasks/sp2-ledger.md`: status tiap task SP3/SP2, keputusan (ruling), dan temuan yang ditunda.
+5. Spec SP3: `docs/superpowers/specs/2026-11-24-sp3-lightweight-design.md` (dan SP2 `2026-11-20-sp2-ux-for-everyone-design.md`). Otoritas tertinggi bila rencana bertentangan dengan dirinya sendiri.
+6. Rencana SP3: `docs/superpowers/plans/2026-11-24-sp3-lightweight.md`.
 7. Konteks SP1 bila perlu: `tasks/sp1-ledger.md` dan spec SP1 `docs/superpowers/specs/2026-11-18-sp1-single-frontend-web-local-design.md`.
 
 ## 2. Gambaran besar
 
-Roadmap: SP0 (pipeline andal, selesai) → SP1 (frontend tunggal + web lokal, selesai, lolos review akhir independen) → **SP2 (UI/UX untuk orang awam, sedang berjalan)** → SP3 (ringan) → SP4 (fitur kreator). Daftar task: `tasks/roadmap-todo.md`.
+Roadmap: SP0 (pipeline andal, selesai) → SP1 (frontend tunggal + web lokal, selesai) → SP2 (UI/UX untuk orang awam, selesai secara kode) → **SP3 (ringan, selesai secara kode)** → SP4 (fitur kreator, belum dimulai). Daftar task: `tasks/roadmap-todo.md`.
 
-Branch bertumpuk, satu PR ke `main` setelah SP2 (keputusan pemilik 2026-11-18): `feat/sp0-pipeline-stability` → `feat/sp1-single-frontend-web-local` → **`feat/sp2-ux-for-everyone` (kerja di sini)**. Jangan membuka PR, push, atau merge ke `main` kecuali pemilik memintanya.
+Branch bertumpuk (jangan membuka PR, push, atau merge ke `main` kecuali pemilik memintanya): `feat/sp0-pipeline-stability` → `feat/sp1-single-frontend-web-local` → `feat/sp2-ux-for-everyone` → **`feat/sp3-lightweight` (kerja di sini)**.
 
 Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke layar besar; jalur AI utama **AI manual dipandu** (salin perintah, buka ChatGPT/Gemini, tempel jawaban), API key hanya opsi lanjutan; gaya **bersih dan tenang** (latar netral, satu warna aksen); **alur 4 langkah** (Video → Siapkan → Pilih momen → Klip) dengan **tiga menu** (Buat klip, Riwayat, Pengaturan); sisanya ikut rekomendasi.
 
@@ -25,7 +25,7 @@ Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke lay
 - **SP2 selesai dari sisi kode** (`dc3ba66..547531a`): Task 1–18 selesai, review menyeluruh independen (`dc3ba66..f7aba4d`), gelombang perbaikan akhir (`547531a`), dan re-review terbatas dinyatakan bersih.
 - **SP3 (Ringan) selesai secara kode & dokumen di branch `feat/sp3-lightweight`** (Task 0–6 + Teliti di Colab selesai, menunggu review dokumen Task 6 & review menyeluruh SP3 `9ff373f..HEAD`):
   - **Benchmark terukur (Windows `ac-venv`)**: `backend.exe` **248,99 MB → 198,68 MB** (bahkan sebelum CI bersih bebas `opencv-contrib-python`); startup `main+preflight+jobs` **3,77 dtk → 1,442 dtk** dan RSS **119,9 MB → 61,3 MB** (−48,9%, 0 modul berat di `sys.modules`).
-  - **Verifikasi penuh terakhir**: `pytest` **1067 lulus, 7 dilewati**; Vitest **474 lulus** (66 file); `oxlint src` **0 error**; `npm run build` & `npm run build:cloud` sukses; `npm audit` **0 kerentanan**. Rincian tiap task & minor deferred ada di `tasks/sp3-ledger.md` dan `tasks/PROGRESS-LOG.md`.
+  - **Verifikasi penuh terakhir**: `pytest` **1067 lulus, 7 dilewati**; Vitest **474 lulus** (66 file); `oxlint src` **0 error** (15 warning); `npm run build` & `npm run build:cloud` sukses; `npm audit` **0 kerentanan**. Rincian tiap task & minor deferred ada di `tasks/sp3-ledger.md` dan `tasks/PROGRESS-LOG.md`.
 - **Yang masih menunggu pemilik sebelum PR final ke `main`**:
   1. Uji pemakaian SP2 + SP3 (daftar cek SP2 di `tasks/PROGRESS-LOG.md`, plus unduh/hapus add-on `cuda` & `mediapipe` di Pengaturan Windows, dialog model Whisper CPU saat Mulai, pemutaran klip di folder hasil kustom Desktop, dan Teliti di Colab T4 nyata).
   2. Setelah uji pemakaian selesai, buka PR ke `main` hanya atas permintaan pemilik (draf SP0+SP1+SP2 di `tasks/pr-draft.md`).
