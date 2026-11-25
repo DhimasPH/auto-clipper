@@ -20,19 +20,15 @@ Branch bertumpuk, satu PR ke `main` setelah SP2 (keputusan pemilik 2026-11-18): 
 
 Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke layar besar; jalur AI utama **AI manual dipandu** (salin perintah, buka ChatGPT/Gemini, tempel jawaban), API key hanya opsi lanjutan; gaya **bersih dan tenang** (latar netral, satu warna aksen); **alur 4 langkah** (Video → Siapkan → Pilih momen → Klip) dengan **tiga menu** (Buat klip, Riwayat, Pengaturan); sisanya ikut rekomendasi.
 
-## 3. Posisi SP2 saat ini (2026-11-24)
+## 3. Posisi SP2 & SP3 saat ini (2026-11-25)
 
-- **SP2 selesai dari sisi kode** (`dc3ba66..547531a`): Task 1–18 selesai, review menyeluruh independen (`dc3ba66..f7aba4d`), gelombang perbaikan akhir (`547531a`), dan re-review terbatas dinyatakan bersih (0 Critical, 0 Important tersisa); ditambah perbaikan fallback `node_modules/ffmpeg-static` di `get_ffmpeg_path()` saat tidak frozen.
-- Angka verifikasi akhir: `pytest` **860 lulus, 6 dilewati**; Vitest **424 lulus** (64 file); `oxlint src` **0 error**; `npm run build` dan `npm run build:cloud` OK; `npm audit` **0 kerentanan**.
-- **SP3 (Ringan) sedang berjalan di branch `feat/sp3-lightweight`** (berhenti 2026-11-24, kuota pemilik 80%, HEAD setelah commit ini). Rincian di akhir `tasks/sp3-ledger.md`. Langkah berikutnya, berurutan:
-  1. **Task 5 fix round 2** (belum ada perubahan tersimpan): ikuti Ruling Task 5 terakhir di ledger. `src/lib/progress.ts` hanya membaca fakta pelacak dari baris timing run ini (hapus jalur `addFallback(meta)`, perbaiki tes "ignores tracking facts…" yang membenarkan kasus basi); `create_resume_job` dan `create_rerender_job` di `backend/jobs.py` memulai metadata job dengan `timings: []`; `TranscriptionSection` tidak menampilkan catatan prosesor selama status add-on belum diketahui. Lalu re-review terbatas.
-  2. **Task 6**: bagian kode sudah di-commit (`ceef3e4`, dialog model CPU) tetapi belum diverifikasi dan belum direview. Sisa: benchmark sebelum/sesudah (startup + RSS `import backend.main` + `run_preflight()` + `import backend.jobs` di `9ff373f` vs HEAD, median beberapa run; ukuran `backend.spec` vs baseline 248,99 MB, PyInstaller sudah ada di ac-venv), ADR-015, `.agents/AGENTS.md` (T1.y, add-on terkunci, aturan path_guard teks-dulu untuk UNC/perangkat dan output_dir lokal saja), CHANGELOG, panduan bila tampilan berubah, roadmap (centang hanya yang "complete, review clean"), PROGRESS-LOG. Lalu review Task 6. Hapus juga prop `meta` yang tidak terpakai di ProgressPanel/CreatePage.
-  3. **Teliti di Colab (keputusan pemilik 2026-11-24, lihat Ruling terakhir di `tasks/sp3-ledger.md`):** notebook memasang `mediapipe==1.2.3` + dependensi + `face_landmarker.task` versi terkunci; backend di cloud menganggap mediapipe tersedia bila bisa di-import; UI cloud menampilkan Teliti sebagai pilihan yang bisa dipakai. TDD, review oleh agen terpisah. Perbarui spec SP3 bagian add-on cloud.
-  4. Review menyeluruh SP3 `git diff 9ff373f..HEAD`, satu gelombang perbaikan, re-review terbatas, catat di ledger dan log.
-  Agen yang jalan bersamaan tidak boleh memakai `git stash` dan wajib stage per path.
-- **Yang tersisa (menunggu pemilik):**
-  1. Jalankan daftar cek uji pemakaian SP2 di akhir `tasks/PROGRESS-LOG.md` (HP Colab 360 px bersama orang awam tanpa panduan, desktop Windows / Auto Clipper Web, kembali lewat `AWAITING_MANUAL`, mode terang/gelap, banner terputus, serta `SplashScreen` & `UpdateOverlay` di build desktop nyata) bersama sisa cek manual SP1 & SP0 (bagian 7).
-  2. Setelah pemilik menyatakan uji pemakaian selesai, buka satu PR gabungan ke `main` dari branch `feat/sp2-ux-for-everyone` atas permintaan pemilik (draf lengkap SP0+SP1+SP2 ada di `tasks/pr-draft.md`, kelanjutan dari `tasks/pr-draft-sp0.md`).
+- **SP2 selesai dari sisi kode** (`dc3ba66..547531a`): Task 1–18 selesai, review menyeluruh independen (`dc3ba66..f7aba4d`), gelombang perbaikan akhir (`547531a`), dan re-review terbatas dinyatakan bersih.
+- **SP3 (Ringan) selesai secara kode & dokumen di branch `feat/sp3-lightweight`** (Task 0–6 + Teliti di Colab selesai, menunggu review dokumen Task 6 & review menyeluruh SP3 `9ff373f..HEAD`):
+  - **Benchmark terukur (Windows `ac-venv`)**: `backend.exe` **248,99 MB → 198,68 MB** (bahkan sebelum CI bersih bebas `opencv-contrib-python`); startup `main+preflight+jobs` **3,77 dtk → 1,442 dtk** dan RSS **119,9 MB → 61,3 MB** (−48,9%, 0 modul berat di `sys.modules`).
+  - **Verifikasi penuh terakhir**: `pytest` **1067 lulus, 7 dilewati**; Vitest **474 lulus** (66 file); `oxlint src` **0 error**; `npm run build` & `npm run build:cloud` sukses; `npm audit` **0 kerentanan**. Rincian tiap task & minor deferred ada di `tasks/sp3-ledger.md` dan `tasks/PROGRESS-LOG.md`.
+- **Yang masih menunggu pemilik sebelum PR final ke `main`**:
+  1. Uji pemakaian SP2 + SP3 (daftar cek SP2 di `tasks/PROGRESS-LOG.md`, plus unduh/hapus add-on `cuda` & `mediapipe` di Pengaturan Windows, dialog model Whisper CPU saat Mulai, pemutaran klip di folder hasil kustom Desktop, dan Teliti di Colab T4 nyata).
+  2. Setelah uji pemakaian selesai, buka PR ke `main` hanya atas permintaan pemilik (draf SP0+SP1+SP2 di `tasks/pr-draft.md`).
 
 ## 4. Cara mengerjakan setiap task
 

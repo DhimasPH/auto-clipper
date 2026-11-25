@@ -174,7 +174,7 @@ Menu **Pengaturan** punya empat bagian:
 
 - **Umum**: tema tampilan dan bahasa.
 - **YouTube**: unggah atau hapus file cookies (lihat Tanya Jawab nomor 7).
-- **Lanjutan**: cara mengikuti wajah, kualitas unduhan, model subtitle, dan **Unduh video tanpa membuat klip** (mengunduh seluruh video dari link, hasilnya muncul di Riwayat).
+- **Lanjutan**: cara mengikuti wajah (**Standar** atau **Teliti** — di Desktop/Web Lokal komponen Teliti bisa dipasang sekali klik dari sini, di Colab sudah dipasang otomatis dari Langkah 3 notebook), dukungan kartu grafis NVIDIA di Windows agar subtitle jauh lebih cepat, kualitas unduhan, model subtitle (dengan catatan bila berjalan di prosesor untuk model **Medium**/**Large-v3**, plus pilihan cepat saat menekan **Mulai**), folder hasil di Desktop, dan **Unduh video tanpa membuat klip** (mengunduh seluruh video dari link, hasilnya muncul di Riwayat).
 - **Bantuan**: langkah singkat, pertanyaan umum, versi aplikasi, dan **Detail teknis** (catatan kerja aplikasi untuk dikirim ke pengembang).
 
 ### Tulisan "Menunggu giliran"

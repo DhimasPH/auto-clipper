@@ -109,7 +109,7 @@ Spec: `docs/superpowers/specs/2026-11-12-pipeline-stability-design.md`
 - [x] T1.x `/video` dikecualikan dari cek token: siapa pun yang tahu URL tunnel Colab bisa mengambil `.mp4` apa pun di app data, work dir, atau folder kerja proses. Perlu token atau URL bertanda tangan untuk pemutar video · `092c907`, `2ac1b3a`, `df54bef`. (Sisa `canvas_config.background_image_path` dan `output_dir` dicatat sebagai `T1.y` di bawah.)
 - [x] T1.x Hapus duplikasi `src/` dan `web/`, samakan versi React · `5652aec`, `3f7bd3b`, `97716b3`, `f45b1d1`
 - [x] T1.y (dari T0.19) `canvas_config.background_image_path` kini lewat `/upload-image` + `path_guard` (SP2 Task 3, `960768d`).
-- [ ] T1.y (dari T0.19, tidak dicakup spec SP1) `output_dir` masih menerima path bebas (tujuan tulis). Pindah ke SP3 (`output_dir` stays a free path).
+- [x] T1.y (dari T0.19, dipindah ke SP3 Task 4 `665b2c8..4ded4d2`) `output_dir` kini dijaga `path_guard` (diabaikan di Cloud/Web Lokal, path lokal absolut di Desktop, tolak path perangkat NT/UNC/stream NTFS dan folder kerja internal; `/video` & `/save_file` mengizinkan folder proyek kustom Desktop yang sah).
 - [x] T1.y Gambar latar kanvas di web lokal dan cloud tidak lagi memakai `blob:`, diunggah lewat `POST /upload-image` (SP2 Task 3, `960768d`).
 
 ## SP2: Revamp UI/UX untuk orang awam, bebas AI slop (sedang berjalan)
@@ -137,14 +137,14 @@ Status per task dan angka tes: `tasks/sp2-ledger.md`. Rentang commit di bawah di
 
   Arah: tampilkan tahap sebenarnya dengan nama yang sama seperti "Detail waktu" (`timing.stage_*`), perangkat yang benar-benar dipakai ("Membuat subtitle dengan prosesor, bisa lama"), progres nyata ("Merender klip 3 dari 10"), dan tanpa "hampir siap" kecuali berdasarkan progres. Backend mungkin perlu mengirim tahap dan perangkat yang sedang berjalan di status job (sekarang baru tercatat di `timings` setelah tahap selesai). Terkait keputusan terbuka nomor 9 (preflight belum tampil di frontend).
 
-## SP3: Ringan (spec & rencana siap, implementasi belum dimulai)
+## SP3: Ringan (selesai dari sisi kode, ADR-015)
 
-- [x] T3.0 Brainstorm dan spec SP3, berdasarkan angka SP0 · spec `docs/superpowers/specs/2026-11-24-sp3-lightweight-design.md` (`d797374`) dan rencana `docs/superpowers/plans/2026-11-24-sp3-lightweight.md` disetujui pemilik 2026-11-24. Catatan: Pendekatan B sudah selesai di SP0 (`T0.16`, `5f91e77`).
-- [ ] T3.x Ukuran installer (mediapipe opsional, komponen berat sebagai unduhan terpisah)
-- [ ] T3.x Startup dan RAM sidecar
+- [x] T3.0 Brainstorm dan spec SP3, berdasarkan angka SP0 · spec `docs/superpowers/specs/2026-11-24-sp3-lightweight-design.md` (`d797374`, diperbarui untuk Teliti di Colab) dan rencana `docs/superpowers/plans/2026-11-24-sp3-lightweight.md` disetujui pemilik 2026-11-24. Catatan: Pendekatan B sudah selesai di SP0 (`T0.16`, `5f91e77`).
+- [x] T3.x Ukuran installer (mediapipe opsional + adapter `FaceLandmarker`, komponen `mediapipe==1.2.3` SHA-256 terkunci di Pengaturan & `install_colab_mediapipe()` untuk Colab, ukuran `.exe` lokal `248,99 MB → 198,68 MB`, lolos spike PyInstaller Task 0 dan Task 1–2–5)
+- [x] T3.x Startup dan RAM sidecar (`backend/_lazy.py`, waktu muat `main+preflight+jobs` turun `3,77 dtk → 1,442 dtk`, RSS `119,9 MB → 61,3 MB` dengan 0 modul berat di `sys.modules`, diuji subproses terisolasi `test_startup_lazy.py`)
 - [x] T3.x Pendekatan B bila diputuskan di T0.15 (sudah diputuskan dan selesai di SP0 sebagai `T0.16`, `5f91e77`)
-- [ ] T3.x Paket GPU opsional untuk desktop Windows: pustaka NVIDIA untuk Whisper (`cublas64_12.dll`, ~527,5 MB wheel resmi) diunduh terpisah hanya oleh pengguna dengan kartu NVIDIA, bukan dibundel di installer. Disetujui pemilik 2026-11-18 & 2026-11-24. Latar: di GTX 1650 pemilik, Whisper jatuh ke prosesor karena DLL itu tidak ada (lihat PROGRESS-LOG 2026-11-18).
-- [ ] T3.x Ukuran model Whisper menyesuaikan perangkat: tanpa GPU tampil label anjuran + dialog pilihan cepat (*Pakai model Cepat (disarankan)* vs *Tetap pakai model Akurat*) saat klik Mulai.
+- [x] T3.x Paket GPU opsional untuk desktop Windows: pustaka NVIDIA untuk Whisper (`cublas64_12.dll` + `cublasLt64_12.dll`, SHA-256 terkunci) diunduh terpisah lewat Pengaturan + preflight `cublas64_12.dll` (`Task 2`, `Task 3`, `Task 5`, terverifikasi nyata di GPU pada `.exe` spike Task 0)
+- [x] T3.x Ukuran model Whisper menyesuaikan perangkat: tanpa GPU tampil label anjuran + dialog pilihan cepat (*Pakai model Cepat (disarankan)* vs *Tetap pakai model Akurat*) saat klik Mulai (`Task 3`, `Task 5`, `Task 6`)
 
 ## SP4: Fitur kreator dan penyempurnaan fitur lama (belum dimulai)
 
