@@ -1,7 +1,9 @@
 import hashlib
 import io
+import json
 import os
 import sys
+import types
 import zipfile
 
 import pytest
@@ -213,6 +215,8 @@ def test_post_download_endpoint_and_cloud_unmounted_drive_safety(tmp_path, monke
     # Cloud mode with unmounted Drive: GET /api/settings/addons must never invoke get_app_data_dir()
     monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
     monkeypatch.setenv("AUTO_CLIPPER_WEB_TOKEN", "tok")
+    monkeypatch.setattr(addons, "colab_mediapipe_dir", lambda: str(tmp_path / "no_colab_mp"))
+    monkeypatch.setitem(sys.modules, "mediapipe", types.SimpleNamespace())
     monkeypatch.setattr(addons, "get_app_data_dir", lambda: (_ for _ in ()).throw(AppError("DRIVE_NOT_MOUNTED")))
     r_cloud = client.get("/api/settings/addons", headers={"Authorization": "Bearer tok"})
     assert r_cloud.status_code == 200
@@ -292,6 +296,8 @@ def test_addons_endpoints_validate_id_cloud_mode_macos_intel_and_auth(tmp_path, 
     monkeypatch.setattr(addons, "_mediapipe_platform_key", lambda: "win_amd64")
     monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
     monkeypatch.setenv("AUTO_CLIPPER_WEB_TOKEN", "tok")
+    monkeypatch.setattr(addons, "colab_mediapipe_dir", lambda: str(tmp_path / "no_colab_mp"))
+    monkeypatch.setitem(sys.modules, "mediapipe", types.SimpleNamespace())
     assert client.get("/api/settings/addons").status_code == 401
     assert client.get("/api/settings/addons", headers={"Authorization": "Bearer tok"}).json()["addons"]["mediapipe"]["available"] is False
     assert client.post("/api/settings/addons/mediapipe/download", headers={"Authorization": "Bearer tok"}).status_code == 400
@@ -359,12 +365,26 @@ def test_cloud_mode_treats_colab_mediapipe_as_available_and_keeps_endpoints_bloc
     monkeypatch.delitem(sys.modules, "matplotlib.pyplot", raising=False)
     monkeypatch.delitem(sys.modules, "sounddevice", raising=False)
 
-    assert addons.ensure_mediapipe_importable() == str(colab_dir / "face_landmarker.task")
+    # Cloud GET /api/settings/addons must succeed even when Drive is not mounted (never calls get_app_data_dir)
+    # and without mutating sys.path before ensure_mediapipe_importable().
+    assert str(colab_dir) not in sys.path
+    client = TestClient(app)
+    r_status = client.get("/api/settings/addons", headers={"Authorization": "Bearer tok"})
+    assert r_status.status_code == 200
+    mp_status = r_status.json()["addons"]["mediapipe"]
+    assert mp_status["available"] is True
+    assert mp_status["installed"] is True
+    assert mp_status["disk_mb"] >= 0.0
     assert addons.is_addon_installed("mediapipe") is True
     assert addons.is_addon_available("mediapipe") is True
     assert addons.is_addon_available("cuda") is False
 
+    # Partial matplotlib in sys.modules (missing matplotlib.pyplot) must still stub cleanly.
+    monkeypatch.setitem(sys.modules, "matplotlib", types.ModuleType("matplotlib"))
+    monkeypatch.setattr(addons.importlib if hasattr(addons, "importlib") else __import__("importlib"), "import_module", lambda n: (_ for _ in ()).throw(RuntimeError("partial matplotlib")))
+    assert addons.ensure_mediapipe_importable() == str(colab_dir / "face_landmarker.task")
+    assert "matplotlib.pyplot" in sys.modules
+
     # Cloud endpoints never allow downloading or deleting via the Settings API.
-    client = TestClient(app)
     assert client.post("/api/settings/addons/mediapipe/download", headers={"Authorization": "Bearer tok"}).status_code == 400
     assert client.delete("/api/settings/addons/mediapipe", headers={"Authorization": "Bearer tok"}).status_code == 400

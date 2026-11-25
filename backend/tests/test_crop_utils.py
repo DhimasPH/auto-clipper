@@ -1218,3 +1218,8 @@ def test_mediapipe_tasks_without_landmarker_model_reports_addon_not_installed(mo
     monkeypatch.setitem(sys.modules, "mediapipe", fake_mp)
     with pytest.raises(ImportError, match="addon_not_installed"):
         crop_utils._open_face_mesh()
+
+    broken_mp = types.SimpleNamespace(tasks=object())
+    monkeypatch.setitem(sys.modules, "mediapipe", broken_mp)
+    with pytest.raises(AttributeError, match="solutions"):
+        crop_utils._open_face_mesh()

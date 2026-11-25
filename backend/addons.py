@@ -152,8 +152,16 @@ def addon_dir(addon_id: str) -> str:
     return os.path.join(addons_root(), addon_id)
 
 
+def _cloud_colab_mediapipe_ready() -> Optional[Path]:
+    root = Path(colab_mediapipe_dir())
+    if (root / "mediapipe").is_dir() and (root / "face_landmarker.task").is_file():
+        return root
+    return None
+
+
 def _cloud_mediapipe_importable() -> bool:
-    if ensure_mediapipe_importable() is not None:
+    """True on Cloud/Colab when pinned Colab MediaPipe or legacy ``mediapipe.solutions`` exists."""
+    if _cloud_colab_mediapipe_ready() is not None:
         return True
     try:
         import importlib
@@ -343,12 +351,21 @@ def _install_mediapipe(staging: Path, cache_dir: Path) -> str:
 
 def install_colab_mediapipe(target_dir: Optional[str] = None) -> str:
     """Install the pinned linux_x86_64 MediaPipe 1.2.3 + face_landmarker.task bundle for Colab."""
+    pinned_ver = PINNED_ADDONS["mediapipe"]["wheels"]["linux_x86_64"]["version"]
     final_dir = Path(target_dir) if target_dir else Path(colab_mediapipe_dir())
-    if (final_dir / _MANIFEST_FILE).is_file() and (final_dir / "mediapipe").is_dir() and (final_dir / "face_landmarker.task").is_file():
+    if (
+        (final_dir / _MANIFEST_FILE).is_file()
+        and (final_dir / "mediapipe").is_dir()
+        and (final_dir / "flatbuffers").is_dir()
+        and (final_dir / "absl").is_dir()
+        and (final_dir / "face_landmarker.task").is_file()
+    ):
         try:
-            return str(json.loads((final_dir / _MANIFEST_FILE).read_text(encoding="utf-8")).get("version") or "1.2.3")
+            ver = str(json.loads((final_dir / _MANIFEST_FILE).read_text(encoding="utf-8")).get("version") or "")
+            if ver == pinned_ver:
+                return ver
         except Exception:
-            return "1.2.3"
+            pass
 
     final_dir.parent.mkdir(parents=True, exist_ok=True)
     token = uuid.uuid4().hex[:8]
@@ -515,11 +532,18 @@ def remove_addon(addon_id: str) -> dict:
 
 
 def _build_status(addon_id: str, state: dict) -> dict:
-    installed = is_addon_installed(addon_id)
-    disk_mb = _dir_size_mb(Path(addon_dir(addon_id))) if installed else 0.0
+    if _is_cloud_mode():
+        installed = addon_id == "mediapipe" and _cloud_mediapipe_importable()
+        available = installed
+        colab_dir = _cloud_colab_mediapipe_ready() if installed else None
+        disk_mb = _dir_size_mb(colab_dir) if colab_dir is not None else 0.0
+    else:
+        installed = is_addon_installed(addon_id)
+        available = is_addon_available(addon_id)
+        disk_mb = _dir_size_mb(Path(addon_dir(addon_id))) if installed else 0.0
     out = {
         "id": addon_id,
-        "available": is_addon_available(addon_id),
+        "available": available,
         "installed": installed,
         "downloading": bool(state.get("downloading", False)),
         "percent": int(state.get("percent", 100 if installed else 0)),
