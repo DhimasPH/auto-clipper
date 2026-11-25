@@ -126,7 +126,8 @@ jobs:
         run: npm install
 
       - name: Build Tauri App
-        run: npm run tauri build -- --target ${{ matrix.target }}
+        # PR builds are for checking, not releasing: no updater signature, so no signing secret is needed.
+        run: npm run tauri build -- --target ${{ matrix.target }} --config src-tauri/tauri.pr-check.conf.json
 
   checks:
     # Spec SP1 section 6: Vitest, oxlint, the cloud build and pytest on every PR.
