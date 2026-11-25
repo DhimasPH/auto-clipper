@@ -15,7 +15,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             python-arch: x64
             pip-constraints: ""
-          - os: macos-14
+          - os: macos-15
             target: aarch64-apple-darwin
             python-arch: arm64
             pip-constraints: "-c backend/constraints-macos12.txt"

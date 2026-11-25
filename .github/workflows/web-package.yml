@@ -22,7 +22,7 @@ jobs:
             name: windows
             python-arch: x64
             pip-constraints: ""
-          - os: macos-14
+          - os: macos-15
             name: macos-arm64
             python-arch: arm64
             pip-constraints: "-c backend/constraints-macos12.txt"

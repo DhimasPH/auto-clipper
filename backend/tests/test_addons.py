@@ -27,6 +27,9 @@ def test_cuda_addon_install_verifies_pinned_sha256_reinstalls_and_extracts_only_
     monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
     monkeypatch.setattr(addons.sys, "platform", "win32")
     monkeypatch.setattr(addons, "_cuda_count", lambda: 1)
+    # ctypes.WinDLL exists only on Windows; CI runs this suite on Linux and macOS too.
+    loaded_dlls = []
+    monkeypatch.setattr(addons.ctypes, "WinDLL", lambda p: loaded_dlls.append(os.path.basename(p)), raising=False)
 
     # Pre-existing installation + pending removal marker that reinstall must clear before activate_installed
     old_bin = tmp_path / "addons" / "cuda" / "bin"
@@ -55,6 +58,7 @@ def test_cuda_addon_install_verifies_pinned_sha256_reinstalls_and_extracts_only_
     assert (tmp_path / "addons" / "cuda" / "bin" / "cublas64_12.dll").read_bytes() == b"cublas-dll"
     assert (tmp_path / "addons" / "cuda" / "bin" / "cublasLt64_12.dll").read_bytes() == b"cublasLt-dll"
     assert not (tmp_path / "addons" / "cuda" / "bin" / "cublas.h").exists()
+    assert loaded_dlls == list(addons.PINNED_ADDONS["cuda"]["win_amd64"]["dlls"])
 
 
 def test_addon_install_rejects_sha256_mismatch_and_cleans_part(tmp_path, monkeypatch):
