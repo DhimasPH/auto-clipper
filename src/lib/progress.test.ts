@@ -106,10 +106,7 @@ describe("deviceNotes: Teliti fell back to Standar (SP3 spec 4.2.C)", () => {
 
   it("reports fallback_tracking when mediapipe was requested but haar ran", () => {
     expect(
-      deviceNotes(null, [{ stage: "tracking", seconds: 5, tracking_engine_used: "haar" }], ["tracking", "render", "publish"], {
-        tracking_engine_requested: "mediapipe",
-        tracking_engine_used: "haar",
-      }),
+      deviceNotes(null, [timing("tracking", 5, fellBack)], make),
     ).toContain("fallback_tracking");
   });
 
@@ -123,22 +120,23 @@ describe("deviceNotes: Teliti fell back to Standar (SP3 spec 4.2.C)", () => {
   it("tells a failure of an installed tracker apart from a missing one", () => {
     const failed = timing("tracking", 5, { ...fellBack, tracking_fallback_reason: "mediapipe crashed on frame 12" });
     expect(deviceNotes(live("tracking", { device: "haar_fallback" }), [failed], make)).toEqual(["fallback_tracking_failed"]);
-    expect(deviceNotes(null, [timing("tracking", 5)], make, { ...fellBack, tracking_fallback_reason: "boom" })).toEqual(["fallback_tracking_failed"]);
+    expect(deviceNotes(null, [failed], make)).toEqual(["fallback_tracking_failed"]);
   });
 
-  it("ignores tracking facts in the metadata until this run's tracking stage has reported (Resume, re-render)", () => {
-    // A resumed or re-rendered job starts from the old project's metadata: the add-on may be installed by now.
+  it("reads tracking facts only from this run's tracking rows, ignoring extra metadata or other stages (Resume, re-render)", () => {
     const stale = { ...fellBack, tracking_fallback_reason: "addon_not_installed" };
-    expect(deviceNotes(null, [], make, stale)).toEqual([]);
-    expect(deviceNotes(live("render", { clip: 1 }), [timing("download", 3)], make, stale)).toEqual([]);
-    expect(deviceNotes(live("tracking"), [], make, stale)).toEqual([]);
-    // Once this run's tracking row is there, the synced metadata counts again.
-    expect(deviceNotes(null, [timing("tracking", 5)], make, stale)).toEqual(["fallback_tracking"]);
+    // Even if a caller still passed a legacy 4th object or another stage carried fields, only tracking rows count.
+    expect((deviceNotes as (...args: unknown[]) => string[])(null, [], make, stale)).toEqual([]);
+    expect((deviceNotes as (...args: unknown[]) => string[])(live("render", { clip: 1 }), [timing("download", 3, stale)], make, stale)).toEqual([]);
+    expect((deviceNotes as (...args: unknown[]) => string[])(null, [timing("tracking", 5)], make, stale)).toEqual([]);
+    expect(deviceNotes(null, [timing("tracking", 5, { ...fellBack, tracking_fallback_reason: "addon_not_installed" })], make)).toEqual([
+      "fallback_tracking",
+    ]);
   });
 
   it("says nothing when Teliti ran, Standar was chosen, or no face tracking happens", () => {
     expect(deviceNotes(null, [timing("tracking", 5, { tracking_engine_requested: "mediapipe", tracking_engine_used: "mediapipe" })], make)).toEqual([]);
     expect(deviceNotes(null, [timing("tracking", 5, { tracking_engine_requested: "haar", tracking_engine_used: "haar" })], make)).toEqual([]);
-    expect(deviceNotes(null, [timing("tracking", 5, fellBack)], ["render", "publish"], fellBack)).toEqual([]);
+    expect(deviceNotes(null, [timing("tracking", 5, fellBack)], ["render", "publish"])).toEqual([]);
   });
 });

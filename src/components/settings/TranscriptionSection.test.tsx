@@ -258,4 +258,14 @@ describe("TranscriptionSection (Lanjutan, model subtitle)", () => {
     const bar = container.querySelector('[role="progressbar"]')!;
     expect(bar.getAttribute("aria-label")).toContain(i18n.t("settings.addon_gpu_title"));
   });
+
+  it("hides processor notes while add-on status is still unknown when add-ons are enabled", async () => {
+    vi.mocked(axios.get).mockImplementation(async (url: string) => {
+      if (url.endsWith("/addons")) return new Promise(() => {});
+      return { data: { ...SP3_MODELS, gpu_ready: false } };
+    });
+    await render("medium", true);
+    expect(container.textContent).not.toContain(i18n.t("settings.whisper_cpu_note"));
+    expect(container.textContent).not.toContain(i18n.t("settings.whisper_cpu_note_no_gpu"));
+  });
 });

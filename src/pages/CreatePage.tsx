@@ -225,7 +225,6 @@ export const CreatePage: React.FC = () => {
           localSource={!!chosenFile}
           current={ctx.current}
           timings={ctx.liveMeta?.timings}
-          meta={ctx.liveMeta}
           queuePosition={ctx.queuePosition}
           onCancel={ctx.cancelJob}
         />

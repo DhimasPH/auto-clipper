@@ -346,3 +346,39 @@ def test_sync_stage_metadata_records_fallback_live_and_clears_stale_fallback_acr
     assert "tracking_fallback_reason" not in metadata
     assert metadata["encoder"] == "libx264"
     assert metadata["whisper_device"] == "cuda"
+
+
+def test_create_resume_and_rerender_jobs_start_with_empty_timings_and_clear_stale_tracking(tmp_path, monkeypatch):
+    src = tmp_path / "source.mp4"
+    src.write_bytes(b"x")
+    old_meta = {
+        "source_video": str(src),
+        "title": "Old Project",
+        "provider": "manual_ai",
+        "timings": [{"stage": "tracking", "tracking_engine_requested": "mediapipe", "tracking_engine_used": "haar", "tracking_fallback_reason": "addon_not_installed"}],
+        "tracking_engine_requested": "mediapipe",
+        "tracking_engine_used": "haar",
+        "tracking_fallback_reason": "addon_not_installed",
+    }
+    hist_row = {"id": "hist-1", "url": f"local:{src}", "status": "ERROR", "result_clips": [], "metadata": old_meta}
+    saved = []
+    save_mock = lambda jid, url, status, clips, meta: saved.append((jid, status, dict(meta or {})))
+    monkeypatch.setattr("backend.db.get_history", lambda jid: hist_row)
+    monkeypatch.setattr("backend.db.save_history", save_mock)
+    monkeypatch.setattr(jobs, "save_history", save_mock)
+    monkeypatch.setattr(jobs, "_reject_if_still_processing", lambda jid: None)
+    monkeypatch.setattr(jobs, "_start_job", lambda *a, **k: None)
+
+    resumed_id = jobs.create_resume_job("hist-1")
+    rerender_id = jobs.create_rerender_job("hist-1", "9:16", True, "")
+    try:
+        for jid in (resumed_id, rerender_id):
+            meta = jobs.active_jobs[jid]["metadata"]
+            assert meta["timings"] == []
+            for key in ("tracking_engine_requested", "tracking_engine_used", "tracking_fallback_reason"):
+                assert key not in meta
+        assert saved[-2][2]["timings"] == []
+        assert saved[-1][2]["timings"] == []
+    finally:
+        jobs.active_jobs.pop(resumed_id, None)
+        jobs.active_jobs.pop(rerender_id, None)

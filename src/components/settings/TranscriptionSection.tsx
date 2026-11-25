@@ -134,7 +134,7 @@ export const TranscriptionSection: React.FC<TranscriptionSectionProps> = ({ whis
                 <p className="text-caption text-text-secondary">
                   {t('settings.whisper_size', { disk: m.disk_size, vram: m.vram })}
                 </p>
-                {gpuReady === false && slowModels.includes(m.id) && (
+                {gpuReady === false && slowModels.includes(m.id) && (!addonsEnabled || cudaView !== 'unknown') && (
                   <p className="flex items-start gap-2 text-body text-text-primary">
                     <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
                     {/* No graphics card option here (no NVIDIA card, Mac, Linux, cloud): no talk of one. */}

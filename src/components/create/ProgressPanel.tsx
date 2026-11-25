@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Circle, CircleCheck, LoaderCircle, X } from "lucide-react";
 import { useNow } from "../../hooks/useNow";
-import { deviceNotes, progressRows, stagesFor, type DeviceNote, type LiveStage, type ProgressRow, type TrackingMeta } from "../../lib/progress";
+import { deviceNotes, progressRows, stagesFor, type DeviceNote, type LiveStage, type ProgressRow } from "../../lib/progress";
 import { ROUTES, SETTINGS_ANCHORS } from "../../lib/routes";
 import { formatDuration } from "../../lib/timings";
 import { platform } from "../../platform";
@@ -19,8 +19,6 @@ export interface ProgressPanelProps {
   localSource: boolean;
   current: LiveStage | null;
   timings: unknown;
-  /** Job metadata: which face tracker was asked for and which one ran (SP3). */
-  meta?: TrackingMeta | null;
   queuePosition: number | null;
   onCancel: () => void;
 }
@@ -35,7 +33,6 @@ export const ProgressPanel: React.FC<ProgressPanelProps> = ({
   localSource,
   current,
   timings,
-  meta,
   queuePosition,
   onCancel,
 }) => {
@@ -52,7 +49,7 @@ export const ProgressPanel: React.FC<ProgressPanelProps> = ({
 
   const stages = stagesFor(step, { autoAi, tracking });
   const rows = progressRows(stages, timings, current);
-  const notes = deviceNotes(current, timings, stages, meta);
+  const notes = deviceNotes(current, timings, stages);
   const caps = platform().caps;
   // Where add-ons cannot be installed (cloud), "install it in Settings" would send people nowhere.
   const noteKey = (note: DeviceNote) =>

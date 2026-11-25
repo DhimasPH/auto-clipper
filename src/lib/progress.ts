@@ -84,8 +84,8 @@ export function progressRows(stages: string[], timings: unknown, current: LiveSt
 
 export type DeviceNote = "cpu_subtitle" | "cpu_render" | "fallback_tracking" | "fallback_tracking_failed";
 
-/** The tracking facts the job reports (backend crop_utils / jobs._sync_stage_metadata). */
-export interface TrackingMeta {
+/** The tracking facts reported by a tracking timing row (backend crop_utils / stage_timer). */
+interface TrackingFacts {
   tracking_engine_requested?: unknown;
   tracking_engine_used?: unknown;
   tracking_fallback_reason?: unknown;
@@ -95,13 +95,13 @@ export interface TrackingMeta {
  * Teliti (mediapipe) was asked for but Standar (haar) ran (SP3 spec 4.2.C). "addon_not_installed",
  * or no reason yet, means the add-on is missing; any other reason means the installed add-on failed.
  */
-function trackingFallback(facts: TrackingMeta): DeviceNote | null {
+function trackingFallback(facts: TrackingFacts): DeviceNote | null {
   if (facts.tracking_engine_requested !== "mediapipe" || facts.tracking_engine_used !== "haar") return null;
   const reason = facts.tracking_fallback_reason;
   return !reason || reason === "addon_not_installed" ? "fallback_tracking" : "fallback_tracking_failed";
 }
 
-export function deviceNotes(current: LiveStage | null, timings: unknown, stages: string[], meta?: TrackingMeta | null): DeviceNote[] {
+export function deviceNotes(current: LiveStage | null, timings: unknown, stages: string[]): DeviceNote[] {
   const notes = new Set<DeviceNote>();
   const look = (stage: unknown, device: unknown) => {
     if (typeof stage !== "string" || !stages.includes(shownAs(stage))) return;
@@ -111,28 +111,20 @@ export function deviceNotes(current: LiveStage | null, timings: unknown, stages:
     if (stage === "tracking" && device === "haar_fallback") notes.add("fallback_tracking");
   };
   const tracks = stages.includes("tracking");
-  const addFallback = (facts: TrackingMeta) => {
+  const addFallback = (facts: TrackingFacts) => {
     const note = tracks ? trackingFallback(facts) : null;
     if (note) notes.add(note);
   };
   if (current) look(current.stage, current.device);
-  let trackedThisRun = false;
   if (Array.isArray(timings)) {
     for (const entry of timings) {
       if (!entry || typeof entry !== "object") continue;
       const e = entry as Record<string, unknown>;
       look(e.stage, e.whisper_device);
       look(e.stage, e.encoder);
-      if (e.stage === "tracking") {
-        trackedThisRun = true;
-        addFallback(e);
-      }
+      if (e.stage === "tracking") addFallback(e);
     }
   }
-  // A resumed or re-rendered job starts from the old project metadata, whose tracking facts may be
-  // out of date (the add-on can be installed since). The backend refreshes them from this run's
-  // timings after its tracking stage, so they count only once such a row is there.
-  if (trackedThisRun && meta && typeof meta === "object") addFallback(meta);
   // One reason per video: a known failure says more than "not installed".
   if (notes.has("fallback_tracking_failed")) notes.delete("fallback_tracking");
   return [...notes];

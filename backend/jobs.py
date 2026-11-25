@@ -507,6 +507,8 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         raise ValueError("History tidak valid atau metadata tidak lengkap.")
         
     hist_meta = hist.get("metadata", {})
+    run_meta = {k: v for k, v in hist_meta.items() if k not in _TRACKING_META_FIELDS}
+    run_meta["timings"] = []
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -530,11 +532,11 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "clips": [],
         "failed": 0,
         "error": None,
-        "metadata": hist_meta,
+        "metadata": run_meta,
         "original_clips": hist.get("result_clips", [])
     }
     try:
-        save_history(job_id, hist["url"], "PENDING", [], hist_meta)
+        save_history(job_id, hist["url"], "PENDING", [], run_meta)
     except Exception as db_e:
         log_error("jobs.create_rerender_job_save_history", db_e)
     _start_job(job_id, _run_rerender_job)
@@ -1965,6 +1967,8 @@ def create_resume_job(history_id: str, api_key: str = None, fallback_provider: s
     if not hist:
         raise ValueError("Histori pekerjaan tidak ditemukan.")
     hist_meta = hist.get("metadata", {}) or {}
+    run_meta = {k: v for k, v in hist_meta.items() if k not in _TRACKING_META_FIELDS}
+    run_meta["timings"] = []
     source_video = hist_meta.get("source_video")
     if not source_video and not hist.get("url"):
         raise ValueError("Video sumber atau URL video tidak ditemukan di histori.")
@@ -2013,11 +2017,11 @@ def create_resume_job(history_id: str, api_key: str = None, fallback_provider: s
         "clips": hist.get("result_clips", []),
         "failed": 0,
         "error": None,
-        "metadata": hist_meta
+        "metadata": run_meta
     }
     try:
         from backend.db import save_history
-        save_history(job_id, hist["url"], "QUEUED", hist.get("result_clips", []), hist_meta)
+        save_history(job_id, hist["url"], "QUEUED", hist.get("result_clips", []), run_meta)
     except Exception as db_e:
         log_error("jobs.create_resume_job_save_history", db_e)
     _start_job(job_id, _run_resume_job)

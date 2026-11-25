@@ -87,26 +87,25 @@ describe("ProgressPanel (spec 4.3)", () => {
   it("says when Teliti was not installed and Standar was used, with a link to install it where add-ons exist (SP3)", () => {
     const meta = { tracking_engine_requested: "mediapipe", tracking_engine_used: "haar", tracking_fallback_reason: "addon_not_installed" };
     const timings = [{ stage: "tracking", seconds: 4, ok: true, ...meta }];
-    const panel = (m: typeof meta) => (
+    const panel = () => (
       <MemoryRouter>
-        <ProgressPanel {...base} step={4} timings={timings} current={{ stage: "render", started_at: 1, clip: 1 }} meta={m} />
+        <ProgressPanel {...base} step={4} timings={timings} current={{ stage: "render", started_at: 1, clip: 1 }} />
       </MemoryRouter>
     );
-    act(() => root.render(panel(meta)));
+    act(() => root.render(panel()));
     expect(container.textContent).toContain(i18n.t("progress.fallback_tracking"));
     const link = [...container.querySelectorAll("a")].find((a) => a.textContent === i18n.t("progress.fallback_tracking_link"))!;
     expect(link.getAttribute("href")).toBe(`${ROUTES.settings}#${SETTINGS_ANCHORS.faceTracking}`);
 
     setPlatform({ caps: CAPS.cloud } as Platform);
-    act(() => root.render(panel({ ...meta })));
+    act(() => root.render(panel()));
     expect(container.textContent).not.toContain(i18n.t("progress.fallback_tracking"));
     expect(container.textContent).toContain(i18n.t("progress.fallback_tracking_unavailable"));
     expect(container.querySelector("a")).toBeNull();
   });
 
-  it("does not repeat an old project's tracker note before this run's tracking has reported (Resume)", () => {
-    const stale = { tracking_engine_requested: "mediapipe", tracking_engine_used: "haar", tracking_fallback_reason: "addon_not_installed" };
-    act(() => root.render(<ProgressPanel {...base} step={4} timings={[]} current={{ stage: "tracking", started_at: 1, clip: 1 }} meta={stale} />));
+  it("shows no fallback note when tracking timings are clean or empty (Resume)", () => {
+    act(() => root.render(<ProgressPanel {...base} step={4} timings={[]} current={{ stage: "tracking", started_at: 1, clip: 1 }} />));
     expect(container.textContent).not.toContain(i18n.t("progress.fallback_tracking"));
   });
 });
