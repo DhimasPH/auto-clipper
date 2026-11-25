@@ -762,3 +762,9 @@ Catat untuk tiap butir: berhasil atau tidak, dan di langkah mana pengguna sempat
 - Task 6 (`ceef3e4` + dokumen & benchmark, lolos review kode): dialog konfirmasi model Whisper CPU di `CreatePage.tsx` (**Pakai model Cepat (disarankan)** vs **Tetap pakai model Akurat**); benchmark 3-run median startup (`import main + run_preflight + import jobs`): **119,9 MB → 61,3 MB** (−48,9% RAM) dan **3,77 dtk → 1,442 dtk** (2,6× lebih cepat, **0** modul berat di `sys.modules`), ukuran `backend.spec` `.exe` lokal **248,99 MB → 198,68 MB** (−50,31 MB meski `opencv-contrib-python` masih ada di `ac-venv`); `ADR-015`, `.agents/AGENTS.md` (E.14 `T1.y`, D.1, E.21, G.6), `CHANGELOG.md`, `docs/panduan-penggunaan-awam.md`, dan `tasks/roadmap-todo.md` (`T1.y` & `T3.x` dicentang `[x]`) diperbarui.
 - Verifikasi penuh: `pytest` **1067 lulus, 7 dilewati**; Vitest **474 lulus** (66 file); `oxlint src` 0 error (15 warning lama); `npm run build` dan `npm run build:cloud` sukses; `npm audit` **0 kerentanan**.
 - Review menyeluruh SP3 (`9ff373f..00642dc`, 67 file tanpa lockfile oleh `code-reviewer` independen): **Approved** (0 Critical, 0 Important; 7 minor non-blocking dicatat di `tasks/sp3-ledger.md`). Seluruh kode dan dokumen SP3 selesai di branch `feat/sp3-lightweight` (belum push); menunggu uji pemakaian pemilik sebelum PR ke `main`.
+
+## 2026-11-25 · SP4 gelombang 1
+
+- CI PR SP0–SP3 hijau setelah tiga perbaikan (`18ca71a`, `113f8f6`): tes add-on cuda memalsukan `ctypes.WinDLL` untuk Linux, macOS pindah ke `macos-15` (image macos-14 dihentikan GitHub 2026-11-02), PR Check membangun Tauri tanpa artefak updater sehingga tidak butuh kunci tanda tangan.
+- Pemilik minta SP4 gelombang 1 sebelum merge. Brainstorm selesai: spec `7978a52`, rencana 7 task `353f1b6` di branch `feat/sp4-wave1`. Belum ada kode.
+- Berhenti di kuota pemilik 80% sebelum pemindaian pre-flight. Lanjut dari `tasks/HANDOFF-AI.md` bagian 3 (butir SP4 gelombang 1) dan `tasks/sp4-ledger.md`.
