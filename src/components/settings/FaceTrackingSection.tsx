@@ -47,8 +47,6 @@ export const FaceTrackingSection: React.FC<FaceTrackingSectionProps> = ({ value,
         <p id="face-engine-help" className="mt-2 text-body text-text-secondary">
           {t("settings.face_engine_help")}
         </p>
-        {/* Cloud: nothing can be installed, so say plainly what happens instead. */}
-        {precise && !addonsEnabled && <p className="mt-2 text-body text-text-primary">{t("settings.face_engine_cloud_note")}</p>}
       </div>
 
       {(view === "installed" || view === "downloading" || view === "finishing" || (precise && (view === "absent" || view === "unavailable"))) && (

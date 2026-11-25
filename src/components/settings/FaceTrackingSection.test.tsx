@@ -277,11 +277,10 @@ describe("FaceTrackingSection", () => {
     expect(onChange).toHaveBeenCalledWith("haar");
   });
 
-  it("says on cloud that Teliti is not available and Standar is used", async () => {
+  it("lets cloud users choose Teliti cleanly without claiming it is unavailable", async () => {
     await act(async () => root.render(<FaceTrackingSection value="mediapipe" onChange={vi.fn()} addonsEnabled={false} />));
-    expect(container.textContent).toContain(i18n.t("settings.face_engine_cloud_note"));
-    await act(async () => root.render(<FaceTrackingSection value="haar" onChange={vi.fn()} addonsEnabled={false} />));
-    expect(container.textContent).not.toContain(i18n.t("settings.face_engine_cloud_note"));
+    expect(container.textContent).not.toContain("tidak tersedia");
+    expect(button("settings.addon_face_install")).toBeUndefined();
   });
 
   it("can be opened from a link (/pengaturan#pelacak-wajah)", async () => {

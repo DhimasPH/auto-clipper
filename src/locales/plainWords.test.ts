@@ -77,8 +77,8 @@ describe.each([
 ])("add-on texts in Pengaturan (%s)", (_lang, locale) => {
   it("use plain words", () => {
     const settings = (locale as { settings: Record<string, unknown> }).settings;
-    const keys = Object.keys(settings).filter((k) => k.startsWith("addon_") || k.startsWith("whisper_cpu_note") || k === "face_engine_cloud_note");
-    expect(keys).toEqual(expect.arrayContaining(["whisper_cpu_note_no_gpu", "face_engine_cloud_note", "addon_gpu_remove_confirm_body"]));
+    const keys = Object.keys(settings).filter((k) => k.startsWith("addon_") || k.startsWith("whisper_cpu_note"));
+    expect(keys).toEqual(expect.arrayContaining(["whisper_cpu_note_no_gpu", "addon_gpu_remove_confirm_body"]));
     expect(keys.length).toBeGreaterThan(10);
     const banned = [...BANNED, "mediapipe", "dll", "cublas"];
     const hits = keys

@@ -185,6 +185,8 @@ def _open_face_mesh():
         )
 
     if not model_path:
+        if hasattr(getattr(mp, "tasks", None), "python"):
+            raise ImportError("addon_not_installed")
         raise AttributeError("mediapipe package has no solutions module or Tasks landmarker model")
 
     from mediapipe.tasks.python import BaseOptions, vision

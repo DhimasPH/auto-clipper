@@ -198,7 +198,6 @@
     "addon_download_failed": "The add-on could not be downloaded, usually because the connection dropped or storage is full. Check both, then press the install button again.",
     "addon_remove_failed": "The add-on could not be removed. Close and reopen the app, then try removing it again.",
     "whisper_cpu_note_no_gpu": "This computer makes subtitles with the processor. With this model, a 30-minute video can take more than an hour. It is still fine for short videos.",
-    "face_engine_cloud_note": "The precise tracker is not available here, so the app uses Standard mode.",
     "addon_gpu_remove_confirm_title": "Remove graphics card support?",
     "addon_gpu_remove_confirm_body": "After removal, subtitles are made with the processor again, which is slower. To use the graphics card again, the add-on of about {{mb}} MB must be downloaded again.",
     "addon_gpu_remove_confirm": "Yes, remove"

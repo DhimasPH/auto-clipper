@@ -198,7 +198,6 @@
     "addon_download_failed": "Komponen gagal diunduh, biasanya karena koneksi terputus atau ruang penyimpanan penuh. Periksa keduanya, lalu tekan tombol pasang lagi.",
     "addon_remove_failed": "Komponen gagal dihapus. Tutup lalu buka lagi aplikasi, kemudian coba hapus lagi.",
     "whisper_cpu_note_no_gpu": "Komputer ini membuat subtitle dengan prosesor. Dengan model ini, video 30 menit bisa makan waktu lebih dari satu jam. Untuk video pendek tetap boleh dipakai.",
-    "face_engine_cloud_note": "Pelacak teliti tidak tersedia di sini, jadi aplikasi memakai mode Standar.",
     "addon_gpu_remove_confirm_title": "Hapus dukungan kartu grafis?",
     "addon_gpu_remove_confirm_body": "Setelah dihapus, subtitle kembali dibuat dengan prosesor dan lebih lambat. Untuk memakai kartu grafis lagi, komponen sekitar {{mb}} MB harus diunduh ulang.",
     "addon_gpu_remove_confirm": "Ya, hapus"

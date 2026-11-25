@@ -1208,3 +1208,13 @@ def test_crop_falls_back_to_haar_with_clear_reason_when_mediapipe_addon_missing(
     assert tracking["tracking_engine_requested"] == "mediapipe"
     assert tracking["tracking_engine_used"] == "haar"
     assert tracking["tracking_fallback_reason"] == "addon_not_installed"
+
+
+def test_mediapipe_tasks_without_landmarker_model_reports_addon_not_installed(monkeypatch):
+    from backend import crop_utils, addons
+
+    monkeypatch.setattr(addons, "ensure_mediapipe_importable", lambda: None)
+    fake_mp = types.SimpleNamespace(tasks=types.SimpleNamespace(python=object()))
+    monkeypatch.setitem(sys.modules, "mediapipe", fake_mp)
+    with pytest.raises(ImportError, match="addon_not_installed"):
+        crop_utils._open_face_mesh()

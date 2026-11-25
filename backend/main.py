@@ -496,6 +496,8 @@ def api_download_addon(addon_id: str):
     from backend import addons
     if addon_id not in addons.ADDON_IDS:
         return JSONResponse(status_code=404, content={"status": "error", "message": "Unknown add-on"})
+    if addons._is_cloud_mode():
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Add-on is not available in Cloud mode"})
     if not addons.is_addon_available(addon_id):
         return JSONResponse(status_code=400, content={"status": "error", "message": "Add-on is not available on this platform"})
     return {"status": "success", "addon": addons.start_addon_download(addon_id)}

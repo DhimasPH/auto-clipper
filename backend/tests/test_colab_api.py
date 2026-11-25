@@ -470,3 +470,8 @@ def test_colab_notebook_does_not_promise_gpu_rendering():
     """Spec finding F8: the notebook installs stock FFmpeg, so it must not claim NVENC rendering."""
     for cell_id in ["header_cell", "step1_md", "step2_md", "step3_md", "step4a_md", "step4b_md"]:
         assert "NVENC" not in _notebook_source(cell_id).upper()
+
+
+def test_colab_notebook_step3_installs_pinned_mediapipe():
+    source = _notebook_source("step3_code")
+    assert "install_colab_mediapipe" in source

@@ -80,7 +80,7 @@ Setelah SP0 (pipeline andal dan cepat), SP1 (satu frontend + Auto Clipper Web), 
 
 1. **Pisahkan dependensi inti dan opsional:**
    - Hapus `mediapipe>=0.10.0` dari `backend/requirements.txt` (desktop & paket Auto Clipper Web).
-   - Catatan untuk Colab notebook: `Auto_Clipper_Colab.ipynb` atau pengguna dari source tetap dapat memasang `mediapipe` secara terpisah bila membutuhkan mode Teliti, atau memakai pengunduh komponen di aplikasi.
+   - **Notebook Colab (`Auto_Clipper_Colab.ipynb`):** Langkah 3 memanggil `install_colab_mediapipe()` untuk memasang wheel `mediapipe==1.2.3` (`linux_x86_64`) + `flatbuffers==25.12.19` + `absl-py==2.5.1` + `face_landmarker.task` ber-SHA-256 terkunci di `<repo>/bin/mediapipe_colab` (di disk lokal Colab, di luar Google Drive) sehingga pelacak **Teliti** langsung siap di Cloud.
 2. **Rapikan `backend.spec`:**
    - Hapus `'mediapipe'` dari daftar paket `collect_all(...)`.
    - Ganti pemanggilan `collect_all()` seragam pada 19 paket dengan pengumpulan selektif:
@@ -102,7 +102,7 @@ Satu modul backend terpadu `backend/addons.py` mengelola komponen opsional di ba
   - Seluruh komponen memakai **versi, URL HTTPS resmi (`files.pythonhosted.org` / `storage.googleapis.com`), ukuran byte, dan digest SHA-256 yang dikunci keras di `backend/addons.py`** (tidak pernah mengambil *"rilis terbaru"* PyPI secara dinamis saat runtime). Ini mencegah pergeseran dependensi (*supply-chain drift*) dan error kompatibilitas diam-diam.
   - Unduhan ditulis ke folder sementara `.part` dan baru dipindahkan ke folder akhir lewat `os.replace` setelah integritas SHA-256 dan ekstraksi `zipfile` lolos 100%.
   - Tidak memerlukan `python` maupun `pip` di komputer pengguna.
-- Di mode Cloud (`AUTO_CLIPPER_CLOUD_MODE`), pengunduh komponen tambahan dinonaktifkan (`available: false`, karena lingkungan Colab sudah dikelola notebook di Langkah 3).
+- Di mode Cloud (`AUTO_CLIPPER_CLOUD_MODE`), tombol pasang/hapus komponen di Pengaturan tetap dinonaktifkan (`POST`/`DELETE` menolak `400`), tetapi untuk `mediapipe` backend menganggapnya tersedia/terpasang bila `ensure_mediapipe_importable()` (dari `<repo>/bin/mediapipe_colab` yang dipasang Langkah 3 notebook) atau `mediapipe.solutions` dapat di-import tanpa menyentuh Google Drive (`get_app_data_dir()`).
 
 #### B. Komponen 1: Dukungan GPU Subtitle Windows (`addon_id = "cuda"`)
 - **Kapan relevan (`available: true`):** hanya ketika `sys.platform == "win32"`, bukan cloud mode, dan `_cuda_device_count() >= 1`.
@@ -115,7 +115,7 @@ Satu modul backend terpadu `backend/addons.py` mengelola komponen opsional di ba
   - Di **Linux** (Colab): perilaku dan teks yang sudah ada tetap sama.
 
 #### C. Komponen 2: Pelacak Wajah Teliti (`addon_id = "mediapipe"`)
-- **Kapan relevan (`available: true`):** desktop dan web lokal pada platform yang memiliki wheel resmi `mediapipe==1.2.3` (`win_amd64`, `win_arm64`, `macosx_11_0_arm64`, `manylinux_2_28_x86_64`, `manylinux_2_28_aarch64`), kecuali cloud mode. Pada macOS Intel (`x86_64`), Google tidak lagi menerbitkan wheel `mediapipe 1.2.3` `py3-none`, sehingga `available: false` dan opsi Teliti tidak aktif di sana.
+- **Kapan relevan (`available: true`):** desktop dan web lokal pada platform yang memiliki wheel resmi `mediapipe==1.2.3` (`win_amd64`, `win_arm64`, `macosx_11_0_arm64`, `manylinux_2_28_x86_64`, `manylinux_2_28_aarch64`), serta di mode Cloud bila sudah terpasang oleh notebook Langkah 3. Pada macOS Intel (`x86_64`), Google tidak lagi menerbitkan wheel `mediapipe 1.2.3` `py3-none`, sehingga `available: false` dan opsi Teliti tidak aktif di sana.
 - **Artefak yang dikunci:**
   - `mediapipe==1.2.3` (`py3-none-<platform_tag>`, SHA-256 per platform dikunci di `PINNED_ADDONS`),
   - `flatbuffers==25.12.19` (`py2.py3-none-any`, 26.661 byte, SHA-256 `7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4`),
@@ -137,7 +137,7 @@ Satu modul backend terpadu `backend/addons.py` mengelola komponen opsional di ba
   - `DELETE /api/settings/addons/{addon_id}` → menghapus folder komponen dari `<app_data_dir>/addons/<addon_id>/` untuk menghemat ruang penyimpanan.
 - **UI Pengaturan (`Pengaturan → Lanjutan`):**
   - Pada **`TranscriptionSection.tsx` (Model subtitle):** bila `gpu_addon.available && !gpu_addon.installed` (artinya pengguna memakai Windows dengan kartu NVIDIA tanpa `cublas64_12.dll`), tampilkan kartu/baris opsional *"Percepat pembuatan subtitle dengan GPU"* berisi perkiraan ukuran (~530 MB), tombol **"Pasang dukungan GPU"**, progres persen saat mengunduh, serta tombol **"Hapus dukungan GPU"** saat sudah terpasang. Setelah terpasang, panggil ulang `preflight` agar status GPU di Buat klip langsung berubah menjadi hijau.
-  - Pada **`FaceTrackingSection.tsx` (Cara mengikuti wajah):** jika pengguna memilih **Teliti** sedangkan komponen `mediapipe` belum terpasang (`available && !installed`), tampilkan **pesan peringatan jelas** di bawah pilihan (*"Komponen pelacak teliti belum terpasang. Selama belum dipasang, aplikasi tetap memakai mode Standar secara otomatis."*), keterangan ukuran (~25–43 MB), dan tombol **"Pasang pelacak teliti"** (beserta progres & tombol **"Hapus komponen"** saat sudah terpasang). Bila `available: false` (mis. Cloud atau macOS Intel), tampilkan keterangan singkat atau sembunyikan tombol pasang.
+  - Pada **`FaceTrackingSection.tsx` (Cara mengikuti wajah):** jika pengguna memilih **Teliti** sedangkan komponen `mediapipe` belum terpasang (`available && !installed`), tampilkan **pesan peringatan jelas** di bawah pilihan (*"Komponen pelacak teliti belum terpasang. Selama belum dipasang, aplikasi tetap memakai mode Standar secara otomatis."*), keterangan ukuran (~25–43 MB), dan tombol **"Pasang pelacak teliti"** (beserta progres & tombol **"Hapus komponen"** saat sudah terpasang). Pada platform tanpa tombol unduh (`addonsEnabled: false`, Cloud/Colab), opsi **Teliti** tetap dapat dipilih langsung tanpa pesan "tidak tersedia". Bila `available: false` di desktop/web lokal (mis. macOS Intel), tampilkan keterangan singkat.
   - Seluruh teks wajib mengikuti aturan `plainWords.test.ts` dan kontras WCAG AA (`contrast.test.ts`).
 
 ---

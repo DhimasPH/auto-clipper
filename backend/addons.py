@@ -140,17 +140,34 @@ def addons_root() -> str:
     return os.path.join(get_app_data_dir(), "addons")
 
 
+def colab_mediapipe_dir() -> str:
+    """Pinned MediaPipe folder inside the repo on Cloud/Colab (outside Google Drive)."""
+    repo_root = Path(__file__).resolve().parents[1]
+    return str(repo_root / "bin" / "mediapipe_colab")
+
+
 def addon_dir(addon_id: str) -> str:
     if addon_id not in ADDON_IDS:
         raise KeyError(addon_id)
     return os.path.join(addons_root(), addon_id)
 
 
+def _cloud_mediapipe_importable() -> bool:
+    if ensure_mediapipe_importable() is not None:
+        return True
+    try:
+        import importlib
+        mod = importlib.import_module("mediapipe")
+        return hasattr(mod, "solutions")
+    except Exception:
+        return False
+
+
 def is_addon_available(addon_id: str) -> bool:
     if addon_id not in ADDON_IDS:
         raise KeyError(addon_id)
     if _is_cloud_mode():
-        return False
+        return addon_id == "mediapipe" and _cloud_mediapipe_importable()
     if addon_id == "cuda":
         return sys.platform == "win32" and _cuda_count() >= 1
     return _mediapipe_platform_key() is not None
@@ -161,7 +178,7 @@ def is_addon_installed(addon_id: str) -> bool:
         raise KeyError(addon_id)
     # Never resolve get_app_data_dir() in Cloud mode (Drive may not be mounted yet).
     if _is_cloud_mode():
-        return False
+        return addon_id == "mediapipe" and _cloud_mediapipe_importable()
     root = Path(addon_dir(addon_id))
     if not (root / _MANIFEST_FILE).is_file():
         return False
@@ -279,17 +296,20 @@ def _extract_prefixes(whl_path: Path, staging: Path, prefixes: tuple[str, ...]) 
                 shutil.copyfileobj(src, dst)
 
 
-def _install_mediapipe(staging: Path, cache_dir: Path) -> str:
-    key = _mediapipe_platform_key()
-    if not key:
-        raise RuntimeError("No mediapipe add-on build exists for this processor architecture.")
-    mp_spec = PINNED_ADDONS["mediapipe"]["wheels"][key]
+def _extract_mediapipe_artifacts(
+    staging: Path,
+    cache_dir: Path,
+    platform_key: str,
+    progress_cb: Optional[Callable[[int, int], None]] = None,
+) -> str:
+    mp_spec = PINNED_ADDONS["mediapipe"]["wheels"][platform_key]
     common = PINNED_ADDONS["mediapipe"]["common"]
     total_all = mp_spec["size"] + sum(item["size"] for item in common)
     completed_bytes = 0
 
     def report_bytes(cur: int, _tot: int) -> None:
-        _set_progress("mediapipe", completed_bytes + cur, total_all)
+        if progress_cb:
+            progress_cb(completed_bytes + cur, total_all)
 
     mp_whl = cache_dir / "mediapipe.whl"
     _download_file(mp_spec["url"], mp_whl, report_bytes)
@@ -309,8 +329,52 @@ def _install_mediapipe(staging: Path, cache_dir: Path) -> str:
     return mp_spec["version"]
 
 
+def _install_mediapipe(staging: Path, cache_dir: Path) -> str:
+    key = _mediapipe_platform_key()
+    if not key:
+        raise RuntimeError("No mediapipe add-on build exists for this processor architecture.")
+    return _extract_mediapipe_artifacts(
+        staging,
+        cache_dir,
+        key,
+        progress_cb=lambda got, tot: _set_progress("mediapipe", got, tot),
+    )
+
+
+def install_colab_mediapipe(target_dir: Optional[str] = None) -> str:
+    """Install the pinned linux_x86_64 MediaPipe 1.2.3 + face_landmarker.task bundle for Colab."""
+    final_dir = Path(target_dir) if target_dir else Path(colab_mediapipe_dir())
+    if (final_dir / _MANIFEST_FILE).is_file() and (final_dir / "mediapipe").is_dir() and (final_dir / "face_landmarker.task").is_file():
+        try:
+            return str(json.loads((final_dir / _MANIFEST_FILE).read_text(encoding="utf-8")).get("version") or "1.2.3")
+        except Exception:
+            return "1.2.3"
+
+    final_dir.parent.mkdir(parents=True, exist_ok=True)
+    token = uuid.uuid4().hex[:8]
+    staging = final_dir.parent / f".colab_mp.{token}.part"
+    cache_dir = final_dir.parent / f".colab_mp.{token}.dl.part"
+    backup_dir = final_dir.parent / f".colab_mp.{token}.old.part"
+    staging.mkdir(parents=True, exist_ok=True)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        version = _extract_mediapipe_artifacts(staging, cache_dir, "linux_x86_64")
+        (staging / _MANIFEST_FILE).write_text(json.dumps({"id": "mediapipe", "version": version}), encoding="utf-8")
+        if final_dir.exists():
+            os.replace(final_dir, backup_dir)
+        os.replace(staging, final_dir)
+        if backup_dir.exists():
+            shutil.rmtree(backup_dir, ignore_errors=True)
+        return version
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+        shutil.rmtree(cache_dir, ignore_errors=True)
+
+
 def install_addon_sync(addon_id: str) -> dict:
     """Download, verify size + SHA-256, and atomically install ``addon_id``."""
+    if _is_cloud_mode():
+        raise RuntimeError(f"Add-on '{addon_id}' is not available in Cloud mode.")
     if not is_addon_available(addon_id):
         raise RuntimeError(f"Add-on '{addon_id}' is not available on this platform.")
     root = Path(addons_root())
@@ -355,6 +419,8 @@ def install_addon_sync(addon_id: str) -> dict:
 
 
 def start_addon_download(addon_id: str) -> dict:
+    if _is_cloud_mode():
+        raise RuntimeError(f"Add-on '{addon_id}' is not available in Cloud mode.")
     if not is_addon_available(addon_id):
         raise RuntimeError(f"Add-on '{addon_id}' is not available on this platform.")
     with _state_lock:
@@ -508,23 +574,15 @@ def activate_installed() -> None:
     _activated_dirs.add(norm_bin)
 
 
-def ensure_mediapipe_importable() -> Optional[str]:
-    """Attach the installed mediapipe add-on folder and stubs to ``sys.path``."""
+def _ensure_mediapipe_stubs() -> None:
+    """Provide minimal stubs for unused mediapipe side imports (matplotlib, sounddevice)."""
     import types
 
-    if _is_cloud_mode() or not is_addon_installed("mediapipe"):
-        return None
-    mp_root = addon_dir("mediapipe")
-    if mp_root not in sys.path:
-        sys.path.insert(0, mp_root)
-
-    # mediapipe.tasks.python.vision.__init__ eagerly imports matplotlib.pyplot for
-    # drawing helpers that Auto Clipper never uses; stub them when matplotlib is omitted.
-    if "matplotlib" not in sys.modules:
+    if "matplotlib" not in sys.modules or "matplotlib.pyplot" not in sys.modules:
         try:
             import importlib
             importlib.import_module("matplotlib.pyplot")
-        except ImportError:
+        except Exception:
             mpl = types.ModuleType("matplotlib")
             mpl_plt = types.ModuleType("matplotlib.pyplot")
             mpl.pyplot = mpl_plt
@@ -534,8 +592,28 @@ def ensure_mediapipe_importable() -> Optional[str]:
         try:
             import importlib
             importlib.import_module("sounddevice")
-        except ImportError:
+        except Exception:
             sys.modules["sounddevice"] = types.ModuleType("sounddevice")
 
+
+def ensure_mediapipe_importable() -> Optional[str]:
+    """Attach the installed mediapipe folder and stubs to ``sys.path``."""
+    if _is_cloud_mode():
+        mp_root = colab_mediapipe_dir()
+        root_path = Path(mp_root)
+        task_path = root_path / "face_landmarker.task"
+        if not ((root_path / "mediapipe").is_dir() and task_path.is_file()):
+            return None
+        if mp_root not in sys.path:
+            sys.path.insert(0, mp_root)
+        _ensure_mediapipe_stubs()
+        return str(task_path)
+
+    if not is_addon_installed("mediapipe"):
+        return None
+    mp_root = addon_dir("mediapipe")
+    if mp_root not in sys.path:
+        sys.path.insert(0, mp_root)
+    _ensure_mediapipe_stubs()
     task_path = os.path.join(mp_root, "face_landmarker.task")
     return task_path if os.path.isfile(task_path) else None

@@ -296,3 +296,75 @@ def test_addons_endpoints_validate_id_cloud_mode_macos_intel_and_auth(tmp_path, 
     assert client.get("/api/settings/addons", headers={"Authorization": "Bearer tok"}).json()["addons"]["mediapipe"]["available"] is False
     assert client.post("/api/settings/addons/mediapipe/download", headers={"Authorization": "Bearer tok"}).status_code == 400
     assert client.delete("/api/settings/addons/mediapipe", headers={"Authorization": "Bearer tok"}).status_code == 400
+
+
+def test_install_colab_mediapipe_uses_pinned_linux_wheel_and_is_idempotent(tmp_path, monkeypatch):
+    import json
+    monkeypatch.setattr(addons, "get_app_data_dir", lambda: (_ for _ in ()).throw(AssertionError("must not read app_data_dir")))
+
+    mp_whl, mp_sha = _make_wheel({"mediapipe/__init__.py": b"__version__ = '1.2.3'\n", "matplotlib/pyplot.py": b"skip\n"})
+    fb_whl, fb_sha = _make_wheel({"flatbuffers/__init__.py": b"ok\n"})
+    ab_whl, ab_sha = _make_wheel({"absl/__init__.py": b"ok\n"})
+    task_bytes = b"tflite-colab"
+    task_sha = hashlib.sha256(task_bytes).hexdigest()
+
+    mp_entry = dict(addons.PINNED_ADDONS["mediapipe"]["wheels"]["linux_x86_64"], sha256=mp_sha, size=len(mp_whl))
+    monkeypatch.setitem(addons.PINNED_ADDONS["mediapipe"]["wheels"], "linux_x86_64", mp_entry)
+    monkeypatch.setitem(addons.PINNED_ADDONS["mediapipe"], "common", [
+        {"name": "flatbuffers", "kind": "wheel", "prefixes": ("flatbuffers/",), "url": "https://files.pythonhosted.org/fb.whl", "size": len(fb_whl), "sha256": fb_sha},
+        {"name": "absl-py", "kind": "wheel", "prefixes": ("absl/",), "url": "https://files.pythonhosted.org/ab.whl", "size": len(ab_whl), "sha256": ab_sha},
+        {"name": "face_landmarker.task", "kind": "file", "filename": "face_landmarker.task", "url": "https://storage.googleapis.com/mediapipe-models/face_landmarker.task", "size": len(task_bytes), "sha256": task_sha},
+    ])
+    payloads = {
+        mp_entry["url"]: mp_whl,
+        "https://files.pythonhosted.org/fb.whl": fb_whl,
+        "https://files.pythonhosted.org/ab.whl": ab_whl,
+        "https://storage.googleapis.com/mediapipe-models/face_landmarker.task": task_bytes,
+    }
+    downloads = []
+    monkeypatch.setattr(
+        addons, "_download_file",
+        lambda url, dest, cb: (downloads.append(url), dest.write_bytes(payloads[url]), cb(len(payloads[url]), len(payloads[url]))),
+    )
+
+    target = tmp_path / "mediapipe_colab"
+    ver = addons.install_colab_mediapipe(str(target))
+    assert ver == "1.2.3"
+    assert (target / "mediapipe" / "__init__.py").is_file()
+    assert (target / "flatbuffers" / "__init__.py").is_file()
+    assert (target / "absl" / "__init__.py").is_file()
+    assert not (target / "matplotlib").exists()
+    assert (target / "face_landmarker.task").read_bytes() == task_bytes
+    assert json.loads((target / "manifest.json").read_text(encoding="utf-8"))["version"] == "1.2.3"
+    assert len(downloads) == 4
+
+    # Calling a second time is a no-op when already installed cleanly.
+    addons.install_colab_mediapipe(str(target))
+    assert len(downloads) == 4
+
+
+def test_cloud_mode_treats_colab_mediapipe_as_available_and_keeps_endpoints_blocked(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    monkeypatch.setenv("AUTO_CLIPPER_WEB_TOKEN", "tok")
+    monkeypatch.setattr(addons, "get_app_data_dir", lambda: (_ for _ in ()).throw(AssertionError("must not read app_data_dir")))
+
+    colab_dir = tmp_path / "mediapipe_colab"
+    (colab_dir / "mediapipe").mkdir(parents=True)
+    (colab_dir / "mediapipe" / "__init__.py").write_text("__version__ = '1.2.3'\n", encoding="utf-8")
+    (colab_dir / "face_landmarker.task").write_bytes(b"tflite")
+    monkeypatch.setattr(addons, "colab_mediapipe_dir", lambda: str(colab_dir))
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.delitem(sys.modules, "mediapipe", raising=False)
+    monkeypatch.delitem(sys.modules, "matplotlib", raising=False)
+    monkeypatch.delitem(sys.modules, "matplotlib.pyplot", raising=False)
+    monkeypatch.delitem(sys.modules, "sounddevice", raising=False)
+
+    assert addons.ensure_mediapipe_importable() == str(colab_dir / "face_landmarker.task")
+    assert addons.is_addon_installed("mediapipe") is True
+    assert addons.is_addon_available("mediapipe") is True
+    assert addons.is_addon_available("cuda") is False
+
+    # Cloud endpoints never allow downloading or deleting via the Settings API.
+    client = TestClient(app)
+    assert client.post("/api/settings/addons/mediapipe/download", headers={"Authorization": "Bearer tok"}).status_code == 400
+    assert client.delete("/api/settings/addons/mediapipe", headers={"Authorization": "Bearer tok"}).status_code == 400
