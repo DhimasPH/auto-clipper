@@ -186,3 +186,20 @@ def test_missing_ai_key_points_to_settings_then_resume():
     assert info["code"] == "AI_KEY_MISSING"
     assert info["title"] != AppError("UNKNOWN").to_dict()["title"]
     assert [a["id"] for a in info["actions"]] == ["open_settings", "resume"]
+
+
+# SP4 spec 4.4: picking moments again needs the old transcript and video.
+REPICK_CODES = {"RERUN_SOURCE_MISSING"}
+
+
+@pytest.mark.parametrize("code", sorted(REPICK_CODES))
+def test_repick_codes_have_plain_text_in_both_languages(code):
+    assert code in ERROR_CODES
+    test_every_code_has_plain_text_in_both_languages(code)
+
+
+def test_missing_repick_source_offers_a_new_project():
+    info = AppError("RERUN_SOURCE_MISSING").to_dict()
+    assert [(a["id"], a["label"], a["label_en"]) for a in info["actions"]] == [
+        ("new_project", "Buat proyek baru", "Start a new project"),
+    ]

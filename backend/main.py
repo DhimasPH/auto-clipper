@@ -5,7 +5,7 @@ if __name__ == "__main__":
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from backend.db import init_db, get_all_history, delete_history, get_app_data_dir
 from backend.logger import log_error, get_log_content
@@ -832,6 +832,50 @@ def api_resume_manual_job(job_id: str, req: ResumeManualJobRequest):
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return _resume_failed(e)
+
+
+# The longest extra instruction for a re-pick (SP4 spec 4.4); src/lib/repick.ts uses the same number.
+REPICK_EXTRA_MAX = 500
+
+
+class RerunManualRequest(BaseModel):
+    extra_prompt: str = Field("", max_length=REPICK_EXTRA_MAX)
+    max_clips: int = Field(0, ge=0, le=50)
+    output_dir: str = ""
+    # The look of the new clips; None keeps the old project's.
+    aspect_ratio: Optional[str] = None
+    burn_subs: Optional[bool] = None
+    canvas_config: Optional[CanvasConfig] = None
+    subtitle_config: Optional[dict] = None
+    tracking_mode: Optional[str] = None
+    face_tracking_engine: Optional[str] = None
+
+
+@app.post("/jobs/{job_id}/rerun-manual")
+def api_rerun_manual_job(job_id: str, req: RerunManualRequest):
+    """Pick moments again without an API key (SP4 spec 4.4, ADR-016): a new project waiting at step 3."""
+    refused = _canvas_image_refused(req.canvas_config, "jobs_rerun_manual")
+    if refused:
+        return refused
+    output_dir, refused = _resolve_safe_output_dir(req.output_dir, "jobs_rerun_manual", lambda: _history_title(job_id))
+    if refused:
+        return refused
+    from backend import jobs
+    try:
+        created = jobs.create_rerun_manual_job(
+            job_id, req.extra_prompt, req.max_clips, output_dir,
+            aspect_ratio=req.aspect_ratio, burn_subs=req.burn_subs,
+            canvas_config=req.canvas_config.model_dump() if req.canvas_config else None,
+            subtitle_config=req.subtitle_config, tracking_mode=req.tracking_mode,
+            face_tracking_engine=req.face_tracking_engine,
+        )
+    except jobs.ProjectNotFound:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Project not found"})
+    except Exception as e:
+        if not isinstance(e, (AppError, ValueError)):
+            log_error("main.jobs_rerun_manual", e)
+        return _resume_failed(e)
+    return {"status": "success", **created}
 
 SUPPORTED_URL_RE = re.compile(
     r'^(https?://)?(www\.|m\.)?'

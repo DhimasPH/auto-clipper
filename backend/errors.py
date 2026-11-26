@@ -17,6 +17,7 @@ _ACTIONS = {
     "retry": ("Coba lagi", "Try again"),
     "resume": ("Lanjutkan", "Resume"),
     "open_settings": ("Buka Pengaturan", "Open Settings"),
+    "new_project": ("Buat proyek baru", "Start a new project"),
 }
 
 ERROR_CODES = {
@@ -168,6 +169,23 @@ ERROR_CODES = {
             "To make or change clips again, upload the video once more as a new project."
         ),
         "actions": ["upload_video"],
+    },
+    "RERUN_SOURCE_MISSING": {
+        "title": "Bahan proyek lama sudah tidak ada",
+        "message": (
+            "Memilih ulang momen butuh video asli dan teks ucapan dari proyek ini, tetapi salah satunya sudah tidak tersimpan. "
+            "Ini bisa terjadi setelah sesi Google Colab berakhir atau file proyek dihapus. "
+            "Klip lama tetap aman. "
+            "Buat proyek baru dari link videonya untuk memilih momen lagi."
+        ),
+        "title_en": "The old project's files are gone",
+        "message_en": (
+            "Picking moments again needs the original video and the spoken text of this project, but one of them is no longer stored. "
+            "This can happen after a Google Colab session ends or the project files were deleted. "
+            "Your old clips are safe. "
+            "Start a new project from the video link to pick moments again."
+        ),
+        "actions": ["new_project"],
     },
     "PUBLISH_FAILED": {
         "title": "Klip belum tersimpan ke folder penyimpanan",

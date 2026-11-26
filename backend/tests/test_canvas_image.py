@@ -74,9 +74,10 @@ _JOB_REQUESTS = [
     ("/jobs/manual", {"url": "https://youtu.be/abc", "clips": [], "title": "t"}),
     ("/jobs/some-id/rerender", {"provider": "openai", "api_key": ""}),
     ("/jobs/some-id/rerun_ai", {"url": "", "provider": "openai", "api_key": ""}),
+    ("/jobs/some-id/rerun-manual", {}),
     ("/jobs/some-id/clips/0/rerender", {"words": [], "aspect_ratio": "9:16", "caption_style": "standard", "burn_subs": True}),
 ]
-_CREATORS = ("create_job", "create_manual_job", "create_rerender_job", "create_rerun_ai_job", "create_rerender_clip_job")
+_CREATORS = ("create_job", "create_manual_job", "create_rerender_job", "create_rerun_ai_job", "create_rerender_clip_job", "create_rerun_manual_job")
 
 
 @pytest.mark.parametrize("path, body", _JOB_REQUESTS)

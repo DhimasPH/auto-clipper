@@ -23,6 +23,10 @@ _FINISHED = ("DONE", "ERROR", "CANCELLED", "AWAITING_MANUAL")
 _create_lock = threading.RLock()
 
 
+class ProjectNotFound(Exception):
+    """The project to start from is not in history (the endpoint answers 404)."""
+
+
 def _serialized(create_fn):
     """Make the "is anything running?" check and the job insert one atomic step."""
     @functools.wraps(create_fn)
@@ -185,6 +189,39 @@ def check_title_uniqueness(title: str):
         if meta and sanitize_title(meta.get("title", "")).lower() == safe_title:
             from fastapi import HTTPException
             raise HTTPException(status_code=400, detail=f"Judul Proyek '{title}' sudah digunakan di Riwayat. Silakan gunakan judul berbeda untuk mencegah konflik folder.")
+
+
+REPICK_SUFFIX = "pilihan ulang"
+_REPICK_SUFFIX_RE = re.compile(rf"\s*\({REPICK_SUFFIX}(?: \d+)?\)$")
+
+
+def _title_in_use(title: str) -> bool:
+    """Whether a running job or a history row already uses this project name (same rule as check_title_uniqueness)."""
+    safe = sanitize_title(title).lower()
+    if not safe:
+        return False
+    if any(sanitize_title(job.get("title", "")).lower() == safe for job in active_jobs.values()):
+        return True
+    try:
+        from backend.db import get_all_history
+        return any(sanitize_title((row.get("metadata") or {}).get("title", "")).lower() == safe for row in get_all_history())
+    except Exception:
+        return False
+
+
+def repick_title(old_title: str) -> str:
+    """A free name for moments picked again: its own project folder, so the old clips stay (SP4 spec 3).
+
+    "Talk" -> "Talk (pilihan ulang)", then "Talk (pilihan ulang 2)", ... A re-pick of a re-pick
+    does not stack the suffix.
+    """
+    base = _REPICK_SUFFIX_RE.sub("", (old_title or "").strip()) or "Proyek"
+    title = f"{base} ({REPICK_SUFFIX})"
+    n = 2
+    while _title_in_use(title):
+        title = f"{base} ({REPICK_SUFFIX} {n})"
+        n += 1
+    return title
 
 
 def _project_folder_name(title: str, job_id: str = "") -> str:
@@ -1325,6 +1362,10 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
     source_video = metadata.get("source_video")
     if not source_video or (not os.path.exists(source_video) and not workspace.get_work_dir()):
         raise ValueError("Source video tidak ditemukan lagi di memori lokal.")
+
+    # A new project with its own folder: the old clips are never overwritten (SP4 spec 3, ruling 5).
+    title = repick_title(metadata.get("title", ""))
+    metadata = {**{k: v for k, v in metadata.items() if k not in _TRACKING_META_FIELDS}, "title": title, "timings": []}
         
     new_job_id = str(uuid.uuid4())
     active_jobs[new_job_id] = {
@@ -1347,7 +1388,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         # The folder the run really writes to, so _finalize_job records it in history.
         "output_dir": output_dir or metadata.get("output_dir", ""),
         "quality": "best",
-        "title": job_record.get("metadata", {}).get("title", ""),
+        "title": title,
         "max_clips": max_clips,
         "enable_hook": enable_hook,
         "status": "QUEUED",
@@ -1544,6 +1585,119 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
         log_error(f"JOB RERUN AI {job_id}", e)
         _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)
+
+
+# Stages that make clips (src/lib/createFlow.ts MAKE_STAGES). Task 6 drops earlier runs' rows of these.
+_MAKE_STAGES = ("tracking", "render", "hook_concat", "publish")
+# Old-project fields a re-pick must not carry: its result, its run report, its name.
+_REPICK_DROPPED_FIELDS = (
+    "highlights", "ai_job", "manual_prompt", "extra_prompt", "timings", "error", "error_info",
+    "warnings", "duration_seconds", "title", "history_ref",
+) + _TRACKING_META_FIELDS + tuple(_DEVICE_FIELDS)
+_SRT_TIME = re.compile(r"(\d+):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d+):(\d{2}):(\d{2})[,.](\d{3})")
+
+
+def _read_transcript(subtitle_path: str) -> tuple:
+    """The transcript as SRT text for the AI prompt, and the video length it covers in seconds."""
+    import json
+    from backend.ai_utils import build_srt_from_segments
+    with open(subtitle_path, "r", encoding="utf-8") as f:
+        raw = f.read()
+    if subtitle_path.endswith(".json"):
+        segments = [
+            {"start": s.get("start"), "end": s.get("end"), "text": s.get("text")}
+            for s in json.loads(raw).get("segments", [])
+        ]
+        duration = max((float(s["end"] or 0) for s in segments), default=0.0)
+        return build_srt_from_segments(segments), duration
+    ends = [int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000 for *_, h, m, s, ms in _SRT_TIME.findall(raw)]
+    return raw, max(ends, default=0.0)
+
+
+def _source_can_return(source_video, url: str) -> bool:
+    """Whether a later step can use the source video: still there, or _restore_source_video brings it back."""
+    if source_video and os.path.exists(source_video):
+        return True
+    if not workspace.get_work_dir():
+        return False
+    if url.startswith("local:"):
+        upload = url[len("local:"):]
+        return bool(upload) and os.path.exists(upload)
+    return bool(url)
+
+
+@_serialized
+def create_rerun_manual_job(history_job_id: str, extra_prompt: str = "", max_clips: int = 0, output_dir: str = "",
+                            aspect_ratio: str = None, burn_subs: bool = None, canvas_config: dict = None,
+                            subtitle_config: dict = None, tracking_mode: str = None, face_tracking_engine: str = None) -> dict:
+    """Pick moments again without an API key (SP4 spec 4.4, ADR-016).
+
+    A new project waiting at step 3 with a new AI prompt built from the old transcript, so nothing is
+    downloaded or transcribed here. No thread (E.10 is about job threads): the prompt is ready at once
+    and the pasted answer goes through resume_manual_job like any manual project. The old project is
+    not changed. Returns {"job_id", "manual_prompt", "title"}.
+    """
+    from backend.db import get_history
+    from backend.ai_utils import generate_manual_prompt
+    _reject_if_still_processing(history_job_id)
+    hist = get_history(history_job_id)
+    if not hist:
+        raise ProjectNotFound(history_job_id)
+    old = hist.get("metadata") or {}
+    url = hist.get("url") or ""
+
+    subtitle_path = old.get("subtitle_path") or ""
+    if not subtitle_path or not os.path.isfile(subtitle_path):
+        raise AppError("RERUN_SOURCE_MISSING", technical=f"transcript {subtitle_path!r} is gone")
+    if not _source_can_return(old.get("source_video"), url):
+        raise AppError("RERUN_SOURCE_MISSING", technical=f"source video {old.get('source_video')!r} is gone and cannot come back")
+    try:
+        transcript_text, duration = _read_transcript(subtitle_path)
+    except (OSError, ValueError) as e:
+        raise AppError("RERUN_SOURCE_MISSING", technical=f"transcript {subtitle_path!r} unreadable: {e}") from e
+
+    extra = (extra_prompt or "").strip()
+    limit = _get_clip_limit(max_clips or int(old.get("max_clips") or 0), duration)
+    manual_prompt = generate_manual_prompt(transcript_text, extra_prompt=extra, limit=limit)
+    title = repick_title(old.get("title") or "")
+
+    metadata = {k: v for k, v in old.items() if k not in _REPICK_DROPPED_FIELDS}
+    metadata.update({"manual_prompt": manual_prompt, "extra_prompt": extra, "history_ref": history_job_id, "timings": []})
+    new_job_id = str(uuid.uuid4())
+    active_jobs[new_job_id] = {
+        "id": new_job_id,
+        "url": url or "local:",
+        "provider": "manual_ai",
+        "api_key": "",
+        "mode": "ai",
+        "aspect_ratio": aspect_ratio or old.get("aspect_ratio", "9:16"),
+        "canvas_config": canvas_config if canvas_config is not None else old.get("canvas_config"),
+        "subtitle_config": subtitle_config if subtitle_config is not None else old.get("subtitle_config"),
+        "tracking_mode": tracking_mode or old.get("tracking_mode") or "auto",
+        "face_tracking_engine": face_tracking_engine or old.get("face_tracking_engine") or "haar",
+        "caption_style": old.get("caption_style", "standard"),
+        "burn_subs": old.get("burn_subs", True) if burn_subs is None else burn_subs,
+        "output_dir": output_dir or old.get("output_dir", ""),
+        "quality": old.get("quality", "best"),
+        "whisper_model": old.get("whisper_model", "small"),
+        "enable_broll": old.get("enable_broll", False),
+        "enable_hook": old.get("enable_hook", False),
+        "max_clips": max_clips or old.get("max_clips", 0),
+        "is_gaming_video": old.get("is_gaming_video", False),
+        "title": title,
+        "status": "AWAITING_MANUAL",
+        "progress": "",
+        "clips": [],
+        "failed": 0,
+        "error": None,
+        "cancelled": False,
+        "history_ref": history_job_id,
+        "timings": [],
+        "metadata": metadata,
+    }
+    log_app(f"[{new_job_id}] Pilih ulang momen dari {history_job_id}: menunggu jawaban AI")
+    _finalize_job(new_job_id, "AWAITING_MANUAL", metadata)
+    return {"job_id": new_job_id, "manual_prompt": manual_prompt, "title": title}
 
 @_serialized
 def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, aspect_ratio: str, caption_style: str, burn_subs: bool, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar"):

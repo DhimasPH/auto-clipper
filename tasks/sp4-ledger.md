@@ -22,8 +22,8 @@ Selesai 2026-11-26 (sebelum Task 1). Baseline terverifikasi: branch `feat/sp4-wa
 
 ## Tasks
 - Task 1: **Approved** (`8b1e513..9698960`, reviewer `776001ef`) · Vitest 485/485 (69 file), pytest 1067 passed / 7 skipped, oxlint 0 error, build + build:cloud OK. Minor (non-blocking): `AppFooter` di dalam `<main>` (landmark `contentinfo`), `appInfo.test.ts` bisa pakai `sourceFiles("src")`, `AboutSection` tombol dukung belum eksplisit `type="button"`.
-- Task 2: implemented (awaiting review) · BASE `9698960` · Vitest 497/497 (72 file), oxlint 0 error, build + build:cloud OK.
-- Task 3: pending
+- Task 2: **Approved** (`9698960..7f2bb4b`, reviewer `15f6b77e`) · Vitest 497/497 (72 file), oxlint 0 error, build + build:cloud OK. Minor (non-blocking): `SplashScreen.test.tsx` belum assert `alt=""`, beberapa cabang waktu tambahan di `useWebSplash.test.tsx` / `splashVisible("tab", true, true)` / reload branch di `App.tsx`, dan `border-accent/30` (mengikuti pola `AuthGate`/`LocalGate`).
+- Task 3: implemented (awaiting review) · BASE `7f2bb4b` · pytest 1089 passed / 7 skipped.
 - Task 4: pending
 - Task 5: pending
 - Task 6: pending
