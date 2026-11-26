@@ -29,6 +29,11 @@ export interface Caps {
    * precise face tracker. Desktop and local web only: on cloud the backend runs on Colab, set up by the notebook.
    */
   addons: boolean;
+  /**
+   * When the splash shows (SP4 spec 4.3): "startup" while the desktop app loads its settings and
+   * sidecar (as before), "tab" once per browser tab on the web until the first connection check.
+   */
+  splash: "startup" | "tab";
 }
 
 export interface BackendInfo {

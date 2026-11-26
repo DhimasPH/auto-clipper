@@ -771,3 +771,4 @@ Catat untuk tiap butir: berhasil atau tidak, dan di langkah mana pengguna sempat
 
 ### 2026-11-26 · SP4 gelombang 1
 - Task 1: `src/lib/appInfo.ts` satu sumber identitas (nama, pemegang hak cipta, versi dari Vite `define`, 8 tautan sosmed, `RELEASES_URL_PREFIX`); footer satu baris di bawah tiga menu (`AppFooter`); "Tentang Auto Clipper" di Pengaturan → Bantuan (`AboutSection`, 8 ikon 44 px, tombol dukung bergaris); `AuthGate` memakai daftar yang sama; `EMOJI` regex di `SettingsPage.test.tsx` & `SettingsPage.real.test.tsx` mengecualikan `\u00A9`. Vitest 485 lulus (69 file), pytest 1067/1067 (7 dilewati), oxlint 0 error, build + build:cloud OK.
+- Task 2: splash sama di semua platform (logo, nama, tagline, versi, `motion-reduce:animate-none`); web sekali per tab sampai cek `/health` pertama (0,8 s s.d. 2,5 s) lewat `caps.splash` + `useWebSplash`; desktop tetap. Vitest 497 lulus (72 file), oxlint 0 error, build + build:cloud OK.

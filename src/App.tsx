@@ -19,6 +19,8 @@ import { useToasts } from "./hooks/useToasts";
 import { useUserSettings } from "./hooks/useUserSettings";
 import { useClipJobs } from "./hooks/useClipJobs";
 import { useStartupUpdateCheck } from "./hooks/useStartupUpdateCheck";
+import { useWebSplash } from "./hooks/useWebSplash";
+import { splashVisible } from "./lib/splash";
 import { ProviderId, DEFAULT_PROVIDER, LEGACY_PROVIDER_MIGRATION } from "./lib/providers";
 import { loadClipChoices, saveClipChoices, type ClipChoices, type ShapeValue } from "./lib/clipChoices";
 import { CanvasConfig } from "./types/canvas";
@@ -63,8 +65,11 @@ export default function App() {
 
   useStartupUpdateCheck({ notify });
 
+  const splashMode = platform().caps.splash;
+  // Web (SP4 spec 4.3): once per tab, until the first connection check; desktop: while settings load.
+  const webSplash = useWebSplash(splashMode === "tab", !isInitializing);
+
   const [url, setUrl] = useState("");
-  const [splashComplete, setSplashComplete] = useState(false);
   const [provider, setProvider] = useState<ProviderId>(() => {
     const saved = localStorage.getItem("ac_provider");
     if (saved && LEGACY_PROVIDER_MIGRATION[saved]) {
@@ -185,13 +190,12 @@ export default function App() {
     resetJobState();
   };
 
-  if (!splashComplete) {
-    return (
-      <SplashScreen
-        isInitializing={isInitializing}
-        onFinish={() => setSplashComplete(true)}
-      />
-    );
+  if (splashVisible(splashMode, isInitializing, webSplash)) {
+    return <SplashScreen />;
+  }
+  // A reload in a tab that already saw the splash: a plain background for the few ms settings take.
+  if (isInitializing) {
+    return <div className="min-h-dvh bg-bg-primary" />;
   }
 
   const contextValue = {
