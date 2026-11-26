@@ -27,7 +27,7 @@ Selesai 2026-11-26 (sebelum Task 1). Baseline terverifikasi: branch `feat/sp4-wa
 - Task 4: **Approved** (`e7dd302..b41f7c7`, reviewer `09725fc9`) · Vitest 507/507 (73 file), oxlint 0 error, build + build:cloud OK. Minor (non-blocking): teks FAQ `settings.help_faqs.moments` masih menyebut menu lama "Pilih ulang momen dengan AI", `ProjectPage.test.tsx` belum menguji dispatch confirm `api`/`manual` atau `canRepick`, `ProjectDialogs.test.tsx` belum menguji dirty guard pada input angka saja, `ACTION_ICONS` belum punya ikon `new_project`.
 - Task 5: **Approved** (`b41f7c7..b020266`, reviews `597eab07`, `1a168f86`) · fix round 1 memindahkan `useUpdateNotice` ke `WithUpdateNotice` di dalam `gate(...)` (`src/App.tsx`), menolak `..`/spasi di tautan, dan jawaban kosong tanpa `latest` -> `"failed"`. pytest 1117 passed / 7 skipped (targeted 32/32 setelah fix), Vitest 519/519 (77 file), oxlint 0 error, build + build:cloud OK. Minor (non-blocking): uji spasi/`..` di `test_update_check.py`, uji `SettingsPage` integrasi `updateNotice`, normalisasi `new URL`/`\` pada `trusted`, `type="button"` pada tombol `UpdateNoticeSection`, guard urutan `recheck()`.
 - Task 6: **Approved** (`b020266..f3b5700`, reviewer `9e7524f2`) · 19 Kept (`W1–W5` + `K1–K12b`), 21 Already fixed, 25 Dropped. pytest 1125 passed / 7 skipped, Vitest 534/534 (79 file), oxlint 0 error, build + build:cloud OK. Minor (non-blocking): W1 tests pakai monkeypatch inline bukan `no_filesystem_for_the_server`, `test_addons.py` belum cek `pending_remove=False` sebelum marker/`cuda`, `test_pipeline_timings.py` belum mengulang asersi `whisper_device`/`tracking_engine_used` dalam tes baru, komentar `scheduled` di `useAddons.ts:33-34` masih menyebut server tidak melaporkannya, letak JSDoc `useScrollToHash.ts:4-5` di atas `hashTarget`, klik `Keep Accurate` di `CreatePage.test.tsx:237` masih sinkron.
-- Task 7: pending
+- Task 7: dispatched (BASE d517eb0), implementer opus acd143c79de610c95; controller verified at d517eb0: pytest 1125/7, Vitest 534 (79 files)
 
 ## Task 6 Triage (SP2 & SP3 Deferred Minors)
 
@@ -110,3 +110,7 @@ Selesai 2026-11-26 (sebelum Task 1). Baseline terverifikasi: branch `feat/sp4-wa
 | SP3 T5 | `ProgressPanel.test.tsx` duplicate of `progress.test.ts` | harmless |
 | SP3 T5 | `test_pipeline_timings.py` old_meta not mutated | `get_history` returns fresh dict |
 | SP3 T5 | `aria-disabled` on add-on double click | already guarded by `inFlight` and `useKeepFocus` |
+Task 7: implementer DONE, commits a6f2b8e, 562ab36 — pytest 1127/7, Vitest 535 (79 files), oxlint 0 errors, build + build:cloud OK, npm audit 0. Browser 360/768/1280 light/dark: footer, About, splash, Pilih ulang momen dialog, update notice, cloud gate — all pass (mocked backend). Not verified: desktop app, real GitHub call, notebook on real Colab.
+Task 7: minor (→ final fix wave): projects.repick_manual_note says "Video tidak diunduh ulang" — not true on a new Colab session (P6); reword to "Subtitle tidak dibuat ulang".
+Task 7: review folded into the whole-wave review (docs included).
+Whole-wave review dispatched (113f8f6..562ab36)
