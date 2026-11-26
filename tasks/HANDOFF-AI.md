@@ -1,32 +1,32 @@
 # Serah terima untuk AI mana pun yang melanjutkan pekerjaan
 
-Ditulis ulang 2026-11-20, posisi diperbarui 2026-11-25, untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) yang melanjutkan di repo ini. Baca seluruh file ini sebelum menyentuh kode. Tujuannya: kamu bekerja dengan aturan, keputusan, dan cara kerja yang sama dengan sesi sebelumnya.
+Ditulis ulang 2026-11-20, posisi diperbarui 2026-11-26, untuk AI coding (Claude, Codex, Gemini, Cursor, dan lainnya) yang melanjutkan di repo ini. Baca seluruh file ini sebelum menyentuh kode. Tujuannya: kamu bekerja dengan aturan, keputusan, dan cara kerja yang sama dengan sesi sebelumnya.
 
 ## 1. Urutan membaca
 
 1. File ini.
-2. `.agents/AGENTS.md`: aturan repo. Wajib dipatuhi, terutama bagian E (invarian backend E.1–E.21), F (frontend dan i18n F.1–F.10), G.1–G.8 (PyInstaller/web lokal), H (ADR).
+2. `.agents/AGENTS.md`: aturan repo. Wajib dipatuhi, terutama bagian E (invarian backend E.1–E.23), F (frontend dan i18n F.1–F.12), G.1–G.8 (PyInstaller/web lokal), H (ADR).
 3. Entri terakhir `tasks/PROGRESS-LOG.md`: posisi terakhir dan langkah berikutnya. Ini selalu lebih baru dari file ini.
-4. `tasks/sp3-ledger.md` dan `tasks/sp2-ledger.md`: status tiap task SP3/SP2, keputusan (ruling), dan temuan yang ditunda.
-5. Spec SP3: `docs/superpowers/specs/2026-11-24-sp3-lightweight-design.md` (dan SP2 `2026-11-20-sp2-ux-for-everyone-design.md`). Otoritas tertinggi bila rencana bertentangan dengan dirinya sendiri.
+4. `tasks/sp4-ledger.md` (SP4 gelombang 1: pre-flight P1–P9, status tiap task, triase catatan tertunda), lalu `tasks/sp3-ledger.md` dan `tasks/sp2-ledger.md`: status tiap task SP3/SP2, keputusan (ruling), dan temuan yang ditunda.
+5. Spec SP4 gelombang 1: `docs/superpowers/specs/2026-11-25-sp4-wave1-design.md`, rencananya `docs/superpowers/plans/2026-11-25-sp4-wave1.md`, dan ADR-016. Spec SP3: `docs/superpowers/specs/2026-11-24-sp3-lightweight-design.md` (dan SP2 `2026-11-20-sp2-ux-for-everyone-design.md`). Otoritas tertinggi bila rencana bertentangan dengan dirinya sendiri.
 6. Rencana SP3: `docs/superpowers/plans/2026-11-24-sp3-lightweight.md`.
 7. Konteks SP1 bila perlu: `tasks/sp1-ledger.md` dan spec SP1 `docs/superpowers/specs/2026-11-18-sp1-single-frontend-web-local-design.md`.
 
 ## 2. Gambaran besar
 
-Roadmap: SP0 (pipeline andal, selesai) → SP1 (frontend tunggal + web lokal, selesai) → SP2 (UI/UX untuk orang awam, selesai secara kode) → **SP3 (ringan, selesai secara kode)** → SP4 (fitur kreator, belum dimulai). Daftar task: `tasks/roadmap-todo.md`.
+Roadmap: SP0 (pipeline andal, selesai) → SP1 (frontend tunggal + web lokal, selesai) → SP2 (UI/UX untuk orang awam, selesai secara kode) → SP3 (ringan, selesai secara kode) → **SP4 (fitur kreator; gelombang 1 selesai secara kode, menunggu review menyeluruh)**. Daftar task: `tasks/roadmap-todo.md`.
 
-Branch bertumpuk (jangan membuka PR, push, atau merge ke `main` kecuali pemilik memintanya): `feat/sp0-pipeline-stability` → `feat/sp1-single-frontend-web-local` → `feat/sp2-ux-for-everyone` → **`feat/sp3-lightweight` (kerja di sini)**.
+Branch bertumpuk (jangan membuka PR, push, atau merge ke `main` kecuali pemilik memintanya): `feat/sp0-pipeline-stability` → `feat/sp1-single-frontend-web-local` → `feat/sp2-ux-for-everyone` → `feat/sp3-lightweight` → **`feat/sp4-wave1` (kerja di sini)**.
 
 Keputusan pemilik untuk SP2 (2026-11-20): desain **HP dulu** lalu melebar ke layar besar; jalur AI utama **AI manual dipandu** (salin perintah, buka ChatGPT/Gemini, tempel jawaban), API key hanya opsi lanjutan; gaya **bersih dan tenang** (latar netral, satu warna aksen); **alur 4 langkah** (Video → Siapkan → Pilih momen → Klip) dengan **tiga menu** (Buat klip, Riwayat, Pengaturan); sisanya ikut rekomendasi.
 
-## 3. Posisi SP2 & SP3 saat ini (2026-11-25)
+## 3. Posisi SP2, SP3 & SP4 saat ini (2026-11-26)
 
 - **SP2 selesai dari sisi kode** (`dc3ba66..547531a`): Task 1–18 selesai, review menyeluruh independen (`dc3ba66..f7aba4d`), gelombang perbaikan akhir (`547531a`), dan re-review terbatas dinyatakan bersih.
 - **SP3 (Ringan) selesai secara kode & dokumen di branch `feat/sp3-lightweight`** (`9ff373f..00642dc`): Task 0–6 + Teliti di Colab selesai, lolos review per-task dan **review menyeluruh SP3 independen (`Approved`, 0 Critical, 0 Important)**:
   - **Benchmark terukur (Windows `ac-venv`)**: `backend.exe` **248,99 MB → 198,68 MB** (bahkan sebelum CI bersih bebas `opencv-contrib-python`); startup `main+preflight+jobs` **3,77 dtk → 1,442 dtk** dan RSS **119,9 MB → 61,3 MB** (−48,9%, 0 modul berat di `sys.modules`).
   - **Verifikasi penuh terakhir**: `pytest` **1067 lulus, 7 dilewati**; Vitest **474 lulus** (66 file); `oxlint src` **0 error** (15 warning); `npm run build` & `npm run build:cloud` sukses; `npm audit` **0 kerentanan**. Rincian tiap task & minor deferred ada di `tasks/sp3-ledger.md` dan `tasks/PROGRESS-LOG.md`.
-- **SP4 gelombang 1 (sedang berjalan di branch `feat/sp4-wave1`, dari `feat/sp3-lightweight` `113f8f6`)**: pre-flight `P1–P9` + **Tasks 1–6 selesai dan lolos review independen (`Approved`, `8b1e513..f3b5700`)** — identitas aplikasi, splash semua platform, pilih ulang momen tanpa API key (`rerun-manual`), pemberitahuan versi baru Auto Clipper Web (`GET /api/update-check`), serta penutupan 19 catatan tertunda SP2/SP3 (`W1–W5`, `K1–K12b`) di `tasks/sp4-ledger.md`. Verifikasi terakhir di `f3b5700`: `pytest` **1125 lulus, 7 dilewati**, Vitest **534 lulus (79 file)**, `oxlint` **0 error**, `npm run build` & `build:cloud` OK. **Berikutnya (jeda pemilik sebelum Task 7):** (1) Task 7 (`Auto_Clipper_Colab.ipynb`, `docs/`, `README.md`, `CHANGELOG.md`, `ADR-016`, `.agents/AGENTS.md`, `tasks/HANDOFF-AI.md`, `tasks/roadmap-todo.md`, uji lengkap + cek browser 360/768/1280 terang/gelap, review Task 7); (2) review menyeluruh gelombang 1 `git diff 113f8f6..HEAD` + satu gelombang perbaikan bila perlu + re-review terbatas; (3) fast-forward `feat/sp3-lightweight` ke `feat/sp4-wave1` hanya setelah semua hijau, tanpa push atau merge ke `main`. CI PR sudah hijau di `113f8f6` (macos-15, PR Check tanpa artefak updater).
+- **SP4 gelombang 1 selesai secara kode di `feat/sp4-wave1`** (`8b1e513` sampai commit dokumen Task 7, dari `113f8f6`): identitas aplikasi (`src/lib/appInfo.ts`, footer, "Tentang Auto Clipper"), splash semua platform, pilih ulang momen tanpa API key (`POST /jobs/{id}/rerun-manual`), pemberitahuan versi Auto Clipper Web (`GET /api/update-check`), dan 19 catatan tertunda SP2/SP3. Task 1–6 **Approved**; Task 7 (README, tutorial Colab + notebook, panduan, CHANGELOG, AGENTS.md E.22/E.23/F.11/F.12, ADR-016, perbaikan teks FAQ momen `a6f2b8e`) menunggu review. Verifikasi terakhir: `pytest` **1127 lulus, 7 dilewati**, Vitest **535 lulus (79 file)**, `oxlint` **0 error** (19 warning), `npm run build` & `build:cloud` OK, `npm audit` **0 kerentanan**; cek browser Edge headless 360/768/1280 terang/gelap (footer, Tentang, splash, dialog Pilih ulang momen, Pembaruan, gerbang cloud) bersih. **Berikutnya:** (1) review Task 7; (2) review menyeluruh gelombang 1 `git diff 113f8f6..HEAD` + satu gelombang perbaikan + re-review terbatas; (3) uji pemakaian pemilik, lalu `feat/sp3-lightweight` dimajukan (fast-forward) ke `feat/sp4-wave1` atas permintaan pemilik, tanpa push atau merge ke `main`.
 - **Yang masih menunggu pemilik sebelum PR final ke `main`**:
   1. Uji pemakaian SP2 + SP3 (daftar cek SP2 di `tasks/PROGRESS-LOG.md`, plus unduh/hapus add-on `cuda` & `mediapipe` di Pengaturan Windows, dialog model Whisper CPU saat Mulai, pemutaran klip di folder hasil kustom Desktop, dan Teliti di Colab T4 nyata).
   2. Setelah uji pemakaian selesai, buka PR ke `main` hanya atas permintaan pemilik (draf SP0+SP1+SP2+SP3 di `tasks/pr-draft.md`).

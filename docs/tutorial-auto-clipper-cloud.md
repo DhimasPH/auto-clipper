@@ -39,6 +39,7 @@ Transkripsi Whisper memakai GPU T4. Notebook memasang FFmpeg standar dari Ubuntu
    - [Langkah 2: Siapkan](#langkah-2-siapkan)
    - [Langkah 3: Pilih momen](#langkah-3-pilih-momen)
    - [Langkah 4: Klip dan Unduh](#langkah-4-klip-dan-unduh)
+   - [Pilih ulang momen (tanpa API key)](#pilih-ulang-momen-tanpa-api-key)
    - [Riwayat dan Pengaturan](#riwayat-dan-pengaturan)
 7. [Panduan Pemeliharaan, Troubleshooting & FAQ](#7-panduan-pemeliharaan-troubleshooting--faq)
    - [Kendala 1: Sesi Google Colab Terputus / Idle Timeout](#kendala-1-sesi-google-colab-terputus--idle-timeout)
@@ -49,6 +50,7 @@ Transkripsi Whisper memakai GPU T4. Notebook memasang FFmpeg standar dari Ubuntu
    - [Kendala 7: "YouTube meminta verifikasi"](#kendala-7-youtube-meminta-verifikasi-sign-in-to-confirm-youre-not-a-bot--http-403)
    - [Kendala 8: Job Tertahan dengan Tulisan "Menunggu giliran"](#kendala-8-job-tertahan-dengan-tulisan-menunggu-giliran)
    - [Kendala 9: "Google Drive belum terhubung"](#kendala-9-google-drive-belum-terhubung)
+   - [Kendala 10: "Bahan proyek lama sudah tidak ada" saat Pilih ulang momen](#kendala-10-bahan-proyek-lama-sudah-tidak-ada-saat-pilih-ulang-momen)
 
 ---
 
@@ -174,21 +176,21 @@ Di Google Colab, setiap instruksi kode berada di dalam **kotak eksekusi**. Anda 
 ### Langkah 3.4: Memasang Program & Menjalankan Server Backend
 
 2. **Pemasangan Otomatis (Kotak Bagian 2 & 3):**
-   - Klik tombol **Play (▶️)** pada bagian **`2. Pasang Sistem & Dependensi`** (untuk memasang FFmpeg, cloudflared, dan Deno). Deno dipasang dengan skrip resmi (`curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh`) ke `/usr/local/bin`, sehingga server menemukannya di `PATH`. Bila pemasangan gagal, kotak menulis `PERHATIAN: Deno tidak berhasil dipasang` dan langkah berikutnya tetap bisa dijalankan; unduhan YouTube hanya menjadi kurang andal.
-   - Klik tombol **Play (▶️)** pada bagian **`3. Clone Repository & Install Python Dependencies`** (untuk mengunduh kode Auto Clipper).
+   - Klik tombol **Play (▶️)** pada bagian **`2. Pasang Sistem & Dependensi (FFmpeg, Cloudflared & Deno)`** (untuk memasang FFmpeg, cloudflared, dan Deno). Deno dipasang dengan skrip resmi (`curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh`) ke `/usr/local/bin`, sehingga server menemukannya di `PATH`. Bila pemasangan gagal, kotak menulis `PERHATIAN: Deno tidak berhasil dipasang` dan langkah berikutnya tetap bisa dijalankan; unduhan YouTube hanya menjadi kurang andal.
+   - Klik tombol **Play (▶️)** pada bagian **`3. Unduh Program Auto Clipper & Dependensi Python`**. Kotak ini mengunduh kode Auto Clipper dari cabang `BRANCH` (biarkan `main`), memasang library Python, dukungan GPU untuk subtitle, dan pelacak wajah **Teliti** (MediaPipe 1.2.3, SHA-256 terkunci). Bila kotak ini dilewati, pilihan Teliti memakai cara Standar dan layar progres memberi tahu caranya.
    - Tunggu proses instalasi selesai (ditandai dengan centang hijau ✅ di samping tombol Play).
 
 3. **Menjalankan Server (Kotak Bagian 4):**
    Pilih salah satu formulir sesuai jalur yang Anda gunakan:
 
 #### Jika Memilih Jalur A (Cloudflare Named Tunnel - Punya Domain Sendiri):
-Isi kolom formulir pada kotak **`4A. Run Auto Clipper Backend (Cloudflare)`**:
+Isi kolom formulir pada kotak **`4A. Jalankan Backend (Pilihan A: Cloudflare Tunnel - Punya Domain Sendiri)`**:
 - **`CLOUDFLARE_TUNNEL_TOKEN`**: Tempel token tunnel Cloudflare Anda.
 - **`API_SECRET_TOKEN`**: Masukkan password rahasia yang Anda tentukan sendiri.
 - Klik tombol **Play (▶️)** untuk mulai menjalankan server.
 
 #### Jika Memilih Jalur B (Ngrok Tunnel - 100% Gratis Tanpa Domain):
-Isi kolom formulir pada kotak **`4B. Run Auto Clipper Backend (Ngrok)`**:
+Isi kolom formulir pada kotak **`4B. Jalankan Backend (Pilihan B: Ngrok Tunnel - 100% Gratis Tanpa Domain)`**:
 - **`NGROK_AUTHTOKEN`**: Tempel authtoken akun Ngrok gratis Anda.
 - **`API_SECRET_TOKEN`**: Masukkan password rahasia yang Anda tentukan sendiri.
 - Klik tombol **Play (▶️)**.
@@ -326,6 +328,7 @@ Layar **Buat klip** memandu empat langkah: **1 Video → 2 Siapkan → 3 Pilih m
 ### Langkah 0: Masuk
 1. Pastikan notebook Colab sudah berjalan sampai server menyala.
 2. Buka alamat Vercel Anda di browser HP, isi **Kode akses** dengan `API_SECRET_TOKEN` dari notebook, lalu tekan **Masuk**. Kode disimpan di browser itu saja.
+3. Saat aplikasi pertama kali dibuka di tab itu, layar pembuka (logo, nama, tagline, versi) tampil sebentar sampai sambungan ke Colab diperiksa, paling lama 2,5 detik. Di bawah kotak kode akses ada tautan media sosial Auto Clipper dan baris hak cipta.
 
 ### Langkah 1: Video
 1. Tempel link di kotak **Tempel link YouTube, TikTok, atau Instagram**, atau tekan **Pilih dari Google Drive** (video di Drive) atau **Pilih file video** (diunggah ke disk kerja Colab, hilang saat sesi berakhir).
@@ -347,9 +350,17 @@ Layar progres menampilkan tahap nyata dari objek `current` di `GET /jobs/{id}`: 
 2. Setiap klip punya pemutar, **Unduh**, **Bagikan** (judul, deskripsi, tagar), dan menu titik tiga (**Ubah subtitle atau tampilan**). **Unduh semua** mengunduh klip satu per satu lewat browser. **Detail waktu** ada di bawah daftar klip.
 3. Bila job gagal, kartu error menampilkan judul, penjelasan, dan tombol aksi (**Lanjutkan**, **Unggah cookies.txt**, **Pilih video dari Google Drive**); pesan mentah ada di **Detail teknis** dengan tombol **Salin**.
 
+### Pilih ulang momen (tanpa API key)
+Proyek yang sudah selesai bisa dipilih ulang momennya tanpa membuat subtitle lagi:
+1. Buka **Riwayat**, tekan tombol titik tiga pada proyeknya, lalu **Pilih ulang momen**. Menu ini muncul untuk proyek berstatus Selesai yang teks ucapannya masih tersimpan.
+2. Isi **Apa yang mau diubah?** (boleh kosong, misalnya "cari bagian yang lucu saja") dan, bila perlu, **Jumlah klip** (kosongkan agar AI yang menentukan). Tekan **Lanjut**.
+3. Aplikasi membuat proyek baru bernama "<judul lama> (pilihan ulang)" dan langsung membuka langkah **3 Pilih momen** dengan perintah baru. Lanjutkan seperti biasa: **Salin perintah**, tempel di ChatGPT atau Gemini, tempel jawabannya di **Tempel jawaban AI di sini**, lalu **Buat klip**.
+4. Klip proyek lama tetap ada. Di belakang layar aplikasi memanggil `POST /jobs/{id}/rerun-manual`; teks ucapan dibaca dari Google Drive. Bila sesi Colab sudah berganti, video dari link diunduh ulang saat jawaban ditempel (subtitle tidak dibuat ulang). Video yang dipilih dari Google Drive disalin ulang dari Drive.
+
 ### Riwayat dan Pengaturan
-- **Riwayat** menampilkan judul, tanggal, status (Selesai, Gagal, Menunggu jawaban AI, Sedang diproses, Menunggu giliran, Dibatalkan), dan jumlah klip, dengan satu tombol utama: **Lihat klip**, **Tempel jawaban AI**, **Lihat progres**, **Lanjutkan**, atau **Coba lagi**. Menu titik tiga: **Buat ulang semua klip** dan **Hapus** (dengan konfirmasi).
-- **Pengaturan** punya empat bagian: **Umum** (tema, bahasa), **YouTube** (cookies), **Lanjutan** (cara mengikuti wajah, kualitas unduhan, model subtitle, **Unduh video tanpa membuat klip**), dan **Bantuan** (`#/pengaturan#bantuan`: langkah singkat, pertanyaan umum, versi, Detail teknis). Pilihan **AI otomatis dengan API key** hanya ada di desktop dan web lokal.
+- **Riwayat** menampilkan judul, tanggal, status (Selesai, Gagal, Menunggu jawaban AI, Sedang diproses, Menunggu giliran, Dibatalkan), dan jumlah klip, dengan satu tombol utama: **Lihat klip**, **Tempel jawaban AI**, **Lihat progres**, **Lanjutkan**, atau **Coba lagi**. Menu titik tiga: **Buat ulang semua klip**, **Pilih ulang momen**, dan **Hapus** (dengan konfirmasi).
+- **Pengaturan** punya empat bagian: **Umum** (tema, bahasa), **YouTube** (cookies), **Lanjutan** (cara mengikuti wajah, kualitas unduhan, model subtitle, **Unduh video tanpa membuat klip**), dan **Bantuan** (`#/pengaturan#bantuan`: **Tentang Auto Clipper** dengan versi, tautan media sosial dan tombol **Dukung pembuat aplikasi**, lalu langkah singkat, pertanyaan umum, dan **Detail teknis**). Pilihan **AI otomatis dengan API key** hanya ada di desktop dan web lokal.
+- Di bawah setiap halaman ada satu baris kecil berisi hak cipta dan versi aplikasi.
 
 ---
 
@@ -441,6 +452,12 @@ Layar progres menampilkan tahap nyata dari objek `current` di `GET /jobs/{id}`: 
 * **Penyebab:** Server (Bagian 4) dijalankan sebelum Google Drive di-mount (Bagian 1). Tanpa mount, `/content/drive/MyDrive/AutoClipperData` hanya folder di disk sementara Colab: klip yang disimpan di sana hilang bersama runtime. Karena itu backend menolak setiap job dengan kode `DRIVE_NOT_MOUNTED` (Pemeriksaan awal menandainya `[MASALAH]`) dan tidak membuat apa pun di bawah `/content/drive`. Selama Drive belum terhubung, log dan `history.db` ditulis ke `/content/work`.
 * **Solusi:** Hentikan kotak Bagian 4, jalankan Bagian 1, lalu jalankan lagi Bagian 4.
 * **Bila Bagian 1 gagal dengan `Mountpoint must not already contain files`:** versi lama Auto Clipper sempat membuat folder di `/content/drive` sebelum Drive di-mount, dan Colab hanya mau me-mount ke folder kosong. Buka menu **Runtime** → **Disconnect and delete runtime**, lalu jalankan semua kotak dari awal. Jangan menghapus folder `/content/drive` dengan perintah: bila Drive ternyata sudah ter-mount, isi Drive Anda ikut terhapus.
+
+---
+
+### Kendala 10: "Bahan proyek lama sudah tidak ada" saat Pilih ulang momen
+* **Penyebab:** teks ucapan proyek itu sudah tidak ada di Google Drive (folder proyek dihapus), atau videonya diunggah langsung dan file unggahan hilang saat sesi Colab berakhir. Backend menolak dengan kode `RERUN_SOURCE_MISSING`.
+* **Solusi:** tekan **Buat proyek baru** di kartu itu, lalu buat proyek dari link videonya. Klip proyek lama tetap aman di Drive.
 
 ---
 

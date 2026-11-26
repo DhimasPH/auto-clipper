@@ -475,3 +475,18 @@ def test_colab_notebook_does_not_promise_gpu_rendering():
 def test_colab_notebook_step3_installs_pinned_mediapipe():
     source = _notebook_source("step3_code")
     assert "install_colab_mediapipe" in source
+
+
+# --- SP4 wave 1: the notebook matches the app (spec 4.7) ------------------------------
+
+def test_colab_notebook_step3_explains_the_branch_and_the_precise_tracker():
+    text = _notebook_source("step3_md")
+    assert "BRANCH" in text and "`main`" in text
+    assert "Teliti" in text
+    assert "feat/sp0-pipeline-stability" not in text  # an old branch name as the example
+
+
+def test_colab_notebook_header_says_what_works_without_an_api_key():
+    text = _notebook_source("header_cell")
+    assert "Pilih ulang momen" in text
+    assert "API key" in text

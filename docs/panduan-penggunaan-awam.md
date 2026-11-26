@@ -34,6 +34,7 @@ Langkah ini dilakukan di laptop/komputer.
    - **Kotak 1:** Untuk menyambungkan ke Google Drive (klik izinkan saat muncul peringatan). Jalankan kotak ini sebelum Kotak 4. Kalau terlewat, server tetap menyala tetapi tidak mau memproses video.
    - **Kotak 2 & 3:** Untuk menginstal mesin dan peralatannya. Tunggu sampai selesai (ada centang hijau ✅).
      - Kotak 2 juga memasang **Deno**, program kecil yang membantu pengunduh video menjawab pemeriksaan dari YouTube. Kalau di bawah kotak muncul tulisan `PERHATIAN: Deno tidak berhasil dipasang`, klik Play sekali lagi. Kalau tetap gagal, lanjutkan saja: aplikasi tetap jalan, hanya saja video YouTube lebih sering gagal diunduh.
+     - Kotak 3 mengunduh program Auto Clipper dan memasang pelacak wajah **Teliti**. Biarkan isian `BRANCH` tetap `main`.
 
 ### Cara Menghubungkan (Pilih Salah Satu):
 
@@ -96,7 +97,7 @@ Setelah Mesin Pabrik dan Remote Control siap, sehari-hari Anda cukup memakai HP.
 
 ### Masuk
 
-1. Buka link Remote Control (link Vercel tadi) di browser HP.
+1. Buka link Remote Control (link Vercel tadi) di browser HP. Logo Auto Clipper tampil sebentar (paling lama 2,5 detik) sambil aplikasi mengecek sambungan ke Mesin Pabrik.
 2. Isi kotak **Kode akses** dengan *password* rahasia yang Anda buat di Kotak 4 (contoh: `rahasia123`), lalu tekan **Masuk**. Kode ini hanya disimpan di browser HP itu.
 
 Aplikasi langsung membuka **Buat klip**. Di bawah layar ada tiga menu: **Buat klip**, **Riwayat**, dan **Pengaturan**. Di layar yang lebar (tablet atau laptop), menu ini ada di sisi kiri. Di bagian atas ada tulisan kecil **Terhubung**. Kalau tulisannya **Terputus**, lihat Tanya Jawab nomor 1.
@@ -166,7 +167,9 @@ Menu **Riwayat** berisi semua proyek: judul, tanggal, status, dan jumlah klip. S
 | Gagal | Kotak bergaris merah dengan tombol perbaikan, misalnya **Lanjutkan** |
 | Dibatalkan | **Coba lagi** |
 
-Tombol titik tiga di setiap proyek berisi **Buat ulang semua klip** (untuk mengganti tampilan semua klip sekaligus) dan **Hapus**.
+Tombol titik tiga di setiap proyek berisi **Buat ulang semua klip** (untuk mengganti tampilan semua klip sekaligus), **Pilih ulang momen** (minta AI memilih bagian lain dari video yang sama, tanpa membuat subtitle lagi), dan **Hapus**.
+
+**Pilih ulang momen** cocok bila klip yang jadi kurang pas. Tulis apa yang mau diubah (misalnya "cari bagian yang lucu saja"), tekan **Lanjut**, lalu Anda dibawa ke langkah **3 Pilih momen** dengan perintah baru untuk ChatGPT atau Gemini. Tidak perlu API key. Hasilnya jadi proyek baru yang namanya diberi tambahan "(pilihan ulang)"; klip lama tidak hilang. Bila muncul kotak "Bahan proyek lama sudah tidak ada", tekan **Buat proyek baru** dan mulai lagi dari link videonya.
 
 ### Pengaturan
 
@@ -174,8 +177,10 @@ Menu **Pengaturan** punya empat bagian:
 
 - **Umum**: tema tampilan dan bahasa.
 - **YouTube**: unggah atau hapus file cookies (lihat Tanya Jawab nomor 7).
-- **Lanjutan**: cara mengikuti wajah (**Standar** atau **Teliti** — di Desktop/Web Lokal komponen Teliti bisa dipasang sekali klik dari sini, di Colab sudah dipasang otomatis dari Langkah 3 notebook), dukungan kartu grafis NVIDIA di Windows agar subtitle jauh lebih cepat, kualitas unduhan, model subtitle (dengan catatan bila berjalan di prosesor untuk model **Medium**/**Large-v3**, plus pilihan cepat saat menekan **Mulai**), folder hasil di Desktop, dan **Unduh video tanpa membuat klip** (mengunduh seluruh video dari link, hasilnya muncul di Riwayat).
-- **Bantuan**: langkah singkat, pertanyaan umum, versi aplikasi, dan **Detail teknis** (catatan kerja aplikasi untuk dikirim ke pengembang).
+- **Lanjutan**: cara mengikuti wajah (**Standar** atau **Teliti**; di Desktop/Web Lokal komponen Teliti bisa dipasang sekali klik dari sini, di Colab sudah dipasang otomatis dari Langkah 3 notebook), dukungan kartu grafis NVIDIA di Windows agar subtitle jauh lebih cepat, kualitas unduhan, model subtitle (dengan catatan bila berjalan di prosesor untuk model **Medium**/**Large-v3**, plus pilihan cepat saat menekan **Mulai**), folder hasil di Desktop, dan **Unduh video tanpa membuat klip** (mengunduh seluruh video dari link, hasilnya muncul di Riwayat).
+- **Bantuan**: **Tentang Auto Clipper** (versi aplikasi, tautan TikTok, YouTube, Instagram, Threads, GitHub, Facebook, Discord, dan tombol **Dukung pembuat aplikasi** lewat Trakteer, sukarela), langkah singkat, pertanyaan umum, dan **Detail teknis** (catatan kerja aplikasi untuk dikirim ke pengembang). Di Auto Clipper Web (dijalankan di komputer sendiri) ada juga bagian **Pembaruan** yang memberi tahu bila ada versi baru, dengan tombol **Unduh** dan tiga langkah memasangnya.
+
+Di bawah setiap halaman ada satu baris kecil berisi hak cipta dan versi aplikasi, misalnya "© 2026 Dhimas Panjie Herlambang · v1.19.0".
 
 ### Tulisan "Menunggu giliran"
 

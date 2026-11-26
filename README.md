@@ -13,6 +13,22 @@ Jika Anda adalah kreator konten, podcaster, atau streamer, Anda tahu betapa mele
 
 > _"Ketika saya selesai melakukan live streaming, saya ingin langsung mendapatkan 3 video pendek terbaik, sehingga saya bisa langsung upload ke TikTok untuk menarik penonton baru tanpa harus begadang mengedit."_
 
+## Tentang Auto Clipper
+
+**The smartest way to automate your video clips.** Cara paling cerdas untuk membuat klip video secara otomatis.
+
+Auto Clipper mengubah video panjang (link YouTube, TikTok, Instagram, atau file sendiri) menjadi klip pendek dengan subtitle, lalu membantu Anda memilih momen terbaiknya dengan AI. Ada tiga cara memakainya:
+
+1. **Aplikasi desktop** (Windows dan macOS): pasang sekali, semua proses berjalan di komputer Anda. Lihat Opsi 1.
+2. **Auto Clipper Web**: tanpa instalasi. Ekstrak zip, klik dua kali, lalu aplikasinya terbuka di browser. Proses tetap berjalan di komputer Anda. Lihat Opsi 6.
+3. **HP lewat Google Colab**: mesin pengolah video berjalan di GPU gratis Google Colab, aplikasinya dibuka di browser HP. Lihat Opsi 5 dan [panduan Colab](docs/tutorial-auto-clipper-cloud.md).
+
+Ikuti Auto Clipper: [TikTok](https://www.tiktok.com/@auto_clippers) · [YouTube](https://www.youtube.com/@autoclipperss) · [Instagram](https://www.instagram.com/auto_clipperss/) · [Threads](https://www.threads.com/@auto_clipperss) · [GitHub](https://github.com/DhimasPH/auto-clipper) · [Facebook](https://www.facebook.com/people/Auto-Clipper/61592220556873/) · [Discord](https://discord.gg/5AvvA682UN) (komunitas: laporkan bug, minta fitur, ngobrol dengan sesama clipper).
+
+Suka dengan Auto Clipper? Dukung pembuatnya lewat [Trakteer](https://trakteer.id/dhiimsph). Sifatnya sukarela; aplikasinya tetap gratis.
+
+© 2026 Dhimas Panjie Herlambang.
+
 ## ✨ Mengapa Memilih Auto Clipper?
 
 - ⏳ **Hemat 2 Jam Per Video** – Tidak perlu lagi _scrubbing_ timeline mencari momen lucu. AI yang memilihkannya untuk Anda.
@@ -23,6 +39,9 @@ Jika Anda adalah kreator konten, podcaster, atau streamer, Anda tahu betapa mele
 - 🚀 **Semudah Copy-Paste** – Tanpa pengaturan _framerate_ atau _bitrate_ yang membingungkan. Tempel link → tekan **Mulai** → salin perintah ke ChatGPT atau Gemini dan tempel jawabannya → unduh klip MP4.
 - 🧭 **Empat Langkah yang Jelas** – Satu layar **Buat klip** memandu dari video sampai klip (1 Video → 2 Siapkan → 3 Pilih momen → 4 Klip), dengan tiga menu: **Buat klip**, **Riwayat**, dan **Pengaturan**. Layar progres menampilkan tahap yang benar-benar sedang berjalan. Tampilan yang sama dipakai di HP dan komputer.
 - 🔑 **Tanpa API Key** – Momen terbaik dipilih lewat ChatGPT atau Gemini yang Anda buka sendiri. API key (OpenAI, Gemini, dan lainnya) tetap bisa dipakai di aplikasi desktop dan Auto Clipper Web lewat **Pengaturan** → **Lanjutan** → **Pakai API key**.
+- 🔁 **Pilih Ulang Momen** – Klip kurang pas? Buka **Riwayat**, tekan tombol titik tiga pada proyeknya, lalu **Pilih ulang momen**. Tulis apa yang mau diubah, dan AI memilih bagian lain dari video yang sama tanpa membuat subtitle lagi. Hasilnya proyek baru; klip lama tetap ada. Jalan di semua platform, termasuk HP lewat Colab, dengan atau tanpa API key.
+- 🪶 **Ringan** – Komponen besar (dukungan kartu grafis NVIDIA untuk subtitle di Windows, pelacak wajah Teliti) tidak ikut terpasang di awal. Pasang sekali klik dari **Pengaturan** → **Lanjutan** hanya bila dibutuhkan. Di Colab, pelacak Teliti dipasang oleh notebook.
+- 🌐 **Satu Tampilan di Semua Platform** – Aplikasi desktop, Auto Clipper Web, dan versi HP (Colab) memakai tampilan yang sama. **Pengaturan** → **Bantuan** → **Tentang Auto Clipper** berisi versi aplikasi, tautan media sosial, dan tombol **Dukung pembuat aplikasi**.
 
 ## 💻 Spesifikasi Minimal Komputer (PC/Laptop)
 
@@ -142,6 +161,8 @@ Untuk komputer yang tidak mau dipasangi aplikasi desktop. Semua proses tetap ber
 1. Unduh zip yang cocok dari [halaman rilis](https://github.com/DhimasPH/auto-clipper/releases): `Auto-Clipper-Web-windows.zip`, `Auto-Clipper-Web-macos-arm64.zip` (Mac Apple Silicon), `Auto-Clipper-Web-macos-x64.zip` (Mac Intel), atau `Auto-Clipper-Web-linux.zip` (Ubuntu 22.04 atau lebih baru, atau distro lain dengan glibc 2.35 ke atas).
 2. Ekstrak seluruh isinya ke satu folder, lalu klik dua kali **Auto Clipper Web**. Windows: bila SmartScreen muncul, **More info** → **Run anyway**. macOS 15 (Sequoia) atau lebih baru, pertama kali: tutup pesan peringatan dengan **Done**, buka **System Settings** → **Privacy & Security**, klik **Open Anyway** di samping `Auto Clipper Web.command`, lalu masukkan kata sandi Mac. macOS 14 atau lebih lama: klik kanan → **Open**.
 3. Jendela bertuliskan "Auto Clipper berjalan" terbuka dan browser membuka aplikasinya. Jangan tutup jendela itu selama memakai aplikasi.
+
+**Memperbarui Auto Clipper Web.** Saat ada versi baru, **Pengaturan** → **Bantuan** → **Pembaruan** menulis "Versi X sudah tersedia" dengan tombol **Unduh** (zip untuk sistem Anda). Unduh zip itu, tutup jendela Auto Clipper Web yang sedang berjalan, ekstrak ke folder baru, lalu buka **Auto Clipper Web** dari folder baru itu. Proyek dan pengaturan tidak hilang karena disimpan di luar folder aplikasi. Aplikasi memeriksa versi baru paling sering sekali sehari ke halaman rilis GitHub tanpa mengirim data Anda. Bila tertulis "Anda memakai versi terbaru", tombol **Periksa pembaruan** memeriksa lagi saat itu juga. Auto Clipper Web belum bisa memasang versi baru sendiri.
 
 Panduan lengkapnya ada di `BACA-SAYA.txt` di dalam zip. Untuk developer: `npm run build`, lalu `python -m backend.main --web`.
 
