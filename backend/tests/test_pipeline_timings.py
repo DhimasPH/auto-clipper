@@ -382,3 +382,32 @@ def test_create_resume_and_rerender_jobs_start_with_empty_timings_and_clear_stal
     finally:
         jobs.active_jobs.pop(resumed_id, None)
         jobs.active_jobs.pop(rerender_id, None)
+
+
+def test_resume_manual_starts_with_no_timings_and_keeps_the_earlier_prepare_rows(monkeypatch):
+    import json as _json
+    from backend import jobs
+
+    old = [
+        {"stage": "download", "seconds": 2.0},
+        {"stage": "transcribe", "seconds": 9.0, "whisper_device": "cpu"},
+        {"stage": "tracking", "seconds": 1.0, "tracking_engine_used": "haar"},
+    ]
+    hist = {"url": "https://youtu.be/abc", "status": "AWAITING_MANUAL", "result_clips": [],
+            "metadata": {"title": "Talk", "source_video": "/v.mp4", "subtitle_path": "/s.json", "timings": old}}
+    monkeypatch.setattr("backend.db.get_history", lambda job_id: _json.loads(_json.dumps(hist)))
+    monkeypatch.setattr("backend.db.save_history", lambda *a, **k: None)
+    monkeypatch.setattr(jobs, "_start_job", lambda *a, **k: None)
+    monkeypatch.setattr(jobs, "_publish", lambda *a, **k: [])
+
+    jobs.resume_manual_job("hist-1", '[{"start_time": "00:00:00", "end_time": "00:00:04", "description": "x"}]')
+    job = jobs.active_jobs["hist-1"]
+
+    assert job["timings"] == []
+    assert job["earlier_timings"] == old[:2]
+
+    job["timings"].append({"stage": "render", "seconds": 3.0})
+    meta = {}
+    jobs._finalize_job("hist-1", "DONE", meta)
+
+    assert [row["stage"] for row in meta["timings"]] == ["download", "transcribe", "render"]

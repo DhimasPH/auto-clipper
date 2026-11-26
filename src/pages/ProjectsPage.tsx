@@ -16,7 +16,7 @@ import { useErrorActions } from "../hooks/useErrorActions";
 import { asErrorInfo, hasRerunAction, toLang } from "../lib/errorInfo";
 import { canResumeJob } from "../lib/history";
 import { canRepick, repickMode } from "../lib/repick";
-import { formatProjectDate, projectPrimaryAction, projectStatusKey, type ProjectPrimaryAction } from "../lib/projectStatus";
+import { formatProjectDate, projectDisplayTitle, projectPrimaryAction, projectStatusKey, type ProjectPrimaryAction } from "../lib/projectStatus";
 import { projectPath, ROUTES } from "../lib/routes";
 import { platform } from "../platform";
 import { API_URL } from "../platform/backendUrl";
@@ -69,17 +69,21 @@ export const ProjectsPage: React.FC = () => {
     run();
   };
 
+  // Loads can overlap (Muat ulang, a finished job): only the newest answer is shown.
+  const latestLoad = useRef(0);
   const fetchProjects = useCallback(async () => {
+    const load = ++latestLoad.current;
     setLoading(true);
     setLoadFailed(false);
     try {
       const res = await axios.get(`${API_URL}/history`);
-      setProjects(Array.isArray(res.data?.history) ? res.data.history : []);
+      if (load === latestLoad.current) setProjects(Array.isArray(res.data?.history) ? res.data.history : []);
     } catch (err) {
+      if (load !== latestLoad.current) return;
       console.error("Failed to load projects", err);
       setLoadFailed(true);
     } finally {
-      setLoading(false);
+      if (load === latestLoad.current) setLoading(false);
     }
   }, []);
 
@@ -149,7 +153,7 @@ export const ProjectsPage: React.FC = () => {
             const statusKey = projectStatusKey(job, isQueuedHere);
             const action = projectPrimaryAction(job, isQueuedHere);
             const clips: any[] = Array.isArray(job.result_clips) ? job.result_clips : [];
-            const title = String(job.metadata?.title || "").trim() || job.url || t("projects.untitled");
+            const title = projectDisplayTitle(job.metadata?.title, job.url) || t("projects.untitled");
             const dateText = formatProjectDate(job.created_at, lang);
             const failed = statusKey === "failed";
             // The error card already carries "Coba lagi"/"Lanjutkan" when the error offers it.

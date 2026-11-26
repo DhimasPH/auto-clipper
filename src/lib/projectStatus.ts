@@ -1,6 +1,17 @@
 // Riwayat (spec 4.5): a project's status in plain words and its one primary button. No React here.
 
+import { fileName } from "../platform/paths";
 import { canResumeJob, type HistoryJobLike } from "./history";
+
+const LOCAL = "local:";
+
+/** The name a project shows: its title, else its link, else the file name of a local video (never "local:C:\..."). */
+export function projectDisplayTitle(title: unknown, url: unknown): string {
+  const named = typeof title === "string" ? title.trim() : "";
+  if (named) return named;
+  const link = typeof url === "string" ? url.trim() : "";
+  return link.startsWith(LOCAL) ? fileName(link.slice(LOCAL.length), "") : link;
+}
 
 export type ProjectStatusKey = "done" | "failed" | "awaiting" | "running" | "queued" | "cancelled";
 export type ProjectPrimaryAction = "view_clips" | "paste_answer" | "resume" | "retry" | "view_progress";

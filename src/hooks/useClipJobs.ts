@@ -261,29 +261,30 @@ export function useClipJobs(p: ClipJobParams) {
   };
 
   // overrideWhisperModel: the model the CPU question on Buat klip chose (SP3 4.3); app state updates a render later.
-  const handleGenerate = async (overrideProvider?: string, overrideTitle?: string, overrideWhisperModel?: string) => {
+  // Answers false when the start was refused before any request (no link, no file, no key, no title).
+  const handleGenerate = async (overrideProvider?: string, overrideTitle?: string, overrideWhisperModel?: string): Promise<boolean> => {
     const title = (overrideTitle ?? p.title ?? "").trim();
     if (p.inputType === "url" && !p.url) {
       notify(t('toast.clip_failed', { msg: t('toast.url_empty') }), "error");
-      return;
+      return false;
     }
     if (p.inputType === "local" && !p.localFile) {
       notify(t('toast.clip_failed', { msg: t('toast.local_file_empty') }), "error");
-      return;
+      return false;
     }
     const currentProvider = overrideProvider || p.provider;
     if (currentProvider === "custom") {
       if (!p.customBaseUrl || !p.customModelName) {
         notify(t('toast.clip_failed', { msg: t('toast.custom_config_req') }), "error");
-        return;
+        return false;
       }
     } else if (currentProvider !== "manual_ai" && !p.apiKey) {
       notify(t('toast.clip_failed', { msg: t('toast.api_key_req') }), "error");
-      return;
+      return false;
     }
     if (!title) {
       notify(t('toast.clip_failed', { msg: t('toast.title_required') }), "error");
-      return;
+      return false;
     }
 
     // Still inside the click: browsers only allow the permission prompt from a user gesture.
@@ -345,6 +346,7 @@ export function useClipJobs(p: ClipJobParams) {
       setProgress("");
       showRequestError(err, "An unknown error occurred.");
     }
+    return true;
   };
 
   // The overrides let a caller (Pengaturan, pengunduh) start with values it has not put in app state.

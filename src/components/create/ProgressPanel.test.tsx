@@ -100,7 +100,7 @@ describe("ProgressPanel (spec 4.3)", () => {
     setPlatform({ caps: CAPS.cloud } as Platform);
     act(() => root.render(panel()));
     expect(container.textContent).not.toContain(i18n.t("progress.fallback_tracking"));
-    expect(container.textContent).toContain(i18n.t("progress.fallback_tracking_unavailable"));
+    expect(container.textContent).toContain(i18n.t("progress.fallback_tracking_colab"));
     expect(container.querySelector("a")).toBeNull();
   });
 

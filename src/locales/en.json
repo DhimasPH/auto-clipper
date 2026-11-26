@@ -199,7 +199,8 @@
     "whisper_cpu_note_no_gpu": "This computer makes subtitles with the processor. With this model, a 30-minute video can take more than an hour. It is still fine for short videos.",
     "addon_gpu_remove_confirm_title": "Remove graphics card support?",
     "addon_gpu_remove_confirm_body": "After removal, subtitles are made with the processor again, which is slower. To use the graphics card again, the add-on of about {{mb}} MB must be downloaded again.",
-    "addon_gpu_remove_confirm": "Yes, remove"
+    "addon_gpu_remove_confirm": "Yes, remove",
+    "addon_removal_scheduled": "This component will be removed when Auto Clipper opens again."
   },
   "toast": {
     "clip_failed": "Cannot start yet: {{msg}}",
@@ -560,8 +561,8 @@
     "running_bar_link": "See progress",
     "fallback_tracking": "The precise tracker add-on is not installed yet, so this video uses Standard mode. Your clips are still made as usual.",
     "fallback_tracking_failed": "The precise tracker could not run, so this video uses Standard mode. Your clips are still made as usual.",
-    "fallback_tracking_unavailable": "The precise tracker is not available here, so this video uses Standard mode. Your clips are still made as usual.",
-    "fallback_tracking_link": "Install the precise tracker in Settings"
+    "fallback_tracking_link": "Install the precise tracker in Settings",
+    "fallback_tracking_colab": "The precise tracker is not installed on Colab yet, so this video uses Standard mode. Your clips are still made as usual. To use it, run Step 3 of the notebook again."
   },
   "moment": {
     "title": "Pick the best moments with an AI chat",
@@ -641,7 +642,11 @@
     "edit": "Change subtitles or look",
     "open_folder": "Open folder",
     "clip_n": "Clip {{n}}",
-    "new": "Make clips from another video"
+    "new": "Make clips from another video",
+    "title_done_one": "{{count}} clip ready",
+    "title_partial_one": "{{count}} clip done, the rest are being made",
+    "failed_one": "{{count}} clip could not be made.",
+    "download_all_failed": "Not every clip was downloaded. Press Download all once more."
   },
   "dialog": {
     "discard_question": "What you entered here has not been used yet and will be lost if you close.",

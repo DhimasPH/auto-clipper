@@ -262,12 +262,20 @@ def refuse_protected_project_dir(output_dir: str, library_dir: str) -> None:
         if path and is_protected(path):
             raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a protected project folder: {path!r}")
     app_data = get_app_data_dir()
-    for folder in [os.path.join(app_data, name) for name in _APP_WORK_FOLDERS] + private_folders():
+    uploads = workspace.uploads_dir()
+    work_dir = workspace.get_work_dir()
+    app_folders = [os.path.join(app_data, name) for name in _APP_WORK_FOLDERS] + [uploads] + private_folders()
+    if work_dir:
+        app_folders.extend(os.path.join(work_dir, name) for name in _APP_WORK_FOLDERS)
+    for folder in app_folders:
         if is_within(folder, library_dir):
             raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a project folder holding an app folder: {library_dir!r}")
-    for name in _NO_PROJECTS_INSIDE:
-        if is_within(library_dir, os.path.join(app_data, name)):
-            raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a project folder inside the app's {name} folder: {library_dir!r}")
+    no_projects_inside = [os.path.join(app_data, name) for name in _NO_PROJECTS_INSIDE] + [uploads]
+    if work_dir:
+        no_projects_inside.extend(os.path.join(work_dir, name) for name in _NO_PROJECTS_INSIDE)
+    for folder in no_projects_inside:
+        if is_within(library_dir, folder):
+            raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a project folder inside an app folder: {library_dir!r}")
 
 
 def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") -> dict:
@@ -1982,8 +1990,11 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
         metadata.pop("error_info", None)
 
     if "timings" in job:
-        metadata["timings"] = job["timings"]
-        _sync_stage_metadata(job, metadata)
+        earlier = job.get("earlier_timings")
+        metadata["timings"] = list(earlier) + job["timings"] if earlier else job["timings"]
+        # Final metadata holds earlier prepare rows (which exclude _MAKE_STAGES) plus this run's
+        # rows, so syncing from it preserves whisper_device while tracking still reflects only this run.
+        _sync_stage_metadata({"timings": metadata["timings"]}, metadata)
 
     if status in ["DONE", "ERROR", "CANCELLED", "AWAITING_MANUAL"]:
         try:
@@ -2036,7 +2047,13 @@ def resume_manual_job(history_id: str, json_payload: str, pexels_api_key: str = 
         "failed": 0,
         "error": None,
         "source_path": hist_meta["source_video"],
-        "timings": list(hist_meta.get("timings") or [])
+        # This run's rows only, so the progress screen never shows another run's facts (SP4 spec 4.6).
+        "timings": [],
+        # The prepare stages of the first run go back in front at the end, for Detail waktu (ruling 6).
+        "earlier_timings": [
+            row for row in (hist_meta.get("timings") or [])
+            if isinstance(row, dict) and row.get("stage") not in _MAKE_STAGES
+        ],
     }
     try:
         from backend.db import save_history
@@ -2063,8 +2080,8 @@ def _run_manual_resume_job(job_id: str, parsed_highlights: list):
     hist = get_history(job_id)
     metadata = hist.get("metadata", {})
     job["metadata"] = metadata
-    # Same list as job["timings"] (as _with_timings does for new jobs), so the status shows
-    # the stages of this run as they finish; _finalize_job saves the same value as before.
+    # Starts empty on a new run so the progress screen shows only this run's stages as they
+    # finish; _finalize_job prepends any earlier prepare stages for Detail waktu.
     metadata["timings"] = job["timings"]
     try:
         def is_cancelled():

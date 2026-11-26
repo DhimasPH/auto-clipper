@@ -308,3 +308,22 @@ def test_each_collector_block_has_its_own_live_dict():
                 assert stage_timer.current_stage(outer) is None
                 assert stage_timer.current_stage(inner)["stage"] == "render"
 
+
+
+def test_percent_below_zero_shows_as_zero():
+    live = {}
+    with collect_timings([], live):
+        with stage("download"):
+            stage_timer.report(percent=-5)
+            assert stage_timer.current_stage(live)["percent"] == 0.0
+
+
+def test_a_clip_total_of_zero_is_not_shown():
+    live = {}
+    with collect_timings([], live):
+        stage_timer.report(clips_total=0)
+        stage_timer.set_context(clip=1)
+        with stage("render"):
+            cur = stage_timer.current_stage(live)
+    assert "clips_total" not in cur
+    assert cur["clip"] == 1

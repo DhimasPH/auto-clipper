@@ -150,4 +150,24 @@ describe("CanvasConfigControls background image picker", () => {
       background_image_path: "/work/temp_downloads/images/bg_new.png",
     });
   });
+
+  it("forgets a failed upload once another background is chosen", async () => {
+    vi.mocked(uploadCanvasImage).mockRejectedValue(new Error("offline"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    setPlatform(fakePlatform(CAPS.cloud, vi.fn(async () => null)));
+    let config = imageConfig;
+    const onChange = vi.fn((next: CanvasConfig) => {
+      config = next;
+    });
+    renderControls(onChange);
+    await chooseFile(new File(["png"], "latar.png", { type: "image/png" }));
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+
+    const blur = [...container.querySelectorAll("button")].find((b) => b.textContent?.includes(i18n.t("canvas.bg_blur")))!;
+    act(() => blur.click());
+    act(() => root.render(<CanvasConfigControls config={config} onChange={onChange} />));
+    act(() => root.render(<CanvasConfigControls config={imageConfig} onChange={onChange} />));
+
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
 });

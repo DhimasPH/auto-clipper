@@ -60,3 +60,13 @@ describe("megabytes", () => {
     expect(megabytes(Number.NaN)).toBe("0");
   });
 });
+
+describe("pending_remove", () => {
+  it("reads pending_remove from the backend status and keeps view installed", () => {
+    const def = asAddonStatus(status({ installed: true }));
+    expect(def?.pending_remove).toBe(false);
+    const pending = asAddonStatus(status({ installed: true, pending_remove: true }));
+    expect(pending?.pending_remove).toBe(true);
+    expect(addonView(pending)).toBe("installed");
+  });
+});

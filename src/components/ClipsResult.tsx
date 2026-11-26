@@ -67,7 +67,7 @@ export default function ClipsResult({ clips, status, failedCount, jobId, metadat
       </div>
       {saveAllFailed && (
         <p role="alert" className="text-body text-error">
-          {t("result.download_failed")}
+          {t("result.download_all_failed")}
         </p>
       )}
       {done && <JobWarnings warnings={metadata?.warnings} />}

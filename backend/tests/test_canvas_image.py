@@ -106,3 +106,36 @@ def test_a_job_keeps_an_uploaded_canvas_image(library, monkeypatch):
 
     assert r.status_code == 200
     assert seen["canvas_config"]["background_image_path"] == image
+
+
+def test_upload_image_refuses_a_network_uploads_folder_before_touching_it(monkeypatch):
+    import os
+    from fastapi.testclient import TestClient
+    from backend import main, workspace
+
+    c = TestClient(main.app)
+    headers = {"Authorization": f"Bearer {main.API_SECRET_TOKEN}"}
+    monkeypatch.setattr(workspace, "uploads_dir", lambda: r"\\attacker\share\uploads")
+
+    real_abspath = os.path.abspath
+    real_makedirs = os.makedirs
+
+    def boom_abspath(p):
+        if isinstance(p, str) and ("attacker" in p or p.startswith("\\\\")):
+            raise AssertionError(f"abspath touched UNC path: {p!r}")
+        return real_abspath(p)
+
+    def boom_makedirs(p, *a, **kw):
+        if isinstance(p, str) and ("attacker" in p or p.startswith("\\\\")):
+            raise AssertionError(f"makedirs touched UNC path: {p!r}")
+        return real_makedirs(p, *a, **kw)
+
+    monkeypatch.setattr(os.path, "abspath", boom_abspath)
+    monkeypatch.setattr(os, "makedirs", boom_makedirs)
+
+    r = c.post(
+        "/upload-image",
+        files={"file": ("bg.png", b"\x89PNG\r\n\x1a\n", "image/png")},
+        headers=headers,
+    )
+    assert r.status_code == 403

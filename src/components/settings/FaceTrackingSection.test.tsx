@@ -298,4 +298,12 @@ describe("FaceTrackingSection", () => {
     expect(container.querySelector("select")).not.toBeNull();
     expect(button("settings.addon_face_install")).toBeUndefined();
   });
+
+  it("remembers a pending removal across reloads when the backend reports pending_remove", async () => {
+    vi.mocked(axios.get).mockResolvedValue(answer(mp({ installed: true, pending_remove: true, disk_mb: 35 })));
+    await act(async () => root.render(<FaceTrackingSection value="haar" onChange={vi.fn()} addonsEnabled />));
+    expect(container.textContent).toContain(i18n.t("settings.addon_removal_scheduled"));
+    expect(container.textContent).not.toContain(i18n.t("settings.addon_face_ready", { mb: "35" }));
+    expect(button("settings.addon_face_remove")).toBeUndefined();
+  });
 });

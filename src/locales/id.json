@@ -199,7 +199,8 @@
     "whisper_cpu_note_no_gpu": "Komputer ini membuat subtitle dengan prosesor. Dengan model ini, video 30 menit bisa makan waktu lebih dari satu jam. Untuk video pendek tetap boleh dipakai.",
     "addon_gpu_remove_confirm_title": "Hapus dukungan kartu grafis?",
     "addon_gpu_remove_confirm_body": "Setelah dihapus, subtitle kembali dibuat dengan prosesor dan lebih lambat. Untuk memakai kartu grafis lagi, komponen sekitar {{mb}} MB harus diunduh ulang.",
-    "addon_gpu_remove_confirm": "Ya, hapus"
+    "addon_gpu_remove_confirm": "Ya, hapus",
+    "addon_removal_scheduled": "Komponen ini akan dihapus saat Auto Clipper dibuka lagi."
   },
   "toast": {
     "clip_failed": "Belum bisa mulai: {{msg}}",
@@ -560,8 +561,8 @@
     "running_bar_link": "Lihat progres",
     "fallback_tracking": "Pelacak teliti belum terpasang, jadi video ini memakai cara Standar. Klip tetap dibuat seperti biasa.",
     "fallback_tracking_failed": "Pelacak teliti tidak bisa berjalan, jadi video ini memakai cara Standar. Klip tetap dibuat seperti biasa.",
-    "fallback_tracking_unavailable": "Pelacak teliti tidak tersedia di sini, jadi video ini memakai cara Standar. Klip tetap dibuat seperti biasa.",
-    "fallback_tracking_link": "Pasang pelacak teliti di Pengaturan"
+    "fallback_tracking_link": "Pasang pelacak teliti di Pengaturan",
+    "fallback_tracking_colab": "Pelacak teliti belum terpasang di Colab, jadi video ini memakai cara Standar. Klip tetap dibuat seperti biasa. Untuk memakainya, jalankan lagi Langkah 3 di notebook."
   },
   "moment": {
     "title": "Pilih momen terbaik dengan bantuan AI",
@@ -641,7 +642,11 @@
     "edit": "Ubah subtitle atau tampilan",
     "open_folder": "Buka folder",
     "clip_n": "Klip {{n}}",
-    "new": "Buat klip dari video lain"
+    "new": "Buat klip dari video lain",
+    "title_done_one": "{{count}} klip siap",
+    "title_partial_one": "{{count}} klip sudah jadi, sisanya sedang dibuat",
+    "failed_one": "{{count}} klip gagal dibuat.",
+    "download_all_failed": "Belum semua klip terunduh. Tekan Unduh semua sekali lagi."
   },
   "dialog": {
     "discard_question": "Isian di jendela ini belum dipakai dan akan hilang bila ditutup.",

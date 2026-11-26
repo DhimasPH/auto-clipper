@@ -409,4 +409,20 @@ describe("ProjectsPage (spec 4.5)", () => {
     act(() => buttonWith(alert as HTMLElement, "Lanjutkan")[0].click());
     expect(handleResumeJob).toHaveBeenCalledWith("j1", "history");
   });
+
+  it("shows the newest list when two loads finish out of order", async () => {
+    let first!: (v: unknown) => void;
+    let second!: (v: unknown) => void;
+    vi.mocked(axios.get)
+      .mockImplementationOnce(() => new Promise((resolve) => { first = resolve; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { second = resolve; }));
+    await renderPage(makeCtx({ historyVersion: 0 }));
+    await renderPage(makeCtx({ historyVersion: 1 }));
+
+    await act(async () => second({ data: { status: "success", history: [{ ...doneJob, metadata: { title: "Baru" } }] } }));
+    await act(async () => first({ data: { status: "success", history: [{ ...doneJob, metadata: { title: "Lama" } }] } }));
+
+    expect(container.textContent).toContain("Baru");
+    expect(container.textContent).not.toContain("Lama");
+  });
 });

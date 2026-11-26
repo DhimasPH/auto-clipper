@@ -79,7 +79,8 @@ export function autoProjectTitle(source: VideoSourceName, now: Date): string {
       .replace(/[^\w\s\-.,()[\]]/g, "")
       .replace(/\s+/g, " ")
       .trim()
-      .slice(0, 60) || "Video";
+      .slice(0, 60)
+      .trim() || "Video";
   const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const time = `${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`;
   return `${base} ${date} ${time}`;

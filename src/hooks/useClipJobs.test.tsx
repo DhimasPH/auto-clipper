@@ -548,4 +548,26 @@ describe("useClipJobs handleGenerate subtitle model (SP3 4.3)", () => {
     await act(async () => latest.handleGenerate("manual_ai", "My vid"));
     expect(jobsBody(post).whisper_model).toBe("medium");
   });
+
+  it("handleGenerate answers false and sends nothing when the API key is missing", async () => {
+    const post = vi.spyOn(axios, "post");
+    await act(async () => root.render(<Probe params={makeParams({ apiKey: "", url: "https://youtu.be/abc" })} />));
+    let started: boolean | undefined;
+    await act(async () => {
+      started = await latest.handleGenerate("openai", "T", "small");
+    });
+    expect(started).toBe(false);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("handleGenerate answers true once the request went out", async () => {
+    vi.spyOn(axios, "post").mockResolvedValue({ data: { status: "success", job_id: "j1" } });
+    vi.spyOn(axios, "get").mockResolvedValue({ data: { status: "PROCESSING" } });
+    await act(async () => root.render(<Probe params={makeParams({ url: "https://youtu.be/abc" })} />));
+    let started: boolean | undefined;
+    await act(async () => {
+      started = await latest.handleGenerate("manual_ai", "T", "small");
+    });
+    expect(started).toBe(true);
+  });
 });

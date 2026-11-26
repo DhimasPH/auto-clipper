@@ -49,4 +49,11 @@ describe("PreflightNotices", () => {
     act(() => root.render(<PreflightNotices notes={[]} blockers={[]} checking={false} onRecheck={vi.fn()} />));
     expect(container.innerHTML).toBe("");
   });
+
+  it("shows Periksa lagi as busy while checking", () => {
+    act(() => root.render(<PreflightNotices notes={[]} blockers={[blocker]} checking onRecheck={vi.fn()} />));
+    const button = [...container.querySelectorAll("button")].find((b) => b.textContent?.includes(i18n.t("create.recheck")))!;
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(button.disabled).toBe(true);
+  });
 });

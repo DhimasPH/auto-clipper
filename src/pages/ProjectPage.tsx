@@ -18,7 +18,7 @@ import { OverflowMenu, type OverflowItem } from "../components/ui/OverflowMenu";
 import { useErrorActions } from "../hooks/useErrorActions";
 import { asErrorInfo, hasRerunAction } from "../lib/errorInfo";
 import { canRepick, repickMode } from "../lib/repick";
-import { projectPrimaryAction, projectStatusKey } from "../lib/projectStatus";
+import { projectDisplayTitle, projectPrimaryAction, projectStatusKey } from "../lib/projectStatus";
 import { ROUTES } from "../lib/routes";
 import { platform } from "../platform";
 import { API_URL } from "../platform/backendUrl";
@@ -131,7 +131,7 @@ export const ProjectPage: React.FC = () => {
   const meta = (job.metadata || {}) as Record<string, any>;
   const clips: any[] = Array.isArray(job.clips) ? job.clips : [];
   const statusKey = projectStatusKey(job);
-  const title = String(meta.title || "").trim() || meta.url || t("projects.untitled");
+  const title = projectDisplayTitle(meta.title, meta.url) || t("projects.untitled");
   // GET /jobs/{id} keeps the error next to the metadata; JobReport reads it from the metadata.
   const reportJob = {
     id: job.id,

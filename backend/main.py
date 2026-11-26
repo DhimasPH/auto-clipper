@@ -180,12 +180,15 @@ CANVAS_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
 @app.post("/upload-image")
 def api_upload_image(file: UploadFile = File(...)):
     """A canvas background image from the browser (spec 4.7): the backend cannot read a blob: address."""
-    from backend.path_guard import denied, is_protected, safe_upload_name
+    from backend.path_guard import denied, is_network_or_device_path, is_protected, safe_upload_name
     from backend.workspace import uploads_dir
     name = safe_upload_name(file.filename)
     if not name.lower().endswith(CANVAS_IMAGE_EXTENSIONS):
         return JSONResponse(status_code=400, content={"status": "error", "message": "Only PNG, JPG or WEBP images."})
-    folder = os.path.abspath(os.path.join(uploads_dir(), "images"))
+    raw_uploads = uploads_dir()
+    if is_network_or_device_path(raw_uploads):
+        return denied("upload_image", raw_uploads)
+    folder = os.path.abspath(os.path.join(raw_uploads, "images"))
     # A random part keeps two images with the same name apart.
     path = os.path.join(folder, f"bg_{secrets.token_hex(4)}_{name}")
     if is_protected(path):
@@ -1128,11 +1131,11 @@ def api_extract_metadata(req: ExtractMetadataRequest):
 
     Returns a job_id immediately; the frontend polls GET /api/metadata/{id}.
     """
-    from backend.path_guard import denied, is_protected
+    from backend.path_guard import denied, is_network_or_device_path, is_protected
     path = req.path
     if path.startswith("local:"):
         path = path.split("local:")[1]
-    if path and is_protected(path):
+    if path and (is_network_or_device_path(path) or is_protected(path)):
         return denied("extract_metadata", path)
     if not path or not os.path.exists(path):
         return JSONResponse(status_code=400, content={"status": "error", "message": "File tidak ditemukan."})
@@ -1162,11 +1165,11 @@ def api_get_metadata(job_id: str):
 @app.get("/api/thumbnails")
 def api_get_thumbnails(path: str, start: float = 0.0, end: float = 0.0, count: int = 12):
     """On-demand filmstrip thumbnails for a time window (zoomable timeline)."""
-    from backend.path_guard import denied, is_protected
+    from backend.path_guard import denied, is_network_or_device_path, is_protected
     p = path
     if p.startswith("local:"):
         p = p.split("local:")[1]
-    if p and is_protected(p):
+    if p and (is_network_or_device_path(p) or is_protected(p)):
         return denied("thumbnails", p)
     if not p or not os.path.exists(p):
         return JSONResponse(status_code=400, content={"status": "error", "message": "File tidak ditemukan."})
@@ -1294,11 +1297,11 @@ def api_video_url(req: VideoUrlRequest):
     for links. /video still checks the folder and the file type when the link
     is used.
     """
-    from backend.path_guard import denied, is_protected
+    from backend.path_guard import denied, is_network_or_device_path, is_protected
     path = req.path[len("local:"):] if req.path.startswith("local:") else req.path
     if not path.strip():
         return JSONResponse(status_code=400, content={"status": "error", "message": "path is required"})
-    if is_protected(path):
+    if is_network_or_device_path(path) or is_protected(path):
         return denied("video_url", path)
     return {"status": "success", "video_url": video_sign.signed_url(path)}
 

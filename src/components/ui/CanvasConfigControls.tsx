@@ -48,6 +48,12 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
   const [uploadFailed, setUploadFailed] = useState(false);
 
   const isEnabled = config.enabled;
+
+  // Another background, or "Gambar" again: an old "upload failed" no longer applies.
+  const chooseBackground = (background_type: CanvasConfig["background_type"]) => {
+    setUploadFailed(false);
+    onChange({ ...config, background_type });
+  };
   const bgType = config.background_type || "blur";
   const blurLevel = config.blur_level || "medium";
   const bgColor = config.background_color || "#000000";
@@ -130,9 +136,9 @@ export const CanvasConfigControls: React.FC<CanvasConfigControlsProps> = ({
           <div className="flex flex-col gap-2">
             <GroupLabel id={`${ids}-bg`}>{t("canvas.bg_options_label")}</GroupLabel>
             <div role="group" aria-labelledby={`${ids}-bg`} className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <ChoiceButton selected={bgType === "blur"} label={t("canvas.bg_blur")} onClick={() => onChange({ ...config, background_type: "blur" })} />
-              <ChoiceButton selected={bgType === "color"} label={t("canvas.bg_color")} onClick={() => onChange({ ...config, background_type: "color" })} />
-              <ChoiceButton selected={bgType === "image"} label={t("canvas.bg_image")} onClick={() => onChange({ ...config, background_type: "image" })} />
+              <ChoiceButton selected={bgType === "blur"} label={t("canvas.bg_blur")} onClick={() => chooseBackground("blur")} />
+              <ChoiceButton selected={bgType === "color"} label={t("canvas.bg_color")} onClick={() => chooseBackground("color")} />
+              <ChoiceButton selected={bgType === "image"} label={t("canvas.bg_image")} onClick={() => chooseBackground("image")} />
             </div>
           </div>
 

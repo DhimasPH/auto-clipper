@@ -537,10 +537,12 @@ def _build_status(addon_id: str, state: dict) -> dict:
         available = installed
         colab_dir = _cloud_colab_mediapipe_ready() if installed else None
         disk_mb = _dir_size_mb(colab_dir) if colab_dir is not None else 0.0
+        pending_remove = False
     else:
         installed = is_addon_installed(addon_id)
         available = is_addon_available(addon_id)
         disk_mb = _dir_size_mb(Path(addon_dir(addon_id))) if installed else 0.0
+        pending_remove = _pending_remove_marker(addon_id).is_file()
     out = {
         "id": addon_id,
         "available": available,
@@ -551,6 +553,7 @@ def _build_status(addon_id: str, state: dict) -> dict:
         "total_mb": float(state.get("total_mb", 0.0)),
         "size_hint_mb": _size_hint_mb(addon_id),
         "disk_mb": disk_mb,
+        "pending_remove": pending_remove,
     }
     if state.get("error_info"):
         out["error_info"] = state["error_info"]

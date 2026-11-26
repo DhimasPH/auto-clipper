@@ -85,4 +85,12 @@ describe("AuthGate token errors", () => {
     expect(container.textContent).toContain(`\u00A9 ${new Date().getFullYear()} Dhimas Panjie Herlambang`);
     expect(container.textContent).toContain(i18n.t("app.tagline"));
   });
+
+  it("says the code is empty when Masuk is pressed without one", async () => {
+    await act(async () => root.render(<AuthGate><p>app</p></AuthGate>));
+    const submit = [...container.querySelectorAll("button")].find((b) => b.textContent === i18n.t("auth.submit"))!;
+    expect(submit.disabled).toBe(false);
+    await act(async () => submit.click());
+    expect(container.querySelector('[role="alert"]')!.textContent).toBe(i18n.t("auth.error_empty"));
+  });
 });

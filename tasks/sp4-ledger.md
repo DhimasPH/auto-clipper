@@ -25,6 +25,88 @@ Selesai 2026-11-26 (sebelum Task 1). Baseline terverifikasi: branch `feat/sp4-wa
 - Task 2: **Approved** (`9698960..7f2bb4b`, reviewer `15f6b77e`) · Vitest 497/497 (72 file), oxlint 0 error, build + build:cloud OK. Minor (non-blocking): `SplashScreen.test.tsx` belum assert `alt=""`, beberapa cabang waktu tambahan di `useWebSplash.test.tsx` / `splashVisible("tab", true, true)` / reload branch di `App.tsx`, dan `border-accent/30` (mengikuti pola `AuthGate`/`LocalGate`).
 - Task 3: **Approved** (`7f2bb4b..e7dd302`, reviewer `c413a64e`) · pytest 1089 passed / 7 skipped. Minor (non-blocking): `_source_can_return` pada baris tanpa `source_video` sama sekali, `_read_transcript` saat JSON bukan dict, `except Exception` lebar di `_title_in_use`, `create_rerun_ai_job` membawa `_DEVICE_FIELDS` lama jika dibatalkan sebelum jalan, `delete_history` menghapus folder proyek lama jika proyek ulang aktif memakai `subtitle_path`-nya (pra-ada di `db.py`), dan cakupan batas `max_clips`/visual override di `test_rerun_manual.py`.
 - Task 4: **Approved** (`e7dd302..b41f7c7`, reviewer `09725fc9`) · Vitest 507/507 (73 file), oxlint 0 error, build + build:cloud OK. Minor (non-blocking): teks FAQ `settings.help_faqs.moments` masih menyebut menu lama "Pilih ulang momen dengan AI", `ProjectPage.test.tsx` belum menguji dispatch confirm `api`/`manual` atau `canRepick`, `ProjectDialogs.test.tsx` belum menguji dirty guard pada input angka saja, `ACTION_ICONS` belum punya ikon `new_project`.
-- Task 5: fix round 1 implemented (awaiting re-review) · BASE `b41f7c7` -> `e67ed82` -> fix round 1 · pytest 1117 passed / 7 skipped (targeted 32/32 after fix), Vitest 519/519 (77 file), oxlint 0 error, build + build:cloud OK.
-- Task 6: pending
+- Task 5: **Approved** (`b41f7c7..b020266`, reviews `597eab07`, `1a168f86`) · fix round 1 memindahkan `useUpdateNotice` ke `WithUpdateNotice` di dalam `gate(...)` (`src/App.tsx`), menolak `..`/spasi di tautan, dan jawaban kosong tanpa `latest` -> `"failed"`. pytest 1117 passed / 7 skipped (targeted 32/32 setelah fix), Vitest 519/519 (77 file), oxlint 0 error, build + build:cloud OK. Minor (non-blocking): uji spasi/`..` di `test_update_check.py`, uji `SettingsPage` integrasi `updateNotice`, normalisasi `new URL`/`\` pada `trusted`, `type="button"` pada tombol `UpdateNoticeSection`, guard urutan `recheck()`.
+- Task 6: **Triage & code done** (`b020266..HEAD`) · 19 Kept (`W1–W5` + `K1–K12b`), 21 Already fixed, 25 Dropped. pytest 1125 passed / 7 skipped, Vitest 534/534 (79 file), oxlint 0 error, build + build:cloud OK.
 - Task 7: pending
+
+## Task 6 Triage (SP2 & SP3 Deferred Minors)
+
+**Kept (19 = 5 wajib spec 4.6 + 14 masih valid): dikerjakan di Task 6**
+
+| Id | Source | Where | Fix | Test |
+|---|---|---|---|---|
+| W1 | SP3 T4 (wajib) | `backend/main.py` (`upload-image`, `extract-metadata`, `thumbnails`, `video-url`) | tolak `is_network_or_device_path` dari teks sebelum `is_protected`/`abspath` | `test_protected_paths.py`, `test_canvas_image.py` |
+| W2 | SP3 T4 (wajib) | `backend/jobs.py` `refuse_protected_project_dir` | tolak folder proyek di dalam `workspace.uploads_dir()` & `work_dir` | `test_output_dir.py` |
+| W3 | SP3 T5 (wajib) | `backend/addons.py`, `src/lib/addons.ts`, `src/hooks/useAddons.ts`, `AddonControls.tsx` | field status `pending_remove`; catatan hapus tertunda bertahan setelah Pengaturan dibuka lagi | `test_addons.py`, `addons.test.ts`, `FaceTrackingSection.test.tsx` |
+| W4 | SP3 Teliti/T6 (wajib) | `src/hooks/useClipJobs.ts`, `src/pages/CreatePage.tsx` | `handleGenerate` menjawab `Promise<boolean>`; dialog prosesor menyimpan `"small"` hanya bila start lolos cek | `useClipJobs.test.tsx`, `CreatePage.test.tsx` |
+| W5 | SP3 T5 (wajib) | `backend/jobs.py` `resume_manual_job` & `_finalize_job` | mulai `timings: []`, simpan `earlier_timings`, gabung saat `_finalize_job` + sinkron metadata final | `test_pipeline_timings.py` |
+| K1 | SP2 T3 | `src/components/ui/CanvasConfigControls.tsx` | memilih latar lain menghapus status gagal unggah | `CanvasConfigControls.test.tsx` |
+| K2 | SP2 T5 | `src/hooks/useScrollToHash.ts` | `decodeURIComponent` dalam try/catch dengan fallback hash mentah | `useScrollToHash.test.tsx` |
+| K3 | SP2 T6 | `src/lib/createFlow.ts` | `.trim()` setelah `.slice(0, 60)` | `createFlow.test.ts` |
+| K4 | SP2 T12 | `src/locales/id.json`, `en.json` | bentuk `_one` untuk `result.title_done`, `title_partial`, `failed` | `src/locales/plurals.test.ts` |
+| K5 | SP2 T12 | `src/components/ClipsResult.tsx` | kunci khusus `result.download_all_failed` di bawah Unduh semua | `ClipsResult.test.tsx` |
+| K6 | SP2 T13 | `src/lib/projectStatus.ts`, `ProjectsPage.tsx`, `ProjectPage.tsx` | `projectDisplayTitle()` menampilkan nama file video `local:`, bukan path mentah | `projectStatus.test.ts` |
+| K7 | SP2 T13 | `src/pages/ProjectsPage.tsx` | penghitung permintaan `latestLoad`: hanya jawaban `/history` terbaru yang tampil | `ProjectsPage.test.tsx` |
+| K8 | SP2 T15 | `src/components/AuthGate.tsx` | hapus `disabled={!token.trim()}` agar klik Masuk kosong memunculkan `auth.error_empty` | `AuthGate.test.tsx` |
+| K9 | SP3 Teliti | `src/components/create/ProgressPanel.tsx`, locales | pada cloud catatan Teliti memakai `progress.fallback_tracking_colab` (Langkah 3 Colab); `fallback_tracking_unavailable` dihapus | `ProgressPanel.test.tsx` |
+| K10a | SP2 T1 | `backend/tests/test_stage_timer.py` | uji `report(percent=-5)` menjadi `0.0` | `test_stage_timer.py` |
+| K10b | SP2 T1 | `backend/tests/test_stage_timer.py` | uji `clips_total=0` tidak tampil di status berjalan | `test_stage_timer.py` |
+| K11 | SP2 T7 | `src/components/create/PreflightNotices.test.tsx` | uji `checking` membuat tombol Periksa lagi `aria-busy` & `disabled` | `PreflightNotices.test.tsx` |
+| K12a | SP3 Teliti | `backend/tests/test_addons.py` | pastikan `str(colab_dir) not in sys.path` setelah GET status | `test_addons.py` |
+| K12b | SP3 Teliti | `backend/tests/test_addons.py` | hapus duplikat `import json` di dalam fungsi uji | `test_addons.py` |
+
+**Already fixed (21)**
+
+| Source | Item | Evidence |
+|---|---|---|
+| SP2 T1 | `tracking_engine_used` assertion | `backend/tests/test_stage_timer.py:282-291` |
+| SP2 T4 | ConfirmDialog focus trap/return, default label | `ConfirmDialog.tsx:10,35-38` wraps `Dialog.tsx` |
+| SP2 T5 | `scroll-mt-16` on anchors | `SettingsPage.tsx:20-21` |
+| SP2 T8 | `<legend>` across the fieldset border | `ClipOptions.tsx:85-86` (`border-0 p-0`) |
+| SP2 T10 | `ManualDownloaderPage` old argument | file deleted |
+| SP2 T10 | `CreatePage` `!ctx.isRunning` gate | only intended `canStart` gate remains (`CreatePage.tsx:80`) |
+| SP2 T13 | dialogs close without discard guard | `Dialog.tsx:32,38,74-77`, `dirty` passed by every dialog |
+| SP2 T13 | "Lihat progres" dead end | `ProjectsPage.tsx` → `watchJob` |
+| SP2 T13 | prune unused `history.*` keys | no `history` block left (`7d0862a`) |
+| SP2 T13 | retry button focus | `ProjectsPage.tsx`, `ProjectPage.tsx` |
+| SP2 T13 | dialog re-render test only on ProjectsPage | `ProjectPage.test.tsx` |
+| SP2 T14 | OutputSection title off desktop | `OutputSection.tsx:39` (`output_title_quality`) |
+| SP2 T14 | emoji test mocks the sections | `SettingsPage.real.test.tsx` renders the real ones |
+| SP2 T14 | no completion message in DownloaderPanel | `DownloaderPanel.tsx` |
+| SP2 T14 | P11 legacy sections (icon tiles, `text-xs`, "AI Provider", raw errors) | none left in `src/components/settings` |
+| SP2 T15 | `save_refused` for 5xx/404 | `ClipEditModal.tsx` (`547531a`) |
+| SP2 T16 | README `$\rightarrow$` | none left in README or tutorial |
+| SP2 T17 | README "Update" wording, panduan "Network Failed" | README & panduan |
+| SP2 T17 | HANDOFF stale | rewritten 2026-11-20/25 |
+| SP3 T4 | AGENTS.md E.14 text-first / local absolute path | `.agents/AGENTS.md` E.14 |
+| SP3 T5 ruling | unused `meta` prop on ProgressPanel | removed from `ProgressPanel.tsx` & `CreatePage.tsx` |
+
+**Dropped (25): tidak dikerjakan sekarang**
+
+| Source | Item | Reason |
+|---|---|---|
+| SP2 T1 | `dict \| None` annotations in `stage_timer` | type hints only |
+| SP2 T2 | return type hints of `download_percent`/`live_stage` | type hints only |
+| SP2 T2 | `report(clips_total)` loops in rerender/rerun have no `live_stage` test | all share the tested `stage()`/`report()` helpers |
+| SP2 T2 | mid-run `GET /jobs` check on manual resume | HTTP path covered generically (`test_job_current.py`) |
+| SP2 T5 | `DOT: Record<BackendStatusKey, string>` typing | type only |
+| SP2 T6 | deep validation of nested choices in `loadClipChoices` | only the app writes the key; missing keys come from defaults |
+| SP2 T6 | more branch tests in `createFlow.test.ts` | no concrete gap named |
+| SP2 T7 | no `type="button"` on Periksa lagi | no `<form>` around it, cannot submit |
+| SP2 T7 | prior blockers kept while disconnected | `canStart` already needs `connected` |
+| SP2 T9 | extra assertions in `progress.test.ts` | logic covered elsewhere |
+| SP2 T10 | `set-state-in-effect` warning in ProgressPanel | accepted warning, behaviour correct |
+| SP2 T12 | `focusout` test in OverflowMenu | test polish |
+| SP2 T12 | whitespace trim test in `clipInfo.test.ts` | test polish |
+| SP2 T13 | Riwayat list does not poll | behaviour change; Muat ulang exists; backlog SP4 gelombang 2 |
+| SP2 T13 | `FailedRowError` duplicates JobReport's error block | refactor only, nothing visible changes |
+| SP2 T14 | "redundant" comments in HelpSection | each annotates a different constant |
+| SP2 T14 | non-override `handleManualGenerate` branch lacks `tracking_mode` | unreachable (caller passes look) |
+| SP2 T15 | update overlay panel has no focus ring | it has no controls |
+| SP2 T15 | Drive retry after root fallback | harmless, root is the right retry |
+| SP2 T16 | 0.0.0.0 test may prompt Windows firewall | reproduces bug; dev only |
+| SP3 T4 | caching history scan in `allowed_project_output_dirs` | runs after signature check; cache invalidation risk |
+| SP3 T5 | `TranscriptionSection.test.tsx` positive assertion | test polish |
+| SP3 T5 | `ProgressPanel.test.tsx` duplicate of `progress.test.ts` | harmless |
+| SP3 T5 | `test_pipeline_timings.py` old_meta not mutated | `get_history` returns fresh dict |
+| SP3 T5 | `aria-disabled` on add-on double click | already guarded by `inFlight` and `useKeepFocus` |

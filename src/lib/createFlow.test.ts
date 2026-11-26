@@ -68,6 +68,11 @@ describe("autoProjectTitle (the backend needs a unique title)", () => {
   it("names a file after the file, without characters a folder name cannot hold", () => {
     expect(autoProjectTitle({ kind: "file", name: "Podcast: Radit #12?.mp4" }, now)).toBe("Podcast Radit 12 2026-11-20 14.05.09");
   });
+
+  it("never leaves a double space when the name is cut at a space", () => {
+    const name = `${"a".repeat(59)} bcd.mp4`;
+    expect(autoProjectTitle({ kind: "file", name }, new Date(2026, 10, 25, 9, 5, 7))).toBe(`${"a".repeat(59)} 2026-11-25 09.05.07`);
+  });
 });
 
 describe("effectiveProvider (spec 4.2: manual AI unless API key mode is on)", () => {

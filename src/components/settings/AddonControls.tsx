@@ -90,8 +90,11 @@ export const AddonControls: React.FC<AddonControlsProps> = ({
       )}
 
       <div role="status">
-        {view === "installed" && !removalScheduled && (
+        {view === "installed" && !(removalScheduled || status?.pending_remove) && (
           <p className="text-body text-success">{t(readyKey, { mb: megabytes(status.disk_mb) })}</p>
+        )}
+        {view === "installed" && (removalScheduled || status?.pending_remove) && !info && (
+          <p className="text-body text-text-secondary">{t("settings.addon_removal_scheduled")}</p>
         )}
       </div>
 
@@ -118,7 +121,7 @@ export const AddonControls: React.FC<AddonControlsProps> = ({
         </div>
       )}
 
-      {view === "installed" && !removalScheduled && (
+      {view === "installed" && !(removalScheduled || status?.pending_remove) && (
         <Button
           variant="outline"
           icon={Trash2}

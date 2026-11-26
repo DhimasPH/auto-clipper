@@ -154,7 +154,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
               </p>
             )}
           </div>
-          <Button type="submit" size="lg" fullWidth loading={isVerifying} disabled={!token.trim()}>
+          <Button type="submit" size="lg" fullWidth loading={isVerifying}>
             {isVerifying ? t("auth.verifying") : t("auth.submit")}
           </Button>
           <p className="text-caption text-text-secondary">{t("auth.stored_locally")}</p>

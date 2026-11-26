@@ -309,7 +309,6 @@ def test_addons_endpoints_validate_id_cloud_mode_macos_intel_and_auth(tmp_path, 
 
 
 def test_install_colab_mediapipe_uses_pinned_linux_wheel_and_is_idempotent(tmp_path, monkeypatch):
-    import json
     monkeypatch.setattr(addons, "get_app_data_dir", lambda: (_ for _ in ()).throw(AssertionError("must not read app_data_dir")))
 
     mp_whl, mp_sha = _make_wheel({"mediapipe/__init__.py": b"__version__ = '1.2.3'\n", "matplotlib/pyplot.py": b"skip\n"})
@@ -375,6 +374,7 @@ def test_cloud_mode_treats_colab_mediapipe_as_available_and_keeps_endpoints_bloc
     client = TestClient(app)
     r_status = client.get("/api/settings/addons", headers={"Authorization": "Bearer tok"})
     assert r_status.status_code == 200
+    assert str(colab_dir) not in sys.path  # the status read must not change sys.path
     mp_status = r_status.json()["addons"]["mediapipe"]
     assert mp_status["available"] is True
     assert mp_status["installed"] is True
@@ -392,3 +392,25 @@ def test_cloud_mode_treats_colab_mediapipe_as_available_and_keeps_endpoints_bloc
     # Cloud endpoints never allow downloading or deleting via the Settings API.
     assert client.post("/api/settings/addons/mediapipe/download", headers={"Authorization": "Bearer tok"}).status_code == 400
     assert client.delete("/api/settings/addons/mediapipe", headers={"Authorization": "Bearer tok"}).status_code == 400
+
+
+def test_status_says_a_removal_waits_for_the_next_start(tmp_path, monkeypatch):
+    from backend import addons
+
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", str(tmp_path / "data"))
+    monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
+    marker = addons._pending_remove_marker("mediapipe")
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("pending", encoding="utf-8")
+
+    st = addons.get_addon_status("mediapipe")
+    assert st["pending_remove"] is True
+
+
+def test_cloud_status_never_reports_a_pending_removal(tmp_path, monkeypatch):
+    from backend import addons
+
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    monkeypatch.setattr(addons, "addons_root", lambda: (_ for _ in ()).throw(AssertionError("cloud touched addons_root")))
+    st = addons.get_addon_status("mediapipe")
+    assert st["pending_remove"] is False

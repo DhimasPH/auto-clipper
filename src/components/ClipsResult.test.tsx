@@ -56,7 +56,7 @@ describe("ClipsResult (spec 4.5)", () => {
     const all = [...container.querySelectorAll("button")].find((b) => b.textContent === i18n.t("result.download_all"))!;
     await act(async () => all.click());
     expect(consoleError).toHaveBeenCalled();
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain(i18n.t("result.download_failed"));
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(i18n.t("result.download_all_failed"));
   });
 
   it("gives every clip Unduh, Bagikan and its duration", () => {

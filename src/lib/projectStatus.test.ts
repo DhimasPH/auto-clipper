@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatProjectDate, projectPrimaryAction, projectStatusKey } from "./projectStatus";
+import { formatProjectDate, projectDisplayTitle, projectPrimaryAction, projectStatusKey } from "./projectStatus";
 
 describe("projectStatus (spec 4.5)", () => {
   it("maps backend statuses to plain status keys", () => {
@@ -31,5 +31,15 @@ describe("projectStatus (spec 4.5)", () => {
     expect(formatProjectDate("invalid", "id")).toBe("");
     expect(formatProjectDate(undefined, "id")).toBe("");
     expect(formatProjectDate("2026-11-20T14:05:00Z", "id")).toContain("2026");
+  });
+});
+
+describe("projectDisplayTitle (SP2 deferred minor)", () => {
+  it("prefers the title, then the link, then the file name of a local video", () => {
+    expect(projectDisplayTitle("  Podcast  ", "https://youtu.be/a")).toBe("Podcast");
+    expect(projectDisplayTitle("", "https://youtu.be/a")).toBe("https://youtu.be/a");
+    expect(projectDisplayTitle(undefined, "local:C:\\Users\\me\\Videos\\talk.mp4")).toBe("talk.mp4");
+    expect(projectDisplayTitle(null, "local:/content/drive/MyDrive/v/a.mp4")).toBe("a.mp4");
+    expect(projectDisplayTitle("", "")).toBe("");
   });
 });

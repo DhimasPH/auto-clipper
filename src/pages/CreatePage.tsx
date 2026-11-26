@@ -117,12 +117,13 @@ export const CreatePage: React.FC = () => {
   };
 
   // The model goes along as the third argument: setWhisperModel only reaches the job hook on the next render.
-  const answerProcessorQuestion = (useFast: boolean) => {
+  // Remember "small" only for a start that passed its checks (SP3 deferred minor: a missing API key changed it).
+  const answerProcessorQuestion = async (useFast: boolean) => {
     const question = processorQuestion;
     if (!question) return;
     setProcessorQuestion(null);
-    if (useFast) ctx.setWhisperModel?.("small");
-    ctx.handleGenerate(question.provider, question.title, useFast ? "small" : ctx.whisperModel);
+    const accepted = await ctx.handleGenerate(question.provider, question.title, useFast ? "small" : ctx.whisperModel);
+    if (useFast && accepted !== false) ctx.setWhisperModel?.("small");
   };
 
   return (
@@ -204,10 +205,10 @@ export const CreatePage: React.FC = () => {
           initialFocusRef={useFastButton}
           footer={
             <>
-              <Button variant="outline" onClick={() => answerProcessorQuestion(false)}>
+              <Button variant="outline" onClick={() => void answerProcessorQuestion(false)}>
                 {t("create.cpu_model_keep_accurate")}
               </Button>
-              <Button ref={useFastButton} variant="primary" onClick={() => answerProcessorQuestion(true)}>
+              <Button ref={useFastButton} variant="primary" onClick={() => void answerProcessorQuestion(true)}>
                 {t("create.cpu_model_use_fast")}
               </Button>
             </>

@@ -95,5 +95,15 @@ export function useAddons(enabled: boolean, watch?: AddonId) {
   const install = useCallback((id: AddonId) => run(id, "install"), [run]);
   const remove = useCallback((id: AddonId) => run(id, "remove"), [run]);
 
-  return { addons, pending, failures, removalScheduled: scheduled, install, remove };
+  return {
+    addons,
+    pending,
+    failures,
+    removalScheduled: {
+      cuda: Boolean(scheduled.cuda || addons.cuda?.pending_remove),
+      mediapipe: Boolean(scheduled.mediapipe || addons.mediapipe?.pending_remove),
+    } as Partial<Record<AddonId, boolean>>,
+    install,
+    remove,
+  };
 }

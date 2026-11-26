@@ -650,3 +650,24 @@ def test_a_title_ending_in_dots_makes_a_usable_project_folder(library, tmp_path)
 
     assert os.path.basename(ws["library_dir"]) == "Wow"
     assert os.path.isdir(os.path.join(ws["library_dir"], "source"))
+
+
+def test_workspace_refuses_a_project_folder_inside_the_work_dir_downloads(tmp_path, monkeypatch):
+    import pytest
+    from backend import errors, jobs
+
+    lib = tmp_path / "lib"
+    work = tmp_path / "work"
+    lib.mkdir()
+    work.mkdir()
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", str(lib))
+    monkeypatch.setenv("AUTO_CLIPPER_WORK_DIR", str(work))
+    monkeypatch.delenv("AUTO_CLIPPER_CLOUD_MODE", raising=False)
+
+    with pytest.raises(errors.AppError) as exc:
+        jobs.refuse_protected_project_dir("", str(work / "temp_downloads" / "proj"))
+    assert exc.value.code == "OUTPUT_DIR_REFUSED"
+
+    with pytest.raises(errors.AppError) as exc2:
+        jobs.get_project_workspace("temp_downloads", output_dir=str(work))
+    assert exc2.value.code == "OUTPUT_DIR_REFUSED"

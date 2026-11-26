@@ -439,3 +439,33 @@ def test_video_and_save_file_refuse_every_device_path_by_its_text(app_files, tmp
     assert client.get("/video", params={"path": clip, "sig": video_sign.sign(clip)}).status_code == 403
     assert client.post("/save_file", json={"src": clip, "dest": str(tmp_path / "copy.mp4")}).status_code == 403
     assert not (tmp_path / "copy.mp4").exists()
+
+
+def test_thumbnails_metadata_and_video_url_refuse_a_network_path_before_touching_it(monkeypatch):
+    import os
+    from fastapi.testclient import TestClient
+    from backend import main, path_guard
+
+    c = TestClient(main.app)
+    headers = {"Authorization": f"Bearer {main.API_SECRET_TOKEN}"}
+    real_realpath = os.path.realpath
+    real_abspath = os.path.abspath
+
+    def boom_if_unc(path, *args, **kwargs):
+        if isinstance(path, str) and ("attacker" in path or path.startswith("\\\\") or path.startswith("//")):
+            raise AssertionError(f"touched filesystem for UNC path: {path!r}")
+        return real_realpath(path, *args, **kwargs)
+
+    def boom_abspath(path):
+        if isinstance(path, str) and ("attacker" in path or path.startswith("\\\\") or path.startswith("//")):
+            raise AssertionError(f"abspath touched UNC path: {path!r}")
+        return real_abspath(path)
+
+    monkeypatch.setattr(os.path, "realpath", boom_if_unc)
+    monkeypatch.setattr(os.path, "abspath", boom_abspath)
+    monkeypatch.setattr(path_guard, "_canonical", lambda p: (_ for _ in ()).throw(AssertionError(f"_canonical touched {p!r}")) if "attacker" in str(p) else real_realpath(p))
+
+    for sample in (r"\\attacker\share\clip.mp4", "//attacker/share/clip.mp4", r"local:\\attacker\share\clip.mp4"):
+        assert c.get("/api/thumbnails", params={"path": sample}, headers=headers).status_code == 403
+        assert c.post("/api/extract-metadata", json={"path": sample}, headers=headers).status_code == 403
+        assert c.post("/video-url", json={"path": sample}, headers=headers).status_code == 403

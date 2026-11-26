@@ -18,6 +18,8 @@ export interface AddonStatus {
   size_hint_mb: number;
   /** Space it takes once installed. */
   disk_mb: number;
+  /** Removal failed because the files were in use; they go when the app opens again (survives a reload). */
+  pending_remove: boolean;
   error_info: ErrorInfo | null;
 }
 
@@ -37,6 +39,7 @@ export function asAddonStatus(value: unknown): AddonStatus | null {
     total_mb: num(v.total_mb),
     size_hint_mb: num(v.size_hint_mb),
     disk_mb: num(v.disk_mb),
+    pending_remove: v.pending_remove === true,
     error_info: asErrorInfo(v.error_info),
   };
 }

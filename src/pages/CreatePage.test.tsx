@@ -203,11 +203,26 @@ describe("CreatePage (Step 1 integration)", () => {
     const fast = buttonByText(i18n.t("create.cpu_model_use_fast"))!;
     expect(document.activeElement).toBe(fast);
 
-    act(() => fast.click());
+    await act(async () => fast.click());
     expect(setWhisperModel).toHaveBeenCalledWith("small");
     expect(handleGenerate).toHaveBeenCalledTimes(1);
     expect(handleGenerate).toHaveBeenCalledWith("manual_ai", expect.stringMatching(/^podcast /), "small");
     expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("keeps the remembered model when the start is refused (API key missing)", async () => {
+    setPlatform({ caps: CAPS.desktop, pickVideo: vi.fn() } as unknown as Platform);
+    vi.spyOn(axios, "get").mockResolvedValue(GPU_WARN);
+    const file = new File(["video"], "podcast.mp4", { type: "video/mp4" });
+    const handleGenerate = vi.fn().mockResolvedValue(false);
+    const setWhisperModel = vi.fn();
+    await renderPage({ inputType: "local", localFile: file, whisperModel: "medium", setWhisperModel, handleGenerate, aiMode: "auto", provider: "openai" });
+
+    act(() => startButton().click());
+    await act(async () => buttonByText(i18n.t("create.cpu_model_use_fast"))!.click());
+
+    expect(handleGenerate).toHaveBeenCalledWith("openai", expect.stringMatching(/^podcast /), "small");
+    expect(setWhisperModel).not.toHaveBeenCalled();
   });
 
   it("Keep Accurate starts with the chosen model and leaves the setting alone", async () => {

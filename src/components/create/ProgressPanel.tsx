@@ -52,8 +52,9 @@ export const ProgressPanel: React.FC<ProgressPanelProps> = ({
   const notes = deviceNotes(current, timings, stages);
   const caps = platform().caps;
   // Where add-ons cannot be installed (cloud), "install it in Settings" would send people nowhere.
+  // Cloud: Teliti comes from notebook Step 3 (SP3 Teliti on Colab), so say how to get it there.
   const noteKey = (note: DeviceNote) =>
-    note === "fallback_tracking" && !caps.addons ? "progress.fallback_tracking_unavailable" : `progress.${note}`;
+    note === "fallback_tracking" && !caps.addons ? "progress.fallback_tracking_colab" : `progress.${note}`;
   // Where the add-on can be installed, the note leads to it.
   const installLink = (note: DeviceNote) => note === "fallback_tracking" && caps.addons;
   const units = { hour: t("timing.unit_hour"), minute: t("timing.unit_minute"), second: t("timing.unit_second") };
