@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { API_URL } from "../App";
-import { resetAndRespawnBackend } from "./useUserSettings";
+import { platform } from "../platform";
 
 export type BackendStatusKey =
   | "connecting"
@@ -55,7 +55,7 @@ export function useBackendHealth() {
       reconnectingRef.current = true;
       if (active) setStatus("reconnecting");
       try {
-        await resetAndRespawnBackend();
+        await platform().reconnect();
       } catch {
         // Swallow — the check below reflects the real state.
       }
@@ -104,7 +104,7 @@ export function useBackendHealth() {
     reconnectingRef.current = true;
     setStatus("reconnecting");
     try {
-      await resetAndRespawnBackend();
+      await platform().reconnect();
     } catch {
       // ignore — the final check below reflects reality
     } finally {

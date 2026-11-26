@@ -1,5 +1,7 @@
 # Auto Clipper Cloud — Vercel + Google Colab
 
+> **Catatan 2026-11-18 (SP1):** dokumen ini catatan sejarah. Folder `web/` sudah dihapus; aplikasi cloud kini dibangun dari `src/` dengan `npm run build:cloud` (ADR-013).
+
 Transisi Auto Clipper dari Aplikasi Desktop (Tauri) menjadi **Mobile Web App** yang bisa diakses dari browser HP, dengan backend berjalan di GPU Google Colab secara gratis.
 
 **Domain:**

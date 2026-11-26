@@ -1,9 +1,16 @@
-import React, { useState, useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Copy, Check, Clock, Music, Loader2, Sparkles } from "lucide-react";
+import { Copy } from "lucide-react";
 import axios from "axios";
 import { SocialData, Clip } from "./ClipCard";
-import { API_URL, AppContext } from "../App";
+import { AppContext } from "../App";
+import { API_URL } from "../platform/backendUrl";
+import { platform } from "../platform";
+import { copyText } from "../lib/clipboard";
+import { requestError, toLang } from "../lib/errorInfo";
+import { Button } from "./ui/Button";
+import { Dialog } from "./ui/Dialog";
+import { TechnicalDetails } from "./ui/TechnicalDetails";
 
 export interface SocialKitModalProps {
   isOpen: boolean;
@@ -15,295 +22,145 @@ export interface SocialKitModalProps {
   onUpdate: (social: SocialData) => void;
 }
 
-const CopyButton: React.FC<{ textToCopy: string; label?: string }> = ({
-  textToCopy,
-  label,
-}) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
+/** "Salin" next to a text; says "Tersalin" for two seconds, or that copying did not work. */
+const CopyButton: React.FC<{ text: string; label: string }> = ({ text, label }) => {
+  const { t } = useTranslation();
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+  const copy = async () => {
+    const ok = await copyText(text);
+    setState(ok ? "copied" : "failed");
+    if (ok) setTimeout(() => setState("idle"), 2000);
   };
-
   return (
-    <button
-      onClick={handleCopy}
-      className="p-1.5 hover:bg-bg-tertiary text-text-secondary hover:text-text-primary rounded-button transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
-      title="Copy to clipboard"
-    >
-      {copied ? (
-        <>
-          <Check className="w-3.5 h-3.5 text-emerald-400" />
-          {label && <span className="text-emerald-400">Copied</span>}
-        </>
-      ) : (
-        <>
-          <Copy className="w-3.5 h-3.5" />
-          {label && <span>{label}</span>}
-        </>
+    <span className="flex shrink-0 flex-col items-end gap-1">
+      <Button variant="outline" icon={Copy} aria-label={label} onClick={() => void copy()}>
+        {state === "copied" ? t("social.copied") : t("social.copy")}
+      </Button>
+      {/* The button keeps its specific name ("Salin judul 1"), so "Tersalin" is announced here. */}
+      <span role="status" className="sr-only">{state === "copied" ? t("social.copied") : ""}</span>
+      {state === "failed" && (
+        <span role="alert" className="text-caption text-error">{t("social.copy_failed")}</span>
       )}
-    </button>
+    </span>
   );
 };
 
-export const SocialKitModal: React.FC<SocialKitModalProps> = ({
-  isOpen,
-  onClose,
-  social,
-  clip,
-  jobId,
-  clipIndex,
-  onUpdate,
-}) => {
+/** One block of share text: a heading, the text, and a copy button. */
+const Block: React.FC<{ title: string; text: string; copyLabel?: string }> = ({ title, text, copyLabel }) => (
+  <section className="flex flex-col gap-2">
+    <div className="flex items-center justify-between gap-3">
+      <h3 className="text-body font-semibold text-text-primary">{title}</h3>
+      {copyLabel && <CopyButton text={text} label={copyLabel} />}
+    </div>
+    <p className="whitespace-pre-wrap break-words text-body text-text-primary">{text}</p>
+  </section>
+);
+
+/** "Bagikan" on a clip card: titles, description and hashtags to copy into TikTok, Reels or Shorts. */
+export const SocialKitModal: React.FC<SocialKitModalProps> = (props) => (props.isOpen ? <SocialKitBody {...props} /> : null);
+
+const SocialKitBody: React.FC<SocialKitModalProps> = ({ onClose, social, clip, jobId, clipIndex, onUpdate }) => {
   const { t, i18n } = useTranslation();
   const ctx = useContext(AppContext);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const en = toLang(i18n.language) === "en";
 
-  if (!isOpen) return null;
-
-  const isId = i18n.language === "id";
+  // Titles and hashtags are written by the AI provider: only with the API key mode and a key.
+  const provider: string = ctx?.provider || "";
+  const apiKey: string = ctx?.apiKeys?.[provider] || "";
+  const keysAllowed = platform().caps.apiKeys;
+  const canGenerate = keysAllowed && ctx?.aiMode === "auto" && (!!apiKey || provider === "custom");
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    setError(null);
+    setFailed(null);
     try {
-      const provider = ctx.provider || "openai";
-      const api_key = ctx.apiKeys?.[provider] || "";
-      const custom_base_url = ctx.apiKeys?.["custom_base_url"] || "";
-      const custom_model_name = ctx.apiKeys?.["custom_model_name"] || "";
-      const model = ctx.selectedModel || "";
-      const description =
-        clip.description_en || clip.description_id || clip.description || "";
-
-      const res = await axios.post(
-        `${API_URL}/jobs/${jobId}/clips/${clipIndex}/social`,
-        {
-          description,
-          provider,
-          api_key,
-          custom_base_url,
-          custom_model_name,
-          model,
-        },
-      );
-      const data = res.data;
-      if (data?.status === "success" && data.social) {
-        onUpdate(data.social);
-      } else {
-        throw new Error(data?.message || "Unknown error");
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "An error occurred");
+      const res = await axios.post(`${API_URL}/jobs/${jobId}/clips/${clipIndex}/social`, {
+        description: clip.description_en || clip.description_id || clip.description || "",
+        provider,
+        api_key: apiKey,
+        custom_base_url: ctx?.apiKeys?.custom_base_url || "",
+        custom_model_name: ctx?.apiKeys?.custom_model_name || "",
+        model: ctx?.selectedModel || "",
+      });
+      if (res.data?.status === "success" && res.data.social) onUpdate(res.data.social);
+      else setFailed(typeof res.data?.message === "string" ? res.data.message : "");
+    } catch (err) {
+      setFailed(requestError(err, "").message);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const titles = isId ? social?.titles_id : social?.titles_en;
-  const description =
-    i18n.language === "id" ? social?.description_id : social?.description_en;
-  const hashtags =
-    i18n.language === "id" ? social?.hashtags_id : social?.hashtags_en;
-  const bestTime =
-    i18n.language === "id"
-      ? social?.best_time_to_post_id
-      : social?.best_time_to_post_en;
-  const backsound =
-    i18n.language === "id" ? social?.backsound_id : social?.backsound_en;
-
-  const joinedHashtags = hashtags?.join(" ") || "";
-
-  const hasData =
-    titles ||
-    description ||
-    joinedHashtags ||
-    social?.thumbnail_layout ||
-    bestTime ||
-    backsound;
+  const titles = (en ? social?.titles_en : social?.titles_id) || [];
+  const description = (en ? social?.description_en : social?.description_id) || "";
+  const hashtags = ((en ? social?.hashtags_en : social?.hashtags_id) || []).join(" ");
+  const bestTime = (en ? social?.best_time_to_post_en : social?.best_time_to_post_id) || "";
+  const backsound = (en ? social?.backsound_en : social?.backsound_id) || "";
+  const clipDescription = (en ? clip.description_en : clip.description_id) || clip.description || "";
+  const hasKit = titles.length > 0 || !!description || !!hashtags || !!social?.thumbnail_layout || !!bestTime || !!backsound;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-      onClick={onClose}
+    <Dialog
+      title={t("social.title", { n: clipIndex + 1 })}
+      onClose={onClose}
+      size="lg"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t("common.close")}</Button>
+          {canGenerate && (
+            <Button variant={hasKit ? "outline" : "primary"} loading={isGenerating} onClick={() => void handleGenerate()}>
+              {isGenerating ? t("social.generating") : t(hasKit ? "social.regenerate" : "social.generate")}
+            </Button>
+          )}
+        </>
+      }
     >
-      <div
-        className="bg-bg-secondary w-full max-w-2xl max-h-[80vh] flex flex-col rounded-card shadow-dropdown border border-border overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center p-6 border-b border-border bg-bg-surface shrink-0">
-          <h2 className="text-section-title text-text-primary">
-            {t("social_kit.title", "Social Kit - Clip {{num}}", {
-              num: clipIndex + 1,
-            })}
-          </h2>
-          <div className="flex items-center gap-2">
-            {hasData && (
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 text-accent hover:bg-accent/20 rounded-button text-caption font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGenerating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                {t("common.retry", "Regenerate")}
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="text-text-secondary hover:text-text-primary transition-colors p-1"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      <div className="flex flex-col gap-5">
+        {failed !== null && (
+          <div role="alert" className="flex flex-col gap-1">
+            <p className="text-body text-error">{t("social.failed")}</p>
+            <TechnicalDetails text={failed} />
           </div>
-        </div>
+        )}
 
-        <div className="p-6 overflow-y-auto flex flex-col gap-6">
-          {error && (
-            <div className="p-4 bg-danger/10 text-danger border border-danger/20 rounded-lg text-body">
-              {error}
-            </div>
-          )}
+        {!hasKit && (
+          <>
+            {clipDescription && (
+              <Block title={t("social.description")} text={clipDescription} copyLabel={t("social.copy_description")} />
+            )}
+            <p className="text-body text-text-secondary">
+              {canGenerate
+                ? t("social.empty_can_generate")
+                : keysAllowed
+                  ? t("social.empty_needs_key")
+                  : clipDescription
+                    ? t("social.empty")
+                    : t("social.empty_no_text")}
+            </p>
+          </>
+        )}
 
-          {!hasData && (
-            <div className="flex flex-col items-center justify-center py-12 text-center gap-4">
-              <Sparkles className="w-12 h-12 text-accent/50" />
-              <p className="text-text-secondary text-body max-w-sm">
-                {t(
-                  "social_kit.empty",
-                  "Social kit belum digenerate untuk klip ini. Klik tombol di bawah untuk membuat judul viral, deskripsi, dan hashtag.",
-                )}
-              </p>
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                className="flex items-center gap-2 px-6 py-3 bg-accent text-white hover:bg-accent/90 rounded-button text-body font-medium transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGenerating ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Sparkles className="w-5 h-5" />
-                )}
-                {isGenerating
-                  ? t("common.generating", "Generating...")
-                  : t("common.generate", "Generate Social Kit")}
-              </button>
-            </div>
-          )}
-          {/* Titles */}
-          {titles && titles.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <div className="font-medium text-text-primary text-body">
-                {t("clip.social_titles", "Judul Viral (Pilih satu):")}
-              </div>
-              <div className="flex flex-col gap-2">
-                {titles.map((title, i) => (
-                  <div
-                    key={i}
-                    className="flex justify-between items-start gap-4 p-3 bg-bg-surface rounded-lg border border-border"
-                  >
-                    <span className="text-text-secondary text-body">
-                      {title}
-                    </span>
-                    <CopyButton textToCopy={title} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <hr className="border-border" />
-
-          {/* Description */}
-          {description && (
-            <div className="flex flex-col gap-3">
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-text-primary text-body">
-                  {t("clip.social_desc", "Deskripsi:")}
-                </span>
-                <CopyButton textToCopy={description} label="Copy" />
-              </div>
-              <div className="p-3 bg-bg-surface rounded-lg border border-border text-text-secondary text-body whitespace-pre-wrap">
-                {description}
-              </div>
-            </div>
-          )}
-
-          {joinedHashtags && (
-            <>
-              <hr className="border-border" />
-              {/* Hashtags */}
-              <div className="flex flex-col gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium text-text-primary text-body">
-                    {t("clip.social_hashtags", "Hashtags:")}
-                  </span>
-                  <CopyButton textToCopy={joinedHashtags} label="Copy" />
-                </div>
-                <div className="p-3 bg-bg-surface rounded-lg border border-border text-text-secondary text-body break-words">
-                  {joinedHashtags}
-                </div>
-              </div>
-            </>
-          )}
-
-          {social?.thumbnail_layout && (
-            <>
-              <hr className="border-border" />
-              {/* Thumbnail Idea */}
-              <div className="flex flex-col gap-3">
-                <div className="font-medium text-text-primary text-body">
-                  {t("clip.social_thumbnail", "Ide Thumbnail:")}
-                </div>
-                <div className="p-3 bg-bg-surface rounded-lg border border-border text-text-secondary text-body">
-                  {social.thumbnail_layout}
-                </div>
-              </div>
-            </>
-          )}
-
-          {bestTime && (
-            <>
-              <hr className="border-border" />
-              {/* Best Time to Post */}
-              <div className="flex flex-col gap-3">
-                <div className="font-medium text-text-primary text-body flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-accent" />
-                  {t("clip.social_best_time", "Waktu Terbaik Posting:")}
-                </div>
-                <div className="p-3 bg-bg-surface rounded-lg border border-border text-text-secondary text-body">
-                  {bestTime}
-                </div>
-              </div>
-            </>
-          )}
-
-          {backsound && (
-            <>
-              <hr className="border-border" />
-              {/* Backsound */}
-              <div className="flex flex-col gap-3">
-                <div className="font-medium text-text-primary text-body flex items-center gap-2">
-                  <Music className="w-5 h-5 text-accent" />
-                  {t("clip.social_backsound", "Saran Backsound:")}
-                </div>
-                <div className="p-3 bg-bg-surface rounded-lg border border-border text-text-secondary text-body">
-                  {backsound}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        {titles.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <h3 className="text-body font-semibold text-text-primary">{t("social.titles")}</h3>
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {titles.map((title, i) => (
+                <li key={i} className="flex items-start justify-between gap-3 border-b border-border pb-2 last:border-b-0">
+                  <span className="min-w-0 break-words text-body text-text-primary">{title}</span>
+                  <CopyButton text={title} label={t("social.copy_title", { n: i + 1 })} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {description && <Block title={t("social.description")} text={description} copyLabel={t("social.copy_description")} />}
+        {hashtags && <Block title={t("social.hashtags")} text={hashtags} copyLabel={t("social.copy_hashtags")} />}
+        {social?.thumbnail_layout && <Block title={t("social.thumbnail")} text={social.thumbnail_layout} />}
+        {bestTime && <Block title={t("social.best_time")} text={bestTime} />}
+        {backsound && <Block title={t("social.backsound")} text={backsound} />}
       </div>
-    </div>
+    </Dialog>
   );
 };

@@ -59,6 +59,38 @@ def test_auth_middleware_in_cloud_mode(monkeypatch):
     assert client.post("/heartbeat").status_code == 200
 
 
+def test_a_401_carries_cors_headers_for_allowed_origins_only(monkeypatch):
+    """The cloud app (another origin) must be able to read a 401, or a wrong token looks like
+    "server offline". CORS wraps the token check, with the same origin rules (ADR-011)."""
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    monkeypatch.setenv("AUTO_CLIPPER_WEB_TOKEN", "secret-test-token")
+
+    for origin in ("https://clipper.dhims.web.id", "https://my-app.vercel.app", "http://tauri.localhost"):
+        r = client.get("/history", headers={"Origin": origin, "Authorization": "Bearer wrong-token"})
+        assert r.status_code == 401
+        assert r.headers.get("access-control-allow-origin") == origin, origin
+        assert r.headers.get("access-control-allow-credentials") == "true"
+
+    r_other = client.get("/history", headers={"Origin": "https://malicious-website.com"})
+    assert r_other.status_code == 401
+    assert r_other.headers.get("access-control-allow-origin") is None
+
+
+def test_cors_preflight_still_answers_without_a_token(monkeypatch):
+    monkeypatch.setenv("AUTO_CLIPPER_CLOUD_MODE", "1")
+    monkeypatch.setenv("AUTO_CLIPPER_WEB_TOKEN", "secret-test-token")
+    headers = {"Origin": "https://clipper.dhims.web.id", "Access-Control-Request-Method": "GET",
+               "Access-Control-Request-Headers": "authorization"}
+
+    r = client.options("/history", headers=headers)
+
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-origin") == "https://clipper.dhims.web.id"
+
+    r_other = client.options("/history", headers={**headers, "Origin": "https://malicious-website.com"})
+    assert r_other.headers.get("access-control-allow-origin") is None
+
+
 def test_is_valid_source_url_accepts_supported_platforms():
     assert is_valid_source_url("https://www.youtube.com/watch?v=abc")
     assert is_valid_source_url("https://youtu.be/abc")
@@ -138,9 +170,10 @@ def test_history_list_ok():
 
 def test_video_missing_returns_404():
     from backend.db import get_app_data_dir
+    from backend import video_sign
     import os
     missing_path = os.path.join(get_app_data_dir(), "nope.mp4")
-    r = client.get("/video", params={"path": missing_path})
+    r = client.get("/video", params={"path": missing_path, "sig": video_sign.sign(missing_path)})
     assert r.status_code == 404
 
 
@@ -247,6 +280,29 @@ def test_get_words_endpoint(tmp_path, monkeypatch):
     assert res.status_code == 200
     assert len(res.json()["words"]) == 2
     assert res.json()["words"][0]["word"] == "Hello"
+
+
+def test_rerender_all_does_not_need_a_url(monkeypatch):
+    # The web app's "Rerender All" sends no url (the project already has one);
+    # it got 422 "Field required: url" because the endpoint reused CreateJobRequest.
+    seen = {}
+
+    def fake_create(job_id, aspect_ratio, burn_subs, output_dir, max_clips, **kwargs):
+        seen.update(job_id=job_id, aspect_ratio=aspect_ratio, **kwargs)
+        return "new-job-456"
+
+    monkeypatch.setattr("backend.jobs.create_rerender_job", fake_create)
+    res = client.post("/jobs/hist-abc/rerender", json={
+        "aspect_ratio": "9:16",
+        "caption_style": "single_word",
+        "canvas_config": {"enabled": False},
+        "subtitle_config": {"style": "single_word"},
+        "burn_subs": True,
+    })
+
+    assert res.status_code == 200, res.text
+    assert res.json()["job_id"] == "new-job-456"
+    assert seen["job_id"] == "hist-abc" and seen["subtitle_config"] == {"style": "single_word"}
 
 
 def test_post_rerender_clip_endpoint(monkeypatch):

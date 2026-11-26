@@ -4,6 +4,8 @@ export interface ToggleSwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label?: string;
+  id?: string;
+  "aria-label"?: string;
   disabled?: boolean;
   className?: string;
 }
@@ -12,27 +14,39 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   checked,
   onChange,
   label,
+  id,
+  "aria-label": ariaLabel,
   disabled = false,
   className = ''
 }) => {
   return (
-    <label className={`flex items-center cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}>
-      <div className="relative">
+    <label className={`inline-flex min-h-[44px] items-center gap-3 cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}>
+      <span className="relative inline-flex shrink-0">
         <input
+          id={id}
           type="checkbox"
-          className="sr-only"
+          role="switch"
+          aria-checked={checked}
+          aria-label={ariaLabel}
+          className="peer sr-only"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
           disabled={disabled}
         />
-        <div className={`block w-10 h-6 rounded-full transition-colors duration-200 ${
-          checked ? 'bg-accent' : 'bg-bg-surface border border-border'
-        }`}></div>
-        <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ${
-          checked ? 'transform translate-x-4' : ''
-        }`}></div>
-      </div>
-      {label && <span className="ml-3 text-body text-text-primary">{label}</span>}
+        <span
+          aria-hidden="true"
+          className={`block w-11 h-6 rounded-full border transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg-primary ${
+            checked ? 'bg-accent border-accent' : 'bg-bg-surface border-border-active'
+          }`}
+        />
+        <span
+          aria-hidden="true"
+          className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-transform duration-150 ${
+            checked ? 'translate-x-5 bg-on-accent' : 'bg-text-secondary'
+          }`}
+        />
+      </span>
+      {label && <span className="text-body text-text-primary">{label}</span>}
     </label>
   );
 };

@@ -3,6 +3,7 @@ name: PR Check
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,7 +15,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             python-arch: x64
             pip-constraints: ""
-          - os: macos-14
+          - os: macos-15
             target: aarch64-apple-darwin
             python-arch: arm64
             pip-constraints: "-c backend/constraints-macos12.txt"
@@ -52,7 +53,9 @@ jobs:
 
       - name: Setup FFmpeg (Windows)
         if: matrix.os == 'windows-latest'
-        run: npm install @ffmpeg-installer/ffmpeg
+        # ffmpeg-static 5 ships FFmpeg 6.1. The 2018 build from @ffmpeg-installer cannot open
+        # h264_nvenc with current NVIDIA drivers, so every clip was rendered on the CPU.
+        run: npm install ffmpeg-static@5
 
       - name: Install Python dependencies
         run: |
@@ -80,7 +83,7 @@ jobs:
 
           # Copy ffmpeg executable
           try:
-              ffmpeg_path = subprocess.check_output(['node', '-e', "console.log(require('@ffmpeg-installer/ffmpeg').path)"]).decode('utf-8').strip()
+              ffmpeg_path = subprocess.check_output(['node', '-e', "console.log(require('ffmpeg-static'))"]).decode('utf-8').strip()
               shutil.copy(ffmpeg_path, os.path.join('src-tauri', 'bin', f'ffmpeg{exe_ext}'))
           except Exception as e:
               print('Error: ffmpeg not found!', e)
@@ -123,4 +126,49 @@ jobs:
         run: npm install
 
       - name: Build Tauri App
-        run: npm run tauri build -- --target ${{ matrix.target }}
+        # PR builds are for checking, not releasing: no updater signature, so no signing secret is needed.
+        run: npm run tauri build -- --target ${{ matrix.target }} --config src-tauri/tauri.pr-check.conf.json
+
+  checks:
+    # Spec SP1 section 6: Vitest, oxlint, the cloud build and pytest on every PR.
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: System libraries (FFmpeg, OpenCV)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libgl1 libglib2.0-0
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Vitest
+        run: npm test
+
+      - name: oxlint
+        run: npm run lint
+
+      - name: Cloud build (VITE_TARGET=cloud)
+        run: npm run build:cloud
+
+      - name: Backend tests
+        run: python -m pytest backend/tests -q -p no:cacheprovider
+
+  web-package:
+    uses: ./.github/workflows/web-package.yml
+    permissions:
+      contents: read

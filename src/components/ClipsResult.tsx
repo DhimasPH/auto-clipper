@@ -1,61 +1,87 @@
-import ClipCard, { Clip } from "./ClipCard";
-import { Badge } from "./ui/Badge";
-import { Button } from "./ui/Button";
-import { Plus } from "lucide-react";
-import { useContext } from "react";
-import { AppContext } from "../App";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Download, Plus } from "lucide-react";
+import ClipCard, { type Clip } from "./ClipCard";
+import { Button } from "./ui/Button";
+import { JobWarnings } from "./JobWarnings";
+import { TimingDetails } from "./TimingDetails";
+import { platform } from "../platform";
+import { fileName } from "../platform/paths";
+import { API_URL } from "../platform/backendUrl";
+import { videoHref } from "../lib/videoUrl";
 
 interface ClipsResultProps {
   clips: Clip[];
   status: string;
   failedCount: number;
   jobId: string;
-  videoSrc: (p: string, v?: number) => string;
+  /** Job metadata: warnings and timings. */
+  metadata?: Record<string, unknown> | null;
+  onEditClip?: (index: number) => void;
+  onNew?: () => void;
 }
 
-export default function ClipsResult({ clips, status, failedCount, jobId, videoSrc }: ClipsResultProps) {
+/** The clips of one project (spec 4.5): one column on a phone, a grid on large screens. */
+export default function ClipsResult({ clips, status, failedCount, jobId, metadata, onEditClip, onNew }: ClipsResultProps) {
   const { t } = useTranslation();
-  const ctx = useContext(AppContext);
-
+  const headingId = useId();
+  const [saving, setSaving] = useState(false);
+  const [saveAllFailed, setSaveAllFailed] = useState(false);
   if (clips.length === 0) return null;
-  
+  const done = status === "DONE";
+
+  const saveAll = async () => {
+    setSaving(true);
+    setSaveAllFailed(false);
+    try {
+      await platform().saveClips(
+        clips.map((clip) => ({
+          path: clip.path,
+          filename: fileName(clip.path),
+          videoUrl: videoHref(clip.video_url || "", API_URL, { dl: true }) || undefined,
+        })),
+      );
+    } catch (err) {
+      console.error("Save all failed", err);
+      // Ruling P10: surface bulk-download errors inline so users know to retry.
+      setSaveAllFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <section className="animate-slide-up flex flex-col gap-6 mt-4 pb-12">
-      <div className="flex items-center gap-3">
-        <h2 className="text-section-title text-text-primary m-0">
-          {status === "DONE" ? 'Generated Clips' : 'Generating Clips...'}
-        </h2>
-        {status === "DONE" && (
-          <Badge variant="success">
-            {clips.length} clip{clips.length > 1 ? "s" : ""}
-          </Badge>
-        )}
-        {failedCount > 0 && (
-          <Badge variant="error">
-            {failedCount} failed
-          </Badge>
-        )}
-        {(status === "DONE" || status === "ERROR") && (
-          <div className="ml-auto">
-            <Button variant="outline" icon={Plus} onClick={ctx.handleResetWorkspace}>
-              {t("main.btn_new_clip", "Buat Klip Baru")}
-            </Button>
-          </div>
+    <section aria-labelledby={headingId} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 id={headingId} className="text-section-title text-text-primary">
+            {done ? t("result.title_done", { count: clips.length }) : t("result.title_partial", { count: clips.length })}
+          </h2>
+          {failedCount > 0 && <p className="text-body text-error">{t("result.failed", { count: failedCount })}</p>}
+        </div>
+        {done && clips.length > 1 && (
+          <Button size="lg" icon={Download} loading={saving} onClick={() => void saveAll()}>
+            {t("result.download_all")}
+          </Button>
         )}
       </div>
-      
-      <div className="flex gap-6 flex-wrap">
+      {saveAllFailed && (
+        <p role="alert" className="text-body text-error">
+          {t("result.download_all_failed")}
+        </p>
+      )}
+      {done && <JobWarnings warnings={metadata?.warnings} />}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {clips.map((clip, i) => (
-          <ClipCard
-            key={clip.path}
-            clip={clip}
-            index={i}
-            jobId={jobId}
-            videoSrc={videoSrc}
-          />
+          <ClipCard key={clip.path || i} clip={clip} index={i} jobId={jobId} onEdit={onEditClip ? () => onEditClip(i) : undefined} />
         ))}
       </div>
+      {done && <TimingDetails metadata={metadata} />}
+      {done && onNew && (
+        <Button variant="outline" icon={Plus} className="self-start" onClick={onNew}>
+          {t("result.new")}
+        </Button>
+      )}
     </section>
   );
 }

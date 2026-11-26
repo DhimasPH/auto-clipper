@@ -97,6 +97,96 @@ def test_setup_environment_handles_dir_error():
         assert os.environ.get("AUTO_CLIPPER_CLOUD_MODE") == "1"
 
 
+# --- AUTO_CLIPPER_WORK_DIR ------------------------------------------------------
+
+def test_work_dir_is_not_set_by_default(monkeypatch):
+    monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
+    assert parse_args([]).work_dir == ""
+
+
+def test_work_dir_from_env_and_cli(monkeypatch):
+    monkeypatch.setenv("AUTO_CLIPPER_WORK_DIR", "/content/work")
+    assert parse_args([]).work_dir == "/content/work"
+    assert parse_args(["--work-dir", "/content/other"]).work_dir == "/content/other"
+
+
+def test_setup_environment_exports_and_creates_the_work_dir(tmp_path, monkeypatch):
+    monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
+    work = str(tmp_path / "work")
+    setup_environment(str(tmp_path / "ws"), api_token="t", work_dir=work)
+
+    assert os.environ.get("AUTO_CLIPPER_WORK_DIR") == work
+    assert os.path.isdir(work)
+    assert os.environ.get("AUTO_CLIPPER_WORKSPACE") == str(tmp_path / "ws")  # the library is unchanged
+
+
+def test_setup_environment_without_work_dir_leaves_none_set(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTO_CLIPPER_WORK_DIR", "/stale/from/shell")
+    setup_environment(str(tmp_path / "ws"), api_token="t")
+    assert "AUTO_CLIPPER_WORK_DIR" not in os.environ
+
+    setup_environment(str(tmp_path / "ws"), api_token="t", work_dir="   ")
+    assert "AUTO_CLIPPER_WORK_DIR" not in os.environ
+
+
+def test_work_dir_on_google_drive_is_warned_about(tmp_path, capsys):
+    with patch("os.makedirs"):
+        setup_environment(str(tmp_path / "ws"), api_token="t", work_dir="/content/drive/MyDrive/work")
+    err = capsys.readouterr().err
+    assert "PERINGATAN" in err and "WARNING" in err
+
+
+def test_setup_environment_warns_when_drive_folder_exists_but_is_not_mounted(monkeypatch, capsys):
+    from backend import colab_api
+    monkeypatch.setattr(colab_api.os.path, "isdir", lambda p: True)
+    monkeypatch.setattr(colab_api.os.path, "ismount", lambda p: False)
+    monkeypatch.setattr(colab_api.os, "makedirs", lambda *a, **k: None)
+    colab_api.setup_environment("/content/drive/MyDrive/AutoClipperData", api_token="t")
+    assert "belum terhubung" in capsys.readouterr().err
+
+
+def test_setup_environment_adds_cublas_even_when_cudnn_is_missing(monkeypatch, tmp_path):
+    # Whisper needs libcublas.so.12 on LD_LIBRARY_PATH; before, one missing
+    # package dropped both paths and Whisper ran on the processor.
+    from backend import colab_api
+    import types
+
+    real_import = colab_api.importlib.import_module
+
+    def fake_import(name):
+        if name == "nvidia.cublas.lib":
+            return types.SimpleNamespace(__path__=[str(tmp_path / "cublas" / "lib")])
+        if name == "nvidia.cudnn.lib":
+            raise ImportError(name)
+        return real_import(name)
+
+    monkeypatch.setattr(colab_api.importlib, "import_module", fake_import)
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/existing")
+    colab_api.setup_environment(str(tmp_path / "ws"), api_token="t")
+    # tmp_path holds "C:" on Windows, so compare text instead of splitting on ":".
+    value = os.environ["LD_LIBRARY_PATH"]
+    assert value.startswith(str(tmp_path / "cublas" / "lib") + ":")
+    assert value.endswith(":/usr/local/cuda/lib64:/existing")
+
+
+def test_run_server_passes_the_work_dir_to_the_server_process(tmp_path, monkeypatch):
+    monkeypatch.delenv("AUTO_CLIPPER_WORK_DIR", raising=False)
+    work = str(tmp_path / "work")
+    seen = {}
+
+    def fake_uvicorn(host, port):
+        seen["work_dir"] = os.environ.get("AUTO_CLIPPER_WORK_DIR")
+        proc = MagicMock()
+        proc.poll.return_value = 0
+        proc.returncode = 0
+        return proc
+
+    with patch("backend.colab_api.start_uvicorn", side_effect=fake_uvicorn),             patch("backend.colab_api.wait_for_server_ready", return_value=True),             patch("backend.colab_api.start_cloudflared", return_value=None),             patch("time.sleep", return_value=None):
+        run_server(["--workspace", str(tmp_path / "ws"), "--work-dir", work])
+
+    assert seen["work_dir"] == work
+
+
 def test_start_uvicorn():
     with patch("subprocess.Popen") as mock_popen:
         mock_proc = MagicMock()
@@ -214,3 +304,189 @@ def test_colab_notebook_step3_avoids_force_upgrading_colab_packages():
     assert "pip install -r backend/requirements.txt" in source_lines
     assert "pip install -U -r backend/requirements.txt" not in source_lines
     assert "pip install --upgrade -r backend/requirements.txt" not in source_lines
+
+
+# --- Auto_Clipper_Colab.ipynb: Deno, work dir, preflight (T0.13) ---------------
+
+def _notebook():
+    import json
+    from pathlib import Path
+
+    nb_path = Path(__file__).resolve().parents[2] / "Auto_Clipper_Colab.ipynb"
+    with open(nb_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _notebook_source(cell_id):
+    """The text of one notebook cell, found by its metadata id."""
+    cells = [cell for cell in _notebook().get("cells", []) if cell.get("metadata", {}).get("id") == cell_id]
+    assert len(cells) == 1
+    return "".join(cells[0].get("source", []))
+
+
+def _python_part(source):
+    """A code cell without its shell (!) and magic (%) lines, which only Colab can run."""
+    return "\n".join(
+        "" if line.lstrip().startswith(("!", "%")) else line
+        for line in source.split("\n")
+    )
+
+
+SERVER_CELLS = ["step4a_code", "step4b_code"]
+CODE_CELLS = ["step1_code", "step2_code", "step3_code"] + SERVER_CELLS
+
+
+def test_colab_notebook_keeps_its_cells_in_order():
+    nb = _notebook()
+    assert nb["nbformat"] == 4
+    assert [cell["metadata"]["id"] for cell in nb["cells"]] == [
+        "header_cell", "step1_md", "step1_code", "step2_md", "step2_code", "step3_md", "step3_code",
+        "step4a_md", "step4a_code", "step4b_md", "step4b_code",
+    ]
+
+
+@pytest.mark.parametrize("cell_id", CODE_CELLS)
+def test_colab_notebook_code_cells_are_valid_python(cell_id):
+    compile(_python_part(_notebook_source(cell_id)), cell_id, "exec")
+
+
+def test_colab_notebook_installs_deno_where_the_server_finds_it():
+    source = _notebook_source("step2_code")
+
+    # Deno's official install script, see docs.deno.com/runtime/getting_started/installation
+    assert "curl -fsSL https://deno.land/install.sh" in source
+    # The backend finds Deno with a PATH lookup; /usr/local/bin is on PATH for every Colab process.
+    assert "DENO_INSTALL=/usr/local sh" in source
+    # The install script stops without unzip (or 7z).
+    assert "unzip" in source
+
+
+class _FakeDeno:
+    """Stands in for the machine in the notebook's Deno step: is Deno there, and does installing work?"""
+
+    def __init__(self, installed, install_works=True, install_raises=None):
+        self.installed = installed
+        self.install_works = install_works
+        self.install_raises = install_raises
+        self.install_commands = []
+
+    def which(self, name):
+        return "/usr/local/bin/deno" if name == "deno" and self.installed else None
+
+    def run(self, cmd, **kwargs):
+        result = MagicMock()
+        if kwargs.get("shell"):
+            self.install_commands.append(cmd)
+            if self.install_raises:
+                raise self.install_raises
+            self.installed = self.install_works
+            result.returncode = 0 if self.install_works else 1
+            result.stdout = ""
+            result.stderr = "" if self.install_works else "curl: (6) Could not resolve host: deno.land"
+            return result
+        result.returncode = 0
+        result.stdout = "deno 2.5.6 (stable, release, x86_64-unknown-linux-gnu)\nv8 14.0\n"
+        result.stderr = ""
+        return result
+
+
+def _run_deno_step(monkeypatch, fake):
+    import shutil
+
+    monkeypatch.setattr(shutil, "which", fake.which)
+    monkeypatch.setattr(subprocess, "run", fake.run)
+    exec(compile(_python_part(_notebook_source("step2_code")), "step2_code", "exec"), {})
+
+
+def test_colab_notebook_deno_step_installs_deno_when_it_is_missing(monkeypatch, capsys):
+    fake = _FakeDeno(installed=False)
+    _run_deno_step(monkeypatch, fake)
+
+    assert fake.install_commands == ["curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh"]
+    out = capsys.readouterr().out
+    assert "Deno terpasang (deno 2.5.6" in out
+    assert "PERHATIAN" not in out
+
+
+def test_colab_notebook_deno_step_is_harmless_to_run_again(monkeypatch, capsys):
+    fake = _FakeDeno(installed=True)
+    _run_deno_step(monkeypatch, fake)
+
+    assert fake.install_commands == []
+    assert "Deno sudah terpasang" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("make_fake", [
+    lambda: _FakeDeno(installed=False, install_works=False),
+    lambda: _FakeDeno(installed=False, install_raises=subprocess.TimeoutExpired("sh", 300)),
+    lambda: _FakeDeno(installed=False, install_raises=OSError("no shell")),
+], ids=["install-fails", "install-times-out", "no-shell"])
+def test_colab_notebook_deno_step_says_so_and_continues_when_the_install_fails(monkeypatch, capsys, make_fake):
+    _run_deno_step(monkeypatch, make_fake())  # must not raise: the next steps still have to run
+
+    out = capsys.readouterr().out
+    assert "PERHATIAN: Deno tidak berhasil dipasang." in out
+    assert "tetap bisa dipakai" in out
+    assert "Detail teknis:" in out
+
+
+@pytest.mark.parametrize("cell_id", SERVER_CELLS)
+def test_colab_notebook_works_on_the_local_disk_and_keeps_the_library_on_drive(cell_id):
+    source = _notebook_source(cell_id)
+
+    assert 'os.environ["AUTO_CLIPPER_WORK_DIR"] = "/content/work"' in source
+    assert 'os.environ["AUTO_CLIPPER_WORKSPACE"] = "/content/drive/MyDrive/AutoClipperData"' in source
+    assert 'os.environ["AUTO_CLIPPER_CLOUD_MODE"] = "1"' in source
+
+
+@pytest.mark.parametrize("cell_id", SERVER_CELLS)
+def test_colab_notebook_shows_preflight_before_the_server_starts(cell_id):
+    from pathlib import Path
+
+    lines = _notebook_source(cell_id).split("\n")
+    preflight = lines.index("!python scripts/colab_preflight.py")
+    work_dir = next(i for i, line in enumerate(lines) if "AUTO_CLIPPER_WORK_DIR" in line)
+    server = next(
+        i for i, line in enumerate(lines)
+        if line.startswith("!python") and ("backend/colab_api.py" in line or "uvicorn backend.main:app" in line)
+    )
+
+    # Preflight sees the same folders as the server, and its result is on screen before the server logs.
+    assert work_dir < preflight < server
+    assert (Path(__file__).resolve().parents[2] / "scripts" / "colab_preflight.py").is_file()
+
+
+def test_colab_server_reads_the_work_dir_the_notebook_exports(monkeypatch):
+    """Cell 4A passes no --work-dir: colab_api.py takes the folder from the environment the cell set."""
+    monkeypatch.setenv("AUTO_CLIPPER_WORKSPACE", "/content/drive/MyDrive/AutoClipperData")
+    monkeypatch.setenv("AUTO_CLIPPER_WORK_DIR", "/content/work")
+
+    args = parse_args(["--cloudflare-token", "cf", "--api-token", "secret"])
+    assert args.work_dir == "/content/work"
+    assert args.workspace == "/content/drive/MyDrive/AutoClipperData"
+
+
+def test_colab_notebook_does_not_promise_gpu_rendering():
+    """Spec finding F8: the notebook installs stock FFmpeg, so it must not claim NVENC rendering."""
+    for cell_id in ["header_cell", "step1_md", "step2_md", "step3_md", "step4a_md", "step4b_md"]:
+        assert "NVENC" not in _notebook_source(cell_id).upper()
+
+
+def test_colab_notebook_step3_installs_pinned_mediapipe():
+    source = _notebook_source("step3_code")
+    assert "install_colab_mediapipe" in source
+
+
+# --- SP4 wave 1: the notebook matches the app (spec 4.7) ------------------------------
+
+def test_colab_notebook_step3_explains_the_branch_and_the_precise_tracker():
+    text = _notebook_source("step3_md")
+    assert "BRANCH" in text and "`main`" in text
+    assert "Teliti" in text
+    assert "feat/sp0-pipeline-stability" not in text  # an old branch name as the example
+
+
+def test_colab_notebook_header_says_what_works_without_an_api_key():
+    text = _notebook_source("header_cell")
+    assert "Pilih ulang momen" in text
+    assert "API key" in text

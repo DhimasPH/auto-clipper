@@ -1,0 +1,131 @@
+name: Web Package
+
+# "Auto Clipper Web" for Windows, macOS (Apple Silicon and Intel) and Linux: the same
+# PyInstaller backend as the desktop app (backend.spec), ffmpeg-static@5 and the built
+# UI (SP1 spec 4.6, ADR-013). Called by build.yml (release) and pr-check.yml; can also
+# be run by hand from the Actions tab.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+            python-arch: x64
+            pip-constraints: ""
+          - os: macos-15
+            name: macos-arm64
+            python-arch: arm64
+            pip-constraints: "-c backend/constraints-macos12.txt"
+          # Intel image after macos-13 was retired (plan question 9).
+          - os: macos-15-intel
+            name: macos-x64
+            python-arch: x64
+            pip-constraints: "-c backend/constraints-macos12.txt"
+          - os: ubuntu-22.04
+            name: linux
+            python-arch: x64
+            pip-constraints: ""
+    runs-on: ${{ matrix.os }}
+
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: ${{ matrix.python-arch }}
+
+      - name: System libraries for OpenCV (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl1 libglib2.0-0
+
+      - name: Install Node.js dependencies (downloads ffmpeg-static for this OS)
+        run: npm ci
+
+      - name: Build the UI
+        # Into web-ui/: PyInstaller writes to dist/ in the next steps.
+        run: npm run build -- --outDir web-ui
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt ${{ matrix.pip-constraints }}
+          pip install pyinstaller
+
+      - name: Build the backend (same backend.spec as the desktop app)
+        run: pyinstaller --clean backend.spec -y
+
+      - name: Build "Auto Clipper Web.exe" (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: >
+          pyinstaller --onefile --console --name "Auto Clipper Web"
+          --icon "$GITHUB_WORKSPACE/src-tauri/icons/icon.ico"
+          --distpath launcher-dist --workpath launcher-build --specpath launcher-build
+          scripts/web_launcher.py
+
+      - name: Ad-hoc codesign the backend (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          find dist/backend_app -type f \( -name '*.dylib' -o -name '*.so' -o -perm +111 \) \
+            -exec codesign --force --sign - {} \;
+          codesign --verify --verbose dist/backend_app/backend
+
+      - name: Assemble the package
+        shell: bash
+        run: |
+          FFMPEG="$(node -e "console.log(require('ffmpeg-static'))")"
+          python scripts/assemble_web_package.py ${{ matrix.name }} "pkg/Auto Clipper Web" \
+            --ffmpeg "$FFMPEG" --launcher-exe "launcher-dist/Auto Clipper Web.exe"
+
+      - name: Ad-hoc codesign FFmpeg and check the architecture (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --sign - "pkg/Auto Clipper Web/app/ffmpeg" || true
+          file "pkg/Auto Clipper Web/app/ffmpeg" "pkg/Auto Clipper Web/app/backend/backend"
+
+      - name: Smoke test (start, serve, token, FFmpeg, second launch, stop)
+        shell: bash
+        run: python scripts/smoke_web_package.py "pkg/Auto Clipper Web"
+
+      - name: Zip (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path "pkg/Auto Clipper Web" -DestinationPath "Auto-Clipper-Web-${{ matrix.name }}.zip"
+
+      - name: Zip (macOS, keeps symlinks and permissions)
+        if: runner.os == 'macOS'
+        run: ditto -c -k --sequesterRsrc --keepParent "pkg/Auto Clipper Web" "Auto-Clipper-Web-${{ matrix.name }}.zip"
+
+      - name: Zip (Linux, keeps symlinks and permissions)
+        if: runner.os == 'Linux'
+        run: cd pkg && zip -qry "../Auto-Clipper-Web-${{ matrix.name }}.zip" "Auto Clipper Web"
+
+      - name: Upload the zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: Auto-Clipper-Web-${{ matrix.name }}
+          path: Auto-Clipper-Web-${{ matrix.name }}.zip
+          retention-days: 14
+          compression-level: 0

@@ -5,10 +5,12 @@ if __name__ == "__main__":
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from backend.db import init_db, get_all_history, delete_history, get_app_data_dir
 from backend.logger import log_error, get_log_content
+from backend.errors import AppError
+from backend import video_sign, web_ui
 import os
 import sys
 import shutil
@@ -83,6 +85,12 @@ if valid_paths:
 # Initialize DB on startup
 init_db()
 
+try:
+    from backend import addons as _addons
+    _addons.activate_installed()
+except Exception as _addon_err:
+    log_error("addons.startup_activate", _addon_err)
+
 app = FastAPI(title="Auto Clipper API")
 
 @app.exception_handler(Exception)
@@ -92,6 +100,14 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"status": "error", "message": f"Internal Server Error: {str(exc)}"}
     )
+
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    # A problem the user can fix (e.g. Google Drive not connected on Colab):
+    # answer with the error card instead of an internal server error.
+    log_error(f"FastAPI [{request.method} {request.url.path}]", exc, exc_info=False)
+    info = exc.to_dict()
+    return JSONResponse(status_code=400, content={"status": "error", "message": info["message"], "error_info": info})
 
 cors_regex = r"https?://([a-zA-Z0-9_.-]+\.)?localhost(:\d+)?|https?://127\.0\.0\.1(:\d+)?|tauri://.*|app://.*|https://clipper\.dhims\.web\.id|https://.*\.vercel\.app"
 custom_cors = os.environ.get("AUTO_CLIPPER_CORS_ORIGIN", "").strip()
@@ -103,6 +119,38 @@ if custom_cors:
         if custom_parts:
             cors_regex += "|" + "|".join(custom_parts)
 
+@app.middleware("http")
+async def verify_token(request: Request, call_next):
+    # /video carries its own signature (backend.video_sign) because the player cannot send a header.
+    # Exactly "/video": a prefix match would also open /video-url.
+    path = request.url.path
+    if request.method == "OPTIONS" or path in ("/video", "/health"):
+        return await call_next(request)
+
+    if web_ui.is_web_mode():
+        # Local web mode (spec 4.4): only the UI files are open; everything else, /heartbeat
+        # included, needs the token of this launch.
+        if web_ui.is_public_path(path):
+            return await call_next(request)
+    else:
+        if path == "/heartbeat":
+            return await call_next(request)
+        # Enforce token verification in frozen bundles or cloud mode
+        cloud_mode = bool(os.environ.get("AUTO_CLIPPER_CLOUD_MODE"))
+        if not getattr(sys, 'frozen', False) and not cloud_mode:
+            return await call_next(request)
+
+    auth_header = request.headers.get("Authorization")
+    token = os.environ.get("AUTO_CLIPPER_WEB_TOKEN") or os.environ.get("AUTO_CLIPPER_DEV_TOKEN") or API_SECRET_TOKEN
+    if not auth_header or auth_header != f"Bearer {token}":
+        return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized API access"})
+
+    return await call_next(request)
+
+
+# Registered after verify_token, so it is the outer middleware: a 401 from the token check also
+# carries the CORS headers (allowed origins only), and the cloud app can tell "wrong or expired
+# token" from "server offline". Preflight (OPTIONS) is answered here before the token check.
 app.add_middleware(
     CORSMiddleware,
     # Allow local dev and all variations of Tauri custom protocols (including tauri.localhost on Windows), plus cloud web app
@@ -113,34 +161,124 @@ app.add_middleware(
 )
 
 
-@app.middleware("http")
-async def verify_token(request: Request, call_next):
-    # Biarkan endpoint tertentu tanpa token (video player tidak bisa mengirim header dengan mudah)
-    path = request.url.path
-    if request.method == "OPTIONS" or path.startswith("/video") or path in ["/health", "/heartbeat"]:
-        return await call_next(request)
-        
-    # Enforce token verification in frozen bundles or cloud mode
-    cloud_mode = bool(os.environ.get("AUTO_CLIPPER_CLOUD_MODE"))
-    if not getattr(sys, 'frozen', False) and not cloud_mode:
-        return await call_next(request)
-        
-    auth_header = request.headers.get("Authorization")
-    token = os.environ.get("AUTO_CLIPPER_WEB_TOKEN") or os.environ.get("AUTO_CLIPPER_DEV_TOKEN") or API_SECRET_TOKEN
-    if not auth_header or auth_header != f"Bearer {token}":
-        return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized API access"})
-        
-    return await call_next(request)
-
 @app.post("/upload")
 def api_upload_video(file: UploadFile = File(...)):
-    temp_dir = os.path.abspath(os.path.join(get_app_data_dir(), "temp_downloads"))
+    from backend.path_guard import safe_upload_name
+    from backend.workspace import uploads_dir
+    temp_dir = os.path.abspath(uploads_dir())
     os.makedirs(temp_dir, exist_ok=True)
-    file_path = os.path.join(temp_dir, f"upload_{file.filename}")
+    file_path = os.path.join(temp_dir, f"upload_{safe_upload_name(file.filename)}")
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     # Return local path prefixed with local: so jobs.py knows to skip download
     return {"status": "success", "url": f"local:{file_path}"}
+
+
+CANVAS_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
+
+
+@app.post("/upload-image")
+def api_upload_image(file: UploadFile = File(...)):
+    """A canvas background image from the browser (spec 4.7): the backend cannot read a blob: address."""
+    from backend.path_guard import denied, is_network_or_device_path, is_protected, safe_upload_name
+    from backend.workspace import uploads_dir
+    name = safe_upload_name(file.filename)
+    if not name.lower().endswith(CANVAS_IMAGE_EXTENSIONS):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Only PNG, JPG or WEBP images."})
+    raw_uploads = uploads_dir()
+    if is_network_or_device_path(raw_uploads):
+        return denied("upload_image", raw_uploads)
+    folder = os.path.abspath(os.path.join(raw_uploads, "images"))
+    # A random part keeps two images with the same name apart.
+    path = os.path.join(folder, f"bg_{secrets.token_hex(4)}_{name}")
+    if is_protected(path):
+        return denied("upload_image", path)
+    os.makedirs(folder, exist_ok=True)
+    with open(path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"status": "success", "path": path}
+
+
+def _canvas_image_refused(canvas_config, endpoint: str):
+    """E.14: the canvas image is a path from the request like any other. Returns the 403 or None."""
+    from backend.path_guard import denied, is_protected
+    if canvas_config is None:
+        return None
+    if isinstance(canvas_config, dict):
+        path = canvas_config.get("background_image_path") or ""
+    else:
+        path = getattr(canvas_config, "background_image_path", "") or ""
+    if path and is_protected(path):
+        return denied(endpoint, path)
+    return None
+
+
+def _history_title(job_id: str) -> str:
+    from backend.db import get_history
+    hist = get_history(job_id) or {}
+    title = (hist.get("metadata") or {}).get("title", "")
+    return title if isinstance(title, str) else ""
+
+
+def _resolve_safe_output_dir(output_dir: str, endpoint: str, title="") -> tuple:
+    """T1.y: the output folder a job may write to, and the 403 when it is refused (else None).
+
+    Cloud and local web ignore it: a browser or a tunnel never names a folder on
+    the server, so the job uses the library. On Desktop the chosen folder and the
+    project folder inside it (``<folder>/<title>``) must not be private app files
+    (E.14); the folder goes on as an absolute path. ``title`` may be a function,
+    called only when a folder was chosen (re-runs read it from history).
+    """
+    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE") or web_ui.is_web_mode():
+        return "", None
+    raw = (output_dir or "").strip()
+    if not raw:
+        return "", None
+    from backend.path_guard import denied, is_protected
+    # By its text first: a network or device path never reaches the file system (SP3 review).
+    if not _is_local_absolute_folder(raw):
+        return "", denied(endpoint, raw)
+    if is_protected(raw):
+        return "", denied(endpoint, raw)
+    resolved = _resolved_folder(raw)
+    if callable(title):
+        try:
+            title = title()
+        except Exception as e:  # an unreadable history: the endpoint's own JSON error, not a bare 500
+            log_error(f"main.{endpoint}", e)
+            return "", JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+    if title:
+        from backend.jobs import project_library_dir, refuse_protected_project_dir
+        library_dir = project_library_dir(title, resolved)
+        try:
+            refuse_protected_project_dir(resolved, library_dir)
+        except AppError:
+            return "", denied(endpoint, library_dir)
+    return resolved, None
+
+
+_WINDOWS_DRIVE_PATH = re.compile(r"[A-Za-z]:[\\/]")
+
+
+def _is_local_absolute_folder(path: str) -> bool:
+    """A drive-letter path (``C:\\...``) on Windows, an absolute path (``/...``) elsewhere; never UNC or a device path."""
+    from backend.path_guard import is_network_or_device_path
+    if is_network_or_device_path(path):
+        return False
+    if os.name == "nt":
+        return bool(_WINDOWS_DRIVE_PATH.match(path))
+    return path.startswith("/")
+
+
+def _resolved_folder(path: str) -> str:
+    """The chosen folder with links resolved, so history and the /video allowlist hold one spelling.
+
+    A mapped network drive resolves to its ``\\\\server\\share`` path, which
+    /video and /save_file refuse by text: keep the drive letter then.
+    """
+    absolute = os.path.normpath(os.path.abspath(path))
+    resolved = os.path.realpath(absolute)
+    return resolved if _is_local_absolute_folder(resolved) else absolute
 
 @app.get("/probe")
 def api_probe(url: str):
@@ -151,12 +289,37 @@ def api_probe(url: str):
         from backend.video_utils import probe_formats
         return {"status": "success", "heights": probe_formats(url.strip())}
     except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+        from backend.errors import classify_download_error
+        return JSONResponse(status_code=400, content={
+            "status": "error", "message": str(e), "error_info": classify_download_error(e).to_dict(),
+        })
 
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.get("/api/preflight")
+def api_preflight():
+    """Environment checks (FFmpeg, disk, memory, GPU, Drive, downloader) for the UI.
+
+    Each check is {id, level: ok|warn|block, title, message, title_en, message_en}.
+    """
+    from backend.preflight import run_preflight
+    return {"status": "success", "checks": run_preflight()}
+
+
+@app.get("/api/update-check")
+def api_update_check(current: str = "", force: int = 0):
+    """Auto Clipper Web only (SP4 spec 4.5): is a newer version out? A quiet answer, never an error card."""
+    if not web_ui.is_web_mode():
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Not available in this app"})
+    from backend import update_check
+    if update_check.parse_version(current) is None:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "current must look like 1.2.3"})
+    cache_path = os.path.join(get_app_data_dir(), update_check.CACHE_FILE_NAME)
+    return update_check.check(current, force=bool(force), cache_path=cache_path)
 
 from fastapi import Query
 
@@ -288,8 +451,8 @@ def api_test_pexels(req: TestPexelsRequest):
 @app.get("/api/settings/whisper-models")
 def api_get_whisper_models():
     try:
-        from backend.ai_utils import get_available_whisper_models
-        return {"status": "success", "models": get_available_whisper_models()}
+        from backend.ai_utils import get_whisper_status
+        return {"status": "success", **get_whisper_status()}
     except Exception as e:
         log_error("api_get_whisper_models", e)
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
@@ -308,6 +471,67 @@ def api_download_whisper_model(req: DownloadWhisperModelRequest):
     except Exception as e:
         log_error("api_download_whisper_model", e)
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/settings/cookies")
+def api_get_cookies():
+    """Whether a cookies.txt is stored and still usable. Cookie values are never returned."""
+    from backend.cookies import get_status
+    return {"status": "success", "cookies": get_status()}
+
+
+@app.post("/api/settings/cookies")
+def api_upload_cookies(file: UploadFile = File(...)):
+    """Validate and store the user's cookies.txt for the downloader, replacing any earlier one."""
+    from backend.cookies import MAX_COOKIES_BYTES, save_cookies
+    from backend.errors import AppError
+    try:
+        # One byte past the limit is enough to tell the file is too large.
+        return {"status": "success", "cookies": save_cookies(file.file.read(MAX_COOKIES_BYTES + 1))}
+    except AppError as e:
+        info = e.to_dict()
+        return JSONResponse(status_code=400, content={"status": "error", "message": info["message"], "error_info": info})
+
+
+@app.delete("/api/settings/cookies")
+def api_delete_cookies():
+    from backend.cookies import delete_cookies, get_status
+    delete_cookies()
+    return {"status": "success", "cookies": get_status()}
+
+
+@app.get("/api/settings/addons")
+def api_get_addons():
+    from backend import addons
+    return {"status": "success", "addons": addons.get_addon_statuses()}
+
+
+@app.post("/api/settings/addons/{addon_id}/download")
+def api_download_addon(addon_id: str):
+    from backend import addons
+    if addon_id not in addons.ADDON_IDS:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Unknown add-on"})
+    if addons._is_cloud_mode():
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Add-on is not available in Cloud mode"})
+    if not addons.is_addon_available(addon_id):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Add-on is not available on this platform"})
+    return {"status": "success", "addon": addons.start_addon_download(addon_id)}
+
+
+@app.delete("/api/settings/addons/{addon_id}")
+def api_delete_addon(addon_id: str):
+    from backend import addons
+    if addon_id not in addons.ADDON_IDS:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Unknown add-on"})
+    if addons._is_cloud_mode():
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Add-on is not available in Cloud mode"})
+    try:
+        return {"status": "success", "addon": addons.remove_addon(addon_id)}
+    except AppError as e:
+        info = e.to_dict()
+        return JSONResponse(status_code=409, content={"status": "error", "message": info["message"], "error_info": info})
+    except RuntimeError as e:
+        return JSONResponse(status_code=409, content={"status": "error", "message": str(e)})
 
 
 class CanvasConfig(BaseModel):
@@ -343,20 +567,53 @@ class CreateJobRequest(BaseModel):
     tracking_mode: str = "auto"
     face_tracking_engine: str = "haar"
 
+# The longest extra instruction for a re-pick (SP4 spec 4.4); src/lib/repick.ts uses the same number.
+REPICK_EXTRA_MAX = 500
+
+class RerunAIRequest(CreateJobRequest):
+    """Pick moments again with an API key: the same limit as the manual path (RerunManualRequest)."""
+    extra_prompt: str = Field("", max_length=REPICK_EXTRA_MAX)
+
 class SaveFileRequest(BaseModel):
     src: str
     dest: str
 
+
+def _in_allowed_folder(path: str, base_dirs: list) -> bool:
+    """True when ``path`` is inside one of ``base_dirs`` or a project folder a real job recorded (T1.y).
+
+    The project folders come from running jobs and history only
+    (``workspace.allowed_project_output_dirs``) and are read only when the
+    app's own folders do not hold the file, so a playing clip in the library
+    never reads the whole history on every range request.
+    """
+    from backend.path_guard import is_within
+    if any(is_within(path, d) for d in base_dirs if d):
+        return True
+    from backend.jobs import active_jobs
+    from backend.workspace import allowed_project_output_dirs
+    return any(is_within(path, d) for d in allowed_project_output_dirs(active_jobs))
+
+
 @app.post("/save_file")
 def api_save_file(req: SaveFileRequest):
+    from backend.path_guard import denied, is_network_or_device_path, is_protected
+    from backend.workspace import get_work_dir
+    # By their text, before any file system call (even isdir): a network path would contact its host.
+    for path in (req.src, req.dest):
+        if is_network_or_device_path(path):
+            return denied("save_file", path)
     try:
-        abs_src = os.path.abspath(req.src)
-        app_data = os.path.abspath(get_app_data_dir())
-        # Only allow copying files that originate from our AppData directory
-        if not abs_src.startswith(app_data):
+        # copy2 into a folder keeps the source's name: check the file it would write.
+        dest = os.path.join(req.dest, os.path.basename(req.src)) if os.path.isdir(req.dest) else req.dest
+        for path in (req.src, dest):
+            if is_protected(path):
+                return denied("save_file", path)
+        # Only files from the app's folders or from a project folder chosen on Desktop (T1.y).
+        if not _in_allowed_folder(req.src, [get_app_data_dir(), get_work_dir()]):
             return JSONResponse(status_code=403, content={"status": "error", "message": "Hanya diperbolehkan menyalin file dari direktori internal aplikasi."})
-            
-        shutil.copy2(req.src, req.dest)
+
+        shutil.copy2(req.src, dest)
         return {"status": "success"}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -388,18 +645,40 @@ def api_open_folder(req: OpenFolderRequest):
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
+class RerenderJobRequest(CreateJobRequest):
+    # The project already has its source URL; the web app does not send one.
+    url: str = ""
+
+
+def _requested_engine(req: BaseModel):
+    """The face tracking engine the app chose, or None to keep the project's own."""
+    return req.face_tracking_engine if "face_tracking_engine" in req.model_fields_set else None
+
+
 @app.post("/jobs/{job_id}/rerender")
-def api_rerender_job(job_id: str, req: CreateJobRequest):
+def api_rerender_job(job_id: str, req: RerenderJobRequest):
+    refused = _canvas_image_refused(req.canvas_config, "jobs_rerender")
+    if refused:
+        return refused
+    output_dir, refused = _resolve_safe_output_dir(req.output_dir, "jobs_rerender", lambda: _history_title(job_id))
+    if refused:
+        return refused
     try:
         from backend.jobs import create_rerender_job
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
-        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, req.output_dir, req.max_clips, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, tracking_mode=req.tracking_mode, enable_hook=req.enable_hook)
+        new_job_id = create_rerender_job(job_id, req.aspect_ratio, req.burn_subs, output_dir, req.max_clips, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, tracking_mode=req.tracking_mode, face_tracking_engine=_requested_engine(req), enable_hook=req.enable_hook)
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 @app.post("/jobs/{job_id}/rerun_ai")
-def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
+def api_rerun_ai_job(job_id: str, req: RerunAIRequest):
+    refused = _canvas_image_refused(req.canvas_config, "jobs_rerun_ai")
+    if refused:
+        return refused
+    output_dir, refused = _resolve_safe_output_dir(req.output_dir, "jobs_rerun_ai", lambda: _history_title(job_id))
+    if refused:
+        return refused
     try:
         from backend.ai_utils import ping_provider
         ping_provider(req.provider, req.api_key.strip(), req.custom_base_url.strip(), req.custom_model_name.strip(), model=req.model.strip() if req.model else None)
@@ -407,14 +686,15 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
         new_job_id = create_rerun_ai_job(
             job_id, req.provider, req.api_key.strip(),
-            req.aspect_ratio, req.burn_subs, req.output_dir, req.extra_prompt, req.max_clips,
+            req.aspect_ratio, req.burn_subs, output_dir, req.extra_prompt, req.max_clips,
             req.custom_base_url.strip(), req.custom_model_name.strip(), req.whisper_model,
             req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config, enable_hook=req.enable_hook,
-            tracking_mode=req.tracking_mode
+            tracking_mode=req.tracking_mode, face_tracking_engine=_requested_engine(req)
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+        # RERUN_SOURCE_MISSING comes back as a card, the same way as rerun-manual.
+        return _resume_failed(e)
 
 @app.get("/jobs/{job_id}/clips/{clip_index}/words")
 async def get_clip_words(job_id: str, clip_index: int):
@@ -502,6 +782,9 @@ class RerenderClipRequest(BaseModel):
 
 @app.post("/jobs/{job_id}/clips/{clip_index}/rerender")
 async def api_rerender_clip(job_id: str, clip_index: int, req: RerenderClipRequest):
+    refused = _canvas_image_refused(req.canvas_config, "clip_rerender")
+    if refused:
+        return refused
     from backend.jobs import create_rerender_clip_job
     new_job_id = create_rerender_clip_job(
         job_id=job_id,
@@ -512,15 +795,30 @@ async def api_rerender_clip(job_id: str, clip_index: int, req: RerenderClipReque
         burn_subs=req.burn_subs,
         canvas_config=req.canvas_config,
         subtitle_config=req.subtitle_config,
-        tracking_mode=req.tracking_mode
+        tracking_mode=req.tracking_mode,
+        face_tracking_engine=req.face_tracking_engine,
     )
     return {"status": "success", "job_id": new_job_id}
 
 from pydantic import BaseModel
 from typing import Optional
 
+def _key(value: Optional[str]) -> str:
+    return (value or "").strip()
+
+
+def _resume_failed(e: Exception) -> JSONResponse:
+    from backend.errors import AppError
+    if isinstance(e, AppError):
+        info = e.to_dict()
+        return JSONResponse(status_code=400, content={"status": "error", "message": info["message"], "error_info": info})
+    return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
+# The keys come with every resume: history does not store them (T0.18).
 class ResumeJobRequest(BaseModel):
     api_key: Optional[str] = None
+    pexels_api_key: Optional[str] = None
     provider: Optional[str] = None
     custom_base_url: Optional[str] = None
     custom_model_name: Optional[str] = None
@@ -533,28 +831,70 @@ def api_resume_job(job_id: str, req: ResumeJobRequest):
         from backend.jobs import create_resume_job
         new_job_id = create_resume_job(
             job_id,
-            fallback_api_key=req.api_key,
+            api_key=_key(req.api_key),
             fallback_provider=req.provider,
             fallback_custom_base_url=req.custom_base_url,
             fallback_custom_model_name=req.custom_model_name,
             fallback_whisper_model=req.whisper_model,
-            fallback_model=req.model
+            fallback_model=req.model,
+            pexels_api_key=_key(req.pexels_api_key),
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+        return _resume_failed(e)
 
 class ResumeManualJobRequest(BaseModel):
     json_payload: str
+    pexels_api_key: Optional[str] = None
 
 @app.post("/jobs/{job_id}/resume-manual")
 def api_resume_manual_job(job_id: str, req: ResumeManualJobRequest):
     try:
         from backend.jobs import resume_manual_job
-        new_job_id = resume_manual_job(job_id, req.json_payload)
+        new_job_id = resume_manual_job(job_id, req.json_payload, pexels_api_key=_key(req.pexels_api_key))
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+        return _resume_failed(e)
+
+
+class RerunManualRequest(BaseModel):
+    extra_prompt: str = Field("", max_length=REPICK_EXTRA_MAX)
+    max_clips: int = Field(0, ge=0, le=50)
+    output_dir: str = ""
+    # The look of the new clips; None keeps the old project's.
+    aspect_ratio: Optional[str] = None
+    burn_subs: Optional[bool] = None
+    canvas_config: Optional[CanvasConfig] = None
+    subtitle_config: Optional[dict] = None
+    tracking_mode: Optional[str] = None
+    face_tracking_engine: Optional[str] = None
+
+
+@app.post("/jobs/{job_id}/rerun-manual")
+def api_rerun_manual_job(job_id: str, req: RerunManualRequest):
+    """Pick moments again without an API key (SP4 spec 4.4, ADR-016): a new project waiting at step 3."""
+    refused = _canvas_image_refused(req.canvas_config, "jobs_rerun_manual")
+    if refused:
+        return refused
+    output_dir, refused = _resolve_safe_output_dir(req.output_dir, "jobs_rerun_manual", lambda: _history_title(job_id))
+    if refused:
+        return refused
+    from backend import jobs
+    try:
+        created = jobs.create_rerun_manual_job(
+            job_id, req.extra_prompt, req.max_clips, output_dir,
+            aspect_ratio=req.aspect_ratio, burn_subs=req.burn_subs,
+            canvas_config=req.canvas_config.model_dump() if req.canvas_config else None,
+            subtitle_config=req.subtitle_config, tracking_mode=req.tracking_mode,
+            face_tracking_engine=req.face_tracking_engine,
+        )
+    except jobs.ProjectNotFound:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Project not found"})
+    except Exception as e:
+        if not isinstance(e, (AppError, ValueError)):
+            log_error("main.jobs_rerun_manual", e)
+        return _resume_failed(e)
+    return {"status": "success", **created}
 
 SUPPORTED_URL_RE = re.compile(
     r'^(https?://)?(www\.|m\.)?'
@@ -657,6 +997,9 @@ def check_watchdog_condition(now_monotonic, last_heartbeat_monotonic, loop_delta
 
 @app.post("/jobs")
 def api_create_job(req: CreateJobRequest):
+    refused = _canvas_image_refused(req.canvas_config, "jobs")
+    if refused:
+        return refused
     if not req.url:
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL is required"})
 
@@ -665,6 +1008,10 @@ def api_create_job(req: CreateJobRequest):
 
     if not is_valid_source_url(req.url):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid. Didukung: YouTube, TikTok, Instagram, X/Twitter, atau upload file lokal."})
+
+    output_dir, refused = _resolve_safe_output_dir(req.output_dir, "jobs", req.title.strip())
+    if refused:
+        return refused
 
     try:
         from backend.ai_utils import ping_provider
@@ -676,18 +1023,18 @@ def api_create_job(req: CreateJobRequest):
     canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
     job_id = create_job(
         req.url.strip(), req.provider, req.api_key.strip(),
-        req.aspect_ratio, req.caption_style, req.burn_subs, req.output_dir, req.quality,
+        req.aspect_ratio, req.caption_style, req.burn_subs, output_dir, req.quality,
         req.title.strip(), req.enable_broll, req.pexels_api_key.strip(), req.max_clips,
         req.custom_base_url.strip(), req.custom_model_name.strip(), req.is_gaming_video,
         req.whisper_model, req.model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config,
-        tracking_mode=req.tracking_mode, enable_hook=req.enable_hook
+        tracking_mode=req.tracking_mode, face_tracking_engine=req.face_tracking_engine, enable_hook=req.enable_hook
     )
     return {"status": "success", "job_id": job_id}
 
 @app.get("/jobs/{job_id}")
 def api_get_job(job_id: str):
-    from backend.jobs import get_job
-    job = get_job(job_id)
+    from backend import jobs
+    job = jobs.get_job(job_id)
     if not job:
         return JSONResponse(status_code=404, content={"status": "error", "message": "Job not found"})
     # Only return safe fields to frontend
@@ -695,10 +1042,17 @@ def api_get_job(job_id: str):
         "id": job["id"],
         "status": job["status"],
         "progress": job["progress"],
-        "clips": job["clips"],
+        # 0 = running, 1 = next in line, null = not in the queue (finished or from history)
+        "queue_position": jobs.job_queue.position(job_id),
+        # Signed /video links, made now and never stored (spec 4.5).
+        "clips": video_sign.with_video_urls(job["clips"]),
         "failed": job.get("failed", 0),
         "error": job.get("error"),
-        "metadata": job.get("metadata", {})
+        "error_info": job.get("error_info"),
+        "metadata": job.get("metadata", {}),
+        # The stage running now (spec 4.4): {stage, started_at, elapsed_seconds, device?, clip?,
+        # clips_total?, percent?}, or None. Built at read time, never stored.
+        "current": jobs.live_stage(job_id),
     }
 
 @app.post("/jobs/{job_id}/clips/{clip_index}/social")
@@ -751,7 +1105,18 @@ def api_cancel_job(job_id: str):
 
 @app.get("/history")
 def api_get_history():
-    return {"status": "success", "history": get_all_history()}
+    history = get_all_history()
+    key = None
+    for entry in history:
+        if key is None and isinstance(entry.get("result_clips"), list) and any(isinstance(c, dict) and c.get("path") for c in entry["result_clips"]):
+            try:
+                key = video_sign.load_key()
+            except Exception as e:
+                log_error("video_sign.with_video_urls", e)
+                break
+        # Signed /video links, made now and never stored in history.db (spec 4.5).
+        entry["result_clips"] = video_sign.with_video_urls(entry["result_clips"], key=key)
+    return {"status": "success", "history": history}
 
 @app.delete("/history/{job_id}")
 def api_delete_history(job_id: str):
@@ -770,9 +1135,12 @@ def api_extract_metadata(req: ExtractMetadataRequest):
 
     Returns a job_id immediately; the frontend polls GET /api/metadata/{id}.
     """
+    from backend.path_guard import denied, is_network_or_device_path, is_protected
     path = req.path
     if path.startswith("local:"):
         path = path.split("local:")[1]
+    if path and (is_network_or_device_path(path) or is_protected(path)):
+        return denied("extract_metadata", path)
     if not path or not os.path.exists(path):
         return JSONResponse(status_code=400, content={"status": "error", "message": "File tidak ditemukan."})
     from backend.metadata import create_metadata_job
@@ -801,9 +1169,12 @@ def api_get_metadata(job_id: str):
 @app.get("/api/thumbnails")
 def api_get_thumbnails(path: str, start: float = 0.0, end: float = 0.0, count: int = 12):
     """On-demand filmstrip thumbnails for a time window (zoomable timeline)."""
+    from backend.path_guard import denied, is_network_or_device_path, is_protected
     p = path
     if p.startswith("local:"):
         p = p.split("local:")[1]
+    if p and (is_network_or_device_path(p) or is_protected(p)):
+        return denied("thumbnails", p)
     if not p or not os.path.exists(p):
         return JSONResponse(status_code=400, content={"status": "error", "message": "File tidak ditemukan."})
     if end <= start:
@@ -835,6 +1206,9 @@ class ManualJobRequest(BaseModel):
 
 @app.post("/jobs/manual")
 def api_create_manual_job(req: ManualJobRequest):
+    refused = _canvas_image_refused(req.canvas_config, "jobs_manual")
+    if refused:
+        return refused
     if not req.url:
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL is required"})
     if not req.title or not req.title.strip():
@@ -842,14 +1216,18 @@ def api_create_manual_job(req: ManualJobRequest):
     if not is_valid_source_url(req.url):
         return JSONResponse(status_code=400, content={"status": "error", "message": "URL tidak valid untuk klip manual."})
 
+    output_dir, refused = _resolve_safe_output_dir(req.output_dir, "jobs_manual", req.title.strip())
+    if refused:
+        return refused
+
     try:
         from backend.jobs import create_manual_job
         canvas_cfg = req.canvas_config.model_dump() if req.canvas_config else None
         job_id = create_manual_job(
             req.url.strip(), req.clips, req.aspect_ratio, req.caption_style,
-            req.burn_subs, req.output_dir, req.quality, req.title.strip(), req.is_gaming_video,
+            req.burn_subs, output_dir, req.quality, req.title.strip(), req.is_gaming_video,
             req.whisper_model, canvas_config=canvas_cfg, subtitle_config=req.subtitle_config,
-            tracking_mode=req.tracking_mode
+            tracking_mode=req.tracking_mode, face_tracking_engine=req.face_tracking_engine
         )
         return {"status": "success", "job_id": job_id}
     except Exception as e:
@@ -857,22 +1235,32 @@ def api_create_manual_job(req: ManualJobRequest):
 
 
 @app.get("/video")
-def get_video(path: str, dl: int = 0, title: str = None):
-    """Serve a generated clip so the frontend can preview it inline.
+def get_video(path: str, sig: str = "", dl: int = 0, title: str = None):
+    """Serve a generated clip so the frontend can preview or download it.
 
-    Restricted to existing .mp4 files. Starlette's
-    FileResponse handles HTTP Range requests, so seeking works in the player.
+    Needs ``sig`` from backend.video_sign instead of the API token, on every
+    platform: the <video> player cannot send headers. Links come with the clip
+    data (GET /jobs/{id}, GET /history) or from POST /video-url. Restricted to
+    existing .mp4 files. Starlette's FileResponse handles HTTP Range requests,
+    so seeking works in the player.
     """
     from backend.logger import log_app
-    
+    from backend.path_guard import DENIED_MESSAGE, denied, is_network_or_device_path, is_protected
+
+    # By its text first: this endpoint needs no token, and resolving a network path would make
+    # this machine contact that host (SP3 review). Then before anything that could tell whether the file exists.
+    if is_network_or_device_path(path) or is_protected(path):
+        return denied("video", path)
+    if not video_sign.verify(path, sig):
+        log_app("[video] Refused: missing or wrong signature")
+        return JSONResponse(status_code=403, content={"status": "error", "message": DENIED_MESSAGE})
+
     abs_path = os.path.normpath(os.path.abspath(path))
-    
-    # Path traversal protection: ensure file is inside app data dir or project root
-    safe_dirs = [
-        os.path.abspath(get_app_data_dir()),
-        os.path.abspath(os.getcwd())
-    ]
-    if not any(os.path.commonpath([abs_path, safe_dir]) == safe_dir for safe_dir in safe_dirs):
+
+    # Only the app data dir, the project root, the work dir (a clip whose copy to the
+    # library failed is still there) and project folders chosen on Desktop (T1.y).
+    from backend.workspace import get_work_dir
+    if not _in_allowed_folder(abs_path, [get_app_data_dir(), os.getcwd(), get_work_dir()]):
         log_app(f"[video] Security error: Path traversal attempt: {abs_path}")
         return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
         
@@ -901,9 +1289,51 @@ def get_video(path: str, dl: int = 0, title: str = None):
     )
 
 
+class VideoUrlRequest(BaseModel):
+    path: str
+
+
+@app.post("/video-url")
+def api_video_url(req: VideoUrlRequest):
+    """A signed /video link for a path the clip data does not carry (spec 4.5).
+
+    Behind the API token like every other endpoint, so only the app can ask
+    for links. /video still checks the folder and the file type when the link
+    is used.
+    """
+    from backend.path_guard import denied, is_network_or_device_path, is_protected
+    path = req.path[len("local:"):] if req.path.startswith("local:") else req.path
+    if not path.strip():
+        return JSONResponse(status_code=400, content={"status": "error", "message": "path is required"})
+    if is_network_or_device_path(path) or is_protected(path):
+        return denied("video_url", path)
+    return {"status": "success", "video_url": video_sign.signed_url(path)}
+
+
+# Local web mode (spec 4.4): "/", "/assets/*" and the UI's image files.
+# Registered after every API route so none of them can be shadowed.
+app.include_router(web_ui.router)
+
+
 if __name__ == "__main__":
     # Setup logger and cleanup old temp files
     # freeze_support already called at the top of the file
+
+    if "--web" in sys.argv[1:]:
+        # Local web mode (spec 4.4): no PORT:/TOKEN: handshake and no watchdog;
+        # the console window owns the server. The launcher writes the console text.
+        if _original_stdout is not None:
+            sys.stdout = _original_stdout
+        if _original_stderr is not None:
+            sys.stderr = _original_stderr
+        try:
+            from backend.web_mode import launch
+            sys.exit(launch(app, sys.argv[1:], sys.stdout))
+        except Exception as e:
+            log_error("Backend web mode", e)
+            sys.stderr.write(f"Auto Clipper Web tidak bisa dimulai / could not start: {e}\n")
+            sys.stderr.flush()
+            sys.exit(1)
 
     try:
         import uvicorn

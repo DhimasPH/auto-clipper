@@ -1,38 +1,21 @@
 import { Toast } from "../hooks/useToasts";
 
-/** Fixed top-right stack of transient toast notifications. */
+const KIND_BORDER = {
+  error: "border-l-error",
+  success: "border-l-success",
+  info: "border-l-accent",
+} as const;
+
+/** Fixed top-right stack of transient toast notifications using WCAG AA semantic tokens. */
 export default function Toasts({ toasts }: { toasts: Toast[] }) {
+  if (toasts.length === 0) return null;
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: "1rem",
-        right: "1rem",
-        display: "flex",
-        flexDirection: "column",
-        gap: "0.5rem",
-        zIndex: 1000,
-        maxWidth: "320px",
-      }}
-    >
+    <div className="fixed right-4 top-4 z-50 flex max-w-[calc(100vw-2rem)] sm:max-w-xs flex-col gap-2">
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="animate-slide-up"
-          style={{
-            padding: "0.75rem 1rem",
-            borderRadius: "12px",
-            fontSize: "0.875rem",
-            color: "var(--on-accent)",
-            background:
-              t.kind === "error"
-                ? "var(--toast-error-bg)"
-                : t.kind === "success"
-                  ? "var(--toast-success-bg)"
-                  : "var(--toast-info-bg)",
-            border: "1px solid var(--toast-border)",
-            boxShadow: "0 4px 20px var(--toast-shadow)",
-          }}
+          role={t.kind === "error" ? "alert" : "status"}
+          className={`rounded-card border border-border-active border-l-4 ${KIND_BORDER[t.kind]} bg-bg-secondary px-4 py-3 text-body text-text-primary shadow-toast`}
         >
           {t.text}
         </div>

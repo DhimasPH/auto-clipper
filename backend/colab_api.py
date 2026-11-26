@@ -8,6 +8,7 @@ Example:
 """
 
 import argparse
+import importlib
 import os
 import signal
 import subprocess
@@ -18,6 +19,7 @@ from typing import List, Optional
 
 
 DEFAULT_WORKSPACE = "/content/drive/MyDrive/AutoClipperData"
+DRIVE_ROOT = "/content/drive"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
 
@@ -36,6 +38,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         or ""
     )
     env_workspace = os.environ.get("AUTO_CLIPPER_WORKSPACE") or DEFAULT_WORKSPACE
+    env_work_dir = os.environ.get("AUTO_CLIPPER_WORK_DIR") or ""
     env_host = os.environ.get("HOST") or DEFAULT_HOST
     env_port = int(os.environ.get("PORT") or DEFAULT_PORT)
 
@@ -59,6 +62,17 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help=f"Path to persistent project workspace (default: {DEFAULT_WORKSPACE} or env AUTO_CLIPPER_WORKSPACE)",
     )
     parser.add_argument(
+        "--work-dir",
+        dest="work_dir",
+        default=env_work_dir,
+        help=(
+            "Fast local folder for files a job needs only while it runs (source video, audio, renders) "
+            "and for history.db, e.g. /content/work. Finished clips and a snapshot of history.db are "
+            "copied to --workspace. "
+            "Default: env AUTO_CLIPPER_WORK_DIR, else unset (work inside --workspace)."
+        ),
+    )
+    parser.add_argument(
         "--host",
         default=env_host,
         help=f"Host address to bind uvicorn server (default: {DEFAULT_HOST})",
@@ -73,38 +87,93 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
-def setup_environment(workspace: str, api_token: Optional[str] = None) -> None:
+def _on_drive(path: str) -> bool:
+    """True when ``path`` is the Google Drive mount point or inside it."""
+    def norm(p):
+        return os.path.normcase(os.path.abspath(os.path.expanduser(p))).replace("\\", "/")
+    if not path or not path.strip():
+        return False
+    target, root = norm(path.strip()), norm(DRIVE_ROOT)
+    return target == root or target.startswith(root + "/")
+
+
+def _drive_missing(workspace: str) -> bool:
+    """True when the library is meant to be on Google Drive but Drive is not mounted.
+
+    Same rule as backend/drive_mount.py, which this script cannot import when it
+    is run as ``python backend/colab_api.py``.
+    """
+    return _on_drive(workspace) and not os.path.ismount(DRIVE_ROOT)
+
+
+def setup_work_dir(work_dir: Optional[str], drive_missing: bool = False) -> None:
+    """Export the work dir to the server process, or make sure none is set."""
+    work_dir = (work_dir or "").strip()
+    if not work_dir:
+        os.environ.pop("AUTO_CLIPPER_WORK_DIR", None)
+        return
+
+    os.environ["AUTO_CLIPPER_WORK_DIR"] = work_dir
+    if _on_drive(work_dir):
+        print(
+            "[Auto Clipper Colab] PERINGATAN: folder kerja berada di Google Drive, jadi proses tetap lambat. "
+            "Pakai folder lokal seperti /content/work.\n"
+            "  WARNING: the work dir is on Google Drive, so processing stays slow. "
+            "Use a local folder such as /content/work.",
+            file=sys.stderr,
+        )
+        if drive_missing:
+            return  # nothing is created under /content/drive before it is mounted
+    try:
+        os.makedirs(work_dir, exist_ok=True)
+        print(f"[Auto Clipper Colab] Work directory initialized at: {work_dir}")
+    except Exception as e:
+        print(f"[Auto Clipper Colab] Warning: Could not create work directory '{work_dir}': {e}", file=sys.stderr)
+
+
+def setup_environment(workspace: str, api_token: Optional[str] = None, work_dir: Optional[str] = None) -> None:
     """Configure environment variables for cloud mode and prepare workspace directory."""
     os.environ["AUTO_CLIPPER_CLOUD_MODE"] = "1"
     os.environ["AUTO_CLIPPER_WORKSPACE"] = workspace
+    drive_missing = _drive_missing(workspace)
+    setup_work_dir(work_dir, drive_missing)
 
     if api_token:
         os.environ["AUTO_CLIPPER_DEV_TOKEN"] = api_token
         os.environ["AUTO_CLIPPER_WEB_TOKEN"] = api_token
         os.environ["API_SECRET_TOKEN"] = api_token
 
-    if workspace.startswith("/content/drive") and not os.path.isdir("/content/drive/MyDrive"):
+    if drive_missing:
+        # Creating the library now would put it on the local disk, where it is
+        # lost with the runtime and makes the later drive.mount() refuse to run.
         print(
-            "[Auto Clipper Colab] ⚠️ PERINGATAN: Direktori Google Drive '/content/drive/MyDrive' belum terhubung (mounted)!\n"
-            "  Data video dan riwayat database (history.db) akan tersimpan di disk sementara dan HILANG jika Colab restart.\n"
-            "  Harap jalankan Step 1 (drive.mount('/content/drive')) terlebih dahulu agar data tersimpan permanen.",
+            "[Auto Clipper Colab] PERINGATAN: Google Drive belum terhubung. Server tetap menyala, "
+            "tetapi setiap proses video ditolak sampai Google Drive terhubung.\n"
+            "  Hentikan kotak ini, jalankan Langkah 1 (Hubungkan Google Drive), lalu jalankan lagi kotak ini.\n"
+            "  WARNING: Google Drive is not connected. The server still starts, "
+            "but every video job is refused until Google Drive is connected.\n"
+            "  Stop this box, run Step 1 (Hubungkan Google Drive), then run this box again.",
             file=sys.stderr,
         )
+    else:
+        try:
+            os.makedirs(workspace, exist_ok=True)
+            print(f"[Auto Clipper Colab] Workspace directory initialized at: {workspace}")
+        except Exception as e:
+            print(f"[Auto Clipper Colab] Warning: Could not create workspace directory '{workspace}': {e}", file=sys.stderr)
 
-    try:
-        os.makedirs(workspace, exist_ok=True)
-        print(f"[Auto Clipper Colab] Workspace directory initialized at: {workspace}")
-    except Exception as e:
-        print(f"[Auto Clipper Colab] Warning: Could not create workspace directory '{workspace}': {e}", file=sys.stderr)
-
-    # Inject CUDA 12 library paths for ctranslate2 / Whisper GPU fallback
-    try:
-        import nvidia.cublas.lib
-        import nvidia.cudnn.lib
-        cuda_paths = f"{os.path.dirname(nvidia.cublas.lib.__file__)}:{os.path.dirname(nvidia.cudnn.lib.__file__)}"
-        os.environ["LD_LIBRARY_PATH"] = cuda_paths + ":" + os.environ.get("LD_LIBRARY_PATH", "")
-    except Exception:
-        os.environ["LD_LIBRARY_PATH"] = "/usr/local/cuda/lib64:" + os.environ.get("LD_LIBRARY_PATH", "")
+    # CUDA 12 cuBLAS and cuDNN 9 for ctranslate2 (Whisper on the GPU), from the
+    # nvidia-*-cu12 pip packages the notebook installs. Each package is added on
+    # its own, so a missing cuDNN does not also hide cuBLAS.
+    cuda_paths = []
+    for package in ("cublas", "cudnn"):
+        try:
+            module = importlib.import_module(f"nvidia.{package}.lib")
+            cuda_paths.extend(list(getattr(module, "__path__", []))[:1])
+        except Exception:
+            pass
+    cuda_paths.append("/usr/local/cuda/lib64")
+    os.environ["LD_LIBRARY_PATH"] = ":".join(cuda_paths + [os.environ.get("LD_LIBRARY_PATH", "")])
 
 
 def start_uvicorn(host: str, port: int) -> subprocess.Popen:
@@ -209,7 +278,7 @@ def run_server(args: Optional[List[str]] = None) -> int:
     """Main execution loop for Colab entrypoint."""
     parsed = parse_args(args)
 
-    setup_environment(parsed.workspace, parsed.api_token)
+    setup_environment(parsed.workspace, parsed.api_token, parsed.work_dir)
 
     running_procs: List[subprocess.Popen] = []
     shutdown_initiated = False

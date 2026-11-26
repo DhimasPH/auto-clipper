@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,6 +23,7 @@ jobs:
       - name: Check version change
         id: check
         run: |
+          echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
             OLD_VERSION=$(git show HEAD~1:package.json | jq -r .version || echo "0.0.0")
             NEW_VERSION=$(jq -r .version package.json)
@@ -48,7 +50,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             python-arch: x64
             pip-constraints: ""
-          - os: macos-14
+          - os: macos-15
             target: aarch64-apple-darwin
             python-arch: arm64
             pip-constraints: "-c backend/constraints-macos12.txt"
@@ -87,7 +89,9 @@ jobs:
 
       - name: Setup FFmpeg (Windows)
         if: matrix.os == 'windows-latest'
-        run: npm install @ffmpeg-installer/ffmpeg
+        # ffmpeg-static 5 ships FFmpeg 6.1. The 2018 build from @ffmpeg-installer cannot open
+        # h264_nvenc with current NVIDIA drivers, so every clip was rendered on the CPU.
+        run: npm install ffmpeg-static@5
 
       - name: Install Python dependencies
         run: |
@@ -115,7 +119,7 @@ jobs:
 
           # Copy ffmpeg executable
           try:
-              ffmpeg_path = subprocess.check_output(['node', '-e', "console.log(require('@ffmpeg-installer/ffmpeg').path)"]).decode('utf-8').strip()
+              ffmpeg_path = subprocess.check_output(['node', '-e', "console.log(require('ffmpeg-static'))"]).decode('utf-8').strip()
               shutil.copy(ffmpeg_path, os.path.join('src-tauri', 'bin', f'ffmpeg{exe_ext}'))
           except Exception as e:
               print('Error: ffmpeg not found!', e)
@@ -179,3 +183,29 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
           args: --target ${{ matrix.target }}
+
+  web-package:
+    needs: [check-version]
+    if: needs.check-version.outputs.changed == 'true'
+    uses: ./.github/workflows/web-package.yml
+    permissions:
+      contents: read
+
+  web-release:
+    # After the desktop build creates release app-v<version>, attach the web zips to it.
+    needs: [check-version, build, web-package]
+    if: needs.check-version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download the zips
+        uses: actions/download-artifact@v4
+        with:
+          pattern: Auto-Clipper-Web-*
+          merge-multiple: true
+
+      - name: Attach the zips to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "app-v${{ needs.check-version.outputs.version }}" Auto-Clipper-Web-*.zip --clobber --repo "${{ github.repository }}"

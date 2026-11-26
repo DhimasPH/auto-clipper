@@ -1,3 +1,4 @@
+import functools
 import threading
 import re
 import uuid
@@ -6,10 +7,136 @@ import os
 from backend.video_utils import download_youtube_video
 from backend.ai_utils import process_with_openai, process_with_gemini, process_with_openai_compatible, OPENAI_COMPAT_PROVIDERS
 from backend.crop_utils import crop_to_vertical
+from backend import workspace
 from backend.db import save_history, get_app_data_dir
+from backend.errors import AppError, to_app_error
+from backend.job_queue import JobQueue
 from backend.logger import log_app, log_error
+from backend.stage_timer import DEVICE_FIELDS, collect_timings, current_stage, report, set_context, stage
 
 active_jobs = {}
+
+# One heavy job at a time (AUTO_CLIPPER_MAX_HEAVY_JOBS). Every job thread is
+# started through _start_job, never with threading.Thread directly.
+job_queue = JobQueue()
+_FINISHED = ("DONE", "ERROR", "CANCELLED", "AWAITING_MANUAL")
+_create_lock = threading.RLock()
+
+
+class ProjectNotFound(Exception):
+    """The project to start from is not in history (the endpoint answers 404)."""
+
+
+def _serialized(create_fn):
+    """Make the "is anything running?" check and the job insert one atomic step."""
+    @functools.wraps(create_fn)
+    def wrapper(*args, **kwargs):
+        with _create_lock:
+            return create_fn(*args, **kwargs)
+    return wrapper
+
+
+def _start_job(job_id: str, run_fn, *args) -> None:
+    """Queue a job run. It waits here while another job holds the heavy slot."""
+    def on_wait(position):
+        job = active_jobs.get(job_id)
+        if job is not None and not job.get("cancelled"):
+            job["progress"] = "Menunggu giliran. Proses lain masih berjalan."
+
+    job_queue.submit(job_id, _run_queued, (job_id, run_fn, args), on_wait=on_wait)
+
+
+def _run_queued(job_id: str, run_fn, args: tuple) -> None:
+    """Runs on the job's thread once it holds the heavy slot."""
+    job = active_jobs.get(job_id)
+    if job is None or job.get("cancelled"):
+        return  # cancelled while waiting: no work, and no preflight error on top
+    from backend.preflight import blocking_error
+    blocker = blocking_error()
+    if blocker is None:
+        run_fn(job_id, *args)
+        return
+
+    # Missing FFmpeg or a full disk: stop before any work starts.
+    log_error(f"JOB {job_id} preflight", blocker, exc_info=False)
+    _record_error(job, blocker)
+    if job.get("type") == "rerender_clip":
+        job["status"] = "ERROR"  # clip re-renders have no history row of their own
+    else:
+        _finalize_job(job_id, "ERROR", job.get("metadata") or dict(job.get("metadata_ref") or {}))
+
+
+def _reject_if_still_processing(history_id: str) -> None:
+    """Refuse a second Resume for a project that is already queued or running."""
+    job = active_jobs.get(history_id)
+    running_itself = job is not None and job.get("status") not in _FINISHED
+    being_resumed = any(
+        j.get("resumed_from") == history_id and j.get("status") not in _FINISHED
+        for j in active_jobs.values()
+    )
+    if running_itself or being_resumed or job_queue.position(history_id) is not None:
+        raise ValueError("Proyek ini masih diproses. Tunggu sampai selesai, tidak perlu menekan Lanjutkan lagi.")
+
+# Fields that say which device really did the work; copied from the stage
+# timings to the top of the job metadata so the UI can show them.
+_DEVICE_FIELDS = DEVICE_FIELDS
+_TRACKING_META_FIELDS = (
+    "tracking_engine_requested",
+    "tracking_engine_used",
+    "tracking_fallback_reason",
+)
+
+
+def _sync_stage_metadata(job: dict, metadata: dict) -> None:
+    """Copy active devices and face-tracking status from timings into metadata, clearing stale tracking keys."""
+    if not isinstance(metadata, dict):
+        return
+    timings = job.get("timings")
+    if not isinstance(timings, list):
+        return
+    for field in _TRACKING_META_FIELDS:
+        metadata.pop(field, None)
+    for entry in timings:
+        if not isinstance(entry, dict):
+            continue
+        for field in _DEVICE_FIELDS:
+            if entry.get(field):
+                metadata[field] = entry[field]
+        has_tracking = entry.get("stage") == "tracking" or any(entry.get(f) for f in _TRACKING_META_FIELDS)
+        if has_tracking:
+            for field in _TRACKING_META_FIELDS:
+                if entry.get(field):
+                    metadata[field] = entry[field]
+                else:
+                    metadata.pop(field, None)
+
+
+def _with_timings(run_fn):
+    """Collect the stage timings of one job run into job["timings"].
+
+    The list is shared with job["metadata"] when the job has one, so timings
+    reach history.db with every status save, not only at the end.
+    """
+    @functools.wraps(run_fn)
+    def wrapper(job_id, *args, **kwargs):
+        job = active_jobs[job_id]
+        timings = job.setdefault("timings", [])
+        if isinstance(job.get("metadata"), dict):
+            job["metadata"]["timings"] = timings
+        # The stages running now, for GET /jobs/{id} (spec 4.4). Never saved.
+        live = job["_live"] = {}
+        with collect_timings(timings, live):
+            return run_fn(job_id, *args, **kwargs)
+    return wrapper
+
+
+def live_stage(job_id: str):
+    """The stage an active job is running now (the ``current`` of its status), or None."""
+    job = active_jobs.get(job_id)
+    if not job or job.get("status") in _FINISHED:
+        return None
+    return current_stage(job.get("_live"))
+
 def _get_clip_limit(max_clips: int, duration_seconds: float) -> int:
     if max_clips > 0:
         return max_clips
@@ -24,6 +151,12 @@ def _get_clip_limit(max_clips: int, duration_seconds: float) -> int:
         return 15
 
 
+def _record_error(job: dict, exc: Exception) -> None:
+    """Keep the raw text in job["error"] (old UI) and add the structured form."""
+    job["error"] = str(exc)
+    job["error_info"] = to_app_error(exc).to_dict()
+
+
 def get_temp_dir():
     return os.path.join(get_app_data_dir(), "temp_downloads")
 
@@ -33,7 +166,12 @@ def sanitize_title(title: str) -> str:
         return ""
     # Remove illegal filesystem characters and emojis (keep only word chars, spaces, and basic punctuation)
     sanitized = re.sub(r'[^\w\s\-\.,()[\]]', '', title).strip()
-    return sanitized or "AutoClipper_Project"
+    # "." or ".." as a folder name is the output folder itself or its parent (T1.y), and Windows
+    # drops trailing dots and spaces, so "..." and ". ." are the same folder too.
+    if not sanitized.strip(". "):
+        return "AutoClipper_Project"
+    # "Wow..." would be a folder Windows cannot open by that name; the same name on every platform.
+    return sanitized.rstrip(". ")
 
 def check_title_uniqueness(title: str):
     safe_title = sanitize_title(title).lower()
@@ -53,17 +191,101 @@ def check_title_uniqueness(title: str):
             raise HTTPException(status_code=400, detail=f"Judul Proyek '{title}' sudah digunakan di Riwayat. Silakan gunakan judul berbeda untuk mencegah konflik folder.")
 
 
-def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") -> dict:
+REPICK_SUFFIX = "pilihan ulang"
+_REPICK_SUFFIX_RE = re.compile(rf"\s*\({REPICK_SUFFIX}(?: \d+)?\)$")
+
+
+def _title_in_use(title: str) -> bool:
+    """Whether a running job or a history row already uses this project name (same rule as check_title_uniqueness)."""
+    safe = sanitize_title(title).lower()
+    if not safe:
+        return False
+    if any(sanitize_title(job.get("title", "")).lower() == safe for job in active_jobs.values()):
+        return True
+    try:
+        from backend.db import get_all_history
+        return any(sanitize_title((row.get("metadata") or {}).get("title", "")).lower() == safe for row in get_all_history())
+    except Exception:
+        return False
+
+
+def repick_title(old_title: str) -> str:
+    """A free name for moments picked again: its own project folder, so the old clips stay (SP4 spec 3).
+
+    "Talk" -> "Talk (pilihan ulang)", then "Talk (pilihan ulang 2)", ... A re-pick of a re-pick
+    does not stack the suffix.
+    """
+    base = _REPICK_SUFFIX_RE.sub("", (old_title or "").strip()) or "Proyek"
+    title = f"{base} ({REPICK_SUFFIX})"
+    n = 2
+    while _title_in_use(title):
+        title = f"{base} ({REPICK_SUFFIX} {n})"
+        n += 1
+    return title
+
+
+def _project_folder_name(title: str, job_id: str = "") -> str:
     safe_title = sanitize_title(title)
     if not safe_title:
         safe_title = f"Project_{job_id}" if job_id else "Project_Untitled"
+    return safe_title
 
-    if output_dir and output_dir.strip():
-        base_dir = output_dir.strip()
-    else:
-        base_dir = os.path.join(get_app_data_dir(), "projects")
 
-    project_dir = os.path.join(base_dir, safe_title)
+def _usable_output_dir(output_dir: str) -> str:
+    """The chosen output folder, or "" on Cloud: no request there may choose one, so one in history is old and untrusted."""
+    if os.environ.get("AUTO_CLIPPER_CLOUD_MODE") or not isinstance(output_dir, str):
+        return ""
+    return output_dir.strip()
+
+
+def project_library_dir(title: str, output_dir: str = "", job_id: str = "") -> str:
+    """Where a project's finished files are kept: ``<output folder or app data/projects>/<title>``.
+
+    Pure path arithmetic, nothing is created.
+    """
+    base_dir = _usable_output_dir(output_dir) or os.path.join(get_app_data_dir(), "projects")
+    return os.path.join(base_dir, _project_folder_name(title, job_id))
+
+
+# The app's own working folders in app data. A project folder that is, or holds, one of them would
+# mix with them, and deleting the project from history would remove them.
+_APP_WORK_FOLDERS = ("projects", "addons", "temp_downloads")
+# Nor may a project sit inside these: removing or updating an add-on and clearing the downloads
+# would take its clips with them. (Inside "projects" is where every project lives.)
+_NO_PROJECTS_INSIDE = ("addons", "temp_downloads")
+
+
+def refuse_protected_project_dir(output_dir: str, library_dir: str) -> None:
+    """T1.y: a project never writes into a private app file or folder (``path_guard``), nor into one of the app's own folders."""
+    from backend.path_guard import is_protected, is_within, private_folders
+    for path in (_usable_output_dir(output_dir), library_dir):
+        if path and is_protected(path):
+            raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a protected project folder: {path!r}")
+    app_data = get_app_data_dir()
+    uploads = workspace.uploads_dir()
+    work_dir = workspace.get_work_dir()
+    app_folders = [os.path.join(app_data, name) for name in _APP_WORK_FOLDERS] + [uploads] + private_folders()
+    if work_dir:
+        app_folders.extend(os.path.join(work_dir, name) for name in _APP_WORK_FOLDERS)
+    for folder in app_folders:
+        if is_within(folder, library_dir):
+            raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a project folder holding an app folder: {library_dir!r}")
+    no_projects_inside = [os.path.join(app_data, name) for name in _NO_PROJECTS_INSIDE] + [uploads]
+    if work_dir:
+        no_projects_inside.extend(os.path.join(work_dir, name) for name in _NO_PROJECTS_INSIDE)
+    for folder in no_projects_inside:
+        if is_within(library_dir, folder):
+            raise AppError("OUTPUT_DIR_REFUSED", technical=f"Refused a project folder inside an app folder: {library_dir!r}")
+
+
+def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") -> dict:
+    safe_title = _project_folder_name(title, job_id)
+
+    # library_dir is where the finished project is kept. With AUTO_CLIPPER_WORK_DIR
+    # the job works on that faster disk instead and publishes its results.
+    library_dir = project_library_dir(title, output_dir, job_id)
+    refuse_protected_project_dir(output_dir, library_dir)
+    project_dir = workspace.work_project_dir(safe_title) or library_dir
     source_dir = os.path.join(project_dir, "source")
     subtitles_dir = os.path.join(project_dir, "subtitles")
     clips_dir = os.path.join(project_dir, "clips")
@@ -81,20 +303,106 @@ def get_project_workspace(title: str, output_dir: str = "", job_id: str = "") ->
         "clips_dir": clips_dir,
         "broll_dir": broll_dir,
         "safe_title": safe_title,
+        "library_dir": library_dir,
     }
 
 
+def _publish(job: dict, metadata: dict, final: bool = False) -> list:
+    """Copy finished clips and subtitles from the work dir to the library.
+
+    Called after every clip, not only at the end, so history never points at a
+    clip that disappears with the work disk and a resumed job finds its
+    transcript and rendered clips in the library. Without AUTO_CLIPPER_WORK_DIR
+    the files are already there and this does nothing. Never raises; returns
+    the errors.
+    """
+    if not workspace.get_work_dir():
+        return []
+    try:
+        ws = get_project_workspace(
+            job.get("title") or metadata.get("title", ""),
+            job.get("output_dir") or metadata.get("output_dir", ""),
+            job.get("id", ""),
+        )
+        failures = workspace.publish(ws, job.get("clips", []), metadata, final=final,
+                                     job_id=job.get("id", ""), url=job.get("url", ""))
+        if final:
+            warnings = workspace.library_warnings()
+            if warnings:
+                job["warnings"] = metadata["warnings"] = warnings
+            else:
+                job.pop("warnings", None)
+                metadata.pop("warnings", None)
+        return failures
+    except Exception as e:
+        log_error("jobs.publish", e)
+        return [e]
+
+
+def _publish_error(exc: Exception) -> AppError:
+    """A full disk keeps its own message; anything else is 'copy to the library failed'."""
+    err = to_app_error(exc)
+    return err if err.code != "UNKNOWN" else AppError("PUBLISH_FAILED", technical=str(exc) or type(exc).__name__)
+
+
+def _restore_source_video(job: dict, metadata: dict, url: str = "", project_id: str = "") -> str:
+    """The source video path, bringing the file back when the work dir was wiped.
+
+    Clips are published to the library but the source video is not, so in a new
+    Colab session history still points at a source that is gone. A URL job
+    downloads it again, an upload is copied again from the uploaded file, and
+    when that file is gone too the user is asked to upload it again. A source
+    that is still there is returned untouched, never fetched twice.
+
+    Without AUTO_CLIPPER_WORK_DIR this only returns metadata["source_video"];
+    each caller keeps its own "source not found" handling.
+    """
+    source = metadata.get("source_video")
+    if (source and os.path.exists(source)) or not workspace.get_work_dir():
+        return source
+
+    url = url or job.get("url") or ""
+    ws = get_project_workspace(
+        job.get("title") or metadata.get("title", ""),
+        job.get("output_dir") or metadata.get("output_dir", ""),
+        project_id or job.get("id", ""),
+    )
+    target = os.path.join(ws["source_dir"], "source_video.mp4")
+    if not os.path.exists(target):
+        if url.startswith("local:"):
+            upload = url[len("local:"):]
+            if not upload or not os.path.exists(upload):
+                raise AppError("UPLOAD_MISSING", technical=f"source video {source} and uploaded file {upload or '(none)'} no longer exist")
+            import shutil
+            job["progress"] = "Menyiapkan ulang video sumber..."
+            log_app(f"[{job.get('id', '')}] Menyalin ulang video unggahan ke folder kerja...")
+            with stage("download", source="local"):
+                shutil.copy2(upload, target)
+        elif url:
+            previous_status = job.get("status")
+            job["status"] = "DOWNLOADING"
+            job["progress"] = "Mengunduh ulang video sumber..."
+            log_app(f"[{job.get('id', '')}] Mengunduh ulang video sumber...")
+            download_youtube_video(url, target, metadata.get("quality") or job.get("quality") or "best",
+                                   is_cancelled=lambda: job.get("cancelled", False))
+            if job.get("status") == "DOWNLOADING":
+                job["status"] = previous_status
+        else:
+            return source
+
+    metadata["source_video"] = metadata["source_path"] = target
+    return target
+
+
+@_serialized
 def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16", caption_style: str = "standard", burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", enable_broll: bool = False, pexels_api_key: str = "", max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", is_gaming_video: bool = False, whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     if not title or not title.strip():
         raise ValueError("Judul Proyek wajib diisi.")
     check_title_uniqueness(title)
     job_id = str(uuid.uuid4())
+    # No API keys here: metadata goes to history.db (T0.18). The job keeps them below.
     metadata = {
         "provider": provider,
-        "api_key": api_key,
         "custom_base_url": custom_base_url,
         "custom_model_name": custom_model_name,
         "whisper_model": whisper_model or "small",
@@ -112,7 +420,6 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         "title": title,
         "enable_broll": enable_broll,
         "enable_hook": enable_hook,
-        "pexels_api_key": pexels_api_key,
         "max_clips": max_clips,
         "is_gaming_video": is_gaming_video,
         "raw_video": None,
@@ -158,10 +465,11 @@ def create_job(url: str, provider: str, api_key: str, aspect_ratio: str = "9:16"
         save_history(job_id, url, "PENDING", [], metadata)
     except Exception as db_e:
         log_error("jobs.create_job_save_history", db_e)
-    threading.Thread(target=_run_job, args=(job_id,), daemon=True).start()
+    _start_job(job_id, _run_job)
     return job_id
 
 
+@_serialized
 def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption_style: str = "standard",
                       burn_subs: bool = True, output_dir: str = "", quality: str = "best", title: str = "", is_gaming_video: bool = False, whisper_model: str = "small", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
     """Manual clipper job: cut user-chosen ranges, no AI highlight selection.
@@ -169,9 +477,6 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
     Reuses the existing crop + faster-whisper caption pipeline but bypasses any
     LLM provider entirely (see the Smart Manual Clipper design spec).
     """
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     if not title or not title.strip():
         raise ValueError("Judul Proyek wajib diisi.")
     check_title_uniqueness(title)
@@ -193,7 +498,6 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         "title": title,
         "enable_broll": False,
         "enable_hook": enable_hook,
-        "pexels_api_key": "",
         "max_clips": 0,
         "is_gaming_video": is_gaming_video,
         "raw_video": None,
@@ -236,20 +540,20 @@ def create_manual_job(url: str, clips: list, aspect_ratio: str = "9:16", caption
         save_history(job_id, url, "PENDING", [], metadata)
     except Exception as db_e:
         log_error("jobs.create_manual_job_save_history", db_e)
-    threading.Thread(target=_run_manual_job, args=(job_id,), daemon=True).start()
+    _start_job(job_id, _run_manual_job)
     return job_id
 
 
-def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False) -> str:
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
+@_serialized
+def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, output_dir: str, max_clips: int = 0, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = None, enable_hook: bool = False) -> str:
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata") or not hist["metadata"].get("source_video"):
         raise ValueError("History tidak valid atau metadata tidak lengkap.")
         
     hist_meta = hist.get("metadata", {})
+    run_meta = {k: v for k, v in hist_meta.items() if k not in _TRACKING_META_FIELDS}
+    run_meta["timings"] = []
     job_id = str(uuid.uuid4())
     active_jobs[job_id] = {
         "id": job_id,
@@ -259,6 +563,8 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "canvas_config": canvas_config if canvas_config is not None else hist_meta.get("canvas_config"),
         "subtitle_config": subtitle_config if subtitle_config is not None else hist_meta.get("subtitle_config"),
         "tracking_mode": tracking_mode if tracking_mode else hist_meta.get("tracking_mode", "auto"),
+        # None means the app did not choose: keep the engine the project was made with.
+        "face_tracking_engine": face_tracking_engine or hist_meta.get("face_tracking_engine") or "haar",
         "burn_subs": burn_subs,
         "output_dir": output_dir or hist_meta.get("output_dir", ""),
         "title": hist_meta.get("title", ""),
@@ -271,14 +577,14 @@ def create_rerender_job(history_id: str, aspect_ratio: str, burn_subs: bool, out
         "clips": [],
         "failed": 0,
         "error": None,
-        "metadata": hist_meta,
+        "metadata": run_meta,
         "original_clips": hist.get("result_clips", [])
     }
     try:
-        save_history(job_id, hist["url"], "PENDING", [], hist_meta)
+        save_history(job_id, hist["url"], "PENDING", [], run_meta)
     except Exception as db_e:
         log_error("jobs.create_rerender_job_save_history", db_e)
-    threading.Thread(target=_run_rerender_job, args=(job_id,), daemon=True).start()
+    _start_job(job_id, _run_rerender_job)
     return job_id
 
 def get_job(job_id: str) -> dict:
@@ -300,6 +606,7 @@ def get_job(job_id: str) -> dict:
                 "clips": hist.get("result_clips", []),
                 "metadata": meta,
                 "error": err_msg,
+                "error_info": meta.get("error_info") if isinstance(meta, dict) and status == "ERROR" else None,
                 "failed": 0
             }
     return job
@@ -321,6 +628,7 @@ def cancel_job(job_id: str):
         job["cancelled"] = True
         job["status"] = "CANCELLED"
         job["progress"] = "Proses dibatalkan oleh pengguna."
+        job_queue.cancel(job_id)
         # Actually terminate the ffmpeg render in progress, otherwise the
         # current clip keeps rendering to completion before the flag is seen.
         proc = job.get("_proc")
@@ -330,13 +638,15 @@ def cancel_job(job_id: str):
                     proc.kill()
             except Exception as e:
                 log_error("jobs.cancel_job", e)
-        # Immediately record CANCELLED in DB
-        try:
-            from backend.db import save_history
-            save_history(job_id, job.get("url", ""), "CANCELLED", job.get("clips", []), job.get("metadata"))
-        except Exception as e:
-            log_error("jobs.cancel_job_db", e)
+        # Immediately record CANCELLED in DB (single-clip rerenders belong to parent_job_id, not their own history row)
+        if job.get("type") != "rerender_clip":
+            try:
+                from backend.db import save_history
+                save_history(job_id, job.get("url", ""), "CANCELLED", job.get("clips", []), job.get("metadata"))
+            except Exception as e:
+                log_error("jobs.cancel_job_db", e)
 
+@_with_timings
 def _run_job(job_id: str):
     import time
     job = active_jobs[job_id]
@@ -370,7 +680,8 @@ def _run_job(job_id: str):
             output_path = os.path.join(ws["source_dir"], "source_video.mp4")
             if os.path.abspath(local_src) != os.path.abspath(output_path):
                 import shutil
-                shutil.copy2(local_src, output_path)
+                with stage("download", source="local"):
+                    shutil.copy2(local_src, output_path)
         else:
             job["progress"] = "Mengunduh video..."
             log_app(f"[{job_id}] " + str("Mengunduh video..."))
@@ -491,12 +802,13 @@ def _run_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", locals().get('metadata', {}))
             return
         log_error(f"JOB {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", locals().get('metadata', {}))
 
 def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str, subtitle_path: str, is_cancelled: callable, limit: int = 0):
     job["status"] = "CROPPING"
     log_app(f"[{job_id}] " + str("CROPPING"))
+    _publish(job, metadata)  # the transcript, so a resumed job finds it
     try:
         from backend.db import save_history
         save_history(job_id, job.get("url", ""), "CROPPING", job.get("clips", []), metadata)
@@ -526,8 +838,13 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
             job_layout = None
 
     rendered_count = len(job.get("clips", []))
+    if job.get("enable_broll") and not job.get("pexels_api_key") and rendered_count < len(segments):
+        # A resumed job only has the Pexels key the app sent: history keeps no keys.
+        log_app(f"[{job_id}] B-roll dilewati: tidak ada kunci API Pexels untuk proses ini.")
 
+    report(clips_total=len(segments))
     for i, seg in enumerate(segments):
+        set_context(clip=i + 1)
         if is_cancelled():
             _finalize_job(job_id, "CANCELLED", metadata)
             return
@@ -599,7 +916,8 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                     "-filter_complex", "[0:v]setsar=1[v0];[1:v]setsar=1,scale=1080:1920[v1];[2:v]setsar=1[v2];[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[v][a]", 
                     "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-c:a", "aac", clip_output
                 ]
-                subprocess.run(concat_cmd, check=True)
+                with stage("hook_concat"):
+                    subprocess.run(concat_cmd, check=True)
                 if os.path.exists(hook_output): os.remove(hook_output)
                 if os.path.exists(main_output): os.remove(main_output)
                 result_path = clip_output
@@ -632,6 +950,8 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
                 "v": 0
             })
             
+            _sync_stage_metadata(job, metadata)
+            _publish(job, metadata)
             try:
                 from backend.db import save_history
                 save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
@@ -660,6 +980,7 @@ def _render_video_clips(job: dict, job_id: str, metadata: dict, output_path: str
     metadata["is_gaming_video"] = job.get("is_gaming_video", False)
     _finalize_job(job_id, "DONE", metadata)
 
+@_with_timings
 def _run_manual_job(job_id: str):
     import time
     job = active_jobs[job_id]
@@ -691,7 +1012,8 @@ def _run_manual_job(job_id: str):
             source_path = os.path.join(ws["source_dir"], "source_video.mp4")
             if os.path.abspath(local_src) != os.path.abspath(source_path):
                 import shutil
-                shutil.copy2(local_src, source_path)
+                with stage("download", source="local"):
+                    shutil.copy2(local_src, source_path)
         else:
             job["progress"] = "Mengunduh video..."
             log_app(f"[{job_id}] " + str("Mengunduh video..."))
@@ -751,6 +1073,7 @@ def _run_manual_job(job_id: str):
         # 4. Crop each user-selected range.
         job["status"] = "CROPPING"
         log_app(f"[{job_id}] " + str("CROPPING"))
+        _publish(job, metadata)
         try:
             from backend.db import save_history
             save_history(job_id, job["url"], "CROPPING", job["clips"], metadata)
@@ -759,7 +1082,9 @@ def _run_manual_job(job_id: str):
         
         rendered_count = len(job.get("clips", []))
         
+        report(clips_total=len(clips))
         for i, clip in enumerate(clips):
+            set_context(clip=i + 1)
             if is_cancelled():
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
@@ -799,6 +1124,8 @@ def _run_manual_job(job_id: str):
                     "v": 0,
                 })
                 
+                _sync_stage_metadata(job, metadata)
+                _publish(job, metadata)
                 try:
                     from backend.db import save_history
                     save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
@@ -831,10 +1158,11 @@ def _run_manual_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
         log_error(f"MANUAL JOB {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)
 
 
+@_with_timings
 def _run_rerender_job(job_id: str):
     import time
     job = active_jobs[job_id]
@@ -845,7 +1173,7 @@ def _run_rerender_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
             
-        output_path = metadata["source_video"]
+        output_path = _restore_source_video(job, metadata)
         if not os.path.exists(output_path):
             raise ValueError("Video sumber tidak ditemukan di memori lokal. Silakan proses dari awal.")
             
@@ -880,7 +1208,9 @@ def _run_rerender_job(job_id: str):
 
         rendered_count = len(job.get("clips", []))
 
+        report(clips_total=len(segments))
         for i, seg in enumerate(segments):
+            set_context(clip=i + 1)
             if job.get("cancelled", False):
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
@@ -960,7 +1290,8 @@ def _run_rerender_job(job_id: str):
                         "-filter_complex", "[0:v]setsar=1[v0];[1:v]setsar=1,scale=1080:1920[v1];[2:v]setsar=1[v2];[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[v][a]", 
                         "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-c:a", "aac", clip_output
                     ]
-                    subprocess.run(concat_cmd, check=True)
+                    with stage("hook_concat"):
+                        subprocess.run(concat_cmd, check=True)
                     if os.path.exists(hook_output): os.remove(hook_output)
                     if os.path.exists(main_output): os.remove(main_output)
                     result_path = clip_output
@@ -992,6 +1323,8 @@ def _run_rerender_job(job_id: str):
                     "v": 0
                 })
                 
+                _sync_stage_metadata(job, metadata)
+                _publish(job, metadata)
                 try:
                     from backend.db import save_history
                     save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
@@ -1023,13 +1356,11 @@ def _run_rerender_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
         log_error(f"JOB RERENDER {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar", enable_hook: bool = False):
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
+@_serialized
+def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect_ratio: str, burn_subs: bool, output_dir: str, extra_prompt: str, max_clips: int = 0, custom_base_url: str = "", custom_model_name: str = "", whisper_model: str = "small", model: str = "", canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = None, enable_hook: bool = False):
     from backend.db import get_history
     job_record = get_history(history_job_id)
     if not job_record:
@@ -1037,8 +1368,12 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
 
     metadata = job_record.get("metadata", {})
     source_video = metadata.get("source_video")
-    if not source_video or not os.path.exists(source_video):
-        raise ValueError("Source video tidak ditemukan lagi di memori lokal.")
+    if not source_video or (not os.path.exists(source_video) and not workspace.get_work_dir()):
+        raise AppError("RERUN_SOURCE_MISSING", technical=f"source video {source_video!r} is gone")
+
+    # A new project with its own folder: the old clips are never overwritten (SP4 spec 3, ruling 5).
+    title = repick_title(metadata.get("title", ""))
+    metadata = {**{k: v for k, v in metadata.items() if k not in _TRACKING_META_FIELDS}, "title": title, "timings": []}
         
     new_job_id = str(uuid.uuid4())
     active_jobs[new_job_id] = {
@@ -1055,11 +1390,13 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
         "canvas_config": canvas_config if canvas_config is not None else metadata.get("canvas_config"),
         "subtitle_config": subtitle_config if subtitle_config is not None else metadata.get("subtitle_config"),
         "tracking_mode": tracking_mode if tracking_mode else metadata.get("tracking_mode", "auto"),
+        "face_tracking_engine": face_tracking_engine or metadata.get("face_tracking_engine") or "haar",
         "caption_style": job_record.get("caption_style", "standard"),
         "burn_subs": burn_subs,
-        "output_dir": output_dir,
+        # The folder the run really writes to, so _finalize_job records it in history.
+        "output_dir": output_dir or metadata.get("output_dir", ""),
         "quality": "best",
-        "title": job_record.get("metadata", {}).get("title", ""),
+        "title": title,
         "max_clips": max_clips,
         "enable_hook": enable_hook,
         "status": "QUEUED",
@@ -1078,10 +1415,10 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
     except Exception as db_e:
         log_error("jobs.create_rerun_ai_job_save_history", db_e)
     
-    t = threading.Thread(target=_run_rerun_ai_job, args=(new_job_id, source_video, metadata))
-    t.start()
+    _start_job(new_job_id, _run_rerun_ai_job, source_video, metadata)
     return new_job_id
 
+@_with_timings
 def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
     import time
     job = active_jobs[job_id]
@@ -1089,6 +1426,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
     metadata = dict(old_metadata) # clone
     try:
         if job["cancelled"]: return
+
+        source_video = _restore_source_video(job, metadata) or source_video
 
         ws = get_project_workspace(job.get("title") or old_metadata.get("title", ""), job.get("output_dir") or old_metadata.get("output_dir", ""), job_id)
 
@@ -1137,6 +1476,7 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             
         job["status"] = "CROPPING"
         log_app(f"[{job_id}] " + str("CROPPING"))
+        _publish(job, metadata)
         try:
             from backend.db import save_history
             save_history(job_id, job["url"], "CROPPING", job["clips"], metadata)
@@ -1162,7 +1502,9 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
 
         rendered_count = len(job.get("clips", []))
 
+        report(clips_total=len(segments))
         for i, seg in enumerate(segments):
+            set_context(clip=i + 1)
             if job.get("cancelled", False):
                 _finalize_job(job_id, "CANCELLED", metadata)
                 return
@@ -1216,6 +1558,8 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
                     "v": 0
                 })
                 
+                _sync_stage_metadata(job, metadata)
+                _publish(job, metadata)
                 try:
                     from backend.db import save_history
                     save_history(job_id, job.get("url", ""), "CROPPING", job["clips"], metadata)
@@ -1247,13 +1591,125 @@ def _run_rerun_ai_job(job_id: str, source_video: str, old_metadata: dict):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
         log_error(f"JOB RERUN AI {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)
 
+
+# Stages that make clips (src/lib/createFlow.ts MAKE_STAGES). Task 6 drops earlier runs' rows of these.
+_MAKE_STAGES = ("tracking", "render", "hook_concat", "publish")
+# Old-project fields a re-pick must not carry: its result, its run report, its name.
+_REPICK_DROPPED_FIELDS = (
+    "highlights", "ai_job", "manual_prompt", "extra_prompt", "timings", "error", "error_info",
+    "warnings", "duration_seconds", "title", "history_ref",
+) + _TRACKING_META_FIELDS + tuple(_DEVICE_FIELDS)
+_SRT_TIME = re.compile(r"(\d+):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d+):(\d{2}):(\d{2})[,.](\d{3})")
+
+
+def _read_transcript(subtitle_path: str) -> tuple:
+    """The transcript as SRT text for the AI prompt, and the video length it covers in seconds."""
+    import json
+    from backend.ai_utils import build_srt_from_segments
+    with open(subtitle_path, "r", encoding="utf-8") as f:
+        raw = f.read()
+    if subtitle_path.endswith(".json"):
+        segments = [
+            {"start": s.get("start"), "end": s.get("end"), "text": s.get("text")}
+            for s in json.loads(raw).get("segments", [])
+        ]
+        duration = max((float(s["end"] or 0) for s in segments), default=0.0)
+        return build_srt_from_segments(segments), duration
+    ends = [int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000 for *_, h, m, s, ms in _SRT_TIME.findall(raw)]
+    return raw, max(ends, default=0.0)
+
+
+def _source_can_return(source_video, url: str) -> bool:
+    """Whether a later step can use the source video: still there, or _restore_source_video brings it back."""
+    if source_video and os.path.exists(source_video):
+        return True
+    if not workspace.get_work_dir():
+        return False
+    if url.startswith("local:"):
+        upload = url[len("local:"):]
+        return bool(upload) and os.path.exists(upload)
+    return bool(url)
+
+
+@_serialized
+def create_rerun_manual_job(history_job_id: str, extra_prompt: str = "", max_clips: int = 0, output_dir: str = "",
+                            aspect_ratio: str = None, burn_subs: bool = None, canvas_config: dict = None,
+                            subtitle_config: dict = None, tracking_mode: str = None, face_tracking_engine: str = None) -> dict:
+    """Pick moments again without an API key (SP4 spec 4.4, ADR-016).
+
+    A new project waiting at step 3 with a new AI prompt built from the old transcript, so nothing is
+    downloaded or transcribed here. No thread (E.10 is about job threads): the prompt is ready at once
+    and the pasted answer goes through resume_manual_job like any manual project. The old project is
+    not changed. Returns {"job_id", "manual_prompt", "title"}.
+    """
+    from backend.db import get_history
+    from backend.ai_utils import generate_manual_prompt
+    _reject_if_still_processing(history_job_id)
+    hist = get_history(history_job_id)
+    if not hist:
+        raise ProjectNotFound(history_job_id)
+    old = hist.get("metadata") or {}
+    url = hist.get("url") or ""
+
+    subtitle_path = old.get("subtitle_path") or ""
+    if not subtitle_path or not os.path.isfile(subtitle_path):
+        raise AppError("RERUN_SOURCE_MISSING", technical=f"transcript {subtitle_path!r} is gone")
+    if not _source_can_return(old.get("source_video"), url):
+        raise AppError("RERUN_SOURCE_MISSING", technical=f"source video {old.get('source_video')!r} is gone and cannot come back")
+    try:
+        transcript_text, duration = _read_transcript(subtitle_path)
+    except (OSError, ValueError) as e:
+        raise AppError("RERUN_SOURCE_MISSING", technical=f"transcript {subtitle_path!r} unreadable: {e}") from e
+
+    extra = (extra_prompt or "").strip()
+    # The count exactly as sent, 0 = automatic (whole-wave ruling M2), like the API path.
+    limit = _get_clip_limit(max_clips, duration)
+    manual_prompt = generate_manual_prompt(transcript_text, extra_prompt=extra, limit=limit)
+    title = repick_title(old.get("title") or "")
+
+    metadata = {k: v for k, v in old.items() if k not in _REPICK_DROPPED_FIELDS}
+    metadata.update({"manual_prompt": manual_prompt, "extra_prompt": extra, "history_ref": history_job_id, "timings": []})
+    new_job_id = str(uuid.uuid4())
+    active_jobs[new_job_id] = {
+        "id": new_job_id,
+        "url": url or "local:",
+        "provider": "manual_ai",
+        "api_key": "",
+        "mode": "ai",
+        "aspect_ratio": aspect_ratio or old.get("aspect_ratio", "9:16"),
+        "canvas_config": canvas_config if canvas_config is not None else old.get("canvas_config"),
+        "subtitle_config": subtitle_config if subtitle_config is not None else old.get("subtitle_config"),
+        "tracking_mode": tracking_mode or old.get("tracking_mode") or "auto",
+        "face_tracking_engine": face_tracking_engine or old.get("face_tracking_engine") or "haar",
+        "caption_style": old.get("caption_style", "standard"),
+        "burn_subs": old.get("burn_subs", True) if burn_subs is None else burn_subs,
+        "output_dir": output_dir or old.get("output_dir", ""),
+        "quality": old.get("quality", "best"),
+        "whisper_model": old.get("whisper_model", "small"),
+        "enable_broll": old.get("enable_broll", False),
+        "enable_hook": old.get("enable_hook", False),
+        "max_clips": max_clips,
+        "is_gaming_video": old.get("is_gaming_video", False),
+        "title": title,
+        "status": "AWAITING_MANUAL",
+        "progress": "",
+        "clips": [],
+        "failed": 0,
+        "error": None,
+        "cancelled": False,
+        "history_ref": history_job_id,
+        "timings": [],
+        "metadata": metadata,
+    }
+    log_app(f"[{new_job_id}] Pilih ulang momen dari {history_job_id}: menunggu jawaban AI")
+    _finalize_job(new_job_id, "AWAITING_MANUAL", metadata)
+    return {"job_id": new_job_id, "manual_prompt": manual_prompt, "title": title}
+
+@_serialized
 def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, aspect_ratio: str, caption_style: str, burn_subs: bool, canvas_config: dict = None, subtitle_config: dict = None, tracking_mode: str = "auto", face_tracking_engine: str = "haar"):
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
     import time
     new_job_id = f"rerender_clip_{job_id}_{clip_index}_{int(time.time())}"
     active_jobs[new_job_id] = {
@@ -1277,10 +1733,10 @@ def create_rerender_clip_job(job_id: str, clip_index: int, custom_words: list, a
         "failed": 0,
         "error": None
     }
-    thread = threading.Thread(target=_run_rerender_clip_job, args=(new_job_id,), daemon=True)
-    thread.start()
+    _start_job(new_job_id, _run_rerender_clip_job)
     return new_job_id
 
+@_with_timings
 def _run_rerender_clip_job(new_job_id: str):
     import time
     import json
@@ -1291,8 +1747,12 @@ def _run_rerender_clip_job(new_job_id: str):
     clip_index = job["clip_index"]
 
     try:
+        if job.get("cancelled", False):
+            job["status"] = "CANCELLED"
+            return
         job["status"] = "CROPPING"
         job["progress"] = "Preparing custom subtitle..."
+        set_context(clip=clip_index + 1)
 
         # Inline import — consistent with resume_manual_job pattern
         from backend.db import get_history
@@ -1311,19 +1771,20 @@ def _run_rerender_clip_job(new_job_id: str):
         original_path = target_clip.get("path")
 
         metadata = history_data.get("metadata", {})
-        source_path = metadata.get("source_video")
+        source_path = _restore_source_video(job, metadata, url=history_data.get("url", ""), project_id=parent_job_id)
 
         if not source_path or not os.path.exists(source_path):
             raise ValueError(f"Source video not found: {source_path}")
 
+        ws = get_project_workspace(
+            metadata.get("title", parent_job_id),
+            output_dir=metadata.get("output_dir", ""),  # FIX: use metadata output_dir
+            job_id=parent_job_id
+        )
+
         # Write custom words to a temporary json in proper workspace
         custom_subtitle_path = None
         if job["burn_subs"] and job["custom_words"]:
-            ws = get_project_workspace(
-                metadata.get("title", parent_job_id),
-                output_dir=metadata.get("output_dir", ""),  # FIX: use metadata output_dir
-                job_id=parent_job_id
-            )
             os.makedirs(ws["subtitles_dir"], exist_ok=True)
             custom_subtitle_path = os.path.join(ws["subtitles_dir"], f"clip_{clip_index}_custom.words.json")
             with open(custom_subtitle_path, "w", encoding="utf-8") as f:
@@ -1341,14 +1802,12 @@ def _run_rerender_clip_job(new_job_id: str):
         # Render to TEMP file first, then atomic replace
         job["progress"] = "Re-rendering clip..."
 
-        if original_path:
-            temp_output = original_path + ".tmp.mp4"
+        # With a work dir the clip is re-rendered there and then published over
+        # the library copy; without one render_path is the original path.
+        render_path = workspace.work_path(ws, original_path) if original_path else None
+        if render_path:
+            temp_output = render_path + ".tmp.mp4"
         else:
-            ws = get_project_workspace(
-                metadata.get("title", parent_job_id),
-                output_dir=metadata.get("output_dir", ""),
-                job_id=parent_job_id
-            )
             temp_output = os.path.join(ws["clips_dir"], f"clip_{clip_index}_{uuid.uuid4().hex[:6]}.mp4")
 
         enable_hook = metadata.get("enable_hook", False)
@@ -1363,6 +1822,7 @@ def _run_rerender_clip_job(new_job_id: str):
                 source_path, hook_output, seg["hook_start"], seg["hook_end"],
                 subtitle_path=custom_subtitle_path,
                 aspect_ratio=job["aspect_ratio"],
+                register_proc=lambda p: _register_proc(job, p),
                 should_cancel=lambda: job.get("cancelled", False),
                 layout=job_layout,
                 canvas_config=job.get("canvas_config"),
@@ -1375,6 +1835,7 @@ def _run_rerender_clip_job(new_job_id: str):
                 source_path, main_output, start_t, end_t,
                 subtitle_path=custom_subtitle_path,
                 aspect_ratio=job["aspect_ratio"],
+                register_proc=lambda p: _register_proc(job, p),
                 should_cancel=lambda: job.get("cancelled", False),
                 layout=job_layout,
                 canvas_config=job.get("canvas_config"),
@@ -1390,7 +1851,8 @@ def _run_rerender_clip_job(new_job_id: str):
                 "-filter_complex", "[0:v]setsar=1[v0];[1:v]setsar=1,scale=1080:1920[v1];[2:v]setsar=1[v2];[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[v][a]", 
                 "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-c:a", "aac", temp_output
             ]
-            subprocess.run(concat_cmd, check=True)
+            with stage("hook_concat"):
+                subprocess.run(concat_cmd, check=True)
             if os.path.exists(hook_output): os.remove(hook_output)
             if os.path.exists(main_output): os.remove(main_output)
             result_path = temp_output
@@ -1399,6 +1861,7 @@ def _run_rerender_clip_job(new_job_id: str):
                 source_path, temp_output, start_t, end_t,
                 subtitle_path=custom_subtitle_path,
                 aspect_ratio=job["aspect_ratio"],
+                register_proc=lambda p: _register_proc(job, p),
                 should_cancel=lambda: job.get("cancelled", False),
                 layout=job_layout,
                 canvas_config=job.get("canvas_config"),
@@ -1407,11 +1870,27 @@ def _run_rerender_clip_job(new_job_id: str):
                 engine=job.get("face_tracking_engine", "haar")
             )
 
+        if job.get("cancelled", False):
+            job["status"] = "CANCELLED"
+            if temp_output and os.path.exists(temp_output) and temp_output.endswith(".tmp.mp4"):
+                try:
+                    os.remove(temp_output)
+                except Exception:
+                    pass
+            return
+
         # Atomic replace: move temp to final path
-        final_path = original_path or result_path
+        final_path = render_path or result_path
         if result_path != final_path:
             os.replace(result_path, final_path)
             result_path = final_path
+
+        # D.10: history must keep the edited subtitle, so it goes to the library with the clip.
+        rendered = {"path": result_path, "custom_subtitle_path": custom_subtitle_path}
+        failures = workspace.publish(ws, [rendered], {})
+        if failures:
+            raise _publish_error(failures[0])
+        result_path, custom_subtitle_path = rendered["path"], rendered["custom_subtitle_path"]
 
         # FIX: Re-read history from DB to avoid race condition
         # (another rerender_clip thread might have saved in between)
@@ -1419,6 +1898,9 @@ def _run_rerender_clip_job(new_job_id: str):
         if fresh_history:
             fresh_clips = fresh_history.get("result_clips", [])
             fresh_metadata = fresh_history.get("metadata", {})
+            if isinstance(fresh_metadata, dict):
+                _sync_stage_metadata(job, fresh_metadata)
+                job.setdefault("metadata", {}).update(fresh_metadata)
             if clip_index < len(fresh_clips):
                 fresh_clips[clip_index]["path"] = result_path
                 fresh_clips[clip_index]["v"] = int(time.time())
@@ -1426,8 +1908,13 @@ def _run_rerender_clip_job(new_job_id: str):
                 if custom_subtitle_path:
                     fresh_clips[clip_index]["custom_subtitle_path"] = custom_subtitle_path
                 save_history(parent_job_id, fresh_history["url"], fresh_history["status"], fresh_clips, fresh_metadata)
+                if parent_job_id in active_jobs:
+                    active_jobs[parent_job_id]["clips"] = fresh_clips
+                    if isinstance(fresh_metadata, dict):
+                        active_jobs[parent_job_id]["metadata"] = fresh_metadata
                 job["clips"].append(fresh_clips[clip_index])
         else:
+            _sync_stage_metadata(job, job.setdefault("metadata", {}))
             target_clip["path"] = result_path
             if custom_subtitle_path:
                 target_clip["custom_subtitle_path"] = custom_subtitle_path
@@ -1437,10 +1924,13 @@ def _run_rerender_clip_job(new_job_id: str):
         job["progress"] = "Done"
 
     except Exception as e:
-        log_error(f"RERENDER CLIP JOB {new_job_id}", e)
-        job["error"] = str(e)
-        job["status"] = "ERROR"
-        # Clean up temp file on error
+        if job.get("cancelled", False):
+            job["status"] = "CANCELLED"
+        else:
+            log_error(f"RERENDER CLIP JOB {new_job_id}", e)
+            _record_error(job, e)
+            job["status"] = "ERROR"
+        # Clean up temp file on error/cancel
         try:
             if 'temp_output' in dir() and temp_output and os.path.exists(temp_output) and temp_output.endswith(".tmp.mp4"):
                 os.remove(temp_output)
@@ -1456,12 +1946,23 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     if job.get("cancelled", False):
         status = "CANCELLED"
 
+    if metadata is None:
+        metadata = {}
+
+    if status in _FINISHED:
+        # Publish before the status changes, so the UI never sees DONE with
+        # clips that are still only on the work disk.
+        set_context()
+        failures = _publish(job, metadata, final=(status == "DONE"))
+        if failures and status == "DONE":
+            # The clips are rendered but not in the library. Resume skips the
+            # rendered clips and retries only the copy.
+            _record_error(job, _publish_error(failures[0]))
+            status = "ERROR"
+
     job["status"] = status
     log_app(f"[{job_id}] " + str(status))
 
-    if metadata is None:
-        metadata = {}
-        
     if "start_time" in job:
         metadata["duration_seconds"] = int(time.time() - job["start_time"])
     metadata["title"] = job.get("title", "")
@@ -1476,9 +1977,25 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
     if metadata.get("highlights") and job.get("mode") == "ai":
         metadata["ai_job"] = True
         
-    for key in ["provider", "api_key", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "enable_hook", "pexels_api_key", "max_clips", "is_gaming_video", "whisper_model", "canvas_config", "subtitle_config"]:
+    # API keys are not copied: history.db goes to Google Drive (T0.18).
+    for key in ["provider", "custom_base_url", "custom_model_name", "model", "mode", "aspect_ratio", "caption_style", "burn_subs", "output_dir", "enable_broll", "enable_hook", "max_clips", "is_gaming_video", "whisper_model", "canvas_config", "subtitle_config", "tracking_mode", "face_tracking_engine"]:
         if key in job:
             metadata[key] = job[key]
+
+    if status == "ERROR" and job.get("error"):
+        metadata["error"] = job["error"]
+        metadata["error_info"] = job.get("error_info")
+    else:
+        # A resumed job starts from the failed attempt's metadata.
+        metadata.pop("error", None)
+        metadata.pop("error_info", None)
+
+    if "timings" in job:
+        earlier = job.get("earlier_timings")
+        metadata["timings"] = list(earlier) + job["timings"] if earlier else job["timings"]
+        # Final metadata holds earlier prepare rows (which exclude _MAKE_STAGES) plus this run's
+        # rows, so syncing from it preserves whisper_device while tracking still reflects only this run.
+        _sync_stage_metadata({"timings": metadata["timings"]}, metadata)
 
     if status in ["DONE", "ERROR", "CANCELLED", "AWAITING_MANUAL"]:
         try:
@@ -1488,10 +2005,10 @@ def _finalize_job(job_id: str, status: str, metadata: dict = None):
             log_error("jobs.save_history", e)
 
 
-def resume_manual_job(history_id: str, json_payload: str) -> str:
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
+@_serialized
+def resume_manual_job(history_id: str, json_payload: str, pexels_api_key: str = "") -> str:
+    """Render the highlights the user pasted. ``pexels_api_key`` comes from the app: history keeps no keys."""
+    _reject_if_still_processing(history_id)
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist or not hist.get("metadata"):
@@ -1511,6 +2028,8 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
         "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
         "canvas_config": hist_meta.get("canvas_config"),
         "subtitle_config": hist_meta.get("subtitle_config"),
+        "tracking_mode": hist_meta.get("tracking_mode") or "auto",
+        "face_tracking_engine": hist_meta.get("face_tracking_engine") or "haar",
         "caption_style": hist_meta.get("caption_style", "standard"),
         "burn_subs": hist_meta.get("burn_subs", True),
         "output_dir": hist_meta.get("output_dir", ""),
@@ -1519,7 +2038,7 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
         "whisper_model": hist_meta.get("whisper_model", "small"),
         "enable_broll": hist_meta.get("enable_broll", False),
         "enable_hook": hist_meta.get("enable_hook", False),
-        "pexels_api_key": hist_meta.get("pexels_api_key", ""),
+        "pexels_api_key": pexels_api_key or "",
         "max_clips": hist_meta.get("max_clips", 0),
         "is_gaming_video": hist_meta.get("is_gaming_video", False),
         "status": "PENDING",
@@ -1528,7 +2047,14 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
         "clips": hist.get("result_clips", []),
         "failed": 0,
         "error": None,
-        "source_path": hist_meta["source_video"]
+        "source_path": hist_meta["source_video"],
+        # This run's rows only, so the progress screen never shows another run's facts (SP4 spec 4.6).
+        "timings": [],
+        # The prepare stages of the first run go back in front at the end, for Detail waktu (ruling 6).
+        "earlier_timings": [
+            row for row in (hist_meta.get("timings") or [])
+            if isinstance(row, dict) and row.get("stage") not in _MAKE_STAGES
+        ],
     }
     try:
         from backend.db import save_history
@@ -1542,10 +2068,10 @@ def resume_manual_job(history_id: str, json_payload: str) -> str:
     if not parsed:
         raise ValueError("Format JSON payload tidak valid atau kosong.")
 
-    import threading
-    threading.Thread(target=_run_manual_resume_job, args=(job_id, parsed), daemon=True).start()
+    _start_job(job_id, _run_manual_resume_job, parsed)
     return job_id
 
+@_with_timings
 def _run_manual_resume_job(job_id: str, parsed_highlights: list):
     import time
     job = active_jobs[job_id]
@@ -1555,6 +2081,9 @@ def _run_manual_resume_job(job_id: str, parsed_highlights: list):
     hist = get_history(job_id)
     metadata = hist.get("metadata", {})
     job["metadata"] = metadata
+    # Starts empty on a new run so the progress screen shows only this run's stages as they
+    # finish; _finalize_job prepends any earlier prepare stages for Detail waktu.
+    metadata["timings"] = job["timings"]
     try:
         def is_cancelled():
             return job.get("cancelled", False)
@@ -1564,7 +2093,7 @@ def _run_manual_resume_job(job_id: str, parsed_highlights: list):
             return
 
         ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
-        source_path = metadata.get("source_video")
+        source_path = _restore_source_video(job, metadata)
         subtitle_path = metadata.get("subtitle_path")
         output_path = source_path
         
@@ -1579,18 +2108,39 @@ def _run_manual_resume_job(job_id: str, parsed_highlights: list):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
         log_error(f"JOB RESUME {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)
 
-def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_provider: str = None, fallback_custom_base_url: str = None, fallback_custom_model_name: str = None, fallback_whisper_model: str = None, fallback_model: str = None) -> str:
-    if is_any_job_running():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Ada proses lain yang sedang berjalan. Harap tunggu hingga selesai.")
+def _resume_needs_ai_key(provider: str, metadata: dict) -> bool:
+    """Whether resuming still calls an AI service that needs a key.
+
+    Stored highlights mean only rendering is left; the manual providers stop
+    at a prompt for the user; a custom server may run without a key.
+    """
+    if metadata.get("highlights"):
+        return False
+    return provider not in ("manual_ai", "manual", "custom")
+
+
+def _missing_key_error(provider: str) -> AppError:
+    return AppError("AI_KEY_MISSING", technical=f"No API key was sent to resume with provider '{provider}'.")
+
+
+@_serialized
+def create_resume_job(history_id: str, api_key: str = None, fallback_provider: str = None, fallback_custom_base_url: str = None, fallback_custom_model_name: str = None, fallback_whisper_model: str = None, fallback_model: str = None, pexels_api_key: str = None) -> str:
+    """Continue a failed job from what history kept.
+
+    The API keys come from the app with the request: history does not store
+    them (T0.18). Without ``pexels_api_key`` B-roll is skipped.
+    """
+    _reject_if_still_processing(history_id)
     from backend.db import get_history
     hist = get_history(history_id)
     if not hist:
         raise ValueError("Histori pekerjaan tidak ditemukan.")
     hist_meta = hist.get("metadata", {}) or {}
+    run_meta = {k: v for k, v in hist_meta.items() if k not in _TRACKING_META_FIELDS}
+    run_meta["timings"] = []
     source_video = hist_meta.get("source_video")
     if not source_video and not hist.get("url"):
         raise ValueError("Video sumber atau URL video tidak ditemukan di histori.")
@@ -1604,12 +2154,14 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         provider = hist_provider
     else:
         provider = "manual"
+    if not api_key and _resume_needs_ai_key(provider, hist_meta):
+        raise _missing_key_error(provider)  # before a job exists that could only fail
 
     active_jobs[job_id] = {
         "id": job_id,
         "url": hist["url"],
         "provider": provider,
-        "api_key": hist_meta.get("api_key") or fallback_api_key or "",
+        "api_key": api_key or "",
         "custom_base_url": hist_meta.get("custom_base_url") or fallback_custom_base_url or "",
         "custom_model_name": hist_meta.get("custom_model_name") or fallback_custom_model_name or "",
         "whisper_model": hist_meta.get("whisper_model") or fallback_whisper_model or "small",
@@ -1618,6 +2170,8 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "aspect_ratio": hist_meta.get("aspect_ratio", "9:16"),
         "canvas_config": hist_meta.get("canvas_config"),
         "subtitle_config": hist_meta.get("subtitle_config"),
+        "tracking_mode": hist_meta.get("tracking_mode") or "auto",
+        "face_tracking_engine": hist_meta.get("face_tracking_engine") or "haar",
         "caption_style": hist_meta.get("caption_style", "standard"),
         "burn_subs": hist_meta.get("burn_subs", True),
         "output_dir": hist_meta.get("output_dir", ""),
@@ -1625,26 +2179,27 @@ def create_resume_job(history_id: str, fallback_api_key: str = None, fallback_pr
         "title": hist_meta.get("title", ""),
         "enable_broll": hist_meta.get("enable_broll", False),
         "enable_hook": hist_meta.get("enable_hook", False),
-        "pexels_api_key": hist_meta.get("pexels_api_key", ""),
+        "pexels_api_key": pexels_api_key or "",
         "max_clips": hist_meta.get("max_clips", 0),
         "is_gaming_video": hist_meta.get("is_gaming_video", False),
         "status": "QUEUED",
+        "resumed_from": history_id,
         "progress": "Melanjutkan pemrosesan...",
         "cancelled": False,
         "clips": hist.get("result_clips", []),
         "failed": 0,
         "error": None,
-        "metadata": hist_meta
+        "metadata": run_meta
     }
     try:
         from backend.db import save_history
-        save_history(job_id, hist["url"], "QUEUED", hist.get("result_clips", []), hist_meta)
+        save_history(job_id, hist["url"], "QUEUED", hist.get("result_clips", []), run_meta)
     except Exception as db_e:
         log_error("jobs.create_resume_job_save_history", db_e)
-    import threading
-    threading.Thread(target=_run_resume_job, args=(job_id,), daemon=True).start()
+    _start_job(job_id, _run_resume_job)
     return job_id
 
+@_with_timings
 def _run_resume_job(job_id: str):
     import time
     job = active_jobs[job_id]
@@ -1658,7 +2213,7 @@ def _run_resume_job(job_id: str):
         def is_cancelled():
             return job.get("cancelled", False)
 
-        source_video = metadata.get("source_video")
+        source_video = _restore_source_video(job, metadata)
         if not source_video or not os.path.exists(source_video):
             if job.get("url") and not job["url"].startswith("local:"):
                 ws = get_project_workspace(job.get("title", ""), job.get("output_dir", ""), job_id)
@@ -1743,7 +2298,7 @@ def _run_resume_job(job_id: str):
             _finalize_job(job_id, "AWAITING_MANUAL", metadata)
             return
         elif not job.get("api_key") and job["provider"] != "custom":
-            raise ValueError(f"API key untuk provider '{job['provider']}' tidak ditemukan. Harap sertakan API key untuk melanjutkan.")
+            raise _missing_key_error(job["provider"])
         elif has_subtitle:
             job["status"] = "TRANSCRIBING"
             log_app(f"[{job_id}] TRANSCRIBING (Resuming)")
@@ -1759,25 +2314,26 @@ def _run_resume_job(job_id: str):
                 from backend.ai_utils import _with_retry, HIGHLIGHT_GUIDANCE, SOCIAL_PROMPT_TEMPLATE, _get_user_datetime_context, _parse_highlights
                 client = genai.Client(api_key=job["api_key"])
                 model_name = job.get("model")
+                with stage("ai_analysis"):
                 
-                video_file = _with_retry(lambda: client.files.upload(file=source_video), attempts=8)
-                while video_file.state.name == "PROCESSING":
-                    if is_cancelled(): raise Exception("Cancelled by user")
-                    time.sleep(2)
-                    video_file = _with_retry(lambda: client.files.get(name=video_file.name), attempts=8)
+                    video_file = _with_retry(lambda: client.files.upload(file=source_video), attempts=8)
+                    while video_file.state.name == "PROCESSING":
+                        if is_cancelled(): raise Exception("Cancelled by user")
+                        time.sleep(2)
+                        video_file = _with_retry(lambda: client.files.get(name=video_file.name), attempts=8)
                 
-                prompt = (
-                    "Watch this video and read the following accurate transcript. "
-                    f"{HIGHLIGHT_GUIDANCE}\n\nFind up to {limit} of the best highlights.\n\n"
-                    f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
-                    f"Transcript:\n{transcript_text}"
-                )
-                response = _with_retry(lambda: client.models.generate_content(
-                    model=model_name,
-                    contents=[video_file, prompt],
-                    config=types.GenerateContentConfig(response_mime_type="application/json")
-                ))
-                highlights = _parse_highlights(response.text)
+                    prompt = (
+                        "Watch this video and read the following accurate transcript. "
+                        f"{HIGHLIGHT_GUIDANCE}\n\nFind up to {limit} of the best highlights.\n\n"
+                        f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
+                        f"Transcript:\n{transcript_text}"
+                    )
+                    response = _with_retry(lambda: client.models.generate_content(
+                        model=model_name,
+                        contents=[video_file, prompt],
+                        config=types.GenerateContentConfig(response_mime_type="application/json")
+                    ))
+                    highlights = _parse_highlights(response.text)
             else:
                 base_url = None
                 model = "gpt-4o-mini"
@@ -1826,5 +2382,5 @@ def _run_resume_job(job_id: str):
             _finalize_job(job_id, "CANCELLED", metadata)
             return
         log_error(f"JOB RESUME {job_id}", e)
-        job["error"] = str(e)
+        _record_error(job, e)
         _finalize_job(job_id, "ERROR", metadata)

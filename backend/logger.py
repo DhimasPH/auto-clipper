@@ -4,10 +4,13 @@ import os
 import sys
 from typing import Optional, Union
 
+from backend.drive_mount import library_unavailable, local_dir, refuse_unmounted
+
 def get_app_data_dir() -> str:
     custom_ws = os.environ.get("AUTO_CLIPPER_WORKSPACE", "").strip()
     if custom_ws:
         custom_ws = os.path.abspath(os.path.expanduser(custom_ws))
+        refuse_unmounted(custom_ws)
         os.makedirs(custom_ws, exist_ok=True)
         return custom_ws
 
@@ -24,14 +27,19 @@ def get_app_data_dir() -> str:
     return app_dir
 
 
+def _log_dir() -> str:
+    # While the library is on a Google Drive that is not mounted, logs stay on
+    # this machine instead of creating the library folder (backend.drive_mount).
+    return local_dir() if library_unavailable() else get_app_data_dir()
+
 def get_error_log_path() -> str:
-    return os.path.join(get_app_data_dir(), "backend_error.log")
+    return os.path.join(_log_dir(), "backend_error.log")
 
 def get_app_log_path() -> str:
-    return os.path.join(get_app_data_dir(), "backend_app.log")
+    return os.path.join(_log_dir(), "backend_app.log")
 
 def get_ai_log_path() -> str:
-    return os.path.join(get_app_data_dir(), "backend_ai.log")
+    return os.path.join(_log_dir(), "backend_ai.log")
 
 def log_error(context: str, error_msg: Optional[Union[str, Exception]] = None, exc_info: bool = True) -> None:
     try:

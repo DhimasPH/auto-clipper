@@ -2,14 +2,17 @@ import json
 import os
 import random
 import time
-from openai import OpenAI
-from google import genai
-from google.genai import types
+from backend._lazy import LazyAttr, LazyModule
 from datetime import datetime as _dt, timezone as _tz
+
+OpenAI = LazyAttr("openai", "OpenAI")
+genai = LazyModule("google.genai")
+types = LazyModule("google.genai.types")
 
 from backend.video_utils import extract_audio
 from backend.crop_utils import to_seconds, _fmt_srt_ts
 from backend.logger import log_ai, log_error, log_app
+from backend.stage_timer import stage
 
 
 BROWSER_HEADERS = {
@@ -240,6 +243,11 @@ def _parse_highlights(content: str) -> list:
 
 
 def get_highlights(transcript_srt: str, api_key: str, extra_prompt: str = "", base_url: str = None, model: str = "gpt-4o-mini", limit: int = 3) -> list:
+    with stage("ai_analysis"):
+        return _get_highlights(transcript_srt, api_key, extra_prompt, base_url, model, limit)
+
+
+def _get_highlights(transcript_srt: str, api_key: str, extra_prompt: str, base_url: str, model: str, limit: int) -> list:
     """Ask the LLM to pick the most engaging short-form highlights.
 
     ``base_url``/``model`` let OpenAI-compatible providers (e.g. DeepSeek)
@@ -362,7 +370,9 @@ def process_with_openai(file_path: str, api_key: str, karaoke: bool = False, ext
 
     extract_audio(file_path, audio_path, register_proc=register_proc)
     if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-    transcript = transcribe_audio(audio_path, api_key, karaoke=karaoke)
+    with stage("transcribe") as rec:
+        rec["whisper_device"] = "openai_api"
+        transcript = transcribe_audio(audio_path, api_key, karaoke=karaoke)
 
     if karaoke:
         subtitle_path = base + ".words.json"
@@ -487,6 +497,21 @@ def get_available_whisper_models() -> list:
     return results
 
 
+def get_whisper_status() -> dict:
+    """Whisper models plus whether GPU acceleration is ready right now."""
+    from backend import preflight
+    gpu_ready = False
+    try:
+        gpu_ready = bool(preflight._cuda_device_count() >= 1 and not preflight._whisper_gpu_libs_missing())
+    except Exception:
+        gpu_ready = False
+    return {
+        "models": get_available_whisper_models(),
+        "gpu_ready": gpu_ready,
+        "processor_slow_models": ["medium", "large-v3"],
+    }
+
+
 def download_whisper_model(model_name: str) -> dict:
     """Download a Faster-Whisper model into local HuggingFace cache."""
     valid_ids = [m["id"] for m in SUPPORTED_WHISPER_MODELS]
@@ -505,7 +530,20 @@ def download_whisper_model(model_name: str) -> dict:
 
 
 def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_cancelled: callable = None, model_size: str = "small"):
+    with stage("transcribe", whisper_model=model_size or "small") as rec:
+        return _transcribe_with_faster_whisper(audio_path, karaoke, is_cancelled, model_size, rec)
+
+
+def _whisper_device(model) -> str:
+    """The device ctranslate2 really loaded the model on ("cuda" or "cpu")."""
+    device = getattr(getattr(model, "model", None), "device", None)
+    return device if isinstance(device, str) else "unknown"
+
+
+def _transcribe_with_faster_whisper(audio_path: str, karaoke: bool, is_cancelled: callable, model_size: str, timing: dict):
     import os
+    from backend import addons
+    addons.activate_installed()
     
     # Suppress Windows DLL missing error popups (so it falls back to CPU gracefully)
     if os.name == 'nt':
@@ -593,6 +631,7 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
     segments = None
     try:
         model = WhisperModel(selected_model, device="auto", compute_type="default")
+        timing["whisper_device"] = _whisper_device(model)
         try:
             segments = _run_transcription(model, vad=True)
         except Exception as e_vad:
@@ -614,6 +653,7 @@ def transcribe_with_faster_whisper(audio_path: str, karaoke: bool = False, is_ca
         except Exception as e_cpu:
             log_error("ai_utils.transcribe_local_whisper", f"Warning: Failed to load {selected_model} on CPU ({e_cpu}). Falling back to default 'small' model.")
             model = WhisperModel("small", device="cpu", compute_type="default")
+        timing["whisper_device"] = "cpu"
         
         try:
             segments = _run_transcription(model, vad=True)
@@ -690,41 +730,42 @@ def process_with_gemini(file_path: str, api_key: str, karaoke: bool = False, ext
         with open(subtitle_path, "w", encoding="utf-8") as f:
             f.write(transcript_text)
 
-    if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-    video_file = _with_retry(lambda: client.files.upload(file=file_path), attempts=8, is_cancelled=is_cancelled)
-
-    while video_file.state.name == "PROCESSING":
-        for _ in range(10):
-            if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-            time.sleep(0.2)
+    with stage("ai_analysis"):
         if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-        video_file = _with_retry(lambda: client.files.get(name=video_file.name), attempts=8, is_cancelled=is_cancelled)
+        video_file = _with_retry(lambda: client.files.upload(file=file_path), attempts=8, is_cancelled=is_cancelled)
 
-    if video_file.state.name == "FAILED":
-        raise Exception("Gemini failed to process the video.")
+        while video_file.state.name == "PROCESSING":
+            for _ in range(10):
+                if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
+                time.sleep(0.2)
+            if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
+            video_file = _with_retry(lambda: client.files.get(name=video_file.name), attempts=8, is_cancelled=is_cancelled)
 
-    additional_instructions = f"\n\nUSER'S EXTRA INSTRUCTIONS:\n{extra_prompt}" if extra_prompt else ""
-    additional_instructions += f"\nFind up to {limit} of the best highlights."
+        if video_file.state.name == "FAILED":
+            raise Exception("Gemini failed to process the video.")
 
-    prompt = (
-        "Watch this video and read the following accurate transcript. "
-        f"{HIGHLIGHT_GUIDANCE}{additional_instructions}\n\n"
-        f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
-        f"Transcript:\n{transcript_text}"
-    )
+        additional_instructions = f"\n\nUSER'S EXTRA INSTRUCTIONS:\n{extra_prompt}" if extra_prompt else ""
+        additional_instructions += f"\nFind up to {limit} of the best highlights."
 
-    if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
-    response = _with_retry(lambda: client.models.generate_content(
-        model=model_name,
-        contents=[video_file, prompt],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-        ),
-    ), is_cancelled=is_cancelled)
+        prompt = (
+            "Watch this video and read the following accurate transcript. "
+            f"{HIGHLIGHT_GUIDANCE}{additional_instructions}\n\n"
+            f"{SOCIAL_PROMPT_TEMPLATE.format(datetime_context=_get_user_datetime_context())}\n\n"
+            f"Transcript:\n{transcript_text}"
+        )
 
-    response_text = response.text
-    log_ai("gemini", model_name, prompt, response_text)
-    highlights = _parse_highlights(response_text)
+        if is_cancelled and is_cancelled(): raise Exception("Cancelled by user")
+        response = _with_retry(lambda: client.models.generate_content(
+            model=model_name,
+            contents=[video_file, prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
+        ), is_cancelled=is_cancelled)
+
+        response_text = response.text
+        log_ai("gemini", model_name, prompt, response_text)
+        highlights = _parse_highlights(response_text)
 
     return {
         "transcript": transcript_text,

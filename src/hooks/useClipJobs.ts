@@ -1,14 +1,19 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { API_URL } from "../App";
+import { platform } from "../platform";
 import { Clip } from "../components/ClipCard";
 import { ToastKind } from "./useToasts";
 import { CanvasConfig } from "../types/canvas";
 import { SubtitleConfig } from "../types/subtitle";
+import type { ErrorInfo } from "../types/errorInfo";
+import { asErrorInfo, localizedText, requestError, toLang } from "../lib/errorInfo";
+import { effectiveProvider, type AiMode } from "../lib/createFlow";
+import { asLiveStage, type LiveStage } from "../lib/progress";
 
 export interface ClipJobParams {
+  aiMode: AiMode;
   inputType: "url" | "local";
   url: string;
   localFile: File | null;
@@ -31,7 +36,7 @@ export interface ClipJobParams {
   enableHook: boolean;
   pexelsApiKey: string;
   notify: (text: string, kind?: ToastKind) => void;
-  closeHistory: () => void;
+  closeHistory?: () => void;
   maxClips: number;
   isGamingVideo: boolean;
   whisperModel: string;
@@ -40,24 +45,115 @@ export interface ClipJobParams {
 export type CreateJobParams = ClipJobParams;
 
 /**
+ * How a manual job looks, given whole by a caller that must not use the Buat klip choices
+ * (the downloader in Pengaturan). Every field replaces the app state value.
+ */
+export interface ManualLook {
+  aspectRatio: string;
+  burnSubtitles: boolean;
+  captionStyle: string;
+  canvasConfig: CanvasConfig;
+  subtitleConfig: SubtitleConfig;
+  isGamingVideo: boolean;
+  trackingMode: string;
+}
+
+export interface AwaitingAnswer {
+  jobId: string;
+  prompt: string;
+  title: string;
+}
+
+/**
  * Owns the async job lifecycle: create/rerender/rerun-AI requests, status
  * polling, cancellation and the derived progress/running flags.
  */
 export function useClipJobs(p: ClipJobParams) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { notify } = p;
 
   const [status, setStatus] = useState<
-    "IDLE" | "GENERATING" | "DOWNLOADING" | "TRANSCRIBING" | "ANALYZING" | "CROPPING" | "DONE" | "ERROR"
+    "IDLE" | "GENERATING" | "PENDING" | "DOWNLOADING" | "TRANSCRIBING" | "ANALYZING" | "CROPPING" | "DONE" | "ERROR"
   >("IDLE");
   const [errorMsg, setErrorMsg] = useState("");
+  // Structured form of the error, when the backend sent one (error_info).
+  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
+  // The job the error belongs to, so its Resume button knows what to run.
+  const [failedJobId, setFailedJobId] = useState<string | null>(null);
+  // 1 = next in line, 2 = after that; null while running or not queued.
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
+  // Metadata of the last finished workspace job (timings, warnings).
+  const [jobMeta, setJobMeta] = useState<any>(null);
   const [progress, setProgress] = useState("");
   const [clips, setClips] = useState<Clip[]>([]);
   const [failedCount, setFailedCount] = useState(0);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [jobOrigin, setJobOrigin] = useState<"workspace" | "history">("workspace");
   const [historyVersion, setHistoryVersion] = useState(0);
+  // Spec 4.3/4.4: the stage running now and the job's live metadata (finished stage timings).
+  const [current, setCurrent] = useState<LiveStage | null>(null);
+  const [liveMeta, setLiveMeta] = useState<Record<string, unknown> | null>(null);
+  // The running job started at clip making (answer sent, re-render): "no stage yet" means step 4.
+  const [makePhase, setMakePhase] = useState(false);
+  // Step 3 (spec 4.2): a project waits for the pasted AI answer.
+  const [awaiting, setAwaiting] = useState<AwaitingAnswer | null>(null);
+  const [sendingAnswer, setSendingAnswer] = useState(false);
+  const [answerError, setAnswerError] = useState<{ message: string; info: ErrorInfo | null } | null>(null);
+  const [resultJobId, setResultJobId] = useState<string | null>(null);
 
+  const clearError = () => {
+    setErrorMsg("");
+    setErrorInfo(null);
+    setFailedJobId(null);
+  };
+
+  /** After a single clip was made again from the results: show the new clip files. */
+  const reloadResult = async (jobId: string) => {
+    try {
+      const res = await axios.get(`${API_URL}/jobs/${jobId}`);
+      const stamp = Date.now();
+      setClips((res.data.clips || []).map((clip: Clip) => ({ ...clip, v: stamp })));
+      setJobMeta(res.data.metadata || null);
+    } catch (e) {
+      console.error("Reloading the result failed", e);
+    }
+  };
+
+  const beginJob = (origin: "workspace" | "history", nextMakePhase: boolean) => {
+    clearError();
+    setAwaiting(null);
+    setAnswerError(null);
+    setJobOrigin(origin);
+    setMakePhase(nextMakePhase);
+    setLiveMeta(null);
+  };
+
+  const finishCancelled = () => {
+    setCurrent(null);
+    setActiveJobId(null);
+    setProgress("");
+    setQueuePosition(null);
+    setMakePhase(false);
+    if (resultJobId) {
+      // Keep finished workspace results on screen when cancelling a follow-up clip rerender.
+      setStatus("DONE");
+    } else {
+      setStatus("IDLE");
+      setClips([]);
+      setFailedCount(0);
+      setJobMeta(null);
+      setLiveMeta(null);
+    }
+  };
+
+  /** Show a failed request: the structured card when the backend sent error_info, else the raw text. */
+  const showRequestError = (err: unknown, fallback: string, jobId: string | null = null) => {
+    const { message, info } = requestError(err, fallback);
+    setErrorMsg(message);
+    setErrorInfo(info);
+    setFailedJobId(jobId);
+    notify(info ? localizedText(info, toLang(i18n.language)).title : message, "error");
+  };
 
   // Polling effect for async job status.
   useEffect(() => {
@@ -73,45 +169,70 @@ export function useClipJobs(p: ClipJobParams) {
 
           if (job.status === "DONE") {
             const failedN = job.failed || 0;
+            const isClipRerender = String(activeJobId).startsWith("rerender_clip_");
+            const onCreateRoute = !window.location.hash || window.location.hash === "#/" || window.location.hash === "#";
             setStatus("DONE");
-            if (jobOrigin === "workspace") {
+            setCurrent(null);
+            setMakePhase(false);
+            setLiveMeta(job.metadata || null);
+            setHistoryVersion((v) => v + 1);
+            if (jobOrigin === "workspace" || (onCreateRoute && !isClipRerender && Array.isArray(job.clips) && job.clips.length > 0)) {
               setClips(job.clips);
               setFailedCount(failedN);
-            } else {
-              // History-origin job (re-render / AI correction): refresh History, leave Workspace untouched.
-              setHistoryVersion((v) => v + 1);
+              setJobMeta(job.metadata || null);
+              setResultJobId(activeJobId);
+            } else if (resultJobId) {
+              // History-origin job (re-render / AI correction): refresh existing Workspace results if shown.
+              void reloadResult(resultJobId);
             }
             setActiveJobId(null);
             setProgress("");
+            setQueuePosition(null);
             const doneMsg = failedN > 0
-              ? t('toast.done_partial', { count: job.clips.length, failed: failedN, defaultValue: `🎉 Selesai! ${job.clips.length} klip berhasil, ${failedN} gagal` })
-              : t('toast.done_all', { count: job.clips.length, defaultValue: `🎉 Selesai! ${job.clips.length} clip berhasil dibuat` });
+              ? t('toast.done_partial', { count: job.clips.length, failed: failedN })
+              : t('toast.done_all', { count: job.clips.length });
             notify(doneMsg, "success");
 
           } else if (job.status === "ERROR") {
+            const info = asErrorInfo(job.error_info);
             setStatus("ERROR");
+            setCurrent(null);
+            setMakePhase(false);
             setErrorMsg(job.error || "Unknown error occurred.");
-            notify(`⚠️ ${job.error || "Unknown error"}`, "error");
+            setErrorInfo(info);
+            setFailedJobId(activeJobId);
+            notify(info ? localizedText(info, toLang(i18n.language)).title : (job.error || "Unknown error"), "error");
             setActiveJobId(null);
             setProgress("");
+            setQueuePosition(null);
+            // The failed job is in History now, with its own error card.
+            setHistoryVersion((v) => v + 1);
           } else if (job.status === "CANCELLED") {
-            setStatus("IDLE");
-            notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
-            setActiveJobId(null);
-            setProgress("");
+            finishCancelled();
+            notify(t('toast.cancelled'), "error");
+            setHistoryVersion((v) => v + 1);
           } else if (job.status === "AWAITING_MANUAL") {
             setStatus("IDLE");
-            notify(t("toast.manual_prompt_ready", "Prompt manual berhasil dibuat. Anda dialihkan ke menu History."), "success");
-            if (jobOrigin === "workspace") {
-               setHistoryVersion((v) => v + 1);
-               window.location.hash = "#/history";
+            setCurrent(null);
+            setMakePhase(false);
+            setHistoryVersion((v) => v + 1);
+            // Ruling P9: always notify and open MomentStep on workspace jobs or when user is already on CreatePage.
+            notify(t("toast.manual_prompt_ready"), "success");
+            const onCreateRoute = !window.location.hash || window.location.hash === "#/" || window.location.hash === "#";
+            if (jobOrigin === "workspace" || onCreateRoute) {
+              setAwaiting({ jobId: activeJobId, prompt: job.metadata?.manual_prompt || "", title: job.metadata?.title || "" });
+              setAnswerError(null);
             }
             setActiveJobId(null);
             setProgress("");
+            setQueuePosition(null);
           } else {
             // In progress
             setStatus(job.status as any);
             setProgress(job.progress);
+            setCurrent(asLiveStage(job.current));
+            setLiveMeta(job.metadata || null);
+            setQueuePosition(typeof job.queue_position === "number" && job.queue_position > 0 ? job.queue_position : null);
             if (jobOrigin === "workspace" && job.clips && job.clips.length > clips.length) {
               setClips(job.clips);
             }
@@ -122,14 +243,12 @@ export function useClipJobs(p: ClipJobParams) {
       }, 1500);
     }
     return () => clearInterval(interval);
-  }, [activeJobId, status, clips.length, jobOrigin]);
+  }, [activeJobId, status, clips.length, jobOrigin, resultJobId]);
 
   const cancelJob = async () => {
     const jid = activeJobId;
-    setStatus("IDLE");
-    setActiveJobId(null);
-    setProgress("");
-    notify(t('toast.cancelled', '⛔ Proses dibatalkan.'), "error");
+    finishCancelled();
+    notify(t('toast.cancelled'), "error");
     setHistoryVersion((v) => v + 1);
 
     if (jid) {
@@ -141,42 +260,48 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
-  const handleGenerate = async (overrideProvider?: string) => {
+  // overrideWhisperModel: the model the CPU question on Buat klip chose (SP3 4.3); app state updates a render later.
+  // Answers false when the start was refused before any request (no link, no file, no key, no title).
+  const handleGenerate = async (overrideProvider?: string, overrideTitle?: string, overrideWhisperModel?: string): Promise<boolean> => {
+    const title = (overrideTitle ?? p.title ?? "").trim();
     if (p.inputType === "url" && !p.url) {
-      notify(t('toast.clip_failed', { num: '', msg: t('toast.url_empty', 'URL kosong!') }), "error");
-      return;
+      notify(t('toast.clip_failed', { msg: t('toast.url_empty') }), "error");
+      return false;
     }
     if (p.inputType === "local" && !p.localFile) {
-      notify(t('toast.clip_failed', { num: '', msg: t('toast.local_file_empty', 'Video lokal belum dipilih!') }), "error");
-      return;
+      notify(t('toast.clip_failed', { msg: t('toast.local_file_empty') }), "error");
+      return false;
     }
     const currentProvider = overrideProvider || p.provider;
     if (currentProvider === "custom") {
       if (!p.customBaseUrl || !p.customModelName) {
-        notify(t('toast.clip_failed', { num: '', msg: t('toast.custom_config_req', 'Base URL dan Model Name custom belum diisi! Silakan atur di Settings.') }), "error");
-        return;
+        notify(t('toast.clip_failed', { msg: t('toast.custom_config_req') }), "error");
+        return false;
       }
     } else if (currentProvider !== "manual_ai" && !p.apiKey) {
-      notify(t('toast.clip_failed', { num: '', msg: t('toast.api_key_req', 'API Key belum diisi! Silakan isi di Settings.') }), "error");
-      return;
+      notify(t('toast.clip_failed', { msg: t('toast.api_key_req') }), "error");
+      return false;
     }
-    if (!p.title || !p.title.trim()) {
-      notify(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
-      return;
+    if (!title) {
+      notify(t('toast.clip_failed', { msg: t('toast.title_required') }), "error");
+      return false;
     }
 
-    setErrorMsg("");
+    // Still inside the click: browsers only allow the permission prompt from a user gesture.
+    platform().askNotifyPermission();
+    beginJob("workspace", false);
     setProgress("");
     setClips([]);
     setFailedCount(0);
-    setJobOrigin("workspace");
+    setJobMeta(null);
+    setResultJobId(null);
 
     try {
       setStatus("GENERATING");
 
       let finalUrl = p.url;
       if (p.inputType === "local" && p.localFile) {
-        notify(t('toast.uploading', '🚀 Mengunggah video lokal...'));
+        notify(t('toast.uploading'));
         const formData = new FormData();
         formData.append("file", p.localFile);
         const uploadRes = await axios.post(`${API_URL}/upload`, formData, {
@@ -186,7 +311,7 @@ export function useClipJobs(p: ClipJobParams) {
         finalUrl = uploadRes.data.url;
       }
 
-      notify(t('toast.starting_bg', '🚀 Memulai proses di latar belakang...'));
+      notify(t('toast.starting_bg'));
 
       const res = await axios.post(`${API_URL}/jobs`, {
         url: finalUrl,
@@ -201,7 +326,7 @@ export function useClipJobs(p: ClipJobParams) {
         subtitle_config: p.subtitleConfig,
         output_dir: p.outputFolder,
         quality: p.quality,
-        title: p.title,
+        title,
         enable_broll: p.enableBroll,
         enable_hook: p.enableHook,
         pexels_api_key: p.pexelsApiKey,
@@ -209,7 +334,7 @@ export function useClipJobs(p: ClipJobParams) {
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,
         is_gaming_video: p.isGamingVideo,
-        whisper_model: p.whisperModel,
+        whisper_model: overrideWhisperModel || p.whisperModel,
         model: p.model
       });
 
@@ -219,42 +344,65 @@ export function useClipJobs(p: ClipJobParams) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || "An unknown error occurred.";
-      setErrorMsg(msg);
-      notify(`⚠️ ${msg}`, "error");
+      showRequestError(err, "An unknown error occurred.");
     }
+    return true;
   };
 
-  const handleManualGenerate = async (sourceUrl: string, manualClips: { start: number; end: number }[], allowEmptyClips: boolean = false) => {
+  // The overrides let a caller (Pengaturan, pengunduh) start with values it has not put in app state.
+  const handleManualGenerate = async (
+    sourceUrl: string,
+    manualClips: { start: number; end: number }[],
+    allowEmptyClips: boolean = false,
+    overrideTitle?: string,
+    overrideQuality?: string,
+    overrideLook?: ManualLook,
+  ) => {
+    const resolvedTitle = (overrideTitle ?? p.title ?? "").trim();
+    const resolvedQuality = overrideQuality || p.quality;
     if (!sourceUrl || (!allowEmptyClips && manualClips.length === 0)) {
-      notify(t('toast.clip_failed', { num: '', msg: t('smartEditor.noClips', 'Belum ada klip.') }), "error");
+      notify(t('toast.clip_failed', { msg: t('smartEditor.noClips') }), "error");
       return;
     }
-    if (!p.title || !p.title.trim()) {
-      notify(t('toast.clip_failed', { num: '', msg: t('toast.title_required', 'Judul Proyek wajib diisi!') }), "error");
+    if (!resolvedTitle) {
+      notify(t('toast.clip_failed', { msg: t('toast.title_required') }), "error");
       return;
     }
-    setErrorMsg("");
+    platform().askNotifyPermission();
+    beginJob("workspace", false);
     setProgress("");
     setClips([]);
     setFailedCount(0);
-    setJobOrigin("workspace");
+    setJobMeta(null);
+    setResultJobId(null);
 
     try {
       setStatus("GENERATING");
-      notify(t('smartEditor.submitted', '🚀 Memproses klip manual...'));
+      notify(t('toast.starting_bg'));
       const res = await axios.post(`${API_URL}/jobs/manual`, {
         url: sourceUrl,
         clips: manualClips,
-        aspect_ratio: p.aspectRatio,
-        caption_style: p.captionStyle,
-        burn_subs: p.burnSubtitles,
-        canvas_config: p.canvasConfig,
-        subtitle_config: p.subtitleConfig,
+        ...(overrideLook
+          ? {
+              aspect_ratio: overrideLook.aspectRatio,
+              caption_style: overrideLook.captionStyle,
+              burn_subs: overrideLook.burnSubtitles,
+              canvas_config: overrideLook.canvasConfig,
+              subtitle_config: overrideLook.subtitleConfig,
+              is_gaming_video: overrideLook.isGamingVideo,
+              tracking_mode: overrideLook.trackingMode,
+            }
+          : {
+              aspect_ratio: p.aspectRatio,
+              caption_style: p.captionStyle,
+              burn_subs: p.burnSubtitles,
+              canvas_config: p.canvasConfig,
+              subtitle_config: p.subtitleConfig,
+              is_gaming_video: p.isGamingVideo,
+            }),
         output_dir: p.outputFolder,
-        quality: p.quality,
-        title: p.title,
-        is_gaming_video: p.isGamingVideo,
+        quality: resolvedQuality,
+        title: resolvedTitle,
         whisper_model: p.whisperModel,
       });
       if (res.data.status === "error") throw new Error(res.data.message);
@@ -263,9 +411,7 @@ export function useClipJobs(p: ClipJobParams) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || "An unknown error occurred.";
-      setErrorMsg(msg);
-      notify(`⚠️ ${msg}`, "error");
+      showRequestError(err, "An unknown error occurred.");
     }
   };
 
@@ -277,10 +423,9 @@ export function useClipJobs(p: ClipJobParams) {
     customCanvasConfig?: CanvasConfig,
     customSubtitleConfig?: SubtitleConfig
   ) => {
-    setJobOrigin("history");
+    beginJob("history", true);
     setStatus("TRANSCRIBING");
     setProgress("");
-    setErrorMsg("");
 
     try {
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerender`, {
@@ -304,23 +449,21 @@ export function useClipJobs(p: ClipJobParams) {
       if (res.data.status === "error") throw new Error(res.data.message);
 
       setActiveJobId(res.data.job_id);
-      p.closeHistory();
-      notify(t('toast.starting_rerender', '🚀 Memulai re-render dari history...'));
+      setHistoryVersion((v) => v + 1);
+      p.closeHistory?.();
+      notify(t('toast.starting_rerender'));
     } catch (err: any) {
       console.error(err);
-      setStatus("ERROR");
+      setStatus("IDLE");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || t('toast.rerender_fail', 'Gagal memulai re-render.');
-      setErrorMsg(msg);
-      notify(`⚠️ ${msg}`, "error");
+      showRequestError(err, t('toast.rerender_fail'), historyJobId);
     }
   };
 
-  const handleRerunAI = async (historyJobId: string, extraPrompt: string) => {
-    setJobOrigin("history");
+  const handleRerunAI = async (historyJobId: string, extraPrompt: string, maxClips?: number) => {
+    beginJob("history", false);
     setStatus("TRANSCRIBING");
     setProgress("");
-    setErrorMsg("");
 
     try {
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/rerun_ai`, {
@@ -334,11 +477,11 @@ export function useClipJobs(p: ClipJobParams) {
         subtitle_config: p.subtitleConfig,
         output_dir: p.outputFolder,
         quality: p.quality,
-        title: "", // re-run AI keeps the existing title in backend
+        title: "", // re-run AI gets its own "(pilihan ulang)" title in backend
         enable_broll: p.enableBroll,
         pexels_api_key: p.pexelsApiKey,
         extra_prompt: extraPrompt,
-        max_clips: p.maxClips,
+        max_clips: maxClips ?? p.maxClips,
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,
         whisper_model: p.whisperModel,
@@ -348,28 +491,55 @@ export function useClipJobs(p: ClipJobParams) {
       if (res.data.status === "error") throw new Error(res.data.message);
 
       setActiveJobId(res.data.job_id);
-      p.closeHistory();
-      notify(t('toast.starting_ai_correct', '✨ Memulai proses AI Koreksi dari history...'));
+      setHistoryVersion((v) => v + 1);
+      p.closeHistory?.();
+      notify(t('toast.starting_ai_correct'));
     } catch (err: any) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || t('toast.ai_correct_fail', 'Gagal memulai AI Koreksi.');
-      setErrorMsg(msg);
-      notify(`⚠️ ${msg}`, "error");
+      showRequestError(err, t('toast.ai_correct_fail'), historyJobId);
     }
   };
 
-  const handleResumeJob = async (historyJobId: string) => {
-    setJobOrigin("history");
+  /**
+   * "Pilih ulang momen" without an API key (SP4 spec 4.4): a new project waits at step 3 with a new
+   * request for the AI. True when step 3 is open; false when the request failed (the error card shows
+   * in Riwayat through jobOrigin "history").
+   */
+  const handleRerunManual = async (historyJobId: string, extraPrompt: string, maxClips: number): Promise<boolean> => {
+    beginJob("history", false);
+    try {
+      const res = await axios.post(`${API_URL}/jobs/${encodeURIComponent(historyJobId)}/rerun-manual`, {
+        extra_prompt: extraPrompt,
+        max_clips: maxClips,
+      });
+      if (res.data.status !== "success") throw new Error(res.data.message || "rerun-manual failed");
+      setHistoryVersion((v) => v + 1);
+      openAwaiting({ id: res.data.job_id, metadata: { manual_prompt: res.data.manual_prompt, title: res.data.title } });
+      return true;
+    } catch (err) {
+      console.error(err);
+      setStatus("IDLE");
+      setProgress("");
+      showRequestError(err, t("toast.repick_fail"), historyJobId);
+      return false;
+    }
+  };
+
+  // origin "workspace": the clips of the resumed job appear in the Workspace
+  // (Resume pressed on the Workspace error card). Default: History is refreshed.
+  const handleResumeJob = async (historyJobId: string, origin: "workspace" | "history" = "history") => {
+    beginJob(origin, false);
     setStatus("TRANSCRIBING");
     setProgress("");
-    setErrorMsg("");
 
     try {
+      // History keeps no API keys, so the keys from Settings go with every resume.
       const res = await axios.post(`${API_URL}/jobs/${historyJobId}/resume`, {
         api_key: p.apiKey,
-        provider: p.provider,
+        pexels_api_key: p.pexelsApiKey,
+        provider: effectiveProvider(platform().caps, p.aiMode, p.provider),
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,
         whisper_model: p.whisperModel,
@@ -379,23 +549,21 @@ export function useClipJobs(p: ClipJobParams) {
       if (res.data.status === "error") throw new Error(res.data.message);
 
       setActiveJobId(res.data.job_id);
-      p.closeHistory();
-      notify(t('toast.starting_resume', '🔄 Melanjutkan proses AI...'));
+      setHistoryVersion((v) => v + 1);
+      p.closeHistory?.();
+      notify(t('toast.starting_resume'));
     } catch (err: any) {
       console.error(err);
       setStatus("IDLE");
       setProgress("");
-      const msg = err.response?.data?.message || err.message || t('toast.resume_fail', 'Gagal melanjutkan proses AI.');
-      setErrorMsg(msg);
-      notify(`⚠️ ${msg}`, "error");
+      showRequestError(err, t('toast.resume_fail'), historyJobId);
     }
   };
 
   const handleRerenderClip = (newJobId: string) => {
-    setJobOrigin("history");
+    beginJob("history", true);
     setStatus("CROPPING");
     setProgress("");
-    setErrorMsg("");
     setActiveJobId(newJobId);
     // Polling loop in useEffect will pick up the new job automatically
   };
@@ -403,34 +571,85 @@ export function useClipJobs(p: ClipJobParams) {
   const resetJobState = () => {
     setStatus("IDLE");
     setClips([]);
-    setErrorMsg("");
+    clearError();
     setProgress("");
     setActiveJobId(null);
     setFailedCount(0);
+    setQueuePosition(null);
+    setJobMeta(null);
+    setCurrent(null);
+    setLiveMeta(null);
+    setMakePhase(false);
+    setAwaiting(null);
+    setAnswerError(null);
+    setResultJobId(null);
   };
 
-  const startManualResumePolling = (jobId: string) => {
+  const submitAiAnswer = async (payload: string) => {
+    if (!awaiting) return;
+    setSendingAnswer(true);
+    setAnswerError(null);
+    try {
+      // History keeps no API keys: B-roll needs the Pexels key from Settings.
+      const res = await axios.post(`${API_URL}/jobs/${awaiting.jobId}/resume-manual`, {
+        json_payload: payload,
+        pexels_api_key: p.pexelsApiKey,
+      });
+      if (res.data.status !== "success") throw new Error(res.data.message || "resume-manual failed");
+      platform().askNotifyPermission();
+      beginJob("workspace", true);
+      setClips([]);
+      setFailedCount(0);
+      setJobMeta(null);
+      setResultJobId(null);
+      setStatus("PENDING");
+      setActiveJobId(res.data.job_id);
+    } catch (err) {
+      console.error(err);
+      setAnswerError(requestError(err, t("moment.send_failed")));
+    } finally {
+      setSendingAnswer(false);
+    }
+  };
+
+  /** "Tempel jawaban AI" in Riwayat: back to step 3 for that project. */
+  const openAwaiting = (job: { id: string; metadata?: { manual_prompt?: string; title?: string } | null }) => {
+    resetJobState();
+    setAwaiting({ jobId: job.id, prompt: job.metadata?.manual_prompt || "", title: job.metadata?.title || "" });
+  };
+
+  /**
+   * "Lihat progres" on a project this screen does not follow yet (started in another tab, or
+   * before a reload): follow it here, so Buat klip shows its progress. A job already followed
+   * is left alone.
+   */
+  const watchJob = (jobId: string) => {
+    if (activeJobId) {
+      if (activeJobId === jobId) setJobOrigin("workspace");
+      return;
+    }
+    resetJobState();
+    beginJob("workspace", false);
+    setStatus("PENDING");
     setActiveJobId(jobId);
-    setJobOrigin("history");
-    setStatus("CROPPING");
-    setProgress("Memproses klip manual...");
-    setErrorMsg("");
-    p.closeHistory();
+  };
+
+  const leaveAwaiting = () => {
+    setAwaiting(null);
+    setAnswerError(null);
   };
 
   const isRunning = !!activeJobId || status === "GENERATING";
 
   useEffect(() => {
-    if (isRunning) {
-      invoke('prevent_sleep').catch(console.error);
-    } else {
-      invoke('allow_sleep').catch(console.error);
-    }
+    if (!platform().caps.preventSleep) return;
+    platform().setPreventSleep(isRunning).catch(console.error);
   }, [isRunning]);
 
   return {
-    status, progress, errorMsg, clips, failedCount,
-    isRunning, historyVersion, activeJobId,
-    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, startManualResumePolling, cancelJob, resetJobState,
+    status, progress, errorMsg, errorInfo, failedJobId, queuePosition, jobMeta, clips, failedCount,
+    isRunning, historyVersion, activeJobId, current, liveMeta, makePhase, jobOrigin,
+    awaiting, sendingAnswer, answerError, submitAiAnswer, openAwaiting, leaveAwaiting, watchJob, resultJobId,
+    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleRerunManual, handleResumeJob, handleRerenderClip, cancelJob, resetJobState,
   };
 }

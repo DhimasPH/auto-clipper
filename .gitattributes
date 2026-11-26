@@ -1,0 +1,3 @@
+# Launch scripts of the local web package run under bash on macOS and Linux: LF only.
+*.sh text eol=lf
+*.command text eol=lf

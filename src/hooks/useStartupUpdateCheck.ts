@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { check } from "@tauri-apps/plugin-updater";
+import { platform } from "../platform";
 import axios from "axios";
 import { API_URL } from "../App";
 import { ToastKind } from "./useToasts";
@@ -17,14 +17,14 @@ export function useStartupUpdateCheck({ notify }: UseStartupUpdateCheckOptions) 
     if (hasCheckedRef.current) return;
     hasCheckedRef.current = true;
 
-    // Only run when within Tauri environment
-    const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-    if (!isTauri) return;
+    // Only the desktop app has an updater.
+    const updater = platform().updater;
+    if (!updater) return;
 
     const performUpdateCheck = async () => {
       try {
         // Wrap check() in a timeout to prevent hanging if network stalls
-        const checkPromise = check();
+        const checkPromise = updater.check();
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Update check timed out after 10s")), 10000)
         );
