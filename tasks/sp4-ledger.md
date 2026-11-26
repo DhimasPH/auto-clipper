@@ -114,3 +114,15 @@ Task 7: implementer DONE, commits a6f2b8e, 562ab36 — pytest 1127/7, Vitest 535
 Task 7: minor (→ final fix wave): projects.repick_manual_note says "Video tidak diunduh ulang" — not true on a new Colab session (P6); reword to "Subtitle tidak dibuat ulang".
 Task 7: review folded into the whole-wave review (docs included).
 Whole-wave review dispatched (113f8f6..562ab36)
+
+## Whole-wave review (2026-11-26)
+Range 113f8f6..562ab36 (101 files). Verdict: Needs fixes — 0 Critical, 1 Important, 5 Minor. Report: .superpowers/sdd/2026-11-25-sp4-wave1/final-review-report.md (local). pytest 1127/7, Vitest 535, oxlint 0 errors.
+- I1: projects.repick_manual_note "Video tidak diunduh ulang" is false after a Colab session restart (_restore_source_video) → "Subtitle tidak dibuat ulang dan klip lama tetap ada" (id/en).
+- M1: README.md:42 "dengan atau tanpa API key" — API path re-runs faster-whisper; limit the no-subtitle clause to the no-key path.
+- M2: empty Jumlah klip on the manual path falls back to the old project's max_clips (jobs.py:1668, :1693) while hint/tutorial say automatic and the API path sends 0.
+- M3: API path old gaps now reachable for every finished project: RerunAIRequest.extra_prompt has no 500 limit (main.py:554); create_rerun_ai_job raises raw ValueError (jobs.py:1372), against E.12.
+- M4: notebook:134 / tutorial:180 "Bila kotak ini dilewati, Teliti memakai Standar" — skipping cell 3 means no server at all; reword to "Bila pemasangan pelacak Teliti di kotak ini gagal".
+- M5: RERUN_SOURCE_MISSING message says "dari link videonya" but also fires for local-file projects → "dari video aslinya (link atau file)".
+Ruling: M2 — max_clips is used exactly as sent on both paths (0 = automatic), overriding the plan's fallback to the old project's value — one meaning for one field; the hint and tutorial already say so — cost if wrong: a user who leaves it empty gets the AI's count instead of the old count.
+Ruling: fix wave takes I1 and M1–M5.
+Final fix wave dispatched (FIX_BASE f409478)
