@@ -124,8 +124,8 @@
       },
       "moments": {
         "q": "The AI picked the wrong moments. What now?",
-        "a": "Make clips again from the same video and ask the AI for other moments.",
-        "a_keys": "With an API key you can also open the project in History and choose Pick moments again with AI."
+        "a": "Open the project in History, open the three-dot menu and choose Pick moments again. Say what should change, then paste the new instructions into ChatGPT or Gemini. Subtitles are not made again and the old clips stay.",
+        "a_keys": "With an API key, the AI picks the new moments by itself, without copying and pasting."
       },
       "slow": {
         "q": "Why does it take so long?",

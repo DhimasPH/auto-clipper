@@ -178,13 +178,14 @@ describe("SettingsPage (spec 4.5: Umum, YouTube, Lanjutan, Bantuan)", () => {
     await render(CAPS.cloud);
     const cloudHelp = section("bantuan").textContent ?? "";
     expect(cloudHelp).not.toContain("API key");
-    expect(cloudHelp).not.toContain("Pilih ulang momen dengan AI");
-    expect(cloudHelp).toContain("Buat klip lagi dari video yang sama");
+    // Pilih ulang momen works without an API key (SP4), so the cloud answer names it too.
+    expect(cloudHelp).toContain("lalu pilih Pilih ulang momen");
+    expect(cloudHelp).not.toContain("tanpa langkah salin dan tempel");
     act(() => root.unmount());
     root = createRoot(container);
     await render(CAPS.local);
     const localHelp = section("bantuan").textContent ?? "";
-    expect(localHelp).toContain("Pilih ulang momen dengan AI");
+    expect(localHelp).toContain("Dengan API key, AI langsung memilih momen baru");
     expect(localHelp).toContain("API key hanya untuk AI otomatis");
     expect(localHelp).toContain("Dengan API key, langkah ini berjalan sendiri.");
   });

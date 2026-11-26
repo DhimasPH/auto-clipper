@@ -38,4 +38,15 @@ describe("repick (SP4 spec 4.4)", () => {
     const hits = files.filter((f) => readFileSync(join("src", f), "utf8").includes("/rerun-ai"));
     expect(hits).toEqual([]);
   });
+
+  it("the help answer about wrong moments points to Pilih ulang momen, which needs no API key", () => {
+    for (const lang of ["id", "en"]) {
+      const locale = JSON.parse(readFileSync(join("src", "locales", `${lang}.json`), "utf8"));
+      const answer: string = locale.settings.help_faqs.moments.a;
+      // The plain answer is shown on every platform, so it must name the menu that works there.
+      expect(answer).toContain(locale.projects.menu_repick);
+      // The old menu name ("... dengan AI" / "... with AI") is gone since SP4.
+      expect(locale.settings.help_faqs.moments.a_keys).not.toContain(`${locale.projects.menu_repick} `);
+    }
+  });
 });

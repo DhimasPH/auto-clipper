@@ -124,8 +124,8 @@
       },
       "moments": {
         "q": "Momen yang dipilih AI kurang pas. Harus apa?",
-        "a": "Buat klip lagi dari video yang sama dan minta AI memilih momen lain.",
-        "a_keys": "Dengan API key, kamu juga bisa membuka proyeknya di Riwayat, lalu pilih Pilih ulang momen dengan AI."
+        "a": "Buka proyeknya di Riwayat, buka menu titik tiga, lalu pilih Pilih ulang momen. Tulis apa yang mau diubah, lalu tempel perintah barunya ke ChatGPT atau Gemini. Subtitle tidak dibuat ulang dan klip lama tetap ada.",
+        "a_keys": "Dengan API key, AI langsung memilih momen baru tanpa langkah salin dan tempel."
       },
       "slow": {
         "q": "Kenapa prosesnya lama?",
