@@ -250,3 +250,50 @@ def test_rerun_ai_also_gets_its_own_title_so_the_old_clips_stay(library, monkeyp
     assert db.get_history(new_id)["metadata"]["title"] == "Podcast (pilihan ulang)"
     assert db.get_history(new_id)["metadata"]["timings"] == []
     assert db.get_history("old-1")["metadata"]["title"] == "Podcast"
+
+
+# --- final fix wave (whole-wave review M2, M3) ----------------------------------------------
+
+def test_an_empty_clip_count_means_automatic_not_the_old_projects_count(library):
+    # Ruling M2: max_clips is used exactly as sent (0 = automatic), like the API path.
+    _project(library, max_clips=3)
+
+    body = _post(max_clips=0).json()
+
+    assert "Find up to 10 of the best highlights." in body["manual_prompt"]
+    assert jobs.active_jobs[body["job_id"]]["max_clips"] == 0
+
+
+def test_a_clip_count_that_is_sent_stays_that_count(library):
+    _project(library, max_clips=3)
+
+    body = _post(max_clips=5).json()
+
+    assert "Find up to 5 of the best highlights." in body["manual_prompt"]
+    assert jobs.active_jobs[body["job_id"]]["max_clips"] == 5
+
+
+def _post_rerun_ai(job_id="old-1", **body):
+    return client.post(f"/jobs/{job_id}/rerun_ai", json={"url": "dummy", "provider": "openai", "api_key": "k", **body})
+
+
+def test_rerun_ai_caps_the_extra_instruction_like_the_manual_path(library, monkeypatch):
+    _project(library)
+    monkeypatch.setattr("backend.ai_utils.ping_provider", lambda *a, **k: None)
+    monkeypatch.setattr(jobs, "create_rerun_ai_job", lambda *a, **k: "new-1")
+
+    assert _post_rerun_ai(extra_prompt="x" * (main.REPICK_EXTRA_MAX + 1)).status_code == 422
+    assert _post_rerun_ai(extra_prompt="x" * main.REPICK_EXTRA_MAX).status_code == 200
+
+
+def test_rerun_ai_with_the_source_video_gone_shows_the_repick_card(library, monkeypatch):
+    _project(library, source=False)
+    monkeypatch.setattr("backend.ai_utils.ping_provider", lambda *a, **k: None)
+    monkeypatch.setattr(jobs, "_start_job", lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not run")))
+
+    r = _post_rerun_ai()
+
+    assert r.status_code == 400
+    info = r.json()["error_info"]
+    assert info["code"] == "RERUN_SOURCE_MISSING"
+    assert [a["id"] for a in info["actions"]] == ["new_project"]

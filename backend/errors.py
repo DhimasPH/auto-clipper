@@ -176,14 +176,14 @@ ERROR_CODES = {
             "Memilih ulang momen butuh video asli dan teks ucapan dari proyek ini, tetapi salah satunya sudah tidak tersimpan. "
             "Ini bisa terjadi setelah sesi Google Colab berakhir atau file proyek dihapus. "
             "Klip lama tetap aman. "
-            "Buat proyek baru dari link videonya untuk memilih momen lagi."
+            "Buat proyek baru dari video aslinya (link atau file) untuk memilih momen lagi."
         ),
         "title_en": "The old project's files are gone",
         "message_en": (
             "Picking moments again needs the original video and the spoken text of this project, but one of them is no longer stored. "
             "This can happen after a Google Colab session ends or the project files were deleted. "
             "Your old clips are safe. "
-            "Start a new project from the video link to pick moments again."
+            "Start a new project from the original video (link or file) to pick moments again."
         ),
         "actions": ["new_project"],
     },

@@ -1369,7 +1369,7 @@ def create_rerun_ai_job(history_job_id: str, provider: str, api_key: str, aspect
     metadata = job_record.get("metadata", {})
     source_video = metadata.get("source_video")
     if not source_video or (not os.path.exists(source_video) and not workspace.get_work_dir()):
-        raise ValueError("Source video tidak ditemukan lagi di memori lokal.")
+        raise AppError("RERUN_SOURCE_MISSING", technical=f"source video {source_video!r} is gone")
 
     # A new project with its own folder: the old clips are never overwritten (SP4 spec 3, ruling 5).
     title = repick_title(metadata.get("title", ""))
@@ -1665,7 +1665,8 @@ def create_rerun_manual_job(history_job_id: str, extra_prompt: str = "", max_cli
         raise AppError("RERUN_SOURCE_MISSING", technical=f"transcript {subtitle_path!r} unreadable: {e}") from e
 
     extra = (extra_prompt or "").strip()
-    limit = _get_clip_limit(max_clips or int(old.get("max_clips") or 0), duration)
+    # The count exactly as sent, 0 = automatic (whole-wave ruling M2), like the API path.
+    limit = _get_clip_limit(max_clips, duration)
     manual_prompt = generate_manual_prompt(transcript_text, extra_prompt=extra, limit=limit)
     title = repick_title(old.get("title") or "")
 
@@ -1690,7 +1691,7 @@ def create_rerun_manual_job(history_job_id: str, extra_prompt: str = "", max_cli
         "whisper_model": old.get("whisper_model", "small"),
         "enable_broll": old.get("enable_broll", False),
         "enable_hook": old.get("enable_hook", False),
-        "max_clips": max_clips or old.get("max_clips", 0),
+        "max_clips": max_clips,
         "is_gaming_video": old.get("is_gaming_video", False),
         "title": title,
         "status": "AWAITING_MANUAL",

@@ -622,7 +622,7 @@
     "delete_retry": "Try deleting again",
     "menu_repick": "Pick moments again",
     "repick_title": "Pick moments again",
-    "repick_manual_note": "You get a new request to paste into ChatGPT or Gemini. The video is not downloaded again and your old clips stay.",
+    "repick_manual_note": "You get a new request to paste into ChatGPT or Gemini. The subtitles are not made again and your old clips stay.",
     "repick_api_note": "AI picks new moments with your API key. Your old clips stay.",
     "repick_what": "What should change?",
     "repick_placeholder": "For example: only the funny parts, or the part about starting a business",

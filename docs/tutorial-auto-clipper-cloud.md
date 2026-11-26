@@ -177,7 +177,7 @@ Di Google Colab, setiap instruksi kode berada di dalam **kotak eksekusi**. Anda 
 
 2. **Pemasangan Otomatis (Kotak Bagian 2 & 3):**
    - Klik tombol **Play (▶️)** pada bagian **`2. Pasang Sistem & Dependensi (FFmpeg, Cloudflared & Deno)`** (untuk memasang FFmpeg, cloudflared, dan Deno). Deno dipasang dengan skrip resmi (`curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh`) ke `/usr/local/bin`, sehingga server menemukannya di `PATH`. Bila pemasangan gagal, kotak menulis `PERHATIAN: Deno tidak berhasil dipasang` dan langkah berikutnya tetap bisa dijalankan; unduhan YouTube hanya menjadi kurang andal.
-   - Klik tombol **Play (▶️)** pada bagian **`3. Unduh Program Auto Clipper & Dependensi Python`**. Kotak ini mengunduh kode Auto Clipper dari cabang `BRANCH` (biarkan `main`), memasang library Python, dukungan GPU untuk subtitle, dan pelacak wajah **Teliti** (MediaPipe 1.2.3, SHA-256 terkunci). Bila kotak ini dilewati, pilihan Teliti memakai cara Standar dan layar progres memberi tahu caranya.
+   - Klik tombol **Play (▶️)** pada bagian **`3. Unduh Program Auto Clipper & Dependensi Python`**. Kotak ini mengunduh kode Auto Clipper dari cabang `BRANCH` (biarkan `main`), memasang library Python, dukungan GPU untuk subtitle, dan pelacak wajah **Teliti** (MediaPipe 1.2.3, SHA-256 terkunci). Bila pemasangan pelacak Teliti di kotak ini gagal, pilihan Teliti memakai cara Standar.
    - Tunggu proses instalasi selesai (ditandai dengan centang hijau ✅ di samping tombol Play).
 
 3. **Menjalankan Server (Kotak Bagian 4):**

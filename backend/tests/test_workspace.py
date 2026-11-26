@@ -894,8 +894,10 @@ def test_without_work_dir_a_missing_source_fails_exactly_as_before(tmp_path, mon
     assert clip_job["error"].startswith("Source video not found: ")
 
     monkeypatch.setattr("backend.db.get_history", lambda job_id: json.loads(json.dumps(history)))
-    with pytest.raises(ValueError, match="Source video tidak ditemukan lagi di memori lokal."):
+    from backend.errors import AppError
+    with pytest.raises(AppError) as refused:
         jobs.create_rerun_ai_job("job-plain", "openai", "sk-secret", "9:16", True, "", "")
+    assert refused.value.code == "RERUN_SOURCE_MISSING"
 
     local = _resume("job-local", history["result_clips"], history["metadata"], url="local:" + str(tmp_path / "gone.mp4"))
     assert local["status"] == "ERROR"

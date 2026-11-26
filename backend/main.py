@@ -567,6 +567,13 @@ class CreateJobRequest(BaseModel):
     tracking_mode: str = "auto"
     face_tracking_engine: str = "haar"
 
+# The longest extra instruction for a re-pick (SP4 spec 4.4); src/lib/repick.ts uses the same number.
+REPICK_EXTRA_MAX = 500
+
+class RerunAIRequest(CreateJobRequest):
+    """Pick moments again with an API key: the same limit as the manual path (RerunManualRequest)."""
+    extra_prompt: str = Field("", max_length=REPICK_EXTRA_MAX)
+
 class SaveFileRequest(BaseModel):
     src: str
     dest: str
@@ -665,7 +672,7 @@ def api_rerender_job(job_id: str, req: RerenderJobRequest):
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 @app.post("/jobs/{job_id}/rerun_ai")
-def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
+def api_rerun_ai_job(job_id: str, req: RerunAIRequest):
     refused = _canvas_image_refused(req.canvas_config, "jobs_rerun_ai")
     if refused:
         return refused
@@ -686,7 +693,8 @@ def api_rerun_ai_job(job_id: str, req: CreateJobRequest):
         )
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+        # RERUN_SOURCE_MISSING comes back as a card, the same way as rerun-manual.
+        return _resume_failed(e)
 
 @app.get("/jobs/{job_id}/clips/{clip_index}/words")
 async def get_clip_words(job_id: str, clip_index: int):
@@ -847,10 +855,6 @@ def api_resume_manual_job(job_id: str, req: ResumeManualJobRequest):
         return {"status": "success", "job_id": new_job_id}
     except Exception as e:
         return _resume_failed(e)
-
-
-# The longest extra instruction for a re-pick (SP4 spec 4.4); src/lib/repick.ts uses the same number.
-REPICK_EXTRA_MAX = 500
 
 
 class RerunManualRequest(BaseModel):

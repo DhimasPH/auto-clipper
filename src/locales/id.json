@@ -622,7 +622,7 @@
     "delete_retry": "Coba hapus lagi",
     "menu_repick": "Pilih ulang momen",
     "repick_title": "Pilih ulang momen",
-    "repick_manual_note": "Anda akan mendapat perintah baru untuk ChatGPT atau Gemini. Video tidak diunduh ulang dan klip lama tetap ada.",
+    "repick_manual_note": "Anda akan mendapat perintah baru untuk ChatGPT atau Gemini. Subtitle tidak dibuat ulang dan klip lama tetap ada.",
     "repick_api_note": "AI memilih momen baru memakai API key Anda. Klip lama tetap ada.",
     "repick_what": "Apa yang mau diubah?",
     "repick_placeholder": "Contoh: cari bagian yang lucu saja, atau bagian tentang cara memulai bisnis",
