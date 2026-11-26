@@ -144,7 +144,6 @@
         "a": "macOS blocks the part of the app that processes video because the app is not yet approved by Apple. Open Terminal, run xattr -cr \"/Applications/Auto Clipper.app\", then open Auto Clipper again. Once per install is enough."
       }
     },
-    "help_version": "Version {{version}}",
     "logs_title": "Technical details",
     "logs_desc": "The app's work log. Copy it and send it when you ask for help.",
     "logs_kind_label": "Log type",
@@ -421,15 +420,12 @@
   "auth": {
     "loading": "Starting Auto Clipper…",
     "logo_alt": "Auto Clipper logo",
-    "tagline": "Turn long videos into short clips automatically.",
     "login_title": "Log in",
     "login_subtitle": "Enter the access code from the Colab notebook (API_SECRET_TOKEN).",
     "token_placeholder": "Access code",
     "verifying": "Checking…",
     "submit": "Log in",
     "stored_locally": "The access code is stored in this browser only.",
-    "discord_title": "Discord Community",
-    "discord_body": "Report bugs, request features, show your content and chat with other clippers.",
     "error_empty": "The access code is empty. Copy API_SECRET_TOKEN from the Colab notebook and paste it here.",
     "error_invalid": "Access code rejected: it does not match the Colab server that is running. Copy API_SECRET_TOKEN from the notebook again and retry.",
     "error_offline": "The Colab server cannot be reached. The notebook is not running or its session ended. Run the notebook again until the server is up, then retry.",
@@ -669,5 +665,17 @@
     "empty_needs_key": "Titles and hashtags can be written automatically when Use an API key is on in Settings, Advanced.",
     "empty_can_generate": "Press Write titles and hashtags to get title, description and hashtag ideas for this clip.",
     "failed": "Titles and hashtags could not be written. The API key may be wrong or the AI provider cannot be reached. Check Settings, then try again."
+  },
+  "app": {
+    "tagline": "The smartest way to automate your video clips."
+  },
+  "about": {
+    "title": "About Auto Clipper",
+    "logo_alt": "Auto Clipper logo",
+    "version": "Version {{version}}",
+    "links_label": "Follow Auto Clipper",
+    "discord_body": "Report bugs, request features, show your content and chat with other clippers.",
+    "support": "Support the maker",
+    "support_note": "Support through Trakteer is voluntary. Auto Clipper stays free to use."
   }
 }

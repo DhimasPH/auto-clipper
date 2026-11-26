@@ -144,7 +144,6 @@
         "a": "macOS memblokir bagian aplikasi yang mengolah video karena aplikasinya belum disahkan Apple. Buka Terminal, jalankan xattr -cr \"/Applications/Auto Clipper.app\", lalu buka lagi Auto Clipper. Cukup sekali setiap kali memasang."
       }
     },
-    "help_version": "Versi {{version}}",
     "logs_title": "Detail teknis",
     "logs_desc": "Catatan kerja aplikasi. Salin dan kirim catatan ini saat meminta bantuan.",
     "logs_kind_label": "Jenis catatan",
@@ -421,15 +420,12 @@
   "auth": {
     "loading": "Menyiapkan Auto Clipper…",
     "logo_alt": "Logo Auto Clipper",
-    "tagline": "Potong video panjang jadi klip pendek secara otomatis.",
     "login_title": "Masuk",
     "login_subtitle": "Masukkan kode akses dari notebook Colab (API_SECRET_TOKEN).",
     "token_placeholder": "Kode akses",
     "verifying": "Memeriksa…",
     "submit": "Masuk",
     "stored_locally": "Kode akses hanya disimpan di browser ini.",
-    "discord_title": "Komunitas Discord",
-    "discord_body": "Laporkan bug, minta fitur, pamerkan konten, dan ngobrol dengan sesama clipper.",
     "error_empty": "Kode akses belum diisi. Salin API_SECRET_TOKEN dari notebook Colab, lalu tempel di sini.",
     "error_invalid": "Kode akses ditolak karena tidak cocok dengan server Colab yang sedang berjalan. Salin lagi API_SECRET_TOKEN dari notebook, lalu coba lagi.",
     "error_offline": "Server Colab tidak bisa dihubungi. Notebook belum dijalankan atau sesinya sudah berakhir. Jalankan lagi notebook sampai server menyala, lalu coba lagi.",
@@ -669,5 +665,17 @@
     "empty_needs_key": "Judul dan tagar bisa dibuat otomatis bila Pakai API key aktif di Pengaturan, bagian Lanjutan.",
     "empty_can_generate": "Tekan Buat judul dan tagar untuk membuat pilihan judul, deskripsi, dan tagar klip ini.",
     "failed": "Judul dan tagar belum bisa dibuat. API key mungkin salah atau penyedia AI tidak terjangkau. Periksa di Pengaturan, lalu coba lagi."
+  },
+  "app": {
+    "tagline": "Cara paling cerdas untuk membuat klip video secara otomatis."
+  },
+  "about": {
+    "title": "Tentang Auto Clipper",
+    "logo_alt": "Logo Auto Clipper",
+    "version": "Versi {{version}}",
+    "links_label": "Ikuti Auto Clipper",
+    "discord_body": "Laporkan bug, minta fitur, pamerkan konten, dan ngobrol dengan sesama clipper.",
+    "support": "Dukung pembuat aplikasi",
+    "support_note": "Dukungan lewat Trakteer bersifat sukarela. Auto Clipper tetap gratis dipakai."
   }
 }

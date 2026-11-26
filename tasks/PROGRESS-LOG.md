@@ -768,3 +768,6 @@ Catat untuk tiap butir: berhasil atau tidak, dan di langkah mana pengguna sempat
 - CI PR SP0–SP3 hijau setelah tiga perbaikan (`18ca71a`, `113f8f6`): tes add-on cuda memalsukan `ctypes.WinDLL` untuk Linux, macOS pindah ke `macos-15` (image macos-14 dihentikan GitHub 2026-11-02), PR Check membangun Tauri tanpa artefak updater sehingga tidak butuh kunci tanda tangan.
 - Pemilik minta SP4 gelombang 1 sebelum merge. Brainstorm selesai: spec `7978a52`, rencana 7 task `353f1b6` di branch `feat/sp4-wave1`. Belum ada kode.
 - Berhenti di kuota pemilik 80% sebelum pemindaian pre-flight. Lanjut dari `tasks/HANDOFF-AI.md` bagian 3 (butir SP4 gelombang 1) dan `tasks/sp4-ledger.md`.
+
+### 2026-11-26 · SP4 gelombang 1
+- Task 1: `src/lib/appInfo.ts` satu sumber identitas (nama, pemegang hak cipta, versi dari Vite `define`, 8 tautan sosmed, `RELEASES_URL_PREFIX`); footer satu baris di bawah tiga menu (`AppFooter`); "Tentang Auto Clipper" di Pengaturan → Bantuan (`AboutSection`, 8 ikon 44 px, tombol dukung bergaris); `AuthGate` memakai daftar yang sama; `EMOJI` regex di `SettingsPage.test.tsx` & `SettingsPage.real.test.tsx` mengecualikan `\u00A9`. Vitest 485 lulus (69 file), pytest 1067/1067 (7 dilewati), oxlint 0 error, build + build:cloud OK.

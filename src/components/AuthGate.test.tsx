@@ -76,4 +76,13 @@ describe("AuthGate token errors", () => {
 
     expect(container.textContent).toContain(i18n.t("auth.error_expired"));
   });
+
+  it("lists the eight links from appInfo and the copyright line", async () => {
+    await act(async () => root.render(<AuthGate><p>app</p></AuthGate>));
+    const names = [...container.querySelectorAll("nav a")].map((a) => a.querySelector(".font-medium")!.textContent);
+    expect(names).toEqual(["TikTok", "YouTube", "Instagram", "Threads", "GitHub", "Facebook", "Discord", "Trakteer"]);
+    expect(container.querySelector('nav a[href="https://discord.gg/5AvvA682UN"]')!.textContent).toContain(i18n.t("about.discord_body"));
+    expect(container.textContent).toContain(`\u00A9 ${new Date().getFullYear()} Dhimas Panjie Herlambang`);
+    expect(container.textContent).toContain(i18n.t("app.tagline"));
+  });
 });

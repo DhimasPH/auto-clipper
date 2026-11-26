@@ -13,7 +13,8 @@ import { SettingsPage } from "./SettingsPage";
 // SettingsPage.test.tsx stubs the sections with network calls to test the layout. This file
 // renders every real section (Task 15 audit): no emoji, no leftover English in id.
 
-const EMOJI = /\p{Extended_Pictographic}/u;
+// "©" (U+00A9) counts as Extended_Pictographic; the copyright line is text, not a decorative emoji.
+const EMOJI = /(?!\u00A9)\p{Extended_Pictographic}/u;
 
 const MODELS = [
   { id: "small", name: "Small", disk_size: "466 MB", vram: "~2 GB", description_id: "Cepat", description_en: "Fast", downloaded: true },

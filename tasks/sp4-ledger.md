@@ -21,7 +21,7 @@ Selesai 2026-11-26 (sebelum Task 1). Baseline terverifikasi: branch `feat/sp4-wa
 - **P9 (Triase catatan tertunda SP2/SP3 pada Task 6):** 65 catatan dari `tasks/sp2-ledger.md` dan `tasks/sp3-ledger.md` ditriase: 19 dikerjakan (5 wajib W1–W5 + 14 minor valid K1–K12b), 21 sudah beres, 25 tidak dikerjakan dengan alasan tertulis.
 
 ## Tasks
-- Task 1: pending
+- Task 1: implemented (awaiting review) · BASE `8b1e513` · Vitest 485/485 (69 file), pytest 1067 passed / 7 skipped, oxlint 0 error, build + build:cloud OK.
 - Task 2: pending
 - Task 3: pending
 - Task 4: pending

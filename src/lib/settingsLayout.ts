@@ -1,12 +1,8 @@
-import { version } from "../../package.json";
 import type { Caps } from "../platform/types";
 import type { AiMode } from "./createFlow";
 import type { ManualLook } from "../hooks/useClipJobs";
 import { DEFAULT_CANVAS_CONFIG } from "../types/canvas";
 import { DEFAULT_SUBTITLE_CONFIG } from "../types/subtitle";
-
-/** The app version shown in Pengaturan, Bantuan. Read from package.json so it never drifts. */
-export const APP_VERSION: string = version;
 
 export interface SettingsVisibility {
   showAiMode: boolean;

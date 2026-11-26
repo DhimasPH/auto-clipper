@@ -45,7 +45,8 @@ const makeCtx = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   }) as unknown as React.ContextType<typeof AppContext>;
 
-const EMOJI = /\p{Extended_Pictographic}/u;
+// "©" (U+00A9) counts as Extended_Pictographic; the copyright line is text, not a decorative emoji.
+const EMOJI = /(?!\u00A9)\p{Extended_Pictographic}/u;
 
 describe("SettingsPage (spec 4.5: Umum, YouTube, Lanjutan, Bantuan)", () => {
   let container: HTMLDivElement;

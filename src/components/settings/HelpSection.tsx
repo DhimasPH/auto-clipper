@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { platform } from "../../platform";
-import { APP_VERSION } from "../../lib/settingsLayout";
+import { AboutSection } from "./AboutSection";
 import { UpdaterSection } from "./UpdaterSection";
 import { LogViewer } from "./LogViewer";
 
@@ -39,6 +39,7 @@ export const HelpSection: React.FC<HelpSectionProps> = ({ showUpdater }) => {
 
   return (
     <div className="flex flex-col gap-4">
+      <AboutSection />
       <div className="rounded-card border border-border bg-bg-secondary p-5">
         <h3 className="text-card-title text-text-primary">{t("settings.help_steps_title")}</h3>
         <ol className="mt-4 flex flex-col gap-4">
@@ -77,7 +78,6 @@ export const HelpSection: React.FC<HelpSectionProps> = ({ showUpdater }) => {
         </dl>
       </div>
 
-      <p className="text-body text-text-secondary">{t("settings.help_version", { version: APP_VERSION })}</p>
       {showUpdater && <UpdaterSection />}
       <LogViewer />
     </div>

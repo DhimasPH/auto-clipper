@@ -9,3 +9,6 @@ interface ImportMetaEnv {
   readonly VITE_DEV_BACKEND?: string;
   readonly VITE_ENABLE_EXPERIMENTAL_FEATURES?: string;
 }
+
+/** The app version from package.json, put in by vite.config.ts (`define`). Read it through appVersion(). */
+declare const __APP_VERSION__: string;
