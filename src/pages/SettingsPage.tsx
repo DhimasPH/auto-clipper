@@ -69,7 +69,7 @@ export const SettingsPage: React.FC = () => {
       </Section>
 
       <Section id={SETTINGS_ANCHORS.help} title={t('settings.sec_help')}>
-        <HelpSection showUpdater={vis.showUpdater} />
+        <HelpSection showUpdater={vis.showUpdater} updateNotice={vis.showUpdateNotice ? ctx.updateNotice : null} />
       </Section>
     </div>
   );

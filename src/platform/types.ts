@@ -34,6 +34,11 @@ export interface Caps {
    * sidecar (as before), "tab" once per browser tab on the web until the first connection check.
    */
   splash: "startup" | "tab";
+  /**
+   * "A new version is out" notice in Pengaturan, Bantuan (SP4 spec 4.5). Auto Clipper Web only:
+   * the desktop app has `updater`, the cloud app is always the latest Vercel build.
+   */
+  updateNotice: boolean;
 }
 
 export interface BackendInfo {

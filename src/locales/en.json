@@ -682,5 +682,19 @@
     "discord_body": "Report bugs, request features, show your content and chat with other clippers.",
     "support": "Support the maker",
     "support_note": "Support through Trakteer is voluntary. Auto Clipper stays free to use."
+  },
+  "update_notice": {
+    "title": "Updates",
+    "checking": "Checking for the latest version…",
+    "available": "Version {{version}} is available.",
+    "download": "Download",
+    "step_download": "Download the new zip file with the button above.",
+    "step_close": "Close the Auto Clipper Web window that is running.",
+    "step_extract": "Extract the zip to a new folder, then open Auto Clipper Web from that folder.",
+    "keeps_data": "Your projects and settings stay.",
+    "latest": "You are using the latest version.",
+    "failed": "Cannot check right now. Check your internet connection, then try again.",
+    "retry": "Try again",
+    "check": "Check for updates"
   }
 }

@@ -306,6 +306,18 @@ def api_preflight():
     from backend.preflight import run_preflight
     return {"status": "success", "checks": run_preflight()}
 
+
+@app.get("/api/update-check")
+def api_update_check(current: str = "", force: int = 0):
+    """Auto Clipper Web only (SP4 spec 4.5): is a newer version out? A quiet answer, never an error card."""
+    if not web_ui.is_web_mode():
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Not available in this app"})
+    from backend import update_check
+    if update_check.parse_version(current) is None:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "current must look like 1.2.3"})
+    cache_path = os.path.join(get_app_data_dir(), update_check.CACHE_FILE_NAME)
+    return update_check.check(current, force=bool(force), cache_path=cache_path)
+
 from fastapi import Query
 
 @app.get("/gdrive-browser")

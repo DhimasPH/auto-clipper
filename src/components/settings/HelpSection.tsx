@@ -1,7 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { platform } from "../../platform";
+import type { UpdateNotice } from "../../hooks/useUpdateNotice";
 import { AboutSection } from "./AboutSection";
+import { UpdateNoticeSection } from "./UpdateNoticeSection";
 import { UpdaterSection } from "./UpdaterSection";
 import { LogViewer } from "./LogViewer";
 
@@ -18,10 +20,12 @@ const STEPS: { title: string; text: string; keysText?: string }[] = [
 
 interface HelpSectionProps {
   showUpdater: boolean;
+  /** Auto Clipper Web only (caps.updateNotice). */
+  updateNotice?: UpdateNotice | null;
 }
 
 /** Pengaturan, Bantuan (spec 4.5): short steps, common questions, version, updater, technical log. */
-export const HelpSection: React.FC<HelpSectionProps> = ({ showUpdater }) => {
+export const HelpSection: React.FC<HelpSectionProps> = ({ showUpdater, updateNotice }) => {
   const { t } = useTranslation();
   const caps = platform().caps;
   const faqs = [
@@ -40,6 +44,7 @@ export const HelpSection: React.FC<HelpSectionProps> = ({ showUpdater }) => {
   return (
     <div className="flex flex-col gap-4">
       <AboutSection />
+      {updateNotice && <UpdateNoticeSection notice={updateNotice} />}
       <div className="rounded-card border border-border bg-bg-secondary p-5">
         <h3 className="text-card-title text-text-primary">{t("settings.help_steps_title")}</h3>
         <ol className="mt-4 flex flex-col gap-4">

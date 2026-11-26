@@ -682,5 +682,19 @@
     "discord_body": "Laporkan bug, minta fitur, pamerkan konten, dan ngobrol dengan sesama clipper.",
     "support": "Dukung pembuat aplikasi",
     "support_note": "Dukungan lewat Trakteer bersifat sukarela. Auto Clipper tetap gratis dipakai."
+  },
+  "update_notice": {
+    "title": "Pembaruan",
+    "checking": "Memeriksa versi terbaru…",
+    "available": "Versi {{version}} sudah tersedia.",
+    "download": "Unduh",
+    "step_download": "Unduh file zip versi baru dengan tombol di atas.",
+    "step_close": "Tutup jendela Auto Clipper Web yang sedang berjalan.",
+    "step_extract": "Ekstrak zip ke folder baru, lalu buka Auto Clipper Web dari folder itu.",
+    "keeps_data": "Proyek dan pengaturan Anda tidak hilang.",
+    "latest": "Anda memakai versi terbaru.",
+    "failed": "Belum bisa memeriksa sekarang. Periksa sambungan internet, lalu coba lagi.",
+    "retry": "Coba lagi",
+    "check": "Periksa pembaruan"
   }
 }

@@ -8,7 +8,7 @@ import id from "./id.json";
 export const MAIN_NAMESPACES = [
   "nav", "create", "progress", "moment", "result", "projects", "banner", "toast",
   "canvas", "subtitle_custom", "subtitle_preset", "clip_rerender", "social", "dialog", "drive",
-  "app", "about",
+  "app", "about", "update_notice",
 ];
 const BANNED = [
   "transkripsi", "transcription", "render", "encoder", "json", "sidecar", "token",

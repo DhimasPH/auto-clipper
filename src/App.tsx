@@ -20,6 +20,7 @@ import { useUserSettings } from "./hooks/useUserSettings";
 import { useClipJobs } from "./hooks/useClipJobs";
 import { useStartupUpdateCheck } from "./hooks/useStartupUpdateCheck";
 import { useWebSplash } from "./hooks/useWebSplash";
+import { useUpdateNotice } from "./hooks/useUpdateNotice";
 import { splashVisible } from "./lib/splash";
 import { ProviderId, DEFAULT_PROVIDER, LEGACY_PROVIDER_MIGRATION } from "./lib/providers";
 import { loadClipChoices, saveClipChoices, type ClipChoices, type ShapeValue } from "./lib/clipChoices";
@@ -68,6 +69,8 @@ export default function App() {
   const splashMode = platform().caps.splash;
   // Web (SP4 spec 4.3): once per tab, until the first connection check; desktop: while settings load.
   const webSplash = useWebSplash(splashMode === "tab", !isInitializing);
+  // Auto Clipper Web (SP4 spec 4.5): one check per app start, shown in Pengaturan, Bantuan.
+  const updateNotice = useUpdateNotice(platform().caps.updateNotice && !isInitializing);
 
   const [url, setUrl] = useState("");
   const [provider, setProvider] = useState<ProviderId>(() => {
@@ -290,6 +293,7 @@ export default function App() {
     handleResumeJob,
     handleRerenderClip,
     handleResetWorkspace,
+    updateNotice,
   };
 
   const routes = (

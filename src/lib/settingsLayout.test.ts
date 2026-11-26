@@ -12,6 +12,7 @@ describe("settingsVisibility (spec 4.5 & Spec gaps 12-13)", () => {
       showPexelsKey: false,
       showOutputFolder: false,
       showUpdater: false,
+      showUpdateNotice: false,
       showAddons: false,
     });
     // Even stale "auto" in storage never exposes keys when caps.apiKeys is false.
@@ -25,6 +26,7 @@ describe("settingsVisibility (spec 4.5 & Spec gaps 12-13)", () => {
       showPexelsKey: true,
       showOutputFolder: false,
       showUpdater: false,
+      showUpdateNotice: true,
       showAddons: true,
     });
     expect(settingsVisibility(CAPS.local, "auto").showProviderKeys).toBe(true);
@@ -37,6 +39,7 @@ describe("settingsVisibility (spec 4.5 & Spec gaps 12-13)", () => {
       showPexelsKey: true,
       showOutputFolder: true,
       showUpdater: true,
+      showUpdateNotice: false,
       showAddons: true,
     });
   });
