@@ -52,7 +52,11 @@ def package_target(sys_platform: Optional[str] = None, machine: Optional[str] = 
 
 
 def _trusted(url) -> Optional[str]:
-    return url if isinstance(url, str) and url.startswith(RELEASES_PREFIX) else None
+    if not isinstance(url, str) or not url.startswith(RELEASES_PREFIX) or any(ch.isspace() for ch in url):
+        return None
+    if ".." in url[len(RELEASES_PREFIX):].split("/"):
+        return None
+    return url
 
 
 def summarize(release: dict, target: Optional[str]) -> dict:

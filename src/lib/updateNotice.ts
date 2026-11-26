@@ -11,8 +11,11 @@ export interface UpdateCheck {
   failed: boolean;
 }
 
-const trusted = (value: unknown): string | null =>
-  typeof value === "string" && value.startsWith(RELEASES_URL_PREFIX) ? value : null;
+const trusted = (value: unknown): string | null => {
+  if (typeof value !== "string" || !value.startsWith(RELEASES_URL_PREFIX) || /\s/.test(value)) return null;
+  const tail = value.slice(RELEASES_URL_PREFIX.length).split("/");
+  return tail.includes("..") ? null : value;
+};
 
 export function asUpdateCheck(data: unknown): UpdateCheck | null {
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
@@ -30,7 +33,7 @@ export type UpdateNoticeView = "checking" | "available" | "latest" | "failed";
 
 export function updateNoticeView(phase: UpdatePhase, result: UpdateCheck | null): UpdateNoticeView {
   if (phase !== "done") return "checking";
-  if (!result || result.failed) return "failed";
-  if (result.updateAvailable) return result.latest && result.link ? "available" : "failed";
+  if (!result || result.failed || !result.latest) return "failed";
+  if (result.updateAvailable) return result.link ? "available" : "failed";
   return "latest";
 }

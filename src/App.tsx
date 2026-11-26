@@ -47,6 +47,14 @@ function gate(content: React.ReactNode): React.ReactNode {
   return content;
 }
 
+/** Auto Clipper Web (SP4 spec 4.5): checks updates only after the gate lets the user in (has a valid token). */
+function WithUpdateNotice({ children }: { children: React.ReactNode }) {
+  const ctx = React.useContext(AppContext);
+  const updateNotice = useUpdateNotice(platform().caps.updateNotice);
+  const value = React.useMemo(() => ({ ...ctx, updateNotice }), [ctx, updateNotice]);
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
 export default function App() {
   const {
     isInitializing,
@@ -69,8 +77,6 @@ export default function App() {
   const splashMode = platform().caps.splash;
   // Web (SP4 spec 4.3): once per tab, until the first connection check; desktop: while settings load.
   const webSplash = useWebSplash(splashMode === "tab", !isInitializing);
-  // Auto Clipper Web (SP4 spec 4.5): one check per app start, shown in Pengaturan, Bantuan.
-  const updateNotice = useUpdateNotice(platform().caps.updateNotice && !isInitializing);
 
   const [url, setUrl] = useState("");
   const [provider, setProvider] = useState<ProviderId>(() => {
@@ -293,7 +299,6 @@ export default function App() {
     handleResumeJob,
     handleRerenderClip,
     handleResetWorkspace,
-    updateNotice,
   };
 
   const routes = (
@@ -327,7 +332,7 @@ export default function App() {
             }}
           />
         )}
-        {gate(routes)}
+        {gate(<WithUpdateNotice>{routes}</WithUpdateNotice>)}
       </HashRouter>
     </AppContext.Provider>
   );

@@ -10,6 +10,7 @@ describe("updateNotice (SP4 spec 4.5)", () => {
     expect(asUpdateCheck(OK)).toEqual({ latest: "1.20.0", updateAvailable: true, link: ZIP, failed: false });
     expect(asUpdateCheck({ ...OK, download_url: "https://evil.example/x.zip" })!.link).toBe(PAGE);
     expect(asUpdateCheck({ ...OK, download_url: null, release_url: "https://github.com/DhimasPH/auto-clipper-evil/releases/x" })!.link).toBeNull();
+    expect(asUpdateCheck({ ...OK, download_url: "https://github.com/DhimasPH/auto-clipper/releases/../other", release_url: null })!.link).toBeNull();
     expect(asUpdateCheck({ ...OK, error: "offline" })!.failed).toBe(true);
     expect(asUpdateCheck(null)).toBeNull();
     expect(asUpdateCheck("x")).toBeNull();
@@ -22,6 +23,7 @@ describe("updateNotice (SP4 spec 4.5)", () => {
     expect(updateNoticeView("done", ok)).toBe("available");
     expect(updateNoticeView("done", asUpdateCheck({ ...OK, update_available: false }))).toBe("latest");
     expect(updateNoticeView("done", asUpdateCheck({ ...OK, update_available: false, latest: null, error: "offline" }))).toBe("failed");
+    expect(updateNoticeView("done", asUpdateCheck({}))).toBe("failed");
     expect(updateNoticeView("done", null)).toBe("failed");
     expect(updateNoticeView("done", asUpdateCheck({ ...OK, download_url: null, release_url: null }))).toBe("failed");
   });
