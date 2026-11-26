@@ -8,7 +8,7 @@ import { ClipEditModal } from "../components/ClipEditModal";
 import ClipsResult from "../components/ClipsResult";
 import { ErrorCard } from "../components/ErrorCard";
 import { JobReport } from "../components/JobReport";
-import { AiCorrectDialog } from "../components/projects/AiCorrectDialog";
+import { RepickDialog } from "../components/projects/RepickDialog";
 import { DeleteFailedAlert } from "../components/projects/DeleteFailedAlert";
 import { ProjectStatusBadge } from "../components/projects/ProjectStatusBadge";
 import { RerenderAllDialog } from "../components/projects/RerenderAllDialog";
@@ -17,7 +17,7 @@ import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { OverflowMenu, type OverflowItem } from "../components/ui/OverflowMenu";
 import { useErrorActions } from "../hooks/useErrorActions";
 import { asErrorInfo, hasRerunAction } from "../lib/errorInfo";
-import { canRerunAI } from "../lib/history";
+import { canRepick, repickMode } from "../lib/repick";
 import { projectPrimaryAction, projectStatusKey } from "../lib/projectStatus";
 import { ROUTES } from "../lib/routes";
 import { platform } from "../platform";
@@ -42,7 +42,8 @@ export const ProjectPage: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [rerenderOpen, setRerenderOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
+  const [repickOpen, setRepickOpen] = useState(false);
+  const mode = repickMode(caps, ctx?.aiMode ?? "manual", ctx?.provider ?? "");
   const showHistoryRequestError = ctx?.jobOrigin === "history" && ctx?.status === "IDLE" && !!(ctx?.errorInfo || ctx?.errorMsg);
   const requestErrorActions = useErrorActions({ jobId: ctx?.failedJobId ?? (id || null), origin: "history" });
   // A retry button disappears once pressed; keyboard focus waits on a heading instead of falling to <body>.
@@ -148,7 +149,7 @@ export const ProjectPage: React.FC = () => {
 
   const menuItems: OverflowItem[] = [
     ...(clips.length > 0 ? [{ id: "rerender", label: t("projects.menu_rerender"), onSelect: () => setRerenderOpen(true) }] : []),
-    ...(caps.apiKeys && canRerunAI(reportJob) ? [{ id: "ai_rerun", label: t("projects.menu_ai_rerun"), onSelect: () => setAiOpen(true) }] : []),
+    ...(canRepick(reportJob) ? [{ id: "repick", label: t("projects.menu_repick"), onSelect: () => setRepickOpen(true) }] : []),
     { id: "delete", label: t("projects.menu_delete"), danger: true, onSelect: () => setConfirmDeleteOpen(true) },
   ];
 
@@ -273,12 +274,19 @@ export const ProjectPage: React.FC = () => {
         }}
       />
 
-      <AiCorrectDialog
-        isOpen={aiOpen}
-        onClose={() => setAiOpen(false)}
-        onConfirm={(extra) => {
-          setAiOpen(false);
-          void ctx.handleRerunAI(job.id, extra);
+      <RepickDialog
+        isOpen={repickOpen}
+        mode={mode}
+        onClose={() => setRepickOpen(false)}
+        onConfirm={(extra, maxClips) => {
+          setRepickOpen(false);
+          if (mode === "api") {
+            void ctx.handleRerunAI(job.id, extra, maxClips);
+            return;
+          }
+          void ctx.handleRerunManual(job.id, extra, maxClips).then((opened: boolean) => {
+            if (opened) navigate(ROUTES.create);
+          });
         }}
       />
     </div>

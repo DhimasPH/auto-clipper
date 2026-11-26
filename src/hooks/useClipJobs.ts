@@ -458,7 +458,7 @@ export function useClipJobs(p: ClipJobParams) {
     }
   };
 
-  const handleRerunAI = async (historyJobId: string, extraPrompt: string) => {
+  const handleRerunAI = async (historyJobId: string, extraPrompt: string, maxClips?: number) => {
     beginJob("history", false);
     setStatus("TRANSCRIBING");
     setProgress("");
@@ -475,11 +475,11 @@ export function useClipJobs(p: ClipJobParams) {
         subtitle_config: p.subtitleConfig,
         output_dir: p.outputFolder,
         quality: p.quality,
-        title: "", // re-run AI keeps the existing title in backend
+        title: "", // re-run AI gets its own "(pilihan ulang)" title in backend
         enable_broll: p.enableBroll,
         pexels_api_key: p.pexelsApiKey,
         extra_prompt: extraPrompt,
-        max_clips: p.maxClips,
+        max_clips: maxClips ?? p.maxClips,
         custom_base_url: p.customBaseUrl,
         custom_model_name: p.customModelName,
         whisper_model: p.whisperModel,
@@ -497,6 +497,31 @@ export function useClipJobs(p: ClipJobParams) {
       setStatus("IDLE");
       setProgress("");
       showRequestError(err, t('toast.ai_correct_fail'), historyJobId);
+    }
+  };
+
+  /**
+   * "Pilih ulang momen" without an API key (SP4 spec 4.4): a new project waits at step 3 with a new
+   * request for the AI. True when step 3 is open; false when the request failed (the error card shows
+   * in Riwayat through jobOrigin "history").
+   */
+  const handleRerunManual = async (historyJobId: string, extraPrompt: string, maxClips: number): Promise<boolean> => {
+    beginJob("history", false);
+    try {
+      const res = await axios.post(`${API_URL}/jobs/${encodeURIComponent(historyJobId)}/rerun-manual`, {
+        extra_prompt: extraPrompt,
+        max_clips: maxClips,
+      });
+      if (res.data.status !== "success") throw new Error(res.data.message || "rerun-manual failed");
+      setHistoryVersion((v) => v + 1);
+      openAwaiting({ id: res.data.job_id, metadata: { manual_prompt: res.data.manual_prompt, title: res.data.title } });
+      return true;
+    } catch (err) {
+      console.error(err);
+      setStatus("IDLE");
+      setProgress("");
+      showRequestError(err, t("toast.repick_fail"), historyJobId);
+      return false;
     }
   };
 
@@ -623,6 +648,6 @@ export function useClipJobs(p: ClipJobParams) {
     status, progress, errorMsg, errorInfo, failedJobId, queuePosition, jobMeta, clips, failedCount,
     isRunning, historyVersion, activeJobId, current, liveMeta, makePhase, jobOrigin,
     awaiting, sendingAnswer, answerError, submitAiAnswer, openAwaiting, leaveAwaiting, watchJob, resultJobId,
-    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleResumeJob, handleRerenderClip, cancelJob, resetJobState,
+    handleGenerate, handleManualGenerate, handleRerender, handleRerunAI, handleRerunManual, handleResumeJob, handleRerenderClip, cancelJob, resetJobState,
   };
 }

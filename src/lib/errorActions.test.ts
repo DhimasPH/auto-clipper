@@ -68,4 +68,13 @@ describe("errorActionHandlers", () => {
     expect(actionLabels(CAPS.desktop, t)).toEqual({});
     expect(actionLabels(CAPS.local, t)).toEqual({});
   });
+
+  it("new_project starts over on every platform (RERUN_SOURCE_MISSING)", () => {
+    for (const kind of ["desktop", "local", "cloud"] as const) {
+      const newProject = vi.fn();
+      const handlers = errorActionHandlers(CAPS[kind], { ...deps(), newProject });
+      handlers.new_project!();
+      expect(newProject).toHaveBeenCalledTimes(1);
+    }
+  });
 });

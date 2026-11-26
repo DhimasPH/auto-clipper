@@ -27,6 +27,7 @@ const makeCtx = (overrides: Record<string, unknown> = {}) =>
     historyVersion: 0,
     handleRerender: vi.fn(),
     handleRerunAI: vi.fn(),
+    handleRerunManual: vi.fn().mockResolvedValue(true),
     handleResumeJob: vi.fn(),
     handleRerenderClip: vi.fn(),
     openAwaiting: vi.fn(),
@@ -229,12 +230,12 @@ describe("ProjectPage (spec 4.5)", () => {
 
   it("keeps what the user typed when the project reloads behind an open dialog", async () => {
     setPlatform({ caps: CAPS.desktop } as unknown as Platform);
-    const job = { id: "j1", status: "DONE", clips: [{ path: "a.mp4" }], metadata: { title: "Podcast", ai_job: true } };
+    const job = { id: "j1", status: "DONE", clips: [{ path: "a.mp4" }], metadata: { title: "Podcast", subtitle_path: "/s.json" } };
     vi.mocked(axios.get).mockResolvedValue({ data: job });
     await renderPage(makeCtx({ historyVersion: 0 }));
 
     act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
-    act(() => buttonWith(container, i18n.t("projects.menu_ai_rerun"))[0].click());
+    act(() => buttonWith(container, i18n.t("projects.menu_repick"))[0].click());
     let textarea = document.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea')!;
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "cari bagian lucu");

@@ -220,7 +220,8 @@
     "custom_config_req": "Alamat dan nama model untuk AI kustom belum diisi. Isi di Pengaturan, bagian Lanjutan.",
     "manual_prompt_ready": "Video siap. Lanjutkan di langkah Pilih momen.",
     "starting_resume": "Melanjutkan proses.",
-    "resume_fail": "Proses belum bisa dilanjutkan."
+    "resume_fail": "Proses belum bisa dilanjutkan.",
+    "repick_fail": "Momen belum bisa dipilih ulang."
   },
   "updater": {
     "title": "Pembaruan aplikasi",
@@ -610,19 +611,23 @@
     "action_view_progress": "Lihat progres",
     "menu_label": "Pilihan lain untuk {{title}}",
     "menu_rerender": "Buat ulang semua klip",
-    "menu_ai_rerun": "Pilih ulang momen dengan AI",
     "menu_delete": "Hapus",
     "delete_title": "Hapus proyek ini?",
     "delete_body": "Semua klip dari proyek ini akan dihapus permanen.",
     "delete_confirm": "Ya, hapus",
     "rerender_title": "Buat ulang semua klip",
     "rerender_start": "Buat ulang klip",
-    "ai_title": "Pilih ulang momen dengan AI",
-    "ai_desc": "Tulis petunjuk tambahan supaya AI mencari bagian lain dari video ini.",
-    "ai_placeholder": "Contoh: fokus cari bagian tentang cara mulai bisnis saja",
-    "ai_start": "Pilih ulang momen",
     "delete_failed": "Proyek belum bisa dihapus. File klip mungkin sedang dibuka, atau sambungan ke aplikasi terputus. Tutup klip yang sedang dibuka, lalu coba lagi.",
-    "delete_retry": "Coba hapus lagi"
+    "delete_retry": "Coba hapus lagi",
+    "menu_repick": "Pilih ulang momen",
+    "repick_title": "Pilih ulang momen",
+    "repick_manual_note": "Anda akan mendapat perintah baru untuk ChatGPT atau Gemini. Video tidak diunduh ulang dan klip lama tetap ada.",
+    "repick_api_note": "AI memilih momen baru memakai API key Anda. Klip lama tetap ada.",
+    "repick_what": "Apa yang mau diubah?",
+    "repick_placeholder": "Contoh: cari bagian yang lucu saja, atau bagian tentang cara memulai bisnis",
+    "repick_count": "Jumlah klip",
+    "repick_count_hint": "Kosongkan supaya jumlahnya dipilih otomatis.",
+    "repick_continue": "Lanjut"
   },
   "result": {
     "title_done": "{{count}} klip siap",

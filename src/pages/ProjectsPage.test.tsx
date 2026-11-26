@@ -29,6 +29,7 @@ const makeCtx = (overrides: Record<string, unknown> = {}) =>
     aiMode: "manual",
     handleRerender: vi.fn(),
     handleRerunAI: vi.fn(),
+    handleRerunManual: vi.fn().mockResolvedValue(true),
     handleResumeJob: vi.fn(),
     openAwaiting: vi.fn(),
     openCookies: vi.fn(),
@@ -43,7 +44,7 @@ const doneJob = {
   status: "DONE",
   created_at: "2026-11-20T10:00:00Z",
   result_clips: [{ path: "c1.mp4", description: "a", start: "0", end: "10", subs: true, v: 0 }],
-  metadata: { title: "Podcast Pagi", ai_job: true },
+  metadata: { title: "Podcast Pagi", subtitle_path: "/lib/Podcast Pagi/subtitles/subtitles.words.json" },
 };
 
 const buttonWith = (container: HTMLElement, text: string) =>
@@ -130,11 +131,11 @@ describe("ProjectsPage (spec 4.5)", () => {
     expect(container.textContent).toContain(i18n.t("projects.action_paste_answer"));
     expect(container.textContent).toContain("Video belum bisa diunduh");
 
-    // In cloud (apiKeys=false), "Pilih ulang momen dengan AI" stays hidden in the menu.
+    // SP4: picking moments again works on every platform, without an API key on cloud.
     const menus = [...container.querySelectorAll<HTMLButtonElement>('button[aria-haspopup="menu"]')];
     act(() => menus[0].click());
     expect(container.textContent).toContain(i18n.t("projects.menu_rerender"));
-    expect(container.textContent).not.toContain(i18n.t("projects.menu_ai_rerun"));
+    expect(container.textContent).toContain(i18n.t("projects.menu_repick"));
   });
 
   it("brings awaiting projects back to step 3 when Tempel jawaban AI is clicked", async () => {
@@ -235,27 +236,41 @@ describe("ProjectsPage (spec 4.5)", () => {
     expect(handleResumeJob).toHaveBeenNthCalledWith(2, "without_action", "history");
   });
 
-  it("re-picks moments with an extra instruction where API keys exist", async () => {
+  it("re-picks moments with an API key where the app is in API key mode", async () => {
     setPlatform({ caps: CAPS.desktop } as unknown as Platform);
     const handleRerunAI = vi.fn();
     vi.mocked(axios.get).mockResolvedValueOnce({ data: { status: "success", history: [doneJob] } });
-    await renderPage(makeCtx({ handleRerunAI }));
+    await renderPage(makeCtx({ handleRerunAI, aiMode: "auto", provider: "openai" }));
 
     act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
-    act(() => buttonWith(container, i18n.t("projects.menu_ai_rerun"))[0].click());
+    act(() => buttonWith(container, i18n.t("projects.menu_repick"))[0].click());
 
     const dialog = document.querySelector('[role="dialog"]')!;
-    expect(dialog.textContent).toContain(i18n.t("projects.ai_title"));
+    expect(dialog.textContent).toContain(i18n.t("projects.repick_api_note"));
     const textarea = dialog.querySelector("textarea")!;
     act(() => {
-      const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
-      setValue.call(textarea, "  fokus ke tips bisnis  ");
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "  fokus ke tips bisnis  ");
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    act(() => buttonWith(dialog as HTMLElement, i18n.t("projects.ai_start"))[0].click());
+    act(() => buttonWith(dialog as HTMLElement, i18n.t("projects.repick_continue"))[0].click());
 
-    expect(handleRerunAI).toHaveBeenCalledWith("j1", "fokus ke tips bisnis");
+    expect(handleRerunAI).toHaveBeenCalledWith("j1", "fokus ke tips bisnis", 0);
     expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("re-picks moments without an API key and opens step 3", async () => {
+    const handleRerunManual = vi.fn().mockResolvedValue(true);
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: { status: "success", history: [doneJob] } });
+    await renderPage(makeCtx({ handleRerunManual }));
+
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
+    act(() => buttonWith(container, i18n.t("projects.menu_repick"))[0].click());
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+    expect(dialog.textContent).toContain(i18n.t("projects.repick_manual_note"));
+    await act(async () => buttonWith(dialog, i18n.t("projects.repick_continue"))[0].click());
+
+    expect(handleRerunManual).toHaveBeenCalledWith("j1", "", 0);
+    expect(container.querySelector('[data-testid="where"]')?.textContent).toBe("/");
   });
 
   it("makes all clips again with the project's saved look", async () => {
@@ -325,7 +340,7 @@ describe("ProjectsPage (spec 4.5)", () => {
     await renderPage(makeCtx());
 
     act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
-    act(() => buttonWith(container, i18n.t("projects.menu_ai_rerun"))[0].click());
+    act(() => buttonWith(container, i18n.t("projects.menu_repick"))[0].click());
     let textarea = document.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea')!;
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "cari bagian lucu");

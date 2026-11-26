@@ -43,5 +43,9 @@ export function useErrorActions(options: ErrorActionOptions = {}): ActionHandler
       navigate("/");
     },
     openSettings: () => navigate(`${ROUTES.settings}#${SETTINGS_ANCHORS.advanced}`),
+    newProject: () => {
+      ctx.handleResetWorkspace?.();
+      navigate(ROUTES.create);
+    },
   });
 }

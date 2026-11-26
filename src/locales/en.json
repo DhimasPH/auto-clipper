@@ -220,7 +220,8 @@
     "custom_config_req": "The custom AI address and model name are empty. Add them in Settings, Advanced.",
     "manual_prompt_ready": "The video is ready. Continue at Pick moments.",
     "starting_resume": "Continuing.",
-    "resume_fail": "Could not continue."
+    "resume_fail": "Could not continue.",
+    "repick_fail": "Moments could not be picked again."
   },
   "updater": {
     "title": "App updates",
@@ -610,19 +611,23 @@
     "action_view_progress": "See progress",
     "menu_label": "More for {{title}}",
     "menu_rerender": "Make all clips again",
-    "menu_ai_rerun": "Pick moments again with AI",
     "menu_delete": "Delete",
     "delete_title": "Delete this project?",
     "delete_body": "Every clip from this project will be deleted permanently.",
     "delete_confirm": "Yes, delete",
     "rerender_title": "Make all clips again",
     "rerender_start": "Make clips again",
-    "ai_title": "Pick moments again with AI",
-    "ai_desc": "Write an extra instruction so AI looks for different moments in this video.",
-    "ai_placeholder": "For example: focus only on tips for getting started",
-    "ai_start": "Pick moments again",
     "delete_failed": "The project could not be deleted. A clip file may be open, or the connection to the app was lost. Close any open clip, then try again.",
-    "delete_retry": "Try deleting again"
+    "delete_retry": "Try deleting again",
+    "menu_repick": "Pick moments again",
+    "repick_title": "Pick moments again",
+    "repick_manual_note": "You get a new request to paste into ChatGPT or Gemini. The video is not downloaded again and your old clips stay.",
+    "repick_api_note": "AI picks new moments with your API key. Your old clips stay.",
+    "repick_what": "What should change?",
+    "repick_placeholder": "For example: only the funny parts, or the part about starting a business",
+    "repick_count": "Number of clips",
+    "repick_count_hint": "Leave it empty to let the app choose.",
+    "repick_continue": "Continue"
   },
   "result": {
     "title_done": "{{count}} clips ready",

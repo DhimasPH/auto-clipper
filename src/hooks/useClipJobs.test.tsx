@@ -397,6 +397,52 @@ describe("useClipJobs handleResumeJob (Ruling P2)", () => {
     expect(latest.resultJobId).toBe("hist-run-1");
     expect(latest.clips).toHaveLength(1);
   });
+
+  it("handleRerunManual opens step 3 with the new prompt and answers true", async () => {
+    mockPlatform(CAPS.cloud);
+    const post = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { status: "success", job_id: "new-1", manual_prompt: "perintah baru", title: "Talk (pilihan ulang)" },
+    });
+    await act(async () => root.render(<Probe params={makeParams()} />));
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await latest.handleRerunManual("old-1", "cari bagian lucu", 3);
+    });
+    expect(ok).toBe(true);
+    expect(post).toHaveBeenCalledWith(expect.stringMatching(/\/jobs\/old-1\/rerun-manual$/), { extra_prompt: "cari bagian lucu", max_clips: 3 });
+    expect(latest.awaiting).toEqual({ jobId: "new-1", prompt: "perintah baru", title: "Talk (pilihan ulang)" });
+  });
+
+  it("handleRerunManual keeps the error card for Riwayat and answers false", async () => {
+    mockPlatform(CAPS.cloud);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const info = {
+      code: "RERUN_SOURCE_MISSING", title: "Bahan proyek lama sudah tidak ada", message: "m", title_en: "t", message_en: "m",
+      actions: [{ id: "new_project", label: "Buat proyek baru", label_en: "Start a new project" }], technical: "",
+    };
+    vi.spyOn(axios, "post").mockRejectedValue({ response: { status: 400, data: { status: "error", message: "m", error_info: info } } });
+    await act(async () => root.render(<Probe params={makeParams()} />));
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await latest.handleRerunManual("old-1", "", 0);
+    });
+    expect(ok).toBe(false);
+    expect(latest.errorInfo?.code).toBe("RERUN_SOURCE_MISSING");
+    expect(latest.failedJobId).toBe("old-1");
+    expect(latest.jobOrigin).toBe("history");
+    expect(latest.status).toBe("IDLE");
+    expect(latest.awaiting).toBeNull();
+  });
+
+  it("handleRerunAI sends the clip count chosen in the dialog", async () => {
+    mockPlatform(CAPS.desktop);
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { status: "success", job_id: "j9" } });
+    await act(async () => root.render(<Probe params={makeParams({ maxClips: 7 })} />));
+    await act(async () => latest.handleRerunAI("old-1", "lucu", 2));
+    expect(post).toHaveBeenCalledWith(expect.stringMatching(/\/jobs\/old-1\/rerun_ai$/), expect.objectContaining({ extra_prompt: "lucu", max_clips: 2 }));
+    await act(async () => latest.handleRerunAI("old-1", "lucu"));
+    expect(post).toHaveBeenLastCalledWith(expect.stringMatching(/\/rerun_ai$/), expect.objectContaining({ max_clips: 7 }));
+  });
 });
 
 describe("useClipJobs handleManualGenerate overrides (Task 14 downloader)", () => {

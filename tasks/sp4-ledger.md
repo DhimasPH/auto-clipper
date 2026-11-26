@@ -23,8 +23,8 @@ Selesai 2026-11-26 (sebelum Task 1). Baseline terverifikasi: branch `feat/sp4-wa
 ## Tasks
 - Task 1: **Approved** (`8b1e513..9698960`, reviewer `776001ef`) · Vitest 485/485 (69 file), pytest 1067 passed / 7 skipped, oxlint 0 error, build + build:cloud OK. Minor (non-blocking): `AppFooter` di dalam `<main>` (landmark `contentinfo`), `appInfo.test.ts` bisa pakai `sourceFiles("src")`, `AboutSection` tombol dukung belum eksplisit `type="button"`.
 - Task 2: **Approved** (`9698960..7f2bb4b`, reviewer `15f6b77e`) · Vitest 497/497 (72 file), oxlint 0 error, build + build:cloud OK. Minor (non-blocking): `SplashScreen.test.tsx` belum assert `alt=""`, beberapa cabang waktu tambahan di `useWebSplash.test.tsx` / `splashVisible("tab", true, true)` / reload branch di `App.tsx`, dan `border-accent/30` (mengikuti pola `AuthGate`/`LocalGate`).
-- Task 3: implemented (awaiting review) · BASE `7f2bb4b` · pytest 1089 passed / 7 skipped.
-- Task 4: pending
+- Task 3: **Approved** (`7f2bb4b..e7dd302`, reviewer `c413a64e`) · pytest 1089 passed / 7 skipped. Minor (non-blocking): `_source_can_return` pada baris tanpa `source_video` sama sekali, `_read_transcript` saat JSON bukan dict, `except Exception` lebar di `_title_in_use`, `create_rerun_ai_job` membawa `_DEVICE_FIELDS` lama jika dibatalkan sebelum jalan, `delete_history` menghapus folder proyek lama jika proyek ulang aktif memakai `subtitle_path`-nya (pra-ada di `db.py`), dan cakupan batas `max_clips`/visual override di `test_rerun_manual.py`.
+- Task 4: implemented (awaiting review) · BASE `e7dd302` · Vitest 507/507 (73 file), oxlint 0 error, build + build:cloud OK.
 - Task 5: pending
 - Task 6: pending
 - Task 7: pending

@@ -15,6 +15,8 @@ export interface ErrorActionDeps {
   /** Pick a video from Google Drive (cloud). */
   openDriveBrowser: () => void;
   openSettings: () => void;
+  /** Start over on Buat klip (action new_project, e.g. RERUN_SOURCE_MISSING). */
+  newProject?: () => void;
 }
 
 export function errorActionHandlers(caps: Caps, deps: ErrorActionDeps): ActionHandlers {
@@ -24,6 +26,7 @@ export function errorActionHandlers(caps: Caps, deps: ErrorActionDeps): ActionHa
     upload_video: caps.driveBrowser ? deps.openDriveBrowser : deps.uploadVideo,
     retry: deps.rerun,
     resume: deps.resume,
+    new_project: deps.newProject,
   };
   // open_settings points at the API key; without API keys there is nothing to open.
   if (caps.apiKeys) handlers.open_settings = deps.openSettings;
