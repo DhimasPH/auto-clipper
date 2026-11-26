@@ -77,8 +77,12 @@ jobs:
           architecture: ${{ matrix.python-arch }}
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned below 1.100: from 1.100 std no longer pins WaitOnAddress to
+        # api-ms-win-core-synch, an old windows-sys in the tree binds it to vertdll.dll,
+        # and app.exe crashes on start (v1.19.0). Raise only with the import check green.
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           targets: ${{ matrix.target }}
 
       - name: Rust Cache
@@ -168,6 +172,15 @@ jobs:
 
       - name: Install Node.js dependencies
         run: npm install
+
+      # Check the Windows binary before anything is published: a release that crashes on
+      # start cannot update itself to a fix (v1.19.0). The release build below reuses the cache.
+      - name: Check app.exe imports before release (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          npm run tauri build -- --target ${{ matrix.target }} --config src-tauri/tauri.pr-check.conf.json
+          python -m pip install pefile
+          python scripts/check_windows_imports.py src-tauri/target/${{ matrix.target }}/release/app.exe
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
