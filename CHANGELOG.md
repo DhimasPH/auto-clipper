@@ -2,6 +2,11 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
+## [1.19.2] - 2026-11-26
+
+### Fixed
+- **Installer Windows 1.19.1 tidak terbit.** Build rilis Windows gagal karena paket npm `@tauri-apps/*` lebih lama dari crate Rust Tauri ("Found version mismatched Tauri packages"). Paket npm kini sama dengan crate-nya, dan CI membuat `Cargo.lock` sebelum build sehingga ketidakcocokan langsung gagal di PR Check. Rilis 1.19.1 hanya berisi macOS; 1.19.2 berisi semua platform dengan perbaikan crash Windows dari 1.19.1.
+
 ## [1.19.1] - 2026-11-26
 
 ### Fixed
