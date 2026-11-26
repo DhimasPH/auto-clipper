@@ -2,7 +2,13 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 
-## [1.19.0] - belum dirilis
+## [1.19.1] - 2026-11-26
+
+### Fixed
+- **Aplikasi desktop Windows tertutup sendiri setelah layar pembuka (1.19.0).** `app.exe` versi 1.19.0 dibangun dengan Rust 1.100, yang tidak lagi mengunci impor `WaitOnAddress`/`WakeByAddressAll` ke `api-ms-win-core-synch-l1-2-0.dll`; pustaka `windows-sys` lama di dependensi mengikatnya ke `vertdll.dll` (runtime enclave VBS) sehingga aplikasi crash `0xC0000005` sekitar 2–3 detik setelah dibuka. Build desktop kini memakai Rust 1.99.1, dan CI (PR Check serta build rilis, sebelum rilis dibuat) menolak `app.exe` yang mengimpor dari `vertdll.dll` (`scripts/check_windows_imports.py`).
+- Pengguna 1.19.0 di Windows perlu mengunduh dan memasang 1.19.1 secara manual dari halaman Releases, karena aplikasi 1.19.0 tertutup sebelum sempat memperbarui diri.
+
+## [1.19.0] - 2026-11-26
 
 Rilis SP1 (frontend tunggal dan web lokal), SP2 (tampilan untuk orang awam), SP3 (ringan, komponen tambahan opsional, dan keamanan folder hasil), dan SP4 gelombang 1 (identitas aplikasi, pilih ulang momen tanpa API key, pemberitahuan versi baru Auto Clipper Web). Tanggal diisi saat rilis (plan question 10).
 
