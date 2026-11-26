@@ -129,6 +129,11 @@ jobs:
       - name: Install Node.js dependencies
         run: npm install
 
+      # Tauri compares npm and Rust crate versions only when Cargo.lock exists. It is not tracked,
+      # so without this a single build skips the check and a second build fails (1.19.1 release).
+      - name: Resolve Rust crates (Cargo.lock)
+        run: cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+
       - name: Build Tauri App
         # PR builds are for checking, not releasing: no updater signature, so no signing secret is needed.
         run: npm run tauri build -- --target ${{ matrix.target }} --config src-tauri/tauri.pr-check.conf.json

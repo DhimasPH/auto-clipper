@@ -173,6 +173,11 @@ jobs:
       - name: Install Node.js dependencies
         run: npm install
 
+      # Tauri compares npm and Rust crate versions only when Cargo.lock exists. It is not tracked,
+      # so without this a single build skips the check and a second build fails (1.19.1 release).
+      - name: Resolve Rust crates (Cargo.lock)
+        run: cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+
       # Check the Windows binary before anything is published: a release that crashes on
       # start cannot update itself to a fix (v1.19.0). The release build below reuses the cache.
       - name: Check app.exe imports before release (Windows)
