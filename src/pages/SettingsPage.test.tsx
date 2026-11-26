@@ -159,7 +159,7 @@ describe("SettingsPage (spec 4.5: Umum, YouTube, Lanjutan, Bantuan)", () => {
     const help = section("bantuan");
     for (const step of ["Video", "Siapkan", "Pilih momen", "Klip"]) expect(help.textContent).toContain(step);
     expect(help.textContent).toContain("Apakah Auto Clipper gratis?");
-    expect(help.textContent).toContain("Versi 1.19.1");
+    expect(help.textContent).toContain("Versi 1.19.2");
     expect(help.textContent).toContain("Detail teknis");
   });
 
