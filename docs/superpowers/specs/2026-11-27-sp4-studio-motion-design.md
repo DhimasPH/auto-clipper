@@ -1,6 +1,6 @@
 # Spec SP4 Lanjutan: Auto Clipper Studio, Motion Graphic, Dua Pembicara, Fitur Konten, dan Perawatan
 
-Tanggal: 2026-11-27 · Status: rancangan disetujui pemilik di chat per bagian, menunggu review dokumen tertulis · Induk: `2026-11-12-enhancement-roadmap.md` (bagian 6) · Sebelumnya: `2026-11-25-sp4-wave1-design.md` (gelombang 1, sudah rilis di 1.19.x)
+Tanggal: 2026-11-27 · Status: disetujui pemilik 2026-11-27 · Induk: `2026-11-12-enhancement-roadmap.md` (bagian 6) · Sebelumnya: `2026-11-25-sp4-wave1-design.md` (gelombang 1, sudah rilis di 1.19.x)
 
 Dokumen ini adalah **spec payung**. Setiap gelombang (G0 sampai G5 dan Perawatan) mendapat rencana implementasi dan branch sendiri dari `main`, dikerjakan dan direview seperti gelombang 1 (`tasks/HANDOFF-AI.md` bagian 4). Bila rencana sebuah gelombang bertentangan dengan dokumen ini, dokumen ini yang berlaku sampai diubah atas persetujuan pemilik.
 
@@ -46,7 +46,8 @@ Non-sasaran (daftar "nanti"):
 | Kandidat SP4 lain | Terjemahan subtitle, Hapus jeda & kata pengisi, Antrean batch + preset ekspor. Auto-post ditunda. |
 | Mesin motion graphic | **C. Bertingkat**: ASS + FFmpeg bawaan, Remotion sebagai komponen tambahan opsional setelah spike. |
 | Dua pembicara | Empat perilaku, dipilih pengguna per klip; bawaan otomatis dari jumlah wajah. |
-| Detektor untuk dua pembicara | YuNet (OpenCV, MIT), bukan YOLO (AGPL-3.0 dan butuh PyTorch/onnxruntime). Rekomendasi AI, menunggu konfirmasi pemilik di review spec. |
+| Detektor untuk dua pembicara | YuNet (OpenCV, MIT), bukan YOLO (AGPL-3.0 dan butuh PyTorch/onnxruntime). Disetujui pemilik. |
+| Lisensi Remotion | Pemilik menilai aman: proyek dimiliki perorangan sehingga masuk Free License (dasar kelayakannya jumlah orang, bukan status open source; Remotion sendiri source-available, bukan open source). Email konfirmasi ke Remotion dianjurkan, bukan syarat. |
 
 ## 4. Susunan gelombang
 
@@ -360,7 +361,7 @@ Deteksi tidak yakin atau wajah hilang di tengah shot: shot itu memakai `track` d
 
 - Free License berlaku untuk perorangan dan organisasi maksimal 3 orang, termasuk pemakaian komersial. Pengguna yang hanya menerima video hasil render tidak perlu lisensi.
 - Distribusi di aplikasi desktop diizinkan bila ada lapisan perantara sehingga pengguna akhir tidak bisa mengedit atau mengunggah kode Remotion.
-- Teks lisensi tidak membahas secara tegas pengembang perorangan yang bekerja di perusahaan lain. **Pemilik mengonfirmasi ke hi@remotion.dev sebelum G5 dirilis.**
+- Teks lisensi tidak membahas secara tegas pengembang perorangan yang bekerja di perusahaan lain. Pemilik menilai proyek ini miliknya pribadi sehingga masuk Free License (keputusan 2026-11-27). Konfirmasi ke hi@remotion.dev dianjurkan; bila struktur kepemilikan berubah (lebih dari 3 orang atau dimiliki badan usaha), lisensi dinilai ulang sebelum rilis.
 - Render butuh Node.js + Chrome Headless Shell (diunduh terpisah). Platform: Windows x64, macOS x64/arm64, Linux x64/arm64 dengan glibc ≥ 2.35.
 - Video transparan didukung: VP8/VP9 `yuva420p` atau ProRes 4444.
 - `@remotion/player` untuk pratinjau; pratinjau tidak dihitung sebagai render.
@@ -371,8 +372,7 @@ Ukur tiga template (teks hook, lower third, intro) di 1080×1920 30 fps pada Win
 
 - overlay 3 detik selesai ≤ 15 detik di Colab,
 - ukuran add-on (Node portabel + Chrome Headless Shell + bundel komposisi) ≤ 250 MB,
-- glibc Colab ≥ 2.35,
-- konfirmasi lisensi dari Remotion.
+- glibc Colab ≥ 2.35.
 
 Tidak lolos: G5 dibatalkan, dicatat di ledger, semua template tetap native.
 
@@ -457,7 +457,7 @@ README (fitur baru), `docs/panduan-penggunaan-awam.md` (Studio, efek, brand, dua
 | Pratinjau Studio tidak sama dengan hasil | JASSUB + font registri + tes silang ASS; tombol **Lihat hasil 5 detik** |
 | Studio berat di HP murah | Pratinjau memakai video sumber (bukan render), JASSUB lazy, timeline ringkas; diukur di cek browser 360 px |
 | Deteksi pembicara mode Cepat (YuNet + gerak mulut) kurang akurat | Shot bisa dikoreksi satu ketukan di Studio; Teliti dianjurkan untuk podcast |
-| Lisensi Remotion untuk pemilik | Konfirmasi email sebelum G5 dirilis |
+| Lisensi Remotion untuk pemilik | Masuk Free License selama proyek milik perorangan; dinilai ulang bila kepemilikan berubah |
 | Lisensi dan ukuran JASSUB | Dicek di rencana G3; ada cadangan tiruan CSS |
 | Batas durasi platform berubah | Satu tabel konfigurasi, dicek saat rencana G4 |
 | Perintah AI manual makin panjang | Kolom efek opsional dan ringkas; uji panjang perintah di tes |
