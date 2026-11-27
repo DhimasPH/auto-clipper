@@ -76,7 +76,7 @@ Aturan: satu gelombang aktif pada satu waktu, kecuali butir Perawatan. G4 boleh 
 - Pratinjau di browser memakai `style={{ fontFamily }}` sehingga bergantung pada font yang terpasang di perangkat penonton.
 - Anton, Poppins, dan Permanent Marker dibawa tetapi tidak pernah ditawarkan.
 
-Langkah pertama di rencana G0: buktikan dugaan ini dengan render kecil di Linux (CI atau Colab) memakai `Arial` dan baca log libass (`fontselect`). Bila terbukti, perbaikan di bawah berlaku. Bila tidak, catat temuannya sebagai Ruling dan selidiki ulang dengan skill debugging sebelum mengubah apa pun.
+Probe 2026-11-27 (FFmpeg `ffmpeg-static`, Windows, `-loglevel verbose`) membuktikan sebagian: `fontselect: (Montserrat, 700, 0) -> Montserrat-Regular` (bold tiruan) dan nama tak dikenal jatuh ke `Arial-BoldMT` tanpa peringatan. Penggantian Arial di Linux dibuktikan oleh uji render G0 yang berjalan di CI Linux. Rencana: `docs/superpowers/plans/2026-11-27-sp4-g0-fonts.md`.
 
 ### 5.2 Rancangan
 
@@ -84,8 +84,8 @@ Langkah pertama di rencana G0: buktikan dugaan ini dengan render kecil di Linux 
 - **Padanan bebas lisensi** (OFL/Apache, file lisensi ikut disimpan di `backend/fonts/licenses/`): `Arial → Arimo`, `Courier New → Cousine` (metrik identik), `Impact → Anton`. Nama lama ditulis di `aliases`.
 - **Bold**: setiap keluarga yang ditawarkan punya file Bold. Keluarga yang memang tidak punya Bold (Anton, Bebas Neue, Permanent Marker) ditandai `bold: null`, dan UI menyembunyikan pilihan tebal untuknya.
 - **Backend**: `resolve_font_family(name)` memetakan alias lama ke nama registri, dipanggil di semua generator ASS (`crop_utils.py`). Pengaturan lama di `history.db` tidak diubah; pemetaan terjadi saat render, jadi render ulang riwayat langsung benar.
-- **Frontend**: Vite mengimpor `backend/fonts/fonts.json` saat build, dan skrip build menyalin file font ke `public/fonts/` dari folder yang sama (berlaku untuk `build` dan `build:cloud`). `src/lib/fonts.ts` membuat aturan `@font-face`. Pilihan font di UI dan pratinjau hanya dari registri.
-- **PyInstaller**: `backend.spec` menyertakan `fonts.json` dan folder `licenses/`.
+- **Frontend**: `src/lib/fonts.ts` mengimpor `backend/fonts/fonts.json` dan file `.ttf` lewat `import.meta.glob` saat build (berlaku untuk `build` dan `build:cloud`, tanpa salinan), lalu membuat aturan `@font-face` dengan nama `"AC <keluarga>"` supaya pratinjau tidak pernah memakai font sistem. Pilihan font di UI dan pratinjau hanya dari registri.
+- **PyInstaller**: `backend.spec` membundel seluruh `backend/fonts` (file font, `fonts.json`, `licenses/`). Temuan 2026-11-27: folder ini **belum pernah** dibundel, jadi di desktop dan Auto Clipper Web font bawaan aplikasi juga jatuh ke font sistem.
 
 ### 5.3 Uji
 
@@ -251,7 +251,7 @@ Perintah AI (`generate_manual_prompt` dan jalur API key) ditambah kolom **opsion
 ### 8.2 Detektor wajah: YuNet, bukan YOLO
 
 - Mode dua pembicara memakai **YuNet** (`cv2.FaceDetectorYN`, sudah ada di `opencv-python-headless`; model ONNX sekitar 230 KB dari OpenCV Zoo, lisensi MIT). YuNet lebih andal dari Haar untuk wajah miring dan memberi 5 titik wajah, termasuk dua sudut mulut. File model dikunci SHA-256, disertakan di `backend.spec` seperti `haarcascade_frontalface_default.xml` (G.6), dan dimuat lewat `_lazy` (E.21).
-- **YOLO ditolak** (pertanyaan pemilik 2026-11-27): YOLO Ultralytics berlisensi AGPL-3.0 yang tidak cocok dengan repo MIT tanpa lisensi enterprise, dan butuh PyTorch atau onnxruntime yang membatalkan hasil SP3. Kebutuhan kita hanya wajah, bukan seluruh tubuh.
+- **YOLO ditolak** (pertanyaan pemilik 2026-11-27): YOLO Ultralytics berlisensi AGPL-3.0 yang tidak cocok dengan repo MIT tanpa lisensi enterprise. Model YOLO wajah dalam format ONNX sebenarnya bisa jalan di onnxruntime yang sudah dibundel untuk faster-whisper, jadi alasannya lisensi, bukan ukuran. Kebutuhan kita hanya wajah, dan YuNet sudah ada di OpenCV.
 - Haar tetap dipakai untuk mode `track` biasa sampai G2 mengukur apakah YuNet layak menggantikannya di semua mode (waktu per sampel dibandingkan lewat `scripts/benchmark_pipeline.py`).
 - Lisensi model YuNet dicek ulang ke OpenCV Zoo saat rencana G2 ditulis.
 
